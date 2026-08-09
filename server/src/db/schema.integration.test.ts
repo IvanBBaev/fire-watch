@@ -88,7 +88,14 @@ describe.skipIf(!hasDocker)('migration 001 — initial schema', () => {
     expect(afterFirstUp).toContain('detections');
     expect(afterFirstUp).toContain('fire_events');
 
-    await dbmate('down');
+    // `dbmate down` rolls back exactly one migration per invocation, so walk back once
+    // per applied migration — anything less leaves the earlier migrations' tables behind.
+    const { rows } = await db.query<{ n: string }>(
+      'SELECT count(*)::text AS n FROM schema_migrations',
+    );
+    const appliedCount = Number(rows[0]?.n ?? '0');
+    expect(appliedCount).toBeGreaterThan(0);
+    for (let i = 0; i < appliedCount; i += 1) await dbmate('down');
     expect(await tableNames()).toEqual([]);
 
     await dbmate('up');

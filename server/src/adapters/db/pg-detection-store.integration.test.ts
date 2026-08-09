@@ -158,7 +158,9 @@ describe.skipIf(!hasDocker)('the ingest write path', () => {
   });
 
   beforeEach(async () => {
-    await db.query('TRUNCATE detections, source_status');
+    // event_detections holds a foreign key into detections, and Postgres refuses to
+    // truncate a referenced table unless the referencing one is in the same statement.
+    await db.query('TRUNCATE detections, event_detections, source_status');
   });
 
   describe('appendDetections', () => {

@@ -234,17 +234,20 @@ describe('every decode', () => {
     // The whole point, stated once: no granule produces a thrown error, because a thrown
     // error is one missing catch away from a crash loop against a file the provider will
     // keep serving for the rest of the season.
-    const scripts = [
-      `process.kill(process.pid, 'SIGKILL')`,
-      `process.abort()`,
-      `process.exit(3)`,
-      `process.stdout.write('ok')`,
-      `setInterval(() => {}, 1000)`,
+    // Only the deliberate hang gets a tight timeout. The other four finish on their own,
+    // and on a loaded CI runner node's startup alone can eat hundreds of milliseconds —
+    // a short uniform budget would convert a genuine crash into `timed_out`.
+    const scripts: readonly [script: string, timeoutMs: number][] = [
+      [`process.kill(process.pid, 'SIGKILL')`, 5_000],
+      [`process.abort()`, 5_000],
+      [`process.exit(3)`, 5_000],
+      [`process.stdout.write('ok')`, 5_000],
+      [`setInterval(() => {}, 1000)`, 400],
     ];
 
     const outcomes = await Promise.all(
-      scripts.map((script) =>
-        decoderRunning(script, { timeoutMs: 400, killGraceMs: 100 }).decode(REF, BYTES),
+      scripts.map(([script, timeoutMs]) =>
+        decoderRunning(script, { timeoutMs, killGraceMs: 100 }).decode(REF, BYTES),
       ),
     );
 
