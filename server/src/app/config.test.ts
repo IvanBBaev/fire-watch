@@ -170,8 +170,49 @@ describe('loadConfig', () => {
       expect((thrown as Error).message).not.toContain('0000-secret');
     }
     expect(() => loadConfig(env({ FIRE_WATCH_HEARTBEAT_URL: 'not-a-url' }))).toThrow(
-      /absolute https URL/,
+      /absolute URL/,
     );
+  });
+
+  it('refuses a heartbeat URL the worker could not actually ping', () => {
+    // The gate is the adapter's own (`assertPingBaseUrl`), not a copy: a weaker copy here
+    // once accepted a bare origin — an operator who pasted the host and forgot the ping
+    // key — which booted cleanly and only died inside the worker, as a RangeError with no
+    // variable name and exit 1 instead of a ConfigError naming what to fix and exit 2.
+    expect(() => loadConfig(env({ FIRE_WATCH_HEARTBEAT_URL: 'https://hc.example' }))).toThrow(
+      ConfigError,
+    );
+    expect(() => loadConfig(env({ FIRE_WATCH_HEARTBEAT_URL: 'https://hc.example///' }))).toThrow(
+      /FIRE_WATCH_HEARTBEAT_URL/,
+    );
+    // A query string would survive into the slug URL and corrupt it (`…?next=1/ingest-cycle`).
+    expect(() =>
+      loadConfig(env({ FIRE_WATCH_HEARTBEAT_URL: 'https://hc.example/key?next=1' })),
+    ).toThrow(ConfigError);
+  });
+
+  it('keeps the rejected heartbeat value out of the message, whatever shape it failed on', () => {
+    // Every branch of the shared gate is shape-only; the value — host included — is the
+    // credential, and a boot-failure line is exactly the line that ends up in a ticket.
+    for (const url of ['https://hc.example', 'https://hc.example/key?next=1']) {
+      try {
+        loadConfig(env({ FIRE_WATCH_HEARTBEAT_URL: url }));
+        expect.unreachable('a rejected heartbeat URL must throw');
+      } catch (thrown: unknown) {
+        expect(thrown).toBeInstanceOf(ConfigError);
+        expect((thrown as Error).message).toContain('FIRE_WATCH_HEARTBEAT_URL');
+        expect((thrown as Error).message).not.toContain('hc.example');
+      }
+    }
+  });
+
+  it('normalizes a trailing slash off the heartbeat URL, as the adapter does', () => {
+    // The adapter appends `/<job>` to this value; without the strip, a slash-terminated
+    // secret would ping `…//job`, and the redaction that matches the exact base string
+    // would miss the form fetch actually quoted in its errors.
+    expect(
+      loadConfig(env({ FIRE_WATCH_HEARTBEAT_URL: 'https://hc.example/key/' })).heartbeatPingBaseUrl,
+    ).toBe('https://hc.example/key');
   });
 });
 

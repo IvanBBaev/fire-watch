@@ -13,6 +13,7 @@
  */
 
 import { FIRMS_BASE_URL } from '../adapters/firms/firms-http-client.js';
+import { assertPingBaseUrl } from '../adapters/monitoring/healthchecks-heartbeat.js';
 
 export type Environment = Readonly<Record<string, string | undefined>>;
 
@@ -53,8 +54,10 @@ export interface ServerConfig {
    */
   readonly apiClientIpHeader: string | undefined;
   /**
-   * The healthchecks.io ping base URL, or `null` when this deployment has no dead-man's
-   * switch (a developer box). A **secret** — never logged, only passed (OPERATIONS §3).
+   * The healthchecks.io ping base URL — validated and normalized (trailing slashes
+   * stripped) by the heartbeat adapter's own gate, so a value that boots is exactly a
+   * value the adapter can use — or `null` when this deployment has no dead-man's switch
+   * (a developer box). A **secret** — never logged, only passed (OPERATIONS §3).
    */
   readonly heartbeatPingBaseUrl: string | null;
 }
@@ -148,21 +151,25 @@ function readPort(raw: string | undefined): number {
 
 /**
  * Absent is a valid answer — a developer box has no dead-man's switch, and inventing one
- * would page a stranger. Present and malformed is not: the value is never echoed back,
- * because it is the secret itself.
+ * would page a stranger. Present goes through the *adapter's* own gate
+ * ({@link assertPingBaseUrl}), not a local copy of it: a weaker copy here once accepted a
+ * bare origin — an operator who pasted the host and forgot the ping key — which booted
+ * cleanly and only died inside the worker, as a RangeError with no variable name and the
+ * generic exit code instead of a ConfigError naming what to fix. Whatever the gate
+ * refuses is re-thrown under the variable's name; its messages describe only the shape of
+ * the problem, never the value, because the value is the secret itself.
  */
 function readHeartbeatUrl(raw: string | undefined): string | null {
   if (raw === undefined || raw === '') return null;
-  let url: URL;
   try {
-    url = new URL(raw);
-  } catch {
-    throw new ConfigError('FIRE_WATCH_HEARTBEAT_URL must be an absolute https URL');
+    // Returned normalized (trailing slashes stripped), so config and adapter agree on the
+    // exact string — the adapter's log redaction matches on it verbatim.
+    return assertPingBaseUrl(raw);
+  } catch (error: unknown) {
+    throw new ConfigError(
+      `FIRE_WATCH_HEARTBEAT_URL: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
-  if (url.protocol !== 'https:') {
-    throw new ConfigError('FIRE_WATCH_HEARTBEAT_URL must be https');
-  }
-  return raw;
 }
 
 /**

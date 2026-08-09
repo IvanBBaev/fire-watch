@@ -63,7 +63,7 @@ export function wireHealthServer(config: ServerConfig): HealthWiring {
     probe: createPgDatabaseProbe(pool),
     clock: systemClock,
     expected: expectedRows(),
-    clientIpHeader: config.apiClientIpHeader,
+    ...(config.apiClientIpHeader !== undefined ? { clientIpHeader: config.apiClientIpHeader } : {}),
   });
 
   return {
@@ -84,9 +84,10 @@ export function wireHealthServer(config: ServerConfig): HealthWiring {
 
 /**
  * What this deployment is answerable for. The unregistered feeds and the scheduled jobs are
- * absent because nothing writes them yet (TASKS C3, C6, B9); adding them here before the
- * job exists would make every deployment permanently `warn` on rows nobody runs, which is
- * how a warn state stops meaning anything.
+ * absent because nothing writes them yet (TASKS: C3 for the cloud mask, C4 for the EFFIS
+ * and weather feeds and the EFFIS refresh job, C6 for the backup jobs, E3 for the snapshot
+ * push); adding them here before the job exists would make every deployment permanently
+ * `warn` on rows nobody runs, which is how a warn state stops meaning anything.
  */
 export function expectedRows(): readonly FreshnessRowId[] {
   // The filter is not defensive padding: `liveFirmsSources` speaks the registry's language,

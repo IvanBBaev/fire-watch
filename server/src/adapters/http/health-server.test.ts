@@ -245,16 +245,20 @@ describe('the routes that are deliberately absent', () => {
     expect(response.headers['cdn-cache-control']).toBe('no-store');
   });
 
-  it('keeps them even for a URL so malformed it skips the hook pipeline', async () => {
-    // Fastify's onBadUrl path invokes the not-found handler directly, without the
-    // onRequest hooks — the headers exist on this response only because the handler
-    // sets them itself.
+  it('refuses a URL too malformed to route, without quoting it back', async () => {
+    // A broken percent-escape never reaches the router: Fastify answers it from its
+    // onBadUrl path, which skips the hooks, the not-found handler and the error handler
+    // alike — and whose built-in reply quotes the offending URL back at the sender. The
+    // `frameworkErrors` handler owns that path, so the answer keeps this file's rules:
+    // fixed vocabulary, no-store set by hand because no hook ran to set it.
     const response = await server().inject({ method: 'GET', url: '/%c0' });
 
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ status: 'not_found' });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ status: 'bad_request' });
     expect(response.headers['cache-control']).toBe('no-store, max-age=0');
+    expect(response.headers['cdn-cache-control']).toBe('no-store');
     expect(response.headers['cloudflare-cdn-cache-control']).toBe('no-store');
+    expect(response.payload).not.toContain('%c0');
   });
 
   it('reports an oversized body as the client fault it is, never a 500', async () => {
@@ -398,30 +402,40 @@ describe('the in-flight cap', () => {
     const entered = new Promise<void>((resolve) => {
       allEntered = resolve;
     });
+    // Defers only while the burst is being staged. The post-drain request at the bottom
+    // must answer immediately: left deferring, it would park on a promise nobody is left
+    // to release, and the test would hang on its own scaffolding rather than exercise
+    // the cap.
+    let deferring = true;
     const stuckReader: FreshnessReader = {
-      readObservations: () =>
-        new Promise((resolve) => {
+      readObservations: () => {
+        if (!deferring) return Promise.resolve(fresh());
+        return new Promise((resolve) => {
           releases.push(() => {
             resolve(fresh());
           });
           if (releases.length === 8) allEntered?.();
-        }),
+        });
+      },
     };
     const app = server({ reader: stuckReader });
 
+    // `inject` without a callback returns light-my-request's lazy chain — a thenable
+    // that dispatches when something subscribes (or on its own next-tick autostart).
+    // `Promise.resolve` subscribes now, so the eight requests are in flight by explicit
+    // choice rather than by a library default, held as plain promises for later.
     const stuck = Array.from({ length: 8 }, () =>
-      app.inject({ method: 'GET', url: '/api/health/freshness' }),
+      Promise.resolve(app.inject({ method: 'GET', url: '/api/health/freshness' })),
     );
-    console.log('injects fired');
-    setTimeout(() => {
-      console.log('after 2s, releases.length =', releases.length);
-    }, 2000);
+    // Resolves only once all eight handlers hold the counter: the ninth request below is
+    // fired against a server that is provably full, not racing to become full.
     await entered;
-    console.log('entered resolved');
 
     const ninth = await app.inject({ method: 'GET', url: '/api/health/freshness' });
     expect(ninth.statusCode).toBe(503);
     expect(ninth.json()).toEqual({ status: 'unavailable' });
+    // Shed from memory: the ninth never reached the reader at all.
+    expect(releases).toHaveLength(8);
 
     for (const release of releases) release();
     const answered = await Promise.all(stuck);
@@ -430,6 +444,7 @@ describe('the in-flight cap', () => {
     );
 
     // The cap is a counter, not a state: once the burst drains, the next caller is served.
+    deferring = false;
     const after = await app.inject({ method: 'GET', url: '/api/health/freshness' });
     expect(after.statusCode).toBe(200);
   });

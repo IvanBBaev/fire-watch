@@ -75,8 +75,12 @@ export interface HealthServerDeps {
    * Safe only because the deployment's firewall lets nothing but that edge reach the port.
    * Fastify's `trustProxy` is deliberately not used at all: boolean `true` trusts every
    * hop, which makes `request.ip` the leftmost — client-written — `X-Forwarded-For` entry.
+   *
+   * `| undefined` on top of `?` so that config, whose value is genuinely optional, can be
+   * passed straight through under `exactOptionalPropertyTypes` — an explicit `undefined`
+   * means the same thing as an absent key here: no edge, key on the socket.
    */
-  readonly clientIpHeader?: string;
+  readonly clientIpHeader?: string | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -92,6 +96,19 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       // request that only ever arrives from a scanner. (Top-level `maxParamLength` is
       // deprecated in Fastify 5 and goes away in 6.)
       maxParamLength: 64,
+    },
+    // Three failures never reach the router, so no hook and no handler below ever sees
+    // them: a URL with a broken percent-escape (`FST_ERR_BAD_URL`, 400), a parameter past
+    // `maxParamLength` (`FST_ERR_MAX_PARAM_LENGTH`, 414 — unreachable today, no route has
+    // parameters) and a failing async route constraint (`FST_ERR_ASYNC_CONSTRAINT`, 500 —
+    // unreachable, no route has constraints). Fastify's built-in replies for the first two
+    // quote the offending path back at the sender, which is an information leak by this
+    // file's own rules. This handler owns that path instead: no-store set by hand, because
+    // the onRequest hook does not run here, and the same fixed vocabulary as every other
+    // refusal — never the path, never the message.
+    frameworkErrors: (error, _request, reply) => {
+      noStore(reply);
+      void sendOpaque(error, reply);
     },
   });
 
@@ -129,25 +146,21 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
   // Fastify's default 404 and error bodies quote the path and the message. Both are
   // replaced: a scanner learns nothing from ours, and neither does a stack trace.
   app.setNotFoundHandler((_request, reply) => {
-    // A malformed URL (bad percent-escape, oversized param) lands here *directly* —
-    // Fastify's onBadUrl/onMaxParamLength path skips the onRequest hooks — so the no-store
-    // headers have to be set again; setting them twice on an ordinary 404 is harmless.
-    // The limiter is deliberately not consulted here: an ordinary 404 already paid it in
-    // the hook and would be double-counted, and a malformed-URL request touches no
-    // database and is bounded by Node's own header limits.
+    // Only URLs the router could parse get this far — the truly malformed ones were
+    // answered by `frameworkErrors` above and reach no handler at all. An ordinary 404
+    // has been through the onRequest hook, so no-store is already set; it is set again
+    // because this file's promise is that every terminal reply states it itself, not
+    // that some earlier stage probably did. The limiter is deliberately not consulted
+    // here: the hook already charged this request, and a second charge would make a 404
+    // cost double what a 200 does.
     noStore(reply);
     return reply.code(404).send({ status: 'not_found' });
   });
   app.setErrorHandler((error, _request, reply) => {
     // A client fault — an oversized body, an unparseable content type — must not read as
-    // a server failure to a 5xx-alerting monitor. Fastify marks those with a 4xx
-    // `statusCode`; everything else stays an opaque 500. Neither branch echoes the
-    // message or the path.
-    const statusCode = error.statusCode;
-    if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
-      return reply.code(statusCode).send({ status: 'bad_request' });
-    }
-    return reply.code(500).send({ status: 'error' });
+    // a server failure to a 5xx-alerting monitor. The mapping lives in `sendOpaque`,
+    // shared with `frameworkErrors` so the two refusal paths cannot drift apart.
+    return sendOpaque(error, reply);
   });
 
   /**
@@ -174,7 +187,6 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
   });
 
   app.get('/api/health/freshness', async (_request, reply) => {
-    console.log('freshness handler, dbInFlight =', dbInFlight);
     if (dbInFlight >= MAX_DB_IN_FLIGHT) {
       return reply.code(503).send({ status: 'unavailable' });
     }
@@ -216,6 +228,29 @@ function noStore(reply: FastifyReply): void {
   reply.header('cdn-cache-control', 'no-store');
   reply.header('cloudflare-cdn-cache-control', 'no-store');
   reply.header('pragma', 'no-cache');
+}
+
+/**
+ * The one refusal shape for anything that is not a routed answer. A client fault keeps its
+ * own 4xx status — a 5xx-alerting monitor must not page for something a caller did — and
+ * everything else collapses to an opaque 500. Neither branch echoes the path or the
+ * message: the body is a fixed vocabulary, whoever produced the error. Used by both the
+ * error handler and `frameworkErrors`, so a refusal looks the same whichever stage of
+ * Fastify produced it.
+ *
+ * Takes `unknown`, matching what Fastify 5 hands the error handler: anything a route or a
+ * parser threw, which need not be an Error at all. The status code is read structurally
+ * for the same reason.
+ */
+function sendOpaque(error: unknown, reply: FastifyReply): FastifyReply {
+  const statusCode =
+    typeof error === 'object' && error !== null && 'statusCode' in error
+      ? (error as { statusCode?: unknown }).statusCode
+      : undefined;
+  if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
+    return reply.code(statusCode).send({ status: 'bad_request' });
+  }
+  return reply.code(500).send({ status: 'error' });
 }
 
 /**
