@@ -11,13 +11,14 @@
  *
  * ## What may be monitored, and why it is not just the source registry
  *
- * OPERATIONS §1.2 says its rows carry "the canonical strings from the frozen source-id
- * registry" and add no new identifiers. That holds for the four detection rows and is
- * enforced below — but three of its rows (cloud mask, EFFIS, weather) are feeds GLOSSARY
- * §1a explicitly leaves **unregistered**, because they produce no detections and therefore
- * no `detection_uid`. They still have to be named to be paged on. So this file defines a
- * strictly wider *monitoring* namespace: every registered source that is polled keeps its
- * frozen id verbatim, and the three unregistered feeds get ids that live only here.
+ * OPERATIONS §1.2 draws the line this file enforces: detection-source rows reuse "the
+ * canonical strings from the frozen source-id registry" verbatim, and the remaining rows
+ * are identifiers the budget table mints itself. Three of those (cloud mask, EFFIS,
+ * weather) are feeds GLOSSARY §1a explicitly leaves **unregistered**, because they produce
+ * no detections and therefore no `detection_uid`. They still have to be named to be paged
+ * on. So this file defines a strictly wider *monitoring* namespace: every registered
+ * source that is polled keeps its frozen id verbatim, and the three unregistered feeds get
+ * ids that live only here.
  *
  * A monitoring id is **not** a uid input and can never become one: it names something we
  * fetch, not something we observed. That is what makes adding one a normal change here

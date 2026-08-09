@@ -18,13 +18,16 @@ must stay consistent with it.
 
 ## Status
 
-**Pre-code.** The design phase is complete (July 2026): founding analysis, twelve
-role reviews, five accepted ADRs, a verified data-source catalog, and the
-consolidated gates/risks/plan documents below. No application code exists yet.
+**In implementation** (since August 2026). The design phase closed in July 2026:
+founding analysis, twelve role reviews, five accepted ADRs, a verified data-source
+catalog, and the consolidated gates/risks/plan documents below.
 
-Implementation starts **August 2026** with the shadow ingestion pipeline (the single
-highest priority — see [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md)).
-Public launch target: **May 2027**, pre-season. **Season 1 (2027) is fully free.**
+Current focus is WP0–WP1 (task-level breakdown in [`docs/TASKS.md`](docs/TASKS.md)):
+the monorepo, CI and supply-chain hardening are in place, and the shadow ingestion
+pipeline — the single highest priority — is under way: CSV validation and quarantine,
+freshness budgets and the health/status API are implemented; live shadow recording
+starts once the VM and the FIRMS credentials are provisioned. Public launch target:
+**May 2027**, pre-season. **Season 1 (2027) is fully free.**
 
 ## Core invariants
 
@@ -57,6 +60,8 @@ Rules that outrank any feature. Enforcement details in
 | [`docs/GATES.md`](docs/GATES.md) | Every gate in one place: CI invariants, launch/season gates, business checkpoints CP1–CP3 |
 | [`docs/RISKS.md`](docs/RISKS.md) | Consolidated risk register: business R1–R10 + engineering/data watchlist |
 | [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md) | Work packages WP0–WP9, calendar, definitions of done |
+| [`docs/TASKS.md`](docs/TASKS.md) | The plan broken into dispatchable tasks: dispatch waves, per-task specs, done-when criteria |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Operations contract (ops ADR-006): freshness budgets, monitoring legs, backups, provisioning |
 | [`docs/EXTERNAL-ACCOUNTS.md`](docs/EXTERNAL-ACCOUNTS.md) | Every external registration/key needed, with lead times and costs |
 
 Suggested reading order for a newcomer: this file → `ANALYSIS.md` →
@@ -88,6 +93,23 @@ secret. Values reach the process from the VM env file (`OPERATIONS.md` §8).
 | `FIRMS_BASE_URL` | no | the NASA Area API | Point a drill or smoke test at a stub |
 | `FIRE_WATCH_DB_ROLE` | no | `fire_watch_app` | Assumed in the connection startup packet |
 | `FIRE_WATCH_POLL_INTERVAL_MS` | no | `600000` | Bounded to 1 min … 1 h |
+| `FIRE_WATCH_HEARTBEAT_URL` | no | — | healthchecks.io ping base for the dead-man's switch. The whole value is a secret and is never logged or echoed; absent on a developer box, where no check should page |
 
 Exit codes: `0` clean, `1` nothing recorded (CLI) or the wiring itself failed, `2`
 misconfiguration — every missing variable is named at once.
+
+## Running the health API
+
+`pnpm -F @fire-watch/server api` serves the probe surface — `/healthz`, `/readyz` and
+`/api/health/freshness` (`docs/OPERATIONS.md` §2) — from its own entrypoint and its own
+two-connection pool, so a wedged ingest cycle and a wedged probe cannot take each other
+down. It binds to loopback by default: the only intended path to it in production is
+Cloudflare → local proxy → this process.
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `DATABASE_URL` | yes | — | Same variable as the worker and dbmate |
+| `FIRE_WATCH_API_PORT` | no | `8080` | 1024–65535 — a privileged port would mean running as root for the sake of a number |
+| `FIRE_WATCH_API_HOST` | no | `127.0.0.1` | Loopback unless the deployment model says otherwise |
+| `FIRE_WATCH_CLIENT_IP_HEADER` | no | unset | Name of the header the edge **overwrites** with the real client IP (for Cloudflare: `cf-connecting-ip`); the rate limiter keys on it, falling back to the socket address. `x-forwarded-for` is refused by name — proxies append to it rather than overwrite it, so keying on it would hand the rate-limit key to the caller |
+| `FIRE_WATCH_DB_ROLE` | no | `fire_watch_app` | As for the worker |
