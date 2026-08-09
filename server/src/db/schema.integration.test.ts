@@ -1,5 +1,5 @@
 /**
- * Migration 001 against a real PostGIS, because every claim this schema makes is a
+ * The migrations against a real PostGIS, because every claim this schema makes is a
  * claim about Postgres behaviour and none of it is checkable by reading the SQL.
  *
  * The suite is skipped when there is no Docker daemon, which is the normal state of a
@@ -44,7 +44,7 @@ if (!hasDocker && process.env['FIRE_WATCH_REQUIRE_DOCKER'] === '1') {
   );
 }
 
-describe.skipIf(!hasDocker)('migration 001 — initial schema', () => {
+describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
   let container: StartedPostgreSqlContainer;
   let databaseUrl: string;
   let db: Client;
@@ -118,6 +118,8 @@ describe.skipIf(!hasDocker)('migration 001 — initial schema', () => {
       'detections',
       'event_detections',
       'fire_events',
+      'ingest_batches',
+      'ingest_quarantine',
       'source_status',
       'sources',
       'table_backup_class',
@@ -199,9 +201,12 @@ describe.skipIf(!hasDocker)('migration 001 — initial schema', () => {
       // exists only in tile and URL space (review 03).
       expect(rows[0]?.srid).toBe(4326);
 
+      // Postgres reports the rejection as "cannot insert a non-DEFAULT value into
+      // column" — the word "generated" appears only in the error detail, which
+      // node-postgres does not fold into the message.
       await expect(
         db.query(`INSERT INTO detections (geom) VALUES (ST_SetSRID(ST_MakePoint(0, 0), 4326))`),
-      ).rejects.toThrow(/generated/i);
+      ).rejects.toThrow(/non-DEFAULT/);
     });
   });
 
@@ -353,8 +358,10 @@ describe.skipIf(!hasDocker)('migration 001 — initial schema', () => {
 
   describe('alert pipeline (ADR-004)', () => {
     it('enforces one decision per zone, event, type and subkey', async () => {
+      // `attname::text` because node-postgres has no parser for name[] and would hand
+      // the aggregate back as one unparsed '{…}' string instead of an array.
       const { rows } = await db.query<{ columns: string[] }>(
-        `SELECT array_agg(a.attname ORDER BY a.attname) AS columns
+        `SELECT array_agg(a.attname::text ORDER BY a.attname) AS columns
            FROM pg_constraint c
            JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
           WHERE c.conrelid = 'alert_outbox'::regclass AND c.contype = 'u'
@@ -380,20 +387,28 @@ describe.skipIf(!hasDocker)('migration 001 — initial schema', () => {
     });
 
     it('holds the 2 km watch-zone floor in the schema, not in the UI', async () => {
+      // Nothing seeds accounts, and an INSERT … SELECT over an empty table inserts
+      // zero rows and "succeeds" — the check must be attempted against a real row.
+      const { rows } = await db.query<{ id: string }>(
+        `INSERT INTO accounts DEFAULT VALUES RETURNING id`,
+      );
       await expect(
         db.query(
           `INSERT INTO watch_zones (account_id, name, area, radius_m)
-           SELECT id, 'too small', ST_SetSRID(ST_MakePoint(23.3, 42.7), 4326)::geography, 1500
-             FROM accounts LIMIT 1`,
+           VALUES ($1, 'too small', ST_SetSRID(ST_MakePoint(23.3, 42.7), 4326)::geography, 1500)`,
+          [rows[0]?.id],
         ),
-      ).rejects.toThrow(/watch_zones_radius_m_check|no rows|violates/i);
+      ).rejects.toThrow(/watch_zones_radius_m_check/);
     });
   });
 
   describe('backup classification (OPERATIONS §6.2)', () => {
     it('classifies every table, so a new one cannot ride into the wrong artifact', async () => {
+      // COLLATE "C" to match `tableNames()`: relname is of type name, which always
+      // sorts bytewise, while a text column follows the database collation — where the
+      // underscore carries no primary weight and 'sources' sorts before 'source_status'.
       const classified = await db.query<{ table_name: string }>(
-        `SELECT table_name FROM table_backup_class ORDER BY table_name`,
+        `SELECT table_name FROM table_backup_class ORDER BY table_name COLLATE "C"`,
       );
       expect(classified.rows.map((row) => row.table_name)).toEqual(await tableNames());
     });
