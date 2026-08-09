@@ -21,6 +21,24 @@ allowBuilds:
 # configured with a matching cool-down so the two never disagree.
 minimumReleaseAge: 10080
 
+# The cool-down loses to a published high-severity advisory whose only patched
+# release is younger than the window: refusing the fix protects the vulnerable
+# version. Scoped per package and paired with an override below pinning the
+# patched line; delete an entry once its patched release has aged past the window.
+minimumReleaseAgeExclude:
+  - nanoid
+
 # Post-install scripts are opt-in. Every entry here is a deliberate decision;
 # an empty list means no dependency may execute code at install time.
 onlyBuiltDependencies: []
+
+# Force transitive dependencies past ranges `pnpm audit --audit-level=high` flags
+# (the audit is a CI gate, B3). Every path involved is dev-only — brace-expansion
+# arrives via testcontainers → archiver → minimatch, nanoid via vitest — but the
+# gate deliberately does not distinguish. Each override pins nothing: it demands
+# the patched floor within the same major, and becomes a no-op worth deleting once
+# the direct dependencies move past it on their own.
+overrides:
+  'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4' # ReDoS advisories on the 2.x line
+  'brace-expansion@>=4.0.0 <5.0.9': '^5.0.9' # same ReDoS, 5.x line
+  'nanoid@<3.3.17': '^3.3.17' # custom generators can loop indefinitely
