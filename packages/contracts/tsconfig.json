@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // Explicit, not inferred: TypeScript 7 no longer auto-includes every @types package
+    // it can walk to, and an implicit list would also let a transitive @types package
+    // leak globals into a program that must stay browser-safe.
+    "types": ["node"],
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  // Tests stay inside the program: they are the executable half of the frozen spec
+  // and must typecheck under the same flags as the code they pin down.
+  "include": ["src/**/*.ts"]
+}

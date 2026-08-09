@@ -1,0 +1,52 @@
+{
+  "fixtureId": "harness-smoke",
+  "mode": "live",
+  "configVersions": {
+    "sources": "source_registry_v1",
+    "smoke": "smoke_engine_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 3
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 2
+    }
+  ],
+  "events": [
+    {
+      "publicId": "smoke-001",
+      "status": "active",
+      "bucket": "unverified",
+      "detectionUids": [
+        "033330d1266b1b02c49d0586dfb90c5c67cbdc536f64b5697705d2800a517271",
+        "44ddd84c42f6fb23d36f7acf639b82d4d5f7230002aeb88112fcd73cdf26d70c",
+        "8619e241dfe8f681a1163f7f8b2968b615422f931f0c8f0c3787940272df5f9f"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "smoke-002",
+      "status": "active",
+      "bucket": "unverified",
+      "detectionUids": ["331623aaa3de29822bfd8c67347ef059fe69f45aa32c4c9a64ecedf9249b1cbc"],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "smoke-003",
+      "status": "active",
+      "bucket": "unverified",
+      "detectionUids": ["c6627fb707778992e1e9a2e05e58601f9552e23f6d06ed84fd37254579eb5aa5"],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

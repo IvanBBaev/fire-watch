@@ -1,0 +1,31 @@
+{
+  "name": "@fire-watch/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ingestion, clustering, read path and alert gateway — ports & adapters",
+  "scripts": {
+    "build": "tsc --build",
+    "api": "node dist/app/api.js",
+    "worker": "node dist/app/worker.js",
+    "ingest": "node dist/app/ingest-cli.js",
+    "typecheck": "tsc --build",
+    "test": "vitest run",
+    "test:integration": "vitest run --project integration",
+    "db:migrate": "dbmate --no-dump-schema up",
+    "db:rollback": "dbmate --no-dump-schema down",
+    "db:status": "dbmate status",
+    "db:new": "dbmate new",
+    "db:schema": "dbmate dump"
+  },
+  "dependencies": {
+    "@fire-watch/contracts": "workspace:*",
+    "fastify": "^5.11.0",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12.0.4",
+    "@types/pg": "^8.20.0",
+    "dbmate": "2.34.1"
+  }
+}

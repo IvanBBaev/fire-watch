@@ -1,0 +1,26 @@
+packages:
+  - 'packages/*'
+  - 'server'
+  - 'web'
+
+# All three arrive under @testcontainers/postgresql, are dev-only, and are denied.
+# CI installs with --ignore-scripts anyway, so anything answered `true` here would work
+# locally and fail in CI — the only consistent answer for a transitive build script is no.
+#   ssh2 / cpu-features — ssh2's install step builds cpu-features, an optional native
+#     speed-up for its ciphers. Absent it, ssh2 falls back to pure JS. Testcontainers
+#     uses ssh2 only for the reusable-container SSH tunnel, which we do not use.
+#   protobufjs — its postinstall only prepares the code-generation CLI.
+allowBuilds:
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
+
+# Supply-chain hardening (WP0 / B3): refuse to install any version published less
+# than 7 days ago. A compromised release is usually yanked well inside that window,
+# and nothing in this project needs a same-day dependency bump. Renovate is
+# configured with a matching cool-down so the two never disagree.
+minimumReleaseAge: 10080
+
+# Post-install scripts are opt-in. Every entry here is a deliberate decision;
+# an empty list means no dependency may execute code at install time.
+onlyBuiltDependencies: []

@@ -1,0 +1,1330 @@
+#cloud-config
+# =============================================================================
+# Fire Watch — production VM provisioning (task B9)
+#
+# This file is the executable form of docs/OPERATIONS.md §9 "Host contract".
+# Every non-obvious block below cites the doc section that justifies it.
+#
+# SCOPE — what this file owns:
+#   the host: users, SSH, firewall, time, kernel/limit tuning, container
+#   runtime, log rotation, disk guard, host-level scheduled maintenance
+#   (backup, Cloudflare-IP refresh) and the systemd unit that boots the stack.
+#
+# SCOPE — what this file deliberately does NOT own:
+#   * `compose.yaml` (proxy, api, worker, postgres, Grafana Alloy) and
+#     `deploy.sh` — delivered by the deploy pipeline (OPERATIONS §9.1/§9.3).
+#   * application job scheduling — jobs run inside the worker, never in system
+#     cron (OPERATIONS §9.1 "Process split"). No FIRMS/EFFIS/snapshot timer
+#     appears below, on purpose.
+#   * secret VALUES — they arrive at runtime in /etc/fire-watch/secrets.env,
+#     rendered by deploy from GitHub Environments (OPERATIONS §8.2 rule 1).
+#     Nothing in this file contains a credential, and nothing may be added.
+#
+# CONFIGURATION-DRIFT RULE (OPERATIONS §9.2, closing paragraph): anything
+# configured by hand over SSH and not present here is presumed lost at recovery
+# time. The 2–4 h RTO in §5 is only real because the host is code. If you fix
+# something on the box, fix it here in the same hour.
+#
+# TARGET: Debian 12/13 or Ubuntu 22.04+ cloud image on a Hetzner CX22/CAX11
+# class VM (2 vCPU / 4 GB), Falkenstein or Nuremberg, IPv4 kept (§9.1).
+# =============================================================================
+
+# --- Identity and clock ------------------------------------------------------
+
+# TODO(OPERATIONS §9.1): no host-naming convention is stated. Placeholder name;
+# it is only cosmetic (the origin hostname is never published — §10 rule 4).
+hostname: fire-watch-prod-1
+fqdn: fire-watch-prod-1.invalid
+prefer_fqdn_over_hostname: false
+manage_etc_hosts: true
+
+# The whole event identity depends on UTC timestamps: ADR-002 I5 (determinism,
+# virtual clock, byte-identical replay), GATES fixture S9 "UTC/DST ingest
+# boundary", and every `available_at` / `acq_ts` comparison in the ingest path.
+# A host on local time turns a DST transition into a data defect that only
+# shows up in October. The box is UTC, always; humans convert, machines do not.
+timezone: Etc/UTC
+# C.UTF-8 keeps shell sorting, date formatting and psql output locale-stable in
+# the ops scripts below — a locale-dependent `sort` in a backup or restore
+# script is a silent corruption path.
+locale: C.UTF-8
+
+# --- Accounts ----------------------------------------------------------------
+# OPERATIONS §9.2 "Host updates": SSH key-only, no password auth, dedicated
+# deploy user. §8.1 "Deploy SSH key": deploy-only user.
+#
+# Two identities, deliberately:
+#   firewatch — the non-root SERVICE user the stack runs as. No shell, no
+#               password, cannot log in. Owns /srv/fire-watch.
+#   deploy    — the only SSH login on the box, used by the CI deploy job.
+#
+# The distro default user is intentionally NOT created (`- default` omitted):
+# fewer accounts, one documented way in.
+disable_root: true
+ssh_pwauth: false
+users:
+  - name: firewatch
+    gecos: Fire Watch service account
+    homedir: /srv/fire-watch
+    shell: /usr/sbin/nologin
+    lock_passwd: true
+    # Docker socket access. NOTE: membership in `docker` is root-equivalent on
+    # this host — the group can mount / into a container. Accepted at this
+    # budget because the box runs exactly one workload.
+    # TODO(OPERATIONS §9.2): rootless Docker or a socket proxy is the real fix;
+    # not specified by the host contract. Decide before the v1 auth surface
+    # (watch zones) exists.
+    groups: [docker]
+
+  - name: deploy
+    gecos: CI deploy account
+    shell: /bin/bash
+    lock_passwd: true
+    groups: [docker]
+    # No `sudo:` key on purpose — cloud-init would write a blanket ALL=(ALL)
+    # NOPASSWD rule. The narrow grant lives in /etc/sudoers.d/60-deploy below.
+    # !!! REPLACE BEFORE CREATING THE VM !!!
+    # This is a placeholder, not a key. With `disable_root: true` and
+    # `ssh_pwauth: false` a VM booted with this value has NO way in except the
+    # provider console. The public half of the deploy keypair (OPERATIONS §8.1
+    # "Deploy SSH key / GHCR token", held in GitHub Environments) goes here.
+    ssh_authorized_keys:
+      - 'ssh-ed25519 REPLACE_ME_WITH_THE_DEPLOY_PUBLIC_KEY deploy@fire-watch-ci'
+
+# --- Base packages -----------------------------------------------------------
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - nftables # host firewall (§9.2 "Postgres exposure" row)
+  - fail2ban # SSH brute-force damper; §9.2 "smallest maintained surface"
+  - python3-systemd # fail2ban's systemd journal backend
+  - unattended-upgrades # §9.2 "Host updates"
+  - apt-listchanges
+  - needrestart # restart services onto new libs after a security upgrade
+  - chrony # NTP; see the time-sync note under `timezone` above
+  - age # backup encryption (§6.2 rule 1)
+  - rclone # backup upload to R2 (§6.2 rule 1)
+  - logrotate
+  - htop
+  - ncdu # disk forensics; disk exhaustion is a named failure mode (§9.2)
+  - rsync
+
+write_files:
+  # ===========================================================================
+  # SSH hardening — OPERATIONS §9.2 "Host updates"
+  # ===========================================================================
+  - path: /etc/ssh/sshd_config.d/10-fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # Fire Watch SSH policy (OPERATIONS §9.2). Key-only, no root, one user.
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      ChallengeResponseAuthentication no
+      PermitEmptyPasswords no
+      AuthenticationMethods publickey
+      UsePAM yes
+
+      # `deploy` is the only account that may log in. `firewatch` has nologin.
+      AllowUsers deploy
+
+      MaxAuthTries 3
+      LoginGraceTime 20
+      # Kill half-open sessions so a dropped laptop does not hold a shell that
+      # can be reattached from a stolen device.
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+
+      X11Forwarding no
+      AllowAgentForwarding no
+      PermitTunnel no
+      GatewayPorts no
+      PermitUserEnvironment no
+
+      # Kept ON deliberately: Postgres is bound to the compose network with no
+      # published port (§9.2 "Postgres exposure"), so `ssh -L` is the ONLY way
+      # to reach it for the quarterly restore drill (§6.3) and for incident
+      # debugging. Disabling this would make the drill require a rule change.
+      AllowTcpForwarding yes
+
+      # Cipher/KEX/MAC lists are deliberately NOT pinned here: the distro
+      # defaults on Debian 12+/Ubuntu 22.04+ are already modern, and a
+      # hand-pinned list rots into the weakest thing on the box.
+
+      # TODO(OPERATIONS §9.2): port 22 kept and reachable from the whole
+      # internet (rate-limited in nftables + fail2ban below). The host contract
+      # says "SSH only", not "SSH from where". If ops wants a source allowlist
+      # or a mesh VPN, that is a policy decision and belongs in OPERATIONS §9.2
+      # before it is implemented here.
+
+  # ===========================================================================
+  # sudo — deploy may drive the stack unit, nothing else
+  # ===========================================================================
+  - path: /etc/sudoers.d/60-deploy
+    owner: root:root
+    permissions: '0440'
+    content: |
+      # OPERATIONS §9.3: deploy restarts `worker`, then `api`, then smoke-tests.
+      # Container-level restarts go through the docker socket (group `docker`);
+      # this grant covers the whole-stack unit and its logs.
+      Cmnd_Alias FW_UNIT = /usr/bin/systemctl start fire-watch.service, \
+                           /usr/bin/systemctl stop fire-watch.service, \
+                           /usr/bin/systemctl restart fire-watch.service, \
+                           /usr/bin/systemctl status fire-watch.service, \
+                           /usr/bin/systemctl is-active fire-watch.service, \
+                           /usr/bin/systemctl reload-or-restart fire-watch.service
+      Cmnd_Alias FW_LOGS = /usr/bin/journalctl -u fire-watch.service *
+      deploy ALL=(root) NOPASSWD: FW_UNIT, FW_LOGS
+
+  # ===========================================================================
+  # Host firewall — nftables
+  #
+  # OPERATIONS §9.2 "Postgres exposure": firewall allows 80/443 and SSH only.
+  # Narrowed to Cloudflare source prefixes for the web ports, because the
+  # origin is only ever reached through the Cloudflare proxy (ADR-003: the CDN
+  # absorbs the read path; §5 RTO relies on a Cloudflare-proxied origin so an
+  # IP flip is instant). Origin IP is never published (§10 rule 4).
+  #
+  # TWO FOOTGUNS THIS RULESET EXISTS TO AVOID:
+  #
+  # 1. Docker publishes ports via DNAT in PREROUTING; those packets then
+  #    traverse FORWARD, *not* INPUT. An input-only firewall therefore does
+  #    NOT restrict a published container port at all — the proxy container's
+  #    80/443 would be open to the world while `nft list ruleset` looks strict.
+  #    Hence the `forward` chain below, at priority filter-10 so it is
+  #    evaluated before Docker's own rules.
+  # 2. A `policy drop` forward chain breaks all container networking. Ours is
+  #    `policy accept` with explicit drops only.
+  #
+  # The Cloudflare prefix sets and the terminal verdict of `cf_only` are
+  # (re)generated by /usr/local/sbin/fw-cloudflare-ips into
+  # /etc/nftables.d/cloudflare.nft, which is included at the end.
+  # ===========================================================================
+  - path: /etc/nftables.conf
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/usr/sbin/nft -f
+
+      # Idempotent re-create of OUR table only. `flush ruleset` is deliberately
+      # NOT used: it would also wipe fail2ban's `inet f2b-table` and silently
+      # release every active ban on every firewall reload.
+      table inet fire_watch
+      delete table inet fire_watch
+
+      table inet fire_watch {
+        # Populated by fw-cloudflare-ips. Empty here so that a box that has
+        # never fetched the list still parses.
+        set cloudflare_v4 { type ipv4_addr; flags interval; auto-merge; }
+        set cloudflare_v6 { type ipv6_addr; flags interval; auto-merge; }
+
+        # Container/bridge and link-local traffic must never be caught by the
+        # Cloudflare guard: api->postgres and worker->postgres are forwarded
+        # RFC1918 flows on the compose network.
+        set private_v4 {
+          type ipv4_addr; flags interval; auto-merge;
+          elements = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16,
+                       127.0.0.0/8, 169.254.0.0/16 }
+        }
+        set private_v6 {
+          type ipv6_addr; flags interval; auto-merge;
+          elements = { ::1/128, fc00::/7, fe80::/10 }
+        }
+
+        # Regular chain, jumped to from both hooks. Its rules — including the
+        # terminal verdict — are written by fw-cloudflare-ips:
+        #   strict mode    -> ends in `drop`  (only Cloudflare reaches the web ports)
+        #   fail-open mode -> ends in `accept` (list unavailable; see the script)
+        chain cf_only { }
+
+        chain input {
+          type filter hook input priority filter; policy drop;
+
+          ct state established,related accept
+          ct state invalid drop
+          iifname "lo" accept
+
+          # ICMP must pass: dropping it breaks Path MTU Discovery, which on a
+          # long-lived SSE connection behind a proxy shows up as random stalls.
+          ip protocol icmp accept
+          meta l4proto ipv6-icmp accept
+
+          # DHCP client renewals (Hetzner assigns IPv4 by DHCP).
+          udp dport 68 accept
+          udp dport 546 accept
+
+          # SSH, rate-limited. fail2ban handles the persistent offenders; this
+          # only blunts the burst.
+          tcp dport 22 ct state new limit rate 10/minute burst 10 packets accept
+          tcp dport 22 accept
+
+          # Host-listening web ports (today there are none — the proxy is a
+          # container — but a future host listener inherits the same policy).
+          tcp dport { 80, 443 } jump cf_only
+
+          # Everything else, including Postgres 5432, is dropped: the DB
+          # password's blast radius stays local (§8.1, §9.2).
+          counter comment "fw-input-dropped"
+        }
+
+        chain forward {
+          # priority filter-10 => evaluated before Docker's own FORWARD rules.
+          type filter hook forward priority filter - 10; policy accept;
+
+          ct state established,related accept
+
+          # Any NEW connection that was DNATed into a container — i.e. any
+          # published port, whatever its number — must come from Cloudflare.
+          # Matching on `ct status dnat` rather than on {80,443} means a
+          # future published port cannot accidentally be world-open.
+          ct status dnat ct state new jump cf_only
+        }
+
+        chain output {
+          # Egress is open: the worker must reach FIRMS, EUMETSAT, EFFIS, R2,
+          # healthchecks.io, Grafana Cloud and the push/email providers
+          # (OPERATIONS §1.2, §3, §8.1). An egress allowlist over that many
+          # third parties would fail closed on their next IP change — i.e. it
+          # would take ingestion down to prevent nothing.
+          type filter hook output priority filter; policy accept;
+        }
+      }
+
+      include "/etc/nftables.d/cloudflare.nft"
+
+  # Fail-open bootstrap: this is what the box uses until fw-cloudflare-ips has
+  # fetched a validated list. See the script for why the fallback is open
+  # rather than closed.
+  - path: /etc/nftables.d/cloudflare.nft
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # GENERATED FILE — do not edit. Owner: /usr/local/sbin/fw-cloudflare-ips
+      # Bootstrap state: no Cloudflare list fetched yet => web ports open.
+      flush chain inet fire_watch cf_only
+      add rule inet fire_watch cf_only ip saddr @private_v4 accept
+      add rule inet fire_watch cf_only ip6 saddr @private_v6 accept
+      add rule inet fire_watch cf_only ip saddr @cloudflare_v4 accept
+      add rule inet fire_watch cf_only ip6 saddr @cloudflare_v6 accept
+      add rule inet fire_watch cf_only accept comment "FAIL-OPEN: no CF list yet"
+
+  # ===========================================================================
+  # Kernel tuning — OPERATIONS §9.2 "Connection tracking"
+  # ===========================================================================
+  - path: /etc/modules-load.d/fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # nf_conntrack must be loaded for the sysctls in 80-fire-watch.conf to
+      # exist at boot; otherwise they are silently skipped and the default
+      # (~65k) applies — which is exactly the failure this tuning prevents.
+      nf_conntrack
+
+  - path: /etc/sysctl.d/80-fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # OPERATIONS §9.2: with Cloudflare proxying, every viewer is a distinct
+      # long-lived origin connection. The default conntrack table fills and the
+      # kernel SILENTLY DROPS SYNs ("table full, dropping packet" in dmesg) —
+      # the classic 3 AM mystery. Verified by the U-5 gauge (§7).
+      net.netfilter.nf_conntrack_max = 262144
+      # Hash buckets must scale with the table or every lookup degrades into a
+      # long chain walk. max/4 is the kernel's own default ratio.
+      net.netfilter.nf_conntrack_buckets = 65536
+
+      # NOTHING ELSE IS TUNED HERE ON PURPOSE.
+      # TODO(OPERATIONS §9.2): the host contract names exactly two host-tuning
+      # numbers (NOFILE 131072, conntrack 262144). Candidates that the L-2 load
+      # battery (5,000-connection soak) may prove necessary — net.core.somaxconn,
+      # tcp_max_syn_backlog, netdev_max_backlog, tcp_keepalive_* — are left at
+      # distro defaults until L-2 produces evidence. Pre-tuning blind would make
+      # the load battery measure our guesses instead of the system.
+
+  - path: /etc/systemd/system.conf.d/10-fire-watch-limits.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Manager]
+      # OPERATIONS §9.2 "Process file descriptors": the 1024 default fails
+      # accept() at ~1,000 viewers. Applies to dockerd and to every unit;
+      # the per-container limit is set again in daemon.json and in compose.
+      DefaultLimitNOFILE=131072:131072
+
+  # ===========================================================================
+  # Logs — OPERATIONS §9.2 "Container logs", §11 rule 2
+  # "Disk exhaustion is the most boring way to lose a season."
+  # ===========================================================================
+  - path: /etc/systemd/journald.conf.d/10-fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Journal]
+      # Persistent so a post-incident read survives the reboot that ended the
+      # incident. Capped so it can never be the thing that fills the disk.
+      Storage=persistent
+      Compress=yes
+      # TODO(OPERATIONS §9.2): "max-size/max-file caps" is stated without
+      # numbers. 500M total / 50M per file is a placeholder sized for a 40 GB
+      # root disk; confirm or pin the real numbers in §9.2.
+      SystemMaxUse=500M
+      SystemMaxFileSize=50M
+      # §11 rule 2: logs are telemetry, not an archive; the hosted backend
+      # keeps ~14 days, so the host never needs to keep more.
+      MaxRetentionSec=14day
+      ForwardToSyslog=no
+
+  - path: /etc/docker/daemon.json
+    owner: root:root
+    permissions: '0644'
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "50m", "max-file": "5" },
+        "live-restore": true,
+        "default-ulimits": {
+          "nofile": { "Name": "nofile", "Hard": 131072, "Soft": 131072 }
+        }
+      }
+    # log-driver/log-opts: OPERATIONS §9.2 "Container logs" (same TODO on the
+    #   exact caps as journald above).
+    # live-restore: unattended security upgrades will restart dockerd
+    #   (§9.2 "Host updates"). Without this, every patched docker package is an
+    #   unannounced outage — and unannounced degradation burns error budget
+    #   (§4.1 rule 6).
+    # default-ulimits: the §9.2 NOFILE contract, applied to containers even if
+    #   a compose file forgets its `ulimits` block.
+
+  - path: /etc/logrotate.d/fire-watch
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # Host-side ops scripts (backup, disk guard, CF refresh) log here.
+      # Container logs are rotated by the json-file driver, not by logrotate.
+      /var/log/fire-watch/*.log {
+          daily
+          rotate 14
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+          su root root
+      }
+
+  # ===========================================================================
+  # fail2ban — SSH only
+  # ===========================================================================
+  - path: /etc/fail2ban/jail.d/10-fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [DEFAULT]
+      backend = systemd
+      # Bans land in fail2ban's own `inet f2b-table`, which is why
+      # /etc/nftables.conf never issues `flush ruleset`.
+      banaction = nftables[type=multiport]
+      banaction_allports = nftables[type=allports]
+      # Escalating bans: a scanner that comes back gets progressively colder.
+      bantime.increment = true
+      bantime.maxtime = 1w
+
+      [sshd]
+      enabled = true
+      # TODO(OPERATIONS §9.2): the host contract says "SSH key-only, no password
+      # auth, dedicated deploy user" but states no lockout policy. These are
+      # fail2ban's own defaults, not a Fire Watch decision — adjust in §9.2 if
+      # ops wants something else.
+      maxretry = 5
+      findtime = 10m
+      bantime = 1h
+
+      # HTTP abuse is deliberately NOT a fail2ban jail: it is handled at the
+      # edge (§11 rule 3 — one Cloudflare rate-limiting rule on /api/*, per-IP
+      # SSE cap, strict CORS). Banning by origin IP would ban Cloudflare.
+
+  # ===========================================================================
+  # Unattended security upgrades — OPERATIONS §9.2 "Host updates"
+  # ===========================================================================
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root:root
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      // Keep the apt cache from becoming a disk-exhaustion path (§7 U-3).
+      APT::Periodic::AutocleanInterval "7";
+
+  - path: /etc/apt/apt.conf.d/52fire-watch-unattended
+    owner: root:root
+    permissions: '0644'
+    content: |
+      // Security origins only — the distro default Allowed-Origins list is
+      // kept as-is; we only override behaviour.
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::MinimalSteps "true";
+      Unattended-Upgrade::Mail "";
+
+      // NEVER reboot on our own. An unannounced reboot is unannounced
+      // degradation and burns error budget (§4.1 rule 6); during a fire it can
+      // interrupt an ingest cycle whose season data is unrepeatable
+      // (RISKS: "Season-window dependency"). needrestart puts services onto the
+      // new libraries without a reboot; kernel/libc updates wait for a human.
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+      // TODO(OPERATIONS §9.2): there is no documented maintenance-reboot
+      // window. Something must eventually apply kernel updates. Candidate:
+      // an announced window outside the June–October season (§4.1 rule 6
+      // makes announced degradation free). Needs an ops decision, not a
+      // default chosen here.
+
+  - path: /etc/needrestart/conf.d/10-fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # Restart services onto upgraded libraries automatically and without a
+      # prompt (unattended-upgrades runs non-interactively). Safe for dockerd
+      # because live-restore keeps containers running across a daemon restart.
+      $nrconf{restart} = 'a';
+      $nrconf{kernelhints} = 0;
+
+  # ===========================================================================
+  # Time sync — chrony
+  # ===========================================================================
+  - path: /etc/chrony/conf.d/10-fire-watch.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # The ingest pipeline is time-critical: `available_at` capture, the
+      # freshness budgets in OPERATIONS §1 (a 45-minute critical band is
+      # meaningless on a drifting clock), the deterministic batch ordering
+      # (available_at, source, lat, lon) behind ADR-002 I5, and the DST-boundary
+      # fixture S9. A wrong host clock does not fail loudly — it fabricates
+      # freshness and reorders batches.
+      #
+      # Servers come from the distro default pool config; this file only pins
+      # behaviour.
+
+      # Step the clock only during the first few updates after boot; afterwards
+      # slew. A mid-season step backwards would make `available_at` non-
+      # monotonic inside a running ingest cycle.
+      makestep 1.0 3
+
+      # Refuse to serve time to anyone; this host is a client only.
+      port 0
+      cmdport 0
+
+      # Log the measured offset so drift is visible in an incident review.
+      log tracking measurements
+
+      # TODO(OPERATIONS §1/§3): clock offset is not in the metric set. Grafana
+      # leg 1 watches freshness gauges but nothing watches chrony; a silently
+      # unsynced host would corrupt every one of those gauges. Add a
+      # chrony/offset scrape to Alloy, or state that it is out of scope.
+
+  # ===========================================================================
+  # Non-secret backup configuration.
+  # Secret values (R2 keys, age recipient, healthchecks URL) are NOT here —
+  # they come from /etc/fire-watch/secrets.env at runtime (§8.2 rule 1).
+  # ===========================================================================
+  - path: /etc/fire-watch/backup.env
+    owner: root:root
+    permissions: '0640'
+    content: |
+      # ---- compose wiring -------------------------------------------------
+      COMPOSE_DIR=/srv/fire-watch
+      # TODO(OPERATIONS §9.1): the compose service name for Postgres is not
+      # stated (the row says `postgres:16-postgis`). Confirm against
+      # compose.yaml when it exists.
+      PG_SERVICE=postgres
+
+      # ---- backup artifact layout -----------------------------------------
+      # TODO(OPERATIONS §6.2): no object-key layout is specified. This split is
+      # not cosmetic — see the retention note below.
+      R2_REMOTE=r2
+      # TODO(OPERATIONS §6.2): bucket name not stated (§6.2 rule 3 states only
+      # that the jurisdiction is EU).
+      R2_BUCKET=REPLACE_ME
+      R2_PREFIX_DAILY=backups/postgres/daily
+      R2_PREFIX_WEEKLY=backups/postgres/weekly
+
+      # Local staging dir. Bounded on purpose (§7 U-3: the disk is a named
+      # failure mode); only the newest dump is kept locally.
+      BACKUP_STAGING=/var/backups/fire-watch
+      BACKUP_KEEP_LOCAL=1
+
+      # ---- RETENTION — READ THIS ------------------------------------------
+      # OPERATIONS §6.2 rule 4: retain 14 daily + 8 weekly while the database
+      # holds no tier-0 personal data; from the first stored watch zone, no
+      # artifact that can contain personal data may outlive 30 days
+      # (ADR-004 D8 erasure propagation).
+      #
+      # This job DOES NOT and CANNOT delete anything: §6.2 rule 2 makes the R2
+      # backup token WRITE-ONLY precisely so a compromised VM cannot destroy
+      # history. Retention is therefore enforced by R2 bucket lifecycle rules,
+      # configured out-of-band, not by cloud-init:
+      #     .../daily   -> expire after 14 days
+      #     .../weekly  -> expire after 56 days   (pre-personal-data regime)
+      #     .../weekly  -> expire after 28 days   (from the first watch zone;
+      #                                            56 > the 30-day D8 ceiling)
+      # The daily/weekly prefix split above exists so those two lifecycle rules
+      # are expressible at all.
+      #
+      # TODO(OPERATIONS §6.2 rule 5): the precise reconciliation of erasure,
+      # backup retention and outbox pseudonymization is owed to an ADR-004 D8
+      # amendment. The flip from the 56-day to the 28-day weekly rule must
+      # happen in the same change that lands WP7 storage — it is not automatic
+      # and nothing here can enforce it.
+
+      # ---- required from /etc/fire-watch/secrets.env ----------------------
+      # TODO(OPERATIONS §8.2): canonical env-var names are owned by the app and
+      # by deploy; these are this file's assumption and must be reconciled.
+      #   BACKUP_AGE_RECIPIENT          age public key (a recipient, not a secret,
+      #                                 but kept with the rest for one source)
+      #   RCLONE_CONFIG_R2_TYPE=s3
+      #   RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+      #   RCLONE_CONFIG_R2_ENDPOINT     https://<account>.r2.cloudflarestorage.com
+      #   RCLONE_CONFIG_R2_ACCESS_KEY_ID
+      #   RCLONE_CONFIG_R2_SECRET_ACCESS_KEY
+      #   HEALTHCHECKS_BACKUP_URL       pinged AFTER upload (§3 rule 5, §6.2 rule 1)
+      #   HEALTHCHECKS_HOST_URL         host-maintenance failure pings
+      #   PGUSER / PGDATABASE
+
+  # ===========================================================================
+  # Cloudflare prefix refresher
+  # ===========================================================================
+  - path: /usr/local/sbin/fw-cloudflare-ips
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      # Refresh the nftables Cloudflare source sets.
+      #
+      # WHY: OPERATIONS §9.2 wants the web ports exposed only to what
+      # Cloudflare needs, and §5 (RTO) relies on the origin being reachable
+      # only through the proxy. Cloudflare's prefix list changes, so it is
+      # fetched and cached rather than frozen into the ruleset.
+      set -euo pipefail
+
+      LOG=/var/log/fire-watch/cloudflare-ips.log
+      CACHE=/var/lib/fire-watch/cloudflare
+      GEN=/etc/nftables.d/cloudflare.nft
+      V4_URL=https://www.cloudflare.com/ips-v4
+      V6_URL=https://www.cloudflare.com/ips-v6
+      # Sanity floors: the real lists are ~15 v4 and ~7 v6 prefixes. A short
+      # answer means a captive portal, an error page or a truncated response —
+      # never a legitimate shrink to two prefixes.
+      MIN_V4=8
+      MIN_V6=4
+
+      mkdir -p "$CACHE" "$(dirname "$LOG")"
+      exec >>"$LOG" 2>&1
+      echo "=== $(date -Is) fw-cloudflare-ips ==="
+
+      tmp="$(mktemp -d)"
+      trap 'rm -rf "$tmp"' EXIT
+
+      fetch() { curl -fsS --max-time 20 --retry 3 --retry-delay 5 "$1"; }
+
+      valid4() { grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$' <<<"$1"; }
+      valid6() { grep -Eq '^[0-9a-fA-F:]+/[0-9]{1,3}$' <<<"$1"; }
+
+      collect() { # url outfile validator
+        local url="$1" out="$2" v="$3" line n=0
+        : >"$out"
+        while read -r line; do
+          line="${line//$'\r'/}"
+          [[ -z "$line" ]] && continue
+          if "$v" "$line"; then printf '%s\n' "$line" >>"$out"; n=$((n+1)); fi
+        done < <(fetch "$url")
+        echo "$n"
+      }
+
+      mode="strict"
+      n4=0; n6=0
+      n4="$(collect "$V4_URL" "$tmp/v4" valid4 || echo 0)"
+      n6="$(collect "$V6_URL" "$tmp/v6" valid6 || echo 0)"
+
+      if (( n4 >= MIN_V4 && n6 >= MIN_V6 )); then
+        install -m 0644 "$tmp/v4" "$CACHE/ips-v4"
+        install -m 0644 "$tmp/v6" "$CACHE/ips-v6"
+        echo "fetched ok: v4=$n4 v6=$n6 (cache updated)"
+      elif [[ -s "$CACHE/ips-v4" && -s "$CACHE/ips-v6" ]]; then
+        echo "WARN fetch failed/short (v4=$n4 v6=$n6); using cached list"
+      else
+        # FAIL-OPEN, LOUDLY.
+        #
+        # This is the one genuinely contestable choice in this file. An origin
+        # unreachable from Cloudflare is a total outage of the write and
+        # interactive path; a briefly world-reachable origin behind a proxied,
+        # never-published DNS record is a modest exposure that the edge rate
+        # limits (§11 rule 3) still do not cover but which nothing is
+        # advertising. Availability wins here, and the operator is paged.
+        #
+        # TODO(OPERATIONS §9.2): fail-open vs fail-closed for the origin
+        # firewall is not stated. Confirm this reading or invert it — it is a
+        # policy call, not an implementation detail.
+        mode="open"
+        echo "ERROR no list and no cache: FAILING OPEN on 80/443"
+      fi
+
+      {
+        echo "# GENERATED FILE — do not edit. Owner: /usr/local/sbin/fw-cloudflare-ips"
+        echo "# generated $(date -Is), mode=$mode"
+        echo "flush set inet fire_watch cloudflare_v4"
+        echo "flush set inet fire_watch cloudflare_v6"
+        if [[ "$mode" == "strict" ]]; then
+          echo "add element inet fire_watch cloudflare_v4 { $(paste -sd, "$CACHE/ips-v4") }"
+          echo "add element inet fire_watch cloudflare_v6 { $(paste -sd, "$CACHE/ips-v6") }"
+        fi
+        echo "flush chain inet fire_watch cf_only"
+        echo "add rule inet fire_watch cf_only ip saddr @private_v4 accept"
+        echo "add rule inet fire_watch cf_only ip6 saddr @private_v6 accept"
+        echo "add rule inet fire_watch cf_only ip saddr @cloudflare_v4 accept"
+        echo "add rule inet fire_watch cf_only ip6 saddr @cloudflare_v6 accept"
+        if [[ "$mode" == "strict" ]]; then
+          echo "add rule inet fire_watch cf_only drop comment \"non-Cloudflare origin hit\""
+        else
+          echo "add rule inet fire_watch cf_only accept comment \"FAIL-OPEN: no CF list\""
+        fi
+      } >"$tmp/cloudflare.nft"
+
+      # Validate BEFORE the new file becomes the one on disk: /etc/nftables.conf
+      # begins by deleting our table, so applying a ruleset that fails to parse
+      # halfway would leave the box with no fire_watch table at all — and the
+      # last-good generated file gone with it. Stage, check, keep a rollback.
+      cp -a "$GEN" "$tmp/previous.nft" 2>/dev/null || : >"$tmp/previous.nft"
+      install -m 0644 "$tmp/cloudflare.nft" "$GEN"
+      if ! nft -c -f /etc/nftables.conf; then
+        echo "ERROR generated ruleset does not parse; rolling back, rules untouched"
+        install -m 0644 "$tmp/previous.nft" "$GEN"
+        exit 1
+      fi
+      nft -f /etc/nftables.conf
+      echo "applied mode=$mode"
+
+      if [[ "$mode" == "open" ]]; then
+        /usr/local/sbin/fw-notify-failure fw-cloudflare-ips.service || true
+        exit 1
+      fi
+
+  # ===========================================================================
+  # Operator notification for failed host units
+  # ===========================================================================
+  - path: /usr/local/sbin/fw-notify-failure
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      # Report a failed host unit to the operator pager.
+      #
+      # OPERATIONS §3: three legs, all off-box. The host's own leg is
+      # healthchecks.io — a scheduled job that stops pinging is already an
+      # alert, but a unit that fails *between* scheduled runs (the stack unit
+      # hitting its start limit, the firewall refresher falling open) would
+      # otherwise be silent until someone looked. §3 rule 4: ping URLs are
+      # secrets, so they come from secrets.env and are never logged.
+      set -uo pipefail
+      unit="${1:-unknown.unit}"
+
+      logger -p daemon.err -t fire-watch "unit failed: ${unit}"
+
+      SECRETS=/etc/fire-watch/secrets.env
+      [[ -r "$SECRETS" ]] || exit 0
+      # shellcheck disable=SC1090
+      set -a; . "$SECRETS"; set +a
+      url="${HEALTHCHECKS_HOST_URL:-}"
+      [[ -n "$url" ]] || exit 0
+
+      body="$(journalctl -u "$unit" -n 40 --no-pager 2>/dev/null | tail -c 8000)"
+      # Never `set -e` around this: the notifier must not itself fail loudly.
+      curl -fsS --max-time 15 --retry 3 --data-raw "$body" "${url}/fail" >/dev/null 2>&1 || true
+
+  # ===========================================================================
+  # Nightly backup — OPERATIONS §6.2
+  # ===========================================================================
+  - path: /usr/local/sbin/fw-backup
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      # Nightly encrypted logical backup to R2.
+      #
+      # OPERATIONS §6.2 rule 1: nightly `pg_dump -Fc`, encrypted with age,
+      # pushed to R2 via rclone with bucket versioning on; the job pings
+      # healthchecks.io AFTER the upload completes, so silence is an alert
+      # (§1.3). §3 rule 5: the ping happens on the success path, never in a
+      # `finally` — a job that pings on failure is worse than no check.
+      #
+      # §6.2 rule 3: bucket jurisdiction is EU and the artifact is encrypted at
+      # rest because it will contain home locations once watch zones exist
+      # (ADR-004 D8) — a GDPR requirement, not a nicety.
+      set -euo pipefail
+
+      LOG=/var/log/fire-watch/backup.log
+      mkdir -p "$(dirname "$LOG")"
+      exec >>"$LOG" 2>&1
+      echo "=== $(date -Is) fw-backup ==="
+
+      set -a
+      . /etc/fire-watch/backup.env
+      # Secrets are root:root 0600 (§8.2 rule 1). No value from this file is
+      # ever echoed: §8.3's redaction discipline applies to ops scripts too.
+      . /etc/fire-watch/secrets.env
+      set +a
+
+      : "${BACKUP_AGE_RECIPIENT:?age recipient missing from secrets.env}"
+      : "${R2_BUCKET:?bucket missing from backup.env}"
+
+      ts="$(date -u +%Y%m%dT%H%M%SZ)"
+      dow="$(date -u +%u)"   # 7 = Sunday
+      name="fire-watch-${ts}.dump.age"
+      mkdir -p "$BACKUP_STAGING"
+      chmod 0700 "$BACKUP_STAGING"
+      artifact="${BACKUP_STAGING}/${name}"
+
+      # pg_dump runs INSIDE the postgres container: Postgres is bound to the
+      # compose network with no published port (§9.2), and running the dump in
+      # the container guarantees pg_dump matches the server version — a
+      # host-side client one major behind refuses to dump at all.
+      cd "$COMPOSE_DIR"
+      umask 077
+      docker compose exec -T "$PG_SERVICE" \
+        pg_dump -Fc -Z 3 --no-password -U "${PGUSER:-postgres}" "${PGDATABASE:-fire_watch}" \
+        | age -r "$BACKUP_AGE_RECIPIENT" > "$artifact"
+
+      bytes="$(stat -c %s "$artifact")"
+      # A dump that is suspiciously small is a failure that would otherwise
+      # upload happily and be discovered only at the quarterly drill (§6.3).
+      if (( bytes < 4096 )); then
+        echo "ERROR dump is ${bytes} bytes — refusing to upload"
+        exit 1
+      fi
+      sha="$(sha256sum "$artifact" | cut -d' ' -f1)"
+      echo "artifact=${name} bytes=${bytes} sha256=${sha}"
+
+      # --s3-no-check-bucket: the R2 backup token is WRITE-ONLY (§8.2 rule 2 /
+      # §8.1), so rclone must not try to list or HEAD the bucket first.
+      upload() {
+        rclone --s3-no-check-bucket --retries 3 --low-level-retries 5 \
+          copyto "$artifact" "${R2_REMOTE}:${R2_BUCKET}/$1/${name}"
+      }
+
+      upload "$R2_PREFIX_DAILY"
+      # Sunday dumps are additionally written under the weekly prefix so the
+      # "14 daily + 8 weekly" schedule (§6.2 rule 4) is expressible as two R2
+      # lifecycle rules — this job can never delete anything itself.
+      if [[ "$dow" == "7" ]]; then upload "$R2_PREFIX_WEEKLY"; fi
+
+      # Bound the local staging copy (§7 U-3).
+      ls -1t "${BACKUP_STAGING}"/fire-watch-*.dump.age 2>/dev/null \
+        | tail -n +$(( ${BACKUP_KEEP_LOCAL:-1} + 1 )) \
+        | xargs -r rm -f
+
+      # ---- success path only ----------------------------------------------
+      if [[ -n "${HEALTHCHECKS_BACKUP_URL:-}" ]]; then
+        curl -fsS --max-time 15 --retry 3 \
+          --data-raw "ok ${name} ${bytes}B sha256=${sha}" \
+          "$HEALTHCHECKS_BACKUP_URL" >/dev/null
+      else
+        # §1.3 makes healthchecks.io the PRIMARY detector for this job. Without
+        # the URL the backup is unmonitored, which §6.3 rule 5 treats as
+        # "backups presumed broken".
+        echo "WARN HEALTHCHECKS_BACKUP_URL unset — this backup is unmonitored"
+      fi
+      echo "done $(date -Is)"
+
+  - path: /usr/local/sbin/fw-restore-drill
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      # Restore-drill helper — STUB (TASKS B9 "restore path stub").
+      #
+      # OPERATIONS §6.3: "The drill is the only proof a backup exists. An
+      # untested backup is a rumor." Quarterly, plus once inside the pre-season
+      # drill; NEVER against the production database — always a scratch
+      # container or scratch VM (§6.3 rule 1).
+      set -euo pipefail
+
+      cat <<'EOF'
+      fw-restore-drill is a stub. It exists so the drill has a home on the box
+      and so the two blockers below are visible before the drill night, not
+      during it.
+
+      BLOCKER 1 — no read credential.
+        OPERATIONS §8.1 lists exactly one R2 backup token and §6.2 rule 2 makes
+        it WRITE-ONLY. Nothing on this host can fetch a backup back. The drill
+        therefore needs a separate, read-capable credential that must NOT live
+        on the production VM (a compromised VM must not be able to read the
+        backup history either).
+        TODO(OPERATIONS §8.1): add the restore-side credential to the secrets
+        inventory, with its holder (the operator's workstation, not this box)
+        and its rotation row.
+
+      BLOCKER 2 — the drill runs elsewhere.
+        §6.3 rule 1 forbids restoring against production, so the real procedure
+        belongs in runbook RB-2 (§5) and executes on a scratch VM. This script
+        must never grow the ability to restore in place.
+
+      Procedure per §6.3 rule 2, for the record:
+        1. restore the latest artifact          4. restore secrets from the
+        2. apply migrations                        password manager (§5 rule 4)
+        3. run the row-count/consistency        5. boot far enough to answer
+           script against the gauges                /readyz (§2.2)
+           recorded at dump time
+      Record per §6.3 rule 3: date, artifact id + timestamp, wall-clock minutes
+      to a serving stack, migration version, row counts vs expected, secrets
+      restored yes/no, defects found. The recorded wall clock IS the real RTO
+      (§6.3 rule 4).
+      EOF
+      exit 64
+
+  # ===========================================================================
+  # Disk guard — OPERATIONS §7 U-3, §9.2 "Container logs"
+  # ===========================================================================
+  - path: /usr/local/sbin/fw-diskguard
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      # A single VM that fills its disk takes the whole service down.
+      #
+      # OPERATIONS §7 U-3: at >80% used, "grow the volume one step; prune
+      # Docker logs/images first". Growing the volume is a human act; this
+      # guard does the pruning half automatically and makes the condition
+      # loud. §3 leg 1 (Grafana) also alerts on disk >80% — this is the local
+      # hands that act while the page is still in flight.
+      set -uo pipefail
+
+      PRUNE_AT=80          # §7 U-3 / §3: the documented threshold
+      # TODO(OPERATIONS §7): no second, "act harder" threshold is documented.
+      # 90% is this file's choice for "page the operator", not policy.
+      ALERT_AT=90
+      LOG=/var/log/fire-watch/diskguard.log
+      mkdir -p "$(dirname "$LOG")"
+      exec >>"$LOG" 2>&1
+
+      used() { df --output=pcent "$1" | tail -n1 | tr -dc '0-9'; }
+
+      root_used="$(used /)"
+      [[ -n "$root_used" ]] || exit 0
+      (( root_used < PRUNE_AT )) && exit 0
+
+      echo "=== $(date -Is) disk at ${root_used}% ==="
+      df -h / /var/lib/docker 2>/dev/null || true
+
+      # NEVER `docker system prune --volumes` and NEVER `docker volume prune`:
+      # the Postgres data directory is a named volume. A disk guard that
+      # deletes the database to free space is a worse outage than the one it
+      # was preventing.
+      docker image prune -af --filter "until=168h" || true
+      docker container prune -f --filter "until=168h" || true
+      docker builder prune -af || true
+      journalctl --vacuum-size=300M || true
+      apt-get clean || true
+
+      after="$(used /)"
+      echo "after prune: ${after}%"
+
+      if (( after >= ALERT_AT )); then
+        echo "CRITICAL still ${after}% after pruning — volume growth needed (§7 U-3)"
+        /usr/local/sbin/fw-notify-failure fire-watch-diskguard.service || true
+        exit 1
+      fi
+
+  # ===========================================================================
+  # systemd units
+  # ===========================================================================
+
+  # --- the application stack -------------------------------------------------
+  - path: /etc/systemd/system/fire-watch.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      # OPERATIONS §9.1 "Boot": one systemd unit running `docker compose up -d`
+      # — "reboot is a non-event".
+      Description=Fire Watch application stack (docker compose)
+      Documentation=file:///srv/fire-watch/compose.yaml
+      Requires=docker.service
+      After=docker.service network-online.target chrony.service
+      Wants=network-online.target
+      # A stack that boots before the clock is synced writes wrong
+      # `available_at` values into the first cycle (see chrony config).
+      After=time-sync.target
+      # A start loop must be loud, not silent: after StartLimitBurst failures
+      # within StartLimitIntervalSec systemd stops trying and leaves the unit
+      # in `failed`, which trips OnFailure below.
+      StartLimitIntervalSec=1800
+      StartLimitBurst=3
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      User=firewatch
+      Group=firewatch
+      WorkingDirectory=/srv/fire-watch
+      EnvironmentFile=-/etc/fire-watch/deploy.env
+
+      # --wait: block until every service reports healthy and exit non-zero if
+      # they do not. Without it `up -d` "succeeds" the instant the containers
+      # are created, so a stack that crash-loops at boot looks green to
+      # systemd — the exact silent failure §9.3 rules out for deploys.
+      ExecStart=/usr/bin/docker compose up -d --remove-orphans --wait --wait-timeout 180
+      ExecStop=/usr/bin/docker compose down --timeout 45
+      # No `docker compose pull` here on purpose: §9.1 requires images by
+      # immutable tag already present locally, and §5 (RTO) requires that a
+      # recovering box never needs a registry to come back up. Only deploy
+      # pulls.
+
+      Restart=on-failure
+      RestartSec=30s
+      TimeoutStartSec=300
+      # SIGTERM drain semantics for SSE are owned by the app (ADR-003 D3 /
+      # OPERATIONS §9.3 rule 5): stop accepting, send `retry:`, close, clients
+      # resume via Last-Event-ID. Give compose room to let that happen.
+      TimeoutStopSec=90
+
+      # §9.2 "Process file descriptors": the 1024 default fails accept() at
+      # ~1,000 viewers. Also set per-container in daemon.json and compose.
+      LimitNOFILE=131072
+
+      OnFailure=fw-notify-failure@%n.service
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # Per-container crash restart is compose's `restart: unless-stopped` policy
+  # (owned by compose.yaml, §9.1) — systemd owns the boot and whole-stack
+  # layer, Docker owns the process layer. If compose.yaml lacks a restart
+  # policy, a crashed api container will NOT be restarted by this unit.
+  # TODO(OPERATIONS §9.1): the host contract does not state the container
+  # restart policy. It has to be `unless-stopped` for the two layers to add up.
+
+  - path: /etc/systemd/system/fw-notify-failure@.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Report failure of %i to the operator pager
+      # Must never itself be the thing that fails silently.
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/fw-notify-failure %i
+
+  # --- nightly backup --------------------------------------------------------
+  - path: /etc/systemd/system/fire-watch-backup.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Fire Watch nightly encrypted pg_dump to R2 (OPERATIONS 6.2)
+      Requires=docker.service
+      After=docker.service fire-watch.service
+      # ConditionPathExists keeps a not-yet-deployed box from generating
+      # failures (and pages) every night before the first deploy.
+      ConditionPathExists=/srv/fire-watch/compose.yaml
+      ConditionPathExists=/etc/fire-watch/secrets.env
+
+      [Service]
+      Type=oneshot
+      # Runs as root: reads secrets.env (root:root 0600, §8.2 rule 1) and drives
+      # the docker socket.
+      User=root
+      ExecStart=/usr/local/sbin/fw-backup
+      # Nice/IOSchedulingClass: the backup must never be the reason an ingest
+      # cycle misses its freshness budget (§1.2).
+      Nice=10
+      IOSchedulingClass=idle
+      TimeoutStartSec=3600
+      OnFailure=fw-notify-failure@%n.service
+
+  - path: /etc/systemd/system/fire-watch-backup.timer
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Nightly Fire Watch backup
+
+      [Timer]
+      # TODO(OPERATIONS §6.2): "nightly" is stated, the hour is not. 02:20 UTC
+      # (05:20 EEST) is a placeholder chosen to sit away from the FIRMS
+      # overpass clusters; confirm or pin it in §6.2.
+      OnCalendar=*-*-* 02:20:00
+      RandomizedDelaySec=900
+      # A VM that was down at 02:20 runs the backup when it comes back rather
+      # than skipping a night — the RPO is 24 h (§5) and a skipped night
+      # silently doubles it.
+      Persistent=true
+      AccuracySec=1min
+
+      [Install]
+      WantedBy=timers.target
+
+  # --- disk guard ------------------------------------------------------------
+  - path: /etc/systemd/system/fire-watch-diskguard.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Fire Watch disk-space guard (OPERATIONS 7 U-3)
+
+      [Service]
+      Type=oneshot
+      User=root
+      ExecStart=/usr/local/sbin/fw-diskguard
+      OnFailure=fw-notify-failure@%n.service
+
+  - path: /etc/systemd/system/fire-watch-diskguard.timer
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Periodic disk-space guard
+
+      [Timer]
+      OnBootSec=10min
+      # TODO(OPERATIONS §7): cadence is not specified. 15 min is chosen to be
+      # faster than a log flood can fill the remaining 20% of the disk.
+      OnUnitActiveSec=15min
+      RandomizedDelaySec=120
+
+      [Install]
+      WantedBy=timers.target
+
+  # --- Cloudflare prefix refresh --------------------------------------------
+  - path: /etc/systemd/system/fw-cloudflare-ips.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Refresh Cloudflare source prefixes in nftables
+      After=network-online.target nftables.service
+      Wants=network-online.target
+      Requires=nftables.service
+
+      [Service]
+      Type=oneshot
+      User=root
+      ExecStart=/usr/local/sbin/fw-cloudflare-ips
+      OnFailure=fw-notify-failure@%n.service
+
+      [Install]
+      WantedBy=multi-user.target
+
+  - path: /etc/systemd/system/fw-cloudflare-ips.timer
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Weekly refresh of Cloudflare source prefixes
+
+      [Timer]
+      OnBootSec=2min
+      OnUnitActiveSec=1w
+      RandomizedDelaySec=1h
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+  # ===========================================================================
+  # Provisioning script — run once from runcmd, idempotent, re-runnable
+  # ===========================================================================
+  - path: /usr/local/sbin/fw-provision
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      export DEBIAN_FRONTEND=noninteractive
+      APT="apt-get -y -o DPkg::Lock::Timeout=600"
+
+      . /etc/os-release
+      ID_LC="${ID}"                       # debian | ubuntu
+      CODENAME="${VERSION_CODENAME:-}"
+      ARCH="$(dpkg --print-architecture)"
+      install -d -m 0755 /usr/share/keyrings
+
+      echo "### fw-provision on ${ID_LC} ${CODENAME} (${ARCH})"
+
+      # -----------------------------------------------------------------------
+      # Container runtime — OPERATIONS §9.1: the deployable artifact is one
+      # compose.yaml (proxy, api, worker, postgres:16-postgis, Grafana Alloy).
+      # Docker's own repo, not the distro package: compose v2 as a plugin and a
+      # predictable engine version are both required by §9.3's deploy flow.
+      # -----------------------------------------------------------------------
+      curl -fsSL "https://download.docker.com/linux/${ID_LC}/gpg" \
+        | gpg --dearmor -o /usr/share/keyrings/docker.gpg
+      chmod 0644 /usr/share/keyrings/docker.gpg
+      cat >/etc/apt/sources.list.d/docker.list <<EOF
+      deb [arch=${ARCH} signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/${ID_LC} ${CODENAME} stable
+      EOF
+
+      # -----------------------------------------------------------------------
+      # Node.js — pinned to major 22.
+      # The repo declares .nvmrc 22.23.0 and package.json engines >=22.11.0;
+      # OPERATIONS §9.2 "Runtime" says Node LTS only.
+      #
+      # NOTE: api and worker run from the GHCR images (§9.1) and do NOT use
+      # this interpreter. Host Node exists for ops work that must run when the
+      # stack is down — the FIRMS backfill script, restore-drill checks,
+      # one-off migrations — and is pinned to the same major so those scripts
+      # behave identically on the box and in CI.
+      # -----------------------------------------------------------------------
+      curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+        | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+      chmod 0644 /usr/share/keyrings/nodesource.gpg
+      cat >/etc/apt/sources.list.d/nodesource.list <<'EOF'
+      deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main
+      EOF
+      cat >/etc/apt/preferences.d/nodejs <<'EOF'
+      Package: nodejs
+      Pin: version 22.*
+      Pin-Priority: 1001
+      EOF
+
+      # -----------------------------------------------------------------------
+      # PostgreSQL client 16 + PostGIS.
+      #
+      # OPERATIONS §9.1 puts the SERVER in the compose stack
+      # (`postgres:16-postgis`), bound to the compose network with no published
+      # port (§9.2). So the host gets the CLIENT only — psql for the restore
+      # drill (§6.3) and for reaching the DB over an SSH tunnel, plus
+      # pg_restore. Installing a second, host-native Postgres would contradict
+      # §9.1 and put a listener on the box that §9.2 forbids.
+      #
+      # Version 16 exactly, to match the server image: pg_restore/psql from a
+      # newer major will read an older dump, but the drill must exercise the
+      # combination production actually uses.
+      #
+      # TODO(OPERATIONS §9.1): `postgres:16-postgis` is not a published Docker
+      # Hub tag — the official `postgres` image ships no PostGIS variant. The
+      # PostGIS-enabled image is `postgis/postgis:16-<postgis-version>`. The
+      # exact immutable reference is owed to compose.yaml; it is pre-pulled
+      # below only if PG_IMAGE is set in /etc/fire-watch/deploy.env.
+      # -----------------------------------------------------------------------
+      curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+      chmod 0644 /usr/share/keyrings/pgdg.gpg
+      cat >/etc/apt/sources.list.d/pgdg.list <<EOF
+      deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main
+      EOF
+
+      $APT update
+      $APT install \
+        docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
+        nodejs \
+        postgresql-client-16
+
+      # pnpm comes from package.json's `packageManager` field (pnpm@11.11.0) —
+      # corepack resolves it, so the host never pins a second pnpm version.
+      corepack enable || true
+
+      # -----------------------------------------------------------------------
+      # Filesystem layout
+      # -----------------------------------------------------------------------
+      # /srv/fire-watch — compose.yaml, deploy.sh and `last_good` (§9.2
+      # "Runtime": the previous good tag is persisted here for the one-command
+      # rollback in §9.3 rule 2). Setgid so deploy writes files the service
+      # user can read.
+      install -d -m 2775 -o firewatch -g deploy /srv/fire-watch
+      install -d -m 0755 -o firewatch -g deploy /srv/fire-watch/.docker
+      # /etc/fire-watch — secrets.env lands here at deploy time, root:root 0600
+      # (§8.2 rule 1). cloud-init deliberately does not create secrets.env: an
+      # undeployed box must fail closed, not start with an empty env file.
+      install -d -m 0750 -o root -g root /etc/fire-watch
+      install -d -m 0700 -o root -g root /var/backups/fire-watch
+      install -d -m 0755 -o root -g root /var/log/fire-watch
+      install -d -m 0755 -o root -g root /var/lib/fire-watch
+      install -d -m 0755 -o root -g root /etc/nftables.d
+      touch /srv/fire-watch/last_good
+      chown firewatch:deploy /srv/fire-watch/last_good
+      chmod 0664 /srv/fire-watch/last_good
+
+      # Optional, non-secret deploy-time host settings (image refs, COMPOSE_*).
+      [[ -f /etc/fire-watch/deploy.env ]] || {
+        cat >/etc/fire-watch/deploy.env <<'EOF'
+      # Non-secret host settings for the stack unit. Secrets go in secrets.env.
+      COMPOSE_PROJECT_NAME=fire-watch
+      # TODO(OPERATIONS §9.1): immutable image references are owned by
+      # compose.yaml / deploy.sh. PG_IMAGE is read only by fw-provision to
+      # pre-pull the database image so a rebuild does not wait on a registry.
+      # PG_IMAGE=
+      EOF
+        chmod 0640 /etc/fire-watch/deploy.env
+      }
+
+      # -----------------------------------------------------------------------
+      # Apply host tuning and start the services
+      # -----------------------------------------------------------------------
+      systemctl daemon-reload
+      sysctl --system || true
+      systemctl restart systemd-journald
+
+      # timesyncd and chrony must not both run.
+      systemctl disable --now systemd-timesyncd 2>/dev/null || true
+      systemctl enable --now chrony
+
+      systemctl enable --now nftables
+      systemctl enable --now fail2ban
+      systemctl enable --now unattended-upgrades
+      systemctl enable --now docker
+      systemctl restart docker   # pick up /etc/docker/daemon.json
+
+      systemctl enable --now fw-cloudflare-ips.timer
+      systemctl enable --now fire-watch-diskguard.timer
+      systemctl enable --now fire-watch-backup.timer
+
+      # Tighten the firewall now rather than at the next timer tick.
+      /usr/local/sbin/fw-cloudflare-ips || \
+        echo "WARN Cloudflare prefix fetch failed; firewall is fail-open (see log)"
+
+      # Enabled, NOT started: /srv/fire-watch/compose.yaml does not exist until
+      # the first deploy. Enabling now is what makes a reboot a non-event
+      # (§9.1 "Boot") from the moment the stack is deployed.
+      systemctl enable fire-watch.service
+
+      # Pre-pull the database image if it is known: §5 requires images to be
+      # "pulled from GHCR, never rebuilt during recovery", and the DB image is
+      # the largest thing standing between a fresh VM and a running stack.
+      if [[ -n "${PG_IMAGE:-}" ]]; then docker pull "$PG_IMAGE" || true; fi
+
+      visudo -cf /etc/sudoers.d/60-deploy
+      sshd -t
+      systemctl restart ssh 2>/dev/null || systemctl restart sshd
+
+      date -Is >/etc/fire-watch/provisioned
+      echo "### fw-provision complete"
+
+runcmd:
+  - [bash, /usr/local/sbin/fw-provision]
+
+# No `power_state:` block on purpose. sysctl, limits, journald, docker and the
+# firewall are all applied live by fw-provision, so nothing needs a reboot — and
+# an unattended reboot is exactly what the unattended-upgrades policy above
+# refuses, for the same reason (§4.1 rule 6: unannounced degradation).
+
+final_message: |
+  Fire Watch host provisioned in $UPTIME seconds (OPERATIONS §9).
+
+  NOT YET RUNNING. The stack starts on the first deploy, which must deliver:
+    /srv/fire-watch/compose.yaml   (proxy, api, worker, postgres+postgis, Alloy)
+    /srv/fire-watch/deploy.sh      (OPERATIONS §9.3)
+    /etc/fire-watch/secrets.env    root:root 0600, rendered from GitHub
+                                   Environments (§8.2 rule 1)
+  then: sudo systemctl start fire-watch.service
+
+  Verify before trusting this box:
+    nft list ruleset | head -40        # web ports Cloudflare-only?
+    systemctl list-timers 'fire-watch*' 'fw-*'
+    chronyc tracking                   # clock is the ingest's foundation
+    journalctl -u fw-cloudflare-ips

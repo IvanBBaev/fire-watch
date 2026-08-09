@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommitsDisabled"],
+  "timezone": "Europe/Sofia",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 3,
+  "rangeStrategy": "bump",
+  "_comment_cooldown": "Mirrors minimumReleaseAge in pnpm-workspace.yaml. A compromised release is usually yanked well inside a week, so waiting is the cheapest defence we have against a hijacked publish.",
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "GitHub Actions are pinned to commit SHAs; Renovate must keep the SHA and the version comment in step.",
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "description": "TypeScript minors are breaking in practice, so they are never grouped with anything else. The 6.0 line is pinned until typescript-eslint supports TS 7 (typescript-eslint#10940).",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["minor", "major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Vite is pinned exact (ADR-005): a bundler bump changes output, so it lands on its own with a bundle-budget check.",
+      "matchPackageNames": ["vite"],
+      "rangeStrategy": "pin",
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Lint and formatting tooling can move together — a failure there is loud and harmless.",
+      "matchPackageNames": ["eslint", "prettier", "globals"],
+      "matchPackagePrefixes": ["@eslint/", "@typescript-eslint/", "typescript-eslint"],
+      "groupName": "lint tooling"
+    },
+    {
+      "description": "Security fixes bypass the weekly schedule but never the cooldown.",
+      "matchUpdateTypes": ["patch"],
+      "matchDepTypes": ["devDependencies"],
+      "automerge": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  }
+}

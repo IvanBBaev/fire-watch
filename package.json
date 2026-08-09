@@ -1,0 +1,34 @@
+{
+  "name": "fire-watch",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Near-real-time wildfire situational-awareness map and alerts for Bulgaria and the Balkans",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "packageManager": "pnpm@11.11.0",
+  "scripts": {
+    "typecheck": "tsc --build --verbose",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest --project unit",
+    "boundaries": "depcruise --config .dependency-cruiser.cjs packages server web",
+    "audit": "pnpm audit --audit-level=high",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run format && pnpm run boundaries && pnpm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.1",
+    "dependency-cruiser": "^18.1.0",
+    "eslint": "^10.8.0",
+    "globals": "^17.8.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
+}

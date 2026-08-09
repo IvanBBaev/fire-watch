@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+
+# Local data scratch: satellite backfills, tile builds, fixture inputs.
+# Never committed — see docs/DATA-SOURCES.md for how to re-fetch.
+/data/
+/tiles/
+/tmp/

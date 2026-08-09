@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Actions are pinned to a commit SHA, never to a tag: a tag is mutable and a compromised
+# upstream can move it onto malicious code without any change landing in this repo.
+# The trailing comment records which release the SHA belongs to.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+jobs:
+  verify:
+    name: Typecheck, lint, boundaries, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # --frozen-lockfile makes CI fail rather than silently resolve a different tree
+      # than the one that was reviewed. --ignore-scripts is belt-and-braces on top of
+      # the empty onlyBuiltDependencies list in pnpm-workspace.yaml.
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format
+        run: pnpm run format
+
+      # CI-9: the architectural boundaries of ADR-004 (only the gateway sends) and
+      # ADR-005 (framework-free core) are enforced here, not in review.
+      - name: Boundaries
+        run: pnpm run boundaries
+
+      - name: Tests
+        run: pnpm run test
+
+      # CI-2: the whole golden-replay register runs twice, in two separate processes, and
+      # the reports must be byte-identical. The test suite already double-runs in-process;
+      # this adds the environment as a variable — a far-away zone and a Turkish locale are
+      # where a stray `localeCompare`, `toLowerCase` or local-time format gives a different
+      # answer. `tsc --build` in the Typecheck step above already emitted server/dist.
+      - name: Determinism double-run
+        run: |
+          set -euo pipefail
+          TZ=UTC LC_ALL=C \
+            node server/dist/adapters/fixtures/replay-cli.js > "$RUNNER_TEMP/replay-a.json"
+          TZ=Pacific/Kiritimati LC_ALL=tr_TR.UTF-8 \
+            node server/dist/adapters/fixtures/replay-cli.js > "$RUNNER_TEMP/replay-b.json"
+          diff -u "$RUNNER_TEMP/replay-a.json" "$RUNNER_TEMP/replay-b.json" \
+            || { echo "::error::CI-2: the replay is not deterministic across environments"; exit 1; }
+
+  integration:
+    name: Migrations against PostGIS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # This job is the only thing that ever executes the migration SQL — no contributor
+      # is required to have Docker, so the suite skips itself on a laptop. Here that skip
+      # would be a false green, so the flag turns a missing daemon into a failure.
+      - name: Migration up/down/up and schema invariants
+        run: pnpm run test:integration
+        env:
+          FIRE_WATCH_REQUIRE_DOCKER: '1'
+
+  supply-chain:
+    name: Supply chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Known vulnerabilities
+        run: pnpm audit --audit-level=high
+
+      # A high-signal scan only. GitHub secret scanning with push protection is the
+      # primary control and is a repository setting; this job exists so the two most
+      # project-specific leaks — the FIRMS MAP_KEY, which travels as a URL path segment,
+      # and a committed .env — fail the build rather than wait for a scanner.
+      - name: Secret shapes
+        run: |
+          set -euo pipefail
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is tracked; secrets belong in the runtime environment"
+            exit 1
+          fi
+          if git grep -nIE 'firms\.modaps\.eosdis\.nasa\.gov/api/area/csv/[0-9a-f]{20,}' -- . ; then
+            echo "::error::a FIRMS MAP_KEY appears to be committed in a URL"
+            exit 1
+          fi
+          if git grep -nIE '(BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16})' -- . ; then
+            echo "::error::private key or AWS access key id found in the tree"
+            exit 1
+          fi

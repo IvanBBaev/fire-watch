@@ -1,0 +1,25 @@
+{
+  "availableAt": "2026-08-02T13:05:00Z",
+  "detections": [
+    {
+      "detectionUid": "44ddd84c42f6fb23d36f7acf639b82d4d5f7230002aeb88112fcd73cdf26d70c",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-08-02T12:58:00Z",
+      "latCanonical": "41.85012",
+      "lonCanonical": "26.14003",
+      "confidence": "nominal",
+      "frpMw": 9.75,
+      "dayNight": "D"
+    },
+    {
+      "detectionUid": "c6627fb707778992e1e9a2e05e58601f9552e23f6d06ed84fd37254579eb5aa5",
+      "source": "eumetsat:slstr:frp",
+      "acqTsIso": "2026-08-02T12:55:00Z",
+      "latCanonical": "41.90001",
+      "lonCanonical": "26.20000",
+      "confidence": "nominal",
+      "frpMw": 6,
+      "dayNight": "D"
+    }
+  ]
+}

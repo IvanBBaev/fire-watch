@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-types/
+coverage/
+pnpm-lock.yaml
+data/
+tiles/
+
+# The documentation corpus is hand-wrapped and reviewed as prose; reflowing it would
+# turn every future edit into an unreadable diff.
+docs/
+*.md
