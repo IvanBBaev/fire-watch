@@ -2093,8 +2093,9 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   (floor 0: the function protects what the pass reads). Integration-tested as
   `fire_watch_app` (watermark identical before/after, holds and never-spent accounts kept,
   per-account isolation, a watermark held only by a soft-deleted zone, row cap, future
-  cutoff refused, no direct DELETE); three SQL mutations each fail it. Note:
-  `purge_alert_decision_log` (014) still has no integration test.*
+  cutoff refused, no direct DELETE); three SQL mutations each fail it. 014's
+  `purge_alert_decision_log`, until now executed nowhere, gained its own integration test
+  (`pg-erasure-purge.integration.test.ts`: cutoff, cap, guards, no direct DELETE).*
 - [ ] **I5 — Privacy pages + disclaimers.** Spec: A8; 09. Needs: I1. ЗЗП/LANCE
   layered disclaimers, Esri/AWS recipients disclosed.
   *2026-09-24 — built, uncommitted, not ticked (legal review pending). `/privacy` is in the
