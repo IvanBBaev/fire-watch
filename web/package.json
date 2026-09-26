@@ -13,7 +13,7 @@
   "dependencies": {
     "@fire-watch/contracts": "workspace:*",
     "@preact/signals": "^2.10.0",
-    "maplibre-gl": "6.1.0",
+    "maplibre-gl": "6.4.1",
     "preact": "^10.29.7",
     "preact-iso": "^2.12.1"
   },
