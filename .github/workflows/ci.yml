@@ -295,7 +295,12 @@ jobs:
             echo "::error::a FIRMS MAP_KEY appears to be committed in a URL"
             exit 1
           fi
-          if git grep -nIE '(BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16})' -- . ; then
+          # AKIAIOSFODNN7EXAMPLE is AWS's documented example key id; the SigV4 unit tests
+          # reproduce AWS's published signing vectors, which are built on it. Only that
+          # exact value is allowed — any other AKIA… id still fails.
+          if git grep -nIE '(BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16})' -- . \
+            | sed 's/AKIAIOSFODNN7EXAMPLE//g' \
+            | grep -E '(BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16})'; then
             echo "::error::private key or AWS access key id found in the tree"
             exit 1
           fi

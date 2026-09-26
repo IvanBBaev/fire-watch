@@ -33,17 +33,15 @@ minimumReleaseAgeExclude: []
 onlyBuiltDependencies: []
 
 # Force transitive dependencies past ranges `pnpm audit --audit-level=high` flags
-# (the audit is a CI gate, B3). brace-expansion (testcontainers → archiver →
-# minimatch), nanoid (vitest) and js-yaml (kysely-codegen → cosmiconfig) are
-# dev-only; fast-uri is not — it arrives via fastify → @fastify/ajv-compiler / ajv
-# and fast-json-stringify, on the API's runtime path — but the gate deliberately
-# does not distinguish. Each override pins nothing: it demands
+# (the audit is a CI gate, B3). Every path involved is dev-only — brace-expansion
+# arrives via testcontainers → archiver → minimatch, nanoid via vitest — but the
+# gate deliberately does not distinguish. Each override pins nothing: it demands
 # the patched floor within the same major, and becomes a no-op worth deleting once
 # the direct dependencies move past it on their own.
 overrides:
   'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4' # ReDoS advisories on the 2.x line
   'brace-expansion@>=4.0.0 <5.0.9': '^5.0.9' # same ReDoS, 5.x line
   'nanoid@<3.3.17': '^3.3.17' # custom generators can loop indefinitely
-  'fast-uri@>=3.0.0 <3.1.6': '^3.1.6' # host confusion + SSRF (GHSA-jqff-g426-hqxp et al.)
+  'fast-uri@>=3.0.0 <3.1.6': '^3.1.6' # host confusion (incl. skipped IDN) + SSRF advisories, 3.x line
   'fast-uri@>=4.0.0 <4.1.3': '^4.1.3' # same advisories, 4.x line
-  'js-yaml@>=4.0.0 <4.3.2': '^4.3.2' # maxTotalMergeKeys does not bound CPU
+  'js-yaml@>=4.0.0 <4.3.2': '^4.3.2' # via kysely-codegen > cosmiconfig
