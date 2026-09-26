@@ -28,6 +28,7 @@ import type { AlertDigestRouting } from '../../core/ports/alert-digest-routing.j
 import { ZONE_GRID, indexCellKey } from '../../core/zones/zone-geometry.js';
 import { createAesGcmZoneCipher } from '../crypto/aes-gcm-zone-cipher.js';
 import { createPgAlertDigestStore } from './pg-alert-digest-store.js';
+import { createPgErasurePurge } from './pg-erasure-purge.js';
 import { createPgWatchZoneStore } from './pg-watch-zone-store.js';
 
 const execFileAsync = promisify(execFile);
@@ -423,5 +424,105 @@ describe.skipIf(!hasDocker)('the live digest pass adapters', () => {
     } finally {
       await eraser.end();
     }
+  });
+
+  describe('the retention purge (migration 019)', () => {
+    /** One log row, written as the container superuser (the runtime role has no DELETE). */
+    async function logRow(
+      zoneId: string,
+      windowStart: string,
+      outcome: 'send' | 'hold' | 'suppress',
+      decidedAt: string,
+    ): Promise<void> {
+      const reason = { send: 'daily_summary', hold: 'quiet_hours', suppress: 'nothing_active' };
+      await db.query(
+        `INSERT INTO alert_digest_log (
+           watch_zone_id, window_start, outcome, reason, entry_count, rule_version, decided_at
+         ) VALUES ($1, $2, $3, $4, $5, 'digest_params_v1', $6)`,
+        [zoneId, windowStart, outcome, reason[outcome], outcome === 'send' ? 1 : 0, decidedAt],
+      );
+    }
+
+    async function remaining(): Promise<string[]> {
+      const { rows } = await db.query<{ row: string }>(
+        `SELECT to_char(window_start AT TIME ZONE 'UTC', 'MM-DD') || ' ' || outcome AS row
+         FROM alert_digest_log ORDER BY window_start, outcome, watch_zone_id`,
+      );
+      return rows.map((r) => r.row);
+    }
+
+    const recently = (): string => new Date(Date.now() - 60_000).toISOString();
+
+    it('deletes old windows and keeps the newest spent window and anything after it', async () => {
+      const z1 = await insertZone();
+      const z2 = await insertZone(kmNorth(8));
+      await logRow(z1, '2026-08-10T06:00:00Z', 'send', '2026-08-10T06:05:00Z');
+      await logRow(z2, '2026-08-10T06:00:00Z', 'send', '2026-08-10T06:05:00Z');
+      await logRow(z1, '2026-08-11T06:00:00Z', 'hold', '2026-08-11T06:01:00Z');
+      await logRow(z1, '2026-08-11T06:00:00Z', 'suppress', '2026-08-11T08:00:00Z');
+      await logRow(z1, '2026-08-12T06:00:00Z', 'send', '2026-08-12T06:07:00Z');
+      await logRow(z2, '2026-08-12T06:00:00Z', 'send', '2026-08-12T06:09:00Z');
+      await logRow(z1, '2026-08-13T06:00:00Z', 'hold', '2026-08-13T06:01:00Z');
+      const store = createPgAlertDigestStore(pool);
+      const before = await store.withAccount(accountId, (tx) => tx.readWatermark(accountId));
+
+      const purged = await createPgErasurePurge(pool).purge('alert_digest_log', recently(), 100);
+
+      expect(purged).toBe(4);
+      expect(await remaining()).toEqual(['08-12 send', '08-12 send', '08-13 hold']);
+      const after = await store.withAccount(accountId, (tx) => tx.readWatermark(accountId));
+      expect(after).toEqual(before);
+      expect(after).toEqual({
+        windowStartIso: '2026-08-12T06:00:00Z',
+        decidedAtIso: '2026-08-12T06:07:00Z',
+      });
+    });
+
+    it('keeps rows newer than the cutoff, and an account that never spent a window', async () => {
+      const zone = await insertZone();
+      await logRow(zone, '2026-08-10T06:00:00Z', 'hold', '2026-08-10T06:05:00Z');
+      await logRow(zone, '2026-08-11T06:00:00Z', 'hold', '2026-08-11T06:05:00Z');
+
+      expect(await createPgErasurePurge(pool).purge('alert_digest_log', recently(), 100)).toBe(0);
+
+      await logRow(zone, '2026-08-12T06:00:00Z', 'send', '2026-08-12T06:05:00Z');
+      // Cutoff before the old holds were decided: nothing is past the retention yet.
+      expect(
+        await createPgErasurePurge(pool).purge('alert_digest_log', '2026-08-10T06:00:00Z', 100),
+      ).toBe(0);
+      expect(await remaining()).toEqual(['08-10 hold', '08-11 hold', '08-12 send']);
+    });
+
+    it('protects a watermark held only by a soft-deleted zone, per account', async () => {
+      const gone = await insertZone();
+      const live = await insertZone();
+      await logRow(live, '2026-08-10T06:00:00Z', 'send', '2026-08-10T06:05:00Z');
+      await logRow(gone, '2026-08-11T06:00:00Z', 'send', '2026-08-11T06:05:00Z');
+      await db.query('UPDATE watch_zones SET deleted_at = now() WHERE id = $1', [gone]);
+      // Another account, whose newest spent window is older than this account's.
+      const { rows } = await db.query<{ id: string }>(
+        "INSERT INTO accounts (timezone) VALUES ('Europe/Sofia') RETURNING id",
+      );
+      const other = await insertZone(CENTRE.lat, rows[0]?.id);
+      await logRow(other, '2026-08-09T06:00:00Z', 'suppress', '2026-08-09T06:05:00Z');
+
+      expect(await createPgErasurePurge(pool).purge('alert_digest_log', recently(), 100)).toBe(1);
+      expect(await remaining()).toEqual(['08-09 suppress', '08-11 send']);
+    });
+
+    it('stops at the row cap, oldest first, and refuses a cutoff in the future', async () => {
+      const zone = await insertZone();
+      for (const day of ['10', '11', '12', '13']) {
+        await logRow(zone, `2026-08-${day}T06:00:00Z`, 'send', `2026-08-${day}T06:05:00Z`);
+      }
+      const purge = createPgErasurePurge(pool);
+
+      expect(await purge.purge('alert_digest_log', recently(), 2)).toBe(2);
+      expect(await remaining()).toEqual(['08-12 send', '08-13 send']);
+      await expect(
+        purge.purge('alert_digest_log', new Date(Date.now() + 86_400_000).toISOString(), 10),
+      ).rejects.toThrow(/cutoff in the past/);
+      await expect(pool.query('DELETE FROM alert_digest_log')).rejects.toThrow(/permission denied/);
+    });
   });
 });

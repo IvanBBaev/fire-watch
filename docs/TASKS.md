@@ -1902,8 +1902,8 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   while the digest loop is not running beside it. **Known limit:** decision-log rows stay on
   the event they were taken on, so after a merge/reignition fold the survivor's pair is
   owed as `active` rather than `deferred` — still listed, only the kind label is lost, and
-  the replay loses it the same way (its debts do not follow a fold). Still open: digest routing/template (H2/D7), the cadence, a retention purge
-  for 018 that keeps each account's newest spent row.*
+  the replay loses it the same way (its debts do not follow a fold). Still open: digest routing/template (H2/D7), the cadence, and the 018
+  retention (the watermark-keeping purge landed in 019, see I4).*
 - [ ] **H4 — Gating config + budgets + breaker + kill switch.** Spec: ADR-004
   D4/D5 as amended by A16. Needs: H1, D9. B=500/T-approve, G=2,000/10 min,
   ingest-side breaker leg, deterministic cutoff + deferred metric. **Done
@@ -2084,6 +2084,17 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   cancel pending outbox. Open: retentions, ledger backup class, retained template params,
   grace period, separate erasure login, restore runbook.*
   *2026-09-25 (wave C) — `DELETE /api/v1/account` wired to the production `createPgAccountEraser` on its own account pool (Origin + session, 204, cookie cleared); Docker-gated integration test (tombstone, `erasure_requests` row, dead cookie) written, not run. Erasure is immediate (no grace period).*
+  *2026-09-26 (wave G, continued) — `alert_digest_log` is now a purge target, unarmed like
+  the rest. Migration **019** `purge_alert_digest_log(cutoff, max_rows)` (SECURITY DEFINER,
+  014's guards) deletes a row only when it is past the cutoff **and** its window is older
+  than its account's newest `send`/`suppress` window (soft-deleted zones included), so the
+  digest watermark — window and earliest `decided_at` — reads back unchanged and yesterday's
+  window is never re-owed. `PURGE_TARGETS`/`PURGE_RETENTION` gain `alert_digest_log: null`
+  (floor 0: the function protects what the pass reads). Integration-tested as
+  `fire_watch_app` (watermark identical before/after, holds and never-spent accounts kept,
+  per-account isolation, a watermark held only by a soft-deleted zone, row cap, future
+  cutoff refused, no direct DELETE); three SQL mutations each fail it. Note:
+  `purge_alert_decision_log` (014) still has no integration test.*
 - [ ] **I5 — Privacy pages + disclaimers.** Spec: A8; 09. Needs: I1. ЗЗП/LANCE
   layered disclaimers, Esri/AWS recipients disclosed.
   *2026-09-24 — built, uncommitted, not ticked (legal review pending). `/privacy` is in the
