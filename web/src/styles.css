@@ -283,6 +283,14 @@ button {
   color: var(--color-text);
   cursor: pointer;
   font-weight: 600;
+  /* A flex item's default min-width is its longest word, and at 200 % text on a 360 px
+     screen "местоположение" in bold is wider than the screen itself in a wide system
+     font (DejaVu Sans): the button could neither shrink nor wrap, and hung off the left
+     edge (CI-18 reflow). Shrink to the row, and break inside a word only when a whole
+     word cannot fit — at normal sizes this changes nothing. */
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .map-control[disabled] {
