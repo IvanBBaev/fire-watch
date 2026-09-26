@@ -1909,8 +1909,10 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   `cadence_unratified` — `AlertDigestRouting` has no production implementation (H2/D7)
   and `ALERT_DIGEST_CADENCE` (tick interval, account page size) is deliberately null.
   `ALERT_EVALUATION_GAPS` now reads `digest_pass_disabled`, cleared when the digest loop
-  runs. Still open: the two founder decisions above, the log's retention, digest
-  metrics (only the report line exists).*
+  runs. Still open: the two founder decisions above, the log's retention.
+  Metrics: `observeAlertDigest` records `fw_loop_*{loop="alert_digest"}` and feeds the
+  digest's `awaiting_approval` rows into `fw_alert_sends_deferred_total`, the same series
+  the evaluation loop feeds; a source guard fails if the worker wires the loop bare.*
 - [ ] **H4 — Gating config + budgets + breaker + kill switch.** Spec: ADR-004
   D4/D5 as amended by A16. Needs: H1, D9. B=500/T-approve, G=2,000/10 min,
   ingest-side breaker leg, deterministic cutoff + deferred metric. **Done
