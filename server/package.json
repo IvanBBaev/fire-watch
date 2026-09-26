@@ -27,7 +27,7 @@
     "db:status": "dbmate status",
     "db:new": "dbmate new",
     "db:schema": "dbmate dump",
-    "db:codegen": "kysely-codegen --dialect postgres --out-file src/db/types.generated.ts --exclude-pattern '{schema_migrations,spatial_ref_sys,geography_columns,geometry_columns}'"
+    "db:codegen": "kysely-codegen --dialect postgres --out-file src/db/types.generated.ts --include-pattern 'public.*' --exclude-pattern 'public.{schema_migrations,spatial_ref_sys,geography_columns,geometry_columns}'"
   },
   "dependencies": {
     "@fire-watch/contracts": "workspace:*",
