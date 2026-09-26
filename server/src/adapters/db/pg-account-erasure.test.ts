@@ -59,7 +59,10 @@ const LIVE: Partial<Record<Key, Answer>> = {
   lockZones: { rows: [{ id: ZONE }], rowCount: 1 },
   cancelAndPseudonymizeOutbox: { rows: [{ cancelled: 2, pseudonymized: 3 }], rowCount: 1 },
   deleteAlertStates: { rows: [], rowCount: 4 },
-  deleteZones: { rows: [{ zones: 1, shadow_alerts: 5, decision_log: 3, digest_log: 2 }], rowCount: 1 },
+  deleteZones: {
+    rows: [{ zones: 1, shadow_alerts: 5, decision_log: 3, digest_log: 2 }],
+    rowCount: 1,
+  },
   deleteChannelConfirmations: { rows: [], rowCount: 3 },
   deleteSubscriptions: { rows: [], rowCount: 1 },
   deleteSessions: { rows: [], rowCount: 2 },
@@ -160,7 +163,10 @@ describe('createPgAccountEraser', () => {
 describe('createPgAccountErasureStore', () => {
   it('refuses a zone deletion that removed fewer zones than it locked', async () => {
     const stub = stubPool({
-      deleteZones: { rows: [{ zones: 0, shadow_alerts: 0, decision_log: 0, digest_log: 0 }], rowCount: 1 },
+      deleteZones: {
+        rows: [{ zones: 0, shadow_alerts: 0, decision_log: 0, digest_log: 0 }],
+        rowCount: 1,
+      },
     });
     await expect(createPgAccountErasureStore(stub.pool).deleteZones([ZONE])).rejects.toThrow(
       /removed 0 of 1/,

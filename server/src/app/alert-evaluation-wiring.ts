@@ -23,7 +23,10 @@
  *
  * ## Known gaps that do not block (reported, not hidden)
  *
- *   - `digest_pass_unwired` — a `defer` writes its state but no digest pass delivers it.
+ *   - `digest_pass_disabled` — a `defer` writes its state and a decision-log row, and only
+ *     the digest pass (`alert-digest-wiring.ts`) delivers it. Reported whenever that loop
+ *     is not running beside this one (`digestEnabled` is not `true`): the deferrals are
+ *     then owed and nothing pays them until it is armed.
  *
  * ## Its own pool
  *
@@ -66,7 +69,7 @@ export const ALERT_EVALUATION_BLOCKERS = [
 ] as const;
 export type AlertEvaluationBlocker = (typeof ALERT_EVALUATION_BLOCKERS)[number];
 
-export const ALERT_EVALUATION_GAPS = ['digest_pass_unwired'] as const;
+export const ALERT_EVALUATION_GAPS = ['digest_pass_disabled'] as const;
 export type AlertEvaluationGap = (typeof ALERT_EVALUATION_GAPS)[number];
 
 /** Two: the batch transaction is the only connection a cycle holds at a time. */
@@ -92,6 +95,8 @@ export interface AlertEvaluationWiringOptions {
   readonly routing?: AlertRouting | null;
   /** Injected for tests; defaults to {@link ALERT_EVALUATION_CADENCE}. */
   readonly cadence?: AlertEvaluationCadence;
+  /** Whether the digest pass runs in this worker; `false` unless the caller says so. */
+  readonly digestEnabled?: boolean;
 }
 
 export function wireAlertEvaluation(
@@ -102,7 +107,7 @@ export function wireAlertEvaluation(
   const keyring = loadZonesConfig(env);
   const routing = options.routing ?? null;
   const cadence = options.cadence ?? ALERT_EVALUATION_CADENCE;
-  const gaps = [...ALERT_EVALUATION_GAPS];
+  const gaps: AlertEvaluationGap[] = options.digestEnabled === true ? [] : ['digest_pass_disabled'];
 
   const blockers: AlertEvaluationBlocker[] = [];
   if (keyring === null) blockers.push('zone_keyring_unset');

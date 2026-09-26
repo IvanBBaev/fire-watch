@@ -47,6 +47,7 @@ import {
   createEventLoopLagSampler,
   type EventLoopLagSampler,
 } from '../adapters/system/event-loop-lag.js';
+import type { AlertDigestCycleReport } from '../core/alerts/digest-pass.js';
 import type { AlertEvaluationCycleReport } from '../core/alerts/evaluation-cycle.js';
 import { noDeferrals } from '../core/alerts/outbox-enqueue.js';
 import type { TableGauge } from '../core/backup/table-gauges.js';
@@ -200,6 +201,24 @@ export function observeAlertEvaluation(
     onError,
     alertEvaluationObserver(registry),
   );
+}
+
+/**
+ * The digest pass's report callback, instrumented the same way: loop metrics plus the
+ * deferral counter, because every write path into the outbox is counted by it (A1.12). The
+ * pass writes every digest row `pending` while D5's budget B is unarmed, so today it adds
+ * zeros — which is still a production, not an absence.
+ */
+export function observeAlertDigest(
+  registry: MetricsRegistry,
+  report: LoopReporter<AlertDigestCycleReport>,
+  onError: MetricsErrorSink,
+): LoopReporter<AlertDigestCycleReport> {
+  return observeLoop(registry, 'alert_digest', report, onError, (run) => {
+    for (const increment of alertDeferralIncrements(run.value?.deferred ?? noDeferrals())) {
+      registry.incCounter(increment.descriptor, increment.labels, increment.by);
+    }
+  });
 }
 
 /** Fleet control at scrape time (API). A read that throws exports nothing that scrape. */
