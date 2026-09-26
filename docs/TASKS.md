@@ -1901,8 +1901,8 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   are founder numbers). The evaluation gap is now `digest_pass_disabled`, reported only
   while the digest loop is not running beside it. **Known limit:** decision-log rows stay on
   the event they were taken on, so after a merge/reignition fold the survivor's pair is
-  owed as `active` rather than `deferred` — still listed, only the kind label differs from
-  the replay. Still open: digest routing/template (H2/D7), the cadence, a retention purge
+  owed as `active` rather than `deferred` — still listed, only the kind label is lost, and
+  the replay loses it the same way (its debts do not follow a fold). Still open: digest routing/template (H2/D7), the cadence, a retention purge
   for 018 that keeps each account's newest spent row.*
 - [ ] **H4 — Gating config + budgets + breaker + kill switch.** Spec: ADR-004
   D4/D5 as amended by A16. Needs: H1, D9. B=500/T-approve, G=2,000/10 min,
