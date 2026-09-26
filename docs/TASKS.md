@@ -1856,6 +1856,29 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   cadence unratified. Gaps: `fire_events.score` is never written live so every event is
   below threshold; digest pass unwired; the seed reader is not yet passed to
   `pg-zone-creation`. Integration test unexecuted (no Docker).*
+  *2026-09-26 (wave G, continued) — the live digest pass is built and wired, disabled like
+  the evaluation loop. Migration **018** `alert_digest_log` and `core/alerts/digest-pass.ts`
+  (`runAlertDigestCycle`, one transaction per account, watermark derived from the log) had
+  landed without a test, an adapter or a caller. Added: `digest-pass.test.ts` (25 tests:
+  send/hold/suppress/none, the held window re-sent under its own subkey, undeliverable and
+  copy-less groups spending nothing, the lost-race guard, A1.12's nearest-zone fold, A1.8's
+  seed-after-window rule, per-account rollback, id-free report; six mutations of the core
+  each fail a test); `adapters/db/pg-alert-digest-store.ts` (account `FOR SHARE` against
+  erasure, watermark = newest spent window over all zones incl. soft-deleted, dated by its
+  **earliest** `decided_at`; digestible pairs = state ≠ `none`, not merged, not superseded,
+  not invalidated, `active`/`signal_weakening`; newest evaluation `defer` from 014) with a
+  unit suite and an integration suite run **as `fire_watch_app`** against PostGIS 16-3.4 —
+  7/7 green here, and four SQL mutations (min→max, invalidated kept, no `FOR SHARE`,
+  deleted zones dropped from the watermark) each fail it; `app/alert-digest-wiring.ts` +
+  reporter + `observeAlertDigest` (loop metrics + the A1.12 deferral counter). The worker
+  reports `alert_digest_disabled` with `zone_keyring_unset`, `digest_routing_unarmed`,
+  `cadence_unratified` (`ALERT_DIGEST_CADENCE` is null: tick interval and account page size
+  are founder numbers). The evaluation gap is now `digest_pass_disabled`, reported only
+  while the digest loop is not running beside it. **Known limit:** decision-log rows stay on
+  the event they were taken on, so after a merge/reignition fold the survivor's pair is
+  owed as `active` rather than `deferred` — still listed, only the kind label differs from
+  the replay. Still open: digest routing/template (H2/D7), the cadence, a retention purge
+  for 018 that keeps each account's newest spent row.*
 - [ ] **H4 — Gating config + budgets + breaker + kill switch.** Spec: ADR-004
   D4/D5 as amended by A16. Needs: H1, D9. B=500/T-approve, G=2,000/10 min,
   ingest-side breaker leg, deterministic cutoff + deferred metric. **Done
