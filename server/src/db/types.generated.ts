@@ -30,6 +30,8 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 export interface Accounts {
   created_at: Generated<Timestamp>;
   deleted_at: Timestamp | null;
+  email: string | null;
+  email_verified_at: Timestamp | null;
   id: Generated<string>;
   new_fire_overrides_quiet_hours: Generated<boolean>;
   quiet_hours_end: Generated<string>;
@@ -37,22 +39,83 @@ export interface Accounts {
   timezone: Generated<string>;
 }
 
+export interface AccountSessions {
+  account_id: string;
+  created_at: Timestamp;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  last_seen_at: Timestamp;
+  revoked_at: Timestamp | null;
+  token_hash: Buffer;
+  ua_family: string;
+}
+
+export interface AlertDecisionLog {
+  alert_type: string | null;
+  code: string;
+  decided_at: Timestamp;
+  fire_event_id: Int8;
+  id: Generated<Int8>;
+  in_quiet_hours: boolean;
+  ladder_step: number;
+  outcome: string;
+  pass: string;
+  reason: string;
+  recorded_at: Generated<Timestamp>;
+  rule_version: string;
+  trigger_ref_seq: Int8;
+  watch_zone_id: string;
+}
+
+export interface AlertDigestLog {
+  decided_at: Timestamp;
+  entry_count: number;
+  id: Generated<Int8>;
+  outcome: string;
+  reason: string;
+  recorded_at: Generated<Timestamp>;
+  rule_version: string;
+  watch_zone_id: string;
+  window_start: Timestamp;
+}
+
+export interface AlertEvaluatedEvents {
+  evaluated_at: Timestamp;
+  fire_event_id: Int8;
+  last_seq: Int8;
+  last_status: string;
+}
+
+export interface AlertEvaluationCursor {
+  id: number;
+  last_seq: Int8;
+  updated_at: Timestamp;
+}
+
 export interface AlertOutbox {
+  /**
+   * A1.1: the human who initiated a manual send. NULL on automatic rows.
+   */
   actor_id: string | null;
   alert_subkey: string;
   alert_type: string;
   approval_mode: string | null;
   approved_at: Timestamp | null;
   approver_id: string | null;
+  /**
+   * A1.1/D5: the row was released past budget B by a human.
+   */
   budget_override: Generated<boolean>;
   budget_seq: number | null;
   channel: string;
   channel_subscription_id: string | null;
+  claimed_at: Timestamp | null;
   decided_at: Generated<Timestamp>;
   dispatched_at: Timestamp | null;
   fire_event_id: Int8;
   id: Generated<Int8>;
   last_error: string | null;
+  locale: Generated<string>;
   priority: Generated<number>;
   provider_ack_at: Timestamp | null;
   pseudonymized_at: Timestamp | null;
@@ -61,6 +124,23 @@ export interface AlertOutbox {
   template_id: string;
   template_params: Generated<Json>;
   trigger_ref_seq: Int8;
+  /**
+   * A1.1 four-value provenance: what caused the row. Equals alert_type on automatic rows.
+   */
+  trigger_type: string;
+  watch_zone_id: string | null;
+}
+
+export interface AlertsShadow {
+  alert_subkey: string;
+  alert_type: string;
+  candidate_version: string;
+  decided_at: Timestamp;
+  recorded_at: Generated<Timestamp>;
+  rule_version: string;
+  shadow_event_key: string;
+  template_id: string;
+  template_params: Generated<Json>;
   trigger_type: string;
   watch_zone_id: string;
 }
@@ -75,13 +155,63 @@ export interface AlertStates {
   watch_zone_id: string;
 }
 
+export interface AuthLinkRequests {
+  consumed_at: Timestamp | null;
+  email: string;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  requested_at: Timestamp;
+  superseded_at: Timestamp | null;
+  token_hash: Buffer;
+  ua_family: string;
+}
+
+export interface ChannelConfirmations {
+  account_id: string;
+  channel: string;
+  channel_subscription_id: string | null;
+  consumed_at: Timestamp | null;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  issued_at: Timestamp;
+  revoked_at: Timestamp | null;
+  superseded_at: Timestamp | null;
+  token_hash: Buffer;
+}
+
 export interface ChannelSubscriptions {
   account_id: string;
   channel: string;
+  confirmed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   endpoint: string;
   id: Generated<string>;
   revoked_at: Timestamp | null;
+}
+
+export interface ClusteringBatches {
+  already_assigned: number;
+  attached: number;
+  /**
+   * available_at of the ingest batch, as stamped on its detections. Also the engine batch instant.
+   */
+  available_at: Timestamp;
+  /**
+   * Wall-clock time of the commit that clustered the batch. Operational only; no rule reads it.
+   */
+  clustered_at: Generated<Timestamp>;
+  clustering_run_id: Int8;
+  /**
+   * ClusterBatchResult.stats.detections: non-quarantined rows handed to the engine.
+   */
+  detections: number;
+  merged: number;
+  seeded: number;
+  /**
+   * Source of the ingest batch (ingest_batches key, with available_at).
+   */
+  source: string;
+  unattached: number;
 }
 
 export interface ClusteringRuns {
@@ -91,6 +221,10 @@ export interface ClusteringRuns {
   created_at: Generated<Timestamp>;
   id: Generated<Int8>;
   kind: string;
+  /**
+   * Instant of the previous lifecycle tick over this run's events; the start of the next evidence window.
+   */
+  lifecycle_ticked_at: Timestamp | null;
   params: Generated<Json>;
   promoted_at: Timestamp | null;
   window_end: Timestamp | null;
@@ -106,6 +240,14 @@ export interface Clusters {
   hull: string | null;
   id: Generated<Int8>;
   last_detection_at: Timestamp;
+  /**
+   * Instant the public_id was minted (the engine batch instant). Its UTC year is the cosmetic fw-YYYY.
+   */
+  minted_at: Timestamp;
+  /**
+   * Detection the cluster was created by; the frozen seed of its public_id. Never changes.
+   */
+  seed_detection_uid: string;
   updated_at: Generated<Timestamp>;
 }
 
@@ -137,6 +279,14 @@ export interface Detections {
   track_km: number | null;
 }
 
+export interface ErasureRequests {
+  account_hash: Buffer;
+  counts: Json;
+  deadline_at: Timestamp;
+  erased_at: Timestamp;
+  plan_version: string;
+}
+
 export interface EventDetections {
   acq_ts: Timestamp;
   attached_at: Generated<Timestamp>;
@@ -145,21 +295,61 @@ export interface EventDetections {
   fire_event_id: Int8;
 }
 
+export interface EventsShadow {
+  candidate_config_digest: string;
+  candidate_version: string;
+  detection_uids: string[];
+  invalidated: Generated<boolean>;
+  last_detection_at: Timestamp;
+  merged_into_key: string | null;
+  recorded_at: Generated<Timestamp>;
+  score: number;
+  shadow_key: string;
+  started_at: Timestamp;
+  status: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface FireEvents {
   centroid: string;
   config_version: string;
   created_at: Generated<Timestamp>;
   detection_count: Generated<number>;
+  /**
+   * Read surface (ADR-002 D6 display tiers): map = active set served by /snapshot.json, feed = list only, archive. Written by lifecycle transitions, never derived at read time (ADR-003 A1.4 R1).
+   */
   display_tier: Generated<string>;
+  /**
+   * UTC midnight of the day geo_weight_spent belongs to. NULL with geo_weight_spent when no GEO weight was carried.
+   */
+  geo_weight_day: Timestamp | null;
+  /**
+   * GEO miss weight already spent on geo_weight_day (the daily cap balance). Bookkeeping: never bumps seq.
+   */
+  geo_weight_spent: number | null;
   hull: string | null;
   hull_diameter_km: number | null;
   id: Generated<Int8>;
+  /**
+   * Instant of the transition out of active/signal_weakening that the time rules count from (A2.2). NULL while active or weakening.
+   */
   inactive_since: Timestamp | null;
   invalidated: Generated<boolean>;
   invalidated_reason: string | null;
   last_detection_at: Timestamp;
+  /**
+   * UTC midnight the event's current run of observation-free days is counted from; NULL until the first lifecycle tick. Bookkeeping: never bumps seq.
+   */
+  lifecycle_blind_since: Timestamp | null;
+  /**
+   * Newest acquisition the previous lifecycle tick knew about; NULL until the first tick. The redetection test compares against it.
+   */
+  lifecycle_seen_detection_at: Timestamp | null;
   max_frp_mw: number | null;
   merged_into: Int8 | null;
+  /**
+   * Accumulated miss evidence E carried between lifecycle ticks (ADR-002 D4). Bookkeeping: never bumps seq.
+   */
   miss_evidence: Generated<number>;
   nearest_place: Json | null;
   needs_review: Generated<boolean>;
@@ -167,6 +357,10 @@ export interface FireEvents {
   related_event_id: Int8 | null;
   relation_kind: string | null;
   score: Generated<number>;
+  /**
+   * score_params version that produced score (ADR-002 D5/D6); NULL = never scored (tombstone, absorbed seed, or not touched since 017). Bookkeeping: never bumps seq.
+   */
+  score_params_version: string | null;
   seq: Generated<Int8>;
   source_mix: Generated<Json>;
   source_registry_version: string;
@@ -209,6 +403,35 @@ export interface IngestQuarantine {
   source: string;
 }
 
+export interface NrtLagHistograms {
+  below: number;
+  computed_at: Generated<Timestamp>;
+  counts: number[];
+  day: Timestamp;
+  edges_minutes: number[];
+  histogram_digest: string;
+  histogram_version: string;
+  max_lag_ms: Int8 | null;
+  min_lag_ms: Int8 | null;
+  overflow: number;
+  source: string;
+  total: number;
+}
+
+export interface QaWeeklyReports {
+  generated_at: Timestamp;
+  iso_week: string;
+  metrics_digest: string;
+  metrics_version: string;
+  report_digest: string;
+  report_json: string;
+  report_markdown: string;
+  report_version: string;
+  window_end: Timestamp;
+  window_start: Timestamp;
+  written_at: Generated<Timestamp>;
+}
+
 export interface Sources {
   attach_only: boolean;
   id: string;
@@ -235,11 +458,580 @@ export interface TableBackupClass {
   table_name: string;
 }
 
+export interface TigerAddr {
+  arid: string | null;
+  fromarmid: number | null;
+  fromhn: string | null;
+  fromtyp: string | null;
+  gid: Generated<number>;
+  mtfcc: string | null;
+  plus4: string | null;
+  side: string | null;
+  statefp: string | null;
+  tlid: Int8 | null;
+  toarmid: number | null;
+  tohn: string | null;
+  totyp: string | null;
+  zip: string | null;
+}
+
+export interface TigerAddrfeat {
+  aridl: string | null;
+  aridr: string | null;
+  edge_mtfcc: string | null;
+  fullname: string | null;
+  gid: Generated<number>;
+  lfromhn: string | null;
+  lfromtyp: string | null;
+  linearid: string | null;
+  ltohn: string | null;
+  ltotyp: string | null;
+  offsetl: string | null;
+  offsetr: string | null;
+  parityl: string | null;
+  parityr: string | null;
+  plus4l: string | null;
+  plus4r: string | null;
+  rfromhn: string | null;
+  rfromtyp: string | null;
+  rtohn: string | null;
+  rtotyp: string | null;
+  statefp: string;
+  the_geom: string | null;
+  tlid: Int8 | null;
+  zipl: string | null;
+  zipr: string | null;
+}
+
+export interface TigerBg {
+  aland: number | null;
+  awater: number | null;
+  bg_id: string;
+  blkgrpce: string | null;
+  countyfp: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  mtfcc: string | null;
+  namelsad: string | null;
+  statefp: string | null;
+  the_geom: string | null;
+  tractce: string | null;
+}
+
+export interface TigerCounty {
+  aland: Int8 | null;
+  awater: number | null;
+  cbsafp: string | null;
+  classfp: string | null;
+  cntyidfp: string;
+  countyfp: string | null;
+  countyns: string | null;
+  csafp: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  lsad: string | null;
+  metdivfp: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  namelsad: string | null;
+  statefp: string | null;
+  the_geom: string | null;
+}
+
+export interface TigerCountyLookup {
+  co_code: number;
+  name: string | null;
+  st_code: number;
+  state: string | null;
+}
+
+export interface TigerCountysubLookup {
+  co_code: number;
+  county: string | null;
+  cs_code: number;
+  name: string | null;
+  st_code: number;
+  state: string | null;
+}
+
+export interface TigerCousub {
+  aland: Numeric | null;
+  awater: Numeric | null;
+  classfp: string | null;
+  cnectafp: string | null;
+  cosbidfp: string;
+  countyfp: string | null;
+  cousubfp: string | null;
+  cousubns: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  lsad: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  namelsad: string | null;
+  nctadvfp: string | null;
+  nectafp: string | null;
+  statefp: string | null;
+  the_geom: string | null;
+}
+
+export interface TigerDirectionLookup {
+  abbrev: string | null;
+  name: string;
+}
+
+export interface TigerEdges {
+  artpath: string | null;
+  countyfp: string | null;
+  deckedroad: string | null;
+  divroad: string | null;
+  exttyp: string | null;
+  featcat: string | null;
+  fullname: string | null;
+  gcseflg: string | null;
+  gid: Generated<number>;
+  hydroflg: string | null;
+  lfromadd: string | null;
+  ltoadd: string | null;
+  mtfcc: string | null;
+  offsetl: string | null;
+  offsetr: string | null;
+  olfflg: string | null;
+  passflg: string | null;
+  persist: string | null;
+  railflg: string | null;
+  rfromadd: string | null;
+  roadflg: string | null;
+  rtoadd: string | null;
+  smid: string | null;
+  statefp: string | null;
+  tfidl: Numeric | null;
+  tfidr: Numeric | null;
+  the_geom: string | null;
+  tlid: Int8 | null;
+  tnidf: Numeric | null;
+  tnidt: Numeric | null;
+  ttyp: string | null;
+  zipl: string | null;
+  zipr: string | null;
+}
+
+export interface TigerFaces {
+  aiannhce: string | null;
+  aiannhce00: string | null;
+  aiannhfp: string | null;
+  aiannhfp00: string | null;
+  anrcfp: string | null;
+  anrcfp00: string | null;
+  atotal: number | null;
+  blkgrpce: string | null;
+  blkgrpce00: string | null;
+  blkgrpce20: string | null;
+  blockce: string | null;
+  blockce00: string | null;
+  blockce20: string | null;
+  cbsafp: string | null;
+  cd108fp: string | null;
+  cd111fp: string | null;
+  cnectafp: string | null;
+  comptyp: string | null;
+  comptyp00: string | null;
+  conctyfp: string | null;
+  conctyfp00: string | null;
+  countyfp: string | null;
+  countyfp00: string | null;
+  countyfp20: string | null;
+  cousubfp: string | null;
+  cousubfp00: string | null;
+  csafp: string | null;
+  elsdlea: string | null;
+  elsdlea00: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  lwflag: string | null;
+  metdivfp: string | null;
+  nctadvfp: string | null;
+  nectafp: string | null;
+  offset: string | null;
+  placefp: string | null;
+  placefp00: string | null;
+  puma5ce: string | null;
+  puma5ce00: string | null;
+  scsdlea: string | null;
+  scsdlea00: string | null;
+  sldlst: string | null;
+  sldlst00: string | null;
+  sldust: string | null;
+  sldust00: string | null;
+  statefp: string | null;
+  statefp00: string | null;
+  statefp20: string | null;
+  submcdfp: string | null;
+  submcdfp00: string | null;
+  tazce: string | null;
+  tazce00: string | null;
+  tblkgpce: string | null;
+  tfid: Numeric | null;
+  the_geom: string | null;
+  tractce: string | null;
+  tractce00: string | null;
+  tractce20: string | null;
+  trsubce: string | null;
+  trsubce00: string | null;
+  trsubfp: string | null;
+  trsubfp00: string | null;
+  ttractce: string | null;
+  uace: string | null;
+  uace00: string | null;
+  ugace: string | null;
+  ugace00: string | null;
+  unsdlea: string | null;
+  unsdlea00: string | null;
+  vtdst: string | null;
+  vtdst00: string | null;
+  zcta5ce: string | null;
+  zcta5ce00: string | null;
+}
+
+export interface TigerFeatnames {
+  fullname: string | null;
+  gid: Generated<number>;
+  linearid: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  paflag: string | null;
+  predir: string | null;
+  predirabrv: string | null;
+  prequal: string | null;
+  prequalabr: string | null;
+  pretyp: string | null;
+  pretypabrv: string | null;
+  statefp: string | null;
+  sufdir: string | null;
+  sufdirabrv: string | null;
+  sufqual: string | null;
+  sufqualabr: string | null;
+  suftyp: string | null;
+  suftypabrv: string | null;
+  tlid: Int8 | null;
+}
+
+export interface TigerGeocodeSettings {
+  category: string | null;
+  name: string;
+  setting: string | null;
+  short_desc: string | null;
+  unit: string | null;
+}
+
+export interface TigerGeocodeSettingsDefault {
+  category: string | null;
+  name: string;
+  setting: string | null;
+  short_desc: string | null;
+  unit: string | null;
+}
+
+export interface TigerLoaderLookuptables {
+  /**
+   * List of columns to exclude as an array. This is excluded from both input table and output table and rest of columns remaining are assumed to be in same order in both tables. gid, geoid,cpi,suffix1ce are excluded if no columns are specified.
+   */
+  columns_exclude: string[] | null;
+  insert_mode: Generated<string>;
+  level_county: Generated<boolean>;
+  /**
+   * These are tables that contain all data for the whole US so there is just a single file
+   */
+  level_nation: Generated<boolean>;
+  level_state: Generated<boolean>;
+  /**
+   * Whether or not to load the table.  For states and zcta5 (you may just want to download states10, zcta510 nationwide file manually) load your own into a single table that inherits from tiger.states, tiger.zcta5.  You'll get improved performance for some geocoding cases.
+   */
+  load: Generated<boolean>;
+  /**
+   * This is the table name to inherit from and suffix of resulting output table -- how the table will be named --  edges here would mean -- ma_edges , pa_edges etc. except in the case of national tables. national level tables have no prefix
+   */
+  lookup_name: string;
+  post_load_process: string | null;
+  pre_load_process: string | null;
+  process_order: Generated<number>;
+  single_geom_mode: Generated<boolean | null>;
+  single_mode: Generated<boolean>;
+  /**
+   * suffix of the tables to load e.g.  edges would load all tables like *edges.dbf(shp)  -- so tl_2010_42129_edges.dbf .  
+   */
+  table_name: string | null;
+  /**
+   * Path to use for wget instead of that specified in year table.  Needed currently for zcta where they release that only for 2000 and 2010
+   */
+  website_root_override: string | null;
+}
+
+export interface TigerLoaderPlatform {
+  county_process_command: string | null;
+  declare_sect: string | null;
+  environ_set_command: string | null;
+  loader: string | null;
+  os: string;
+  path_sep: string | null;
+  pgbin: string | null;
+  psql: string | null;
+  unzip_command: string | null;
+  wget: string | null;
+}
+
+export interface TigerLoaderVariables {
+  data_schema: string | null;
+  staging_fold: string | null;
+  staging_schema: string | null;
+  tiger_year: string;
+  website_root: string | null;
+}
+
+export interface TigerPagcGaz {
+  id: Generated<number>;
+  is_custom: Generated<boolean>;
+  seq: number | null;
+  stdword: string | null;
+  token: number | null;
+  word: string | null;
+}
+
+export interface TigerPagcLex {
+  id: Generated<number>;
+  is_custom: Generated<boolean>;
+  seq: number | null;
+  stdword: string | null;
+  token: number | null;
+  word: string | null;
+}
+
+export interface TigerPagcRules {
+  id: Generated<number>;
+  is_custom: Generated<boolean | null>;
+  rule: string | null;
+}
+
+export interface TigerPlace {
+  aland: Int8 | null;
+  awater: Int8 | null;
+  classfp: string | null;
+  cpi: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  lsad: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  namelsad: string | null;
+  pcicbsa: string | null;
+  pcinecta: string | null;
+  placefp: string | null;
+  placens: string | null;
+  plcidfp: string;
+  statefp: string | null;
+  the_geom: string | null;
+}
+
+export interface TigerPlaceLookup {
+  name: string | null;
+  pl_code: number;
+  st_code: number;
+  state: string | null;
+}
+
+export interface TigerSecondaryUnitLookup {
+  abbrev: string | null;
+  name: string;
+}
+
+export interface TigerState {
+  aland: Int8 | null;
+  awater: Int8 | null;
+  division: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  lsad: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  region: string | null;
+  statefp: string;
+  statens: string | null;
+  stusps: string;
+  the_geom: string | null;
+}
+
+export interface TigerStateLookup {
+  abbrev: string | null;
+  name: string | null;
+  st_code: number;
+  statefp: string | null;
+}
+
+export interface TigerStreetTypeLookup {
+  abbrev: string | null;
+  is_hw: Generated<boolean>;
+  name: string;
+}
+
+export interface TigerTabblock {
+  aland: number | null;
+  awater: number | null;
+  blockce: string | null;
+  countyfp: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  statefp: string | null;
+  tabblock_id: string;
+  the_geom: string | null;
+  tractce: string | null;
+  uace: string | null;
+  ur: string | null;
+}
+
+export interface TigerTabblock20 {
+  aland: number | null;
+  awater: number | null;
+  blockce: string | null;
+  countyfp: string | null;
+  funcstat: string | null;
+  geoid: string;
+  housing: number | null;
+  intptlat: string | null;
+  intptlon: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  pop: number | null;
+  statefp: string | null;
+  the_geom: string | null;
+  tractce: string | null;
+  uace: string | null;
+  uatype: string | null;
+  ur: string | null;
+}
+
+export interface TigerTract {
+  aland: number | null;
+  awater: number | null;
+  countyfp: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  mtfcc: string | null;
+  name: string | null;
+  namelsad: string | null;
+  statefp: string | null;
+  the_geom: string | null;
+  tract_id: string;
+  tractce: string | null;
+}
+
+export interface TigerZcta5 {
+  aland: number | null;
+  awater: number | null;
+  classfp: string | null;
+  funcstat: string | null;
+  gid: Generated<number>;
+  intptlat: string | null;
+  intptlon: string | null;
+  mtfcc: string | null;
+  partflg: string | null;
+  statefp: string;
+  the_geom: string | null;
+  zcta5ce: string;
+}
+
+export interface TigerZipLookup {
+  cnt: number | null;
+  co_code: number | null;
+  county: string | null;
+  cousub: string | null;
+  cs_code: number | null;
+  pl_code: number | null;
+  place: string | null;
+  st_code: number | null;
+  state: string | null;
+  zip: number;
+}
+
+export interface TigerZipLookupAll {
+  cnt: number | null;
+  co_code: number | null;
+  county: string | null;
+  cousub: string | null;
+  cs_code: number | null;
+  pl_code: number | null;
+  place: string | null;
+  st_code: number | null;
+  state: string | null;
+  zip: number | null;
+}
+
+export interface TigerZipLookupBase {
+  city: string | null;
+  county: string | null;
+  state: string | null;
+  statefp: string | null;
+  zip: string;
+}
+
+export interface TigerZipState {
+  statefp: string | null;
+  stusps: string;
+  zip: string;
+}
+
+export interface TigerZipStateLoc {
+  place: string;
+  statefp: string | null;
+  stusps: string;
+  zip: string;
+}
+
+export interface TopologyLayer {
+  child_id: number | null;
+  feature_column: string;
+  feature_type: number;
+  layer_id: number;
+  level: Generated<number>;
+  schema_name: string;
+  table_name: string;
+  topology_id: number;
+}
+
+export interface TopologyTopology {
+  hasz: Generated<boolean>;
+  id: Generated<number>;
+  name: string;
+  precision: number;
+  srid: number;
+}
+
 export interface WatchZones {
   account_id: string;
-  area: string;
+  area: string | null;
+  centre_ciphertext: Buffer | null;
+  centre_coarsened: boolean | null;
+  centre_key_id: string | null;
   created_at: Generated<Timestamp>;
   deleted_at: Timestamp | null;
+  grid_cell: string | null;
+  grid_version: string | null;
   id: Generated<string>;
   min_score: Generated<number>;
   name: string;
@@ -247,19 +1039,68 @@ export interface WatchZones {
 }
 
 export interface DB {
+  account_sessions: AccountSessions;
   accounts: Accounts;
+  alert_decision_log: AlertDecisionLog;
+  alert_digest_log: AlertDigestLog;
+  alert_evaluated_events: AlertEvaluatedEvents;
+  alert_evaluation_cursor: AlertEvaluationCursor;
   alert_outbox: AlertOutbox;
   alert_states: AlertStates;
+  alerts_shadow: AlertsShadow;
+  auth_link_requests: AuthLinkRequests;
+  channel_confirmations: ChannelConfirmations;
   channel_subscriptions: ChannelSubscriptions;
+  clustering_batches: ClusteringBatches;
   clustering_runs: ClusteringRuns;
   clusters: Clusters;
   detections: Detections;
+  erasure_requests: ErasureRequests;
   event_detections: EventDetections;
+  events_shadow: EventsShadow;
   fire_events: FireEvents;
   ingest_batches: IngestBatches;
   ingest_quarantine: IngestQuarantine;
+  nrt_lag_histograms: NrtLagHistograms;
+  qa_weekly_reports: QaWeeklyReports;
   source_status: SourceStatus;
   sources: Sources;
   table_backup_class: TableBackupClass;
+  "tiger.addr": TigerAddr;
+  "tiger.addrfeat": TigerAddrfeat;
+  "tiger.bg": TigerBg;
+  "tiger.county": TigerCounty;
+  "tiger.county_lookup": TigerCountyLookup;
+  "tiger.countysub_lookup": TigerCountysubLookup;
+  "tiger.cousub": TigerCousub;
+  "tiger.direction_lookup": TigerDirectionLookup;
+  "tiger.edges": TigerEdges;
+  "tiger.faces": TigerFaces;
+  "tiger.featnames": TigerFeatnames;
+  "tiger.geocode_settings": TigerGeocodeSettings;
+  "tiger.geocode_settings_default": TigerGeocodeSettingsDefault;
+  "tiger.loader_lookuptables": TigerLoaderLookuptables;
+  "tiger.loader_platform": TigerLoaderPlatform;
+  "tiger.loader_variables": TigerLoaderVariables;
+  "tiger.pagc_gaz": TigerPagcGaz;
+  "tiger.pagc_lex": TigerPagcLex;
+  "tiger.pagc_rules": TigerPagcRules;
+  "tiger.place": TigerPlace;
+  "tiger.place_lookup": TigerPlaceLookup;
+  "tiger.secondary_unit_lookup": TigerSecondaryUnitLookup;
+  "tiger.state": TigerState;
+  "tiger.state_lookup": TigerStateLookup;
+  "tiger.street_type_lookup": TigerStreetTypeLookup;
+  "tiger.tabblock": TigerTabblock;
+  "tiger.tabblock20": TigerTabblock20;
+  "tiger.tract": TigerTract;
+  "tiger.zcta5": TigerZcta5;
+  "tiger.zip_lookup": TigerZipLookup;
+  "tiger.zip_lookup_all": TigerZipLookupAll;
+  "tiger.zip_lookup_base": TigerZipLookupBase;
+  "tiger.zip_state": TigerZipState;
+  "tiger.zip_state_loc": TigerZipStateLoc;
+  "topology.layer": TopologyLayer;
+  "topology.topology": TopologyTopology;
   watch_zones: WatchZones;
 }

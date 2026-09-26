@@ -1252,6 +1252,16 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   test against a fake driver but no integration suite yet (the `merged_into` self-join
   and the `seq` ordering deserve one, CI-only here); no per-IP throttle on the stream
   beyond the per-client connection cap; no `degrade` sender until E4.*
+
+  *2026-09-26 (wave G) — open issue found by `app/api.integration.test.ts` (API process
+  against real PostGIS). The snapshot reads the database directly; the stream knows only
+  what the pump has read (`STREAM_TICK_MS`, 2 s). A client that connects with the
+  snapshot's `max_seq` as its cursor within one pump tick of a write is ahead of the
+  buffer and gets `reset` reason `unknown` (`frame-ring.ts` describes `unknown` as "made up
+  or the database went backwards", which misses this case), refetches, and can be reset
+  again until the pump catches up. Candidate fix: a cursor ahead of the buffer triggers one
+  shared catch-up read before the answer. ADR-003 design call, not made; the test waits for
+  the pump (`streamCaughtUpTo`) and keeps its `not.toContain('event: reset')`.*
 - [ ] **E3 — R2 static mirror (T2) + age monitor.** Spec: ADR-003 D1 (T2 row) as
   amended by A15 (A1.2 — the flip is client-side, never a Worker route);
   14 E-minor. Needs: E1. Upload job, second hostname, object-age monitor.
@@ -1856,6 +1866,21 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   cadence unratified. Gaps: `fire_events.score` is never written live so every event is
   below threshold; digest pass unwired; the seed reader is not yet passed to
   `pg-zone-creation`. Integration test unexecuted (no Docker).*
+
+  *2026-09-26 (wave G) — digest pass, core half. `core/alerts/digest-pass.ts` collects the
+  `defer`/`seed` debts per account through the pure `produceDigest` (send / hold for quiet
+  hours / suppress over a quiet map), one transaction per account, with ports
+  `core/ports/alert-digest-routing.ts` and `alert-digest-store.ts`. Migration **018**
+  `alert_digest_log` is both the decision record and the watermark (last spent window =
+  newest `send`/`suppress` over the account's zones, written in the same transaction as the
+  outbox rows; `UNIQUE (zone, window, outcome)` means a conflicting `send` writes no outbox
+  row). Personal, zone-keyed, cascade-erased: registered in the erasure plan
+  (`erasure_plan_v5`), account export, erasure drill seed and schema test; deliberately
+  **not** a purge target yet — a naive cutoff would reset the watermark and re-owe a window,
+  so its retention is an open founder item. Still **not** wired: no Postgres adapter for
+  the store, not in the worker, so `digest_pass_unwired` stays in `ALERT_EVALUATION_GAPS`.
+  `docs/legal/ropa.md` and `breach-runbook.md` omit both 014 and 018 (legal docs, left for
+  the founder).*
   *2026-09-26 (wave G, continued) — the live digest pass is built and wired, disabled like
   the evaluation loop. Migration **018** `alert_digest_log` and `core/alerts/digest-pass.ts`
   (`runAlertDigestCycle`, one transaction per account, watermark derived from the log) had
