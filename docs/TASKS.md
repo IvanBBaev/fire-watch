@@ -1881,6 +1881,22 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   the store, not in the worker, so `digest_pass_unwired` stays in `ALERT_EVALUATION_GAPS`.
   `docs/legal/ropa.md` and `breach-runbook.md` omit both 014 and 018 (legal docs, left for
   the founder).*
+  *2026-09-26 (wave G, cont.) — digest pass wired, disabled by named blockers.
+  `core/alerts/digest-pass.test.ts` (19 tests) now covers the pass itself, which had none.
+  `adapters/db/pg-alert-digest-store.ts` implements the port: the account lock is the
+  settings select `FOR SHARE` (erasure's `FOR UPDATE` wins), `appendLog` is `ON CONFLICT
+  … DO NOTHING` returning rows inserted, the watermark counts only `send`/`suppress` over
+  every zone ever owned and reports a window's earliest `decided_at`, and `loadPairs` uses
+  the evaluation read model's `superseded` test; no `clustering_runs` fence. Its
+  integration suite (9) was run against PostGIS 3.4.2 / PG 16 outside Docker, including a
+  deterministic two-transaction race (second insert blocks, then inserts 0).
+  `app/alert-digest-wiring.ts` puts it in the worker with its own pool of 2 and reports
+  `alert_digest_disabled` with `zone_keyring_unset`, `digest_routing_unarmed`,
+  `cadence_unratified` — `AlertDigestRouting` has no production implementation (H2/D7)
+  and `ALERT_DIGEST_CADENCE` (tick interval, account page size) is deliberately null.
+  `ALERT_EVALUATION_GAPS` now reads `digest_pass_disabled`, cleared when the digest loop
+  runs. Still open: the two founder decisions above, the log's retention, digest
+  metrics (only the report line exists).*
 - [ ] **H4 — Gating config + budgets + breaker + kill switch.** Spec: ADR-004
   D4/D5 as amended by A16. Needs: H1, D9. B=500/T-approve, G=2,000/10 min,
   ingest-side breaker leg, deterministic cutoff + deferred metric. **Done
