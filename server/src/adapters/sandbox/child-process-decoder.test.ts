@@ -218,10 +218,13 @@ describe('a decoder that declines', () => {
   it('puts its own reason first, however much its libraries said before it', async () => {
     // libhdf5 prints a diagnostic stack longer than the whole error budget; the decoder's
     // reason comes last. It must survive both the stderr window and the cap.
+    // `exitCode`, not `process.exit()`: ~12 KB can outrun the pipe (Linux CI shrinks pipe
+    // buffers under load), Node then queues the rest, and `process.exit()` drops that queue —
+    // reason line included. A real decoder writes fd 2 synchronously and loses nothing.
     const decoder = decoderRunning(
       `for (let i = 0; i < 400; i += 1) process.stderr.write('HDF5-DIAG: #' + i + ' noise noise noise\\n');
        process.stderr.write('\\n${DECODER_REASON_PREFIX}the superblock is truncated\\n');
-       process.exit(${String(DECODER_REFUSED_EXIT)})`,
+       process.exitCode = ${String(DECODER_REFUSED_EXIT)};`,
     );
 
     const result = await decoder.decode(REF, BYTES);
