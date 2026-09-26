@@ -115,7 +115,9 @@ export const SIGNAL_WEAKENING_THRESHOLD_FRACTION = 0.5;
  * `peatOrLandfillIsLarge` is what makes the criterion itself versioned data.
  */
 export function isLargeEvent(
-  event: EventObservationSnapshot,
+  // Only the three facts the rule reads, so FER (core/qa) judges the large-event class
+  // with this implementation from the transition log's snapshot rather than a copy.
+  event: Pick<EventObservationSnapshot, 'hullAreaHa' | 'maxFrpMw' | 'peatOrLandfill'>,
   params: LifecycleParams = LIFECYCLE_PARAMS.values,
 ): boolean {
   const { largeEvent } = params;

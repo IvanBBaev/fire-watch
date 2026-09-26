@@ -28,6 +28,8 @@
  * unchanged version, which throws.
  */
 
+import { isLifecycleState, type LifecycleState } from '@fire-watch/contracts';
+
 import { ALERT_TYPES, type AlertType } from '../../core/config/alert-gating.js';
 import type {
   QaAlertRow,
@@ -35,8 +37,13 @@ import type {
   QaReportStore,
   StoredWeeklyReport,
 } from '../../core/ports/qa-report-store.js';
+import type {
+  QaLifecycleHistory,
+  QaLifecyclePopulationRow,
+  QaTransitionRow,
+} from '../../core/qa/lifecycle-metrics.js';
 import type { PipelineTrace } from '../../core/qa/shadow-plb.js';
-import { boolean, epochMs, field, string } from './pg-rows.js';
+import { boolean, epochMs, field, number, string } from './pg-rows.js';
 
 /** The slice of `pg` this module uses. */
 export interface PgQaReportQueryable {
@@ -83,6 +90,54 @@ FROM chain
 ORDER BY alert_id, depth DESC
 `.trim();
 
+const SELECT_LOG_ORIGIN = `SELECT started_at FROM lifecycle_log_origin WHERE id = 1`;
+
+// $1 = lead-in start, $2 = window end. Creation rows included; the core decides what they
+// mean to each metric. Ordered for byte-stable reports.
+const SELECT_TRANSITIONS = `
+SELECT e.public_id, t.transitioned_at, t.from_status, t.to_status, t.status_reason,
+       t.max_frp_mw, t.hull_area_ha, (e.merged_into IS NOT NULL) AS merged,
+       CASE WHEN t.to_status = 'no_longer_detected' THEN (
+         SELECT min(ed.attached_at)
+           FROM event_detections ed
+           JOIN clustering_runs r ON r.id = ed.clustering_run_id AND r.kind = 'live'
+          WHERE ed.fire_event_id = t.fire_event_id AND ed.attached_at > t.transitioned_at
+       ) END AS reattached_at
+FROM fire_event_transitions t
+JOIN fire_events e ON e.id = t.fire_event_id
+WHERE t.transitioned_at >= $1::timestamptz AND t.transitioned_at < $2::timestamptz
+ORDER BY e.public_id COLLATE "C", t.transitioned_at, t.id
+`.trim();
+
+// $1 = lead-in start, $2 = window start, $3 = window end. FLR's population: events not
+// merged away that moved in [lead-in, end) or stood \`active\` at the window start.
+const SELECT_LIFECYCLE_POPULATION = `
+WITH ev AS (
+  SELECT e.public_id,
+         coalesce(
+           (SELECT t.to_status FROM fire_event_transitions t
+             WHERE t.fire_event_id = e.id AND t.transitioned_at < $2::timestamptz
+             ORDER BY t.transitioned_at DESC, t.id DESC LIMIT 1),
+           CASE WHEN EXISTS (SELECT 1 FROM fire_event_transitions t
+                              WHERE t.fire_event_id = e.id AND t.transitioned_at >= $2::timestamptz)
+                THEN (SELECT coalesce(t.from_status, '<none>') FROM fire_event_transitions t
+                       WHERE t.fire_event_id = e.id AND t.transitioned_at >= $2::timestamptz
+                       ORDER BY t.transitioned_at, t.id LIMIT 1)
+                ELSE e.status END
+         ) AS status_at_start,
+         EXISTS (SELECT 1 FROM fire_event_transitions t
+                  WHERE t.fire_event_id = e.id
+                    AND t.transitioned_at >= $1::timestamptz
+                    AND t.transitioned_at < $3::timestamptz) AS moved
+  FROM fire_events e
+  WHERE e.merged_into IS NULL
+)
+SELECT public_id, NULLIF(status_at_start, '<none>') AS status_at_start
+FROM ev
+WHERE moved OR status_at_start = 'active'
+ORDER BY public_id COLLATE "C"
+`.trim();
+
 const SELECT_HAS_REPORT = `
 SELECT 1 AS present FROM qa_weekly_reports
 WHERE iso_week = $1 AND metrics_version = $2 AND report_version = $3
@@ -108,6 +163,9 @@ export const QA_REPORT_SQL = Object.freeze({
   selectPlbTraces: SELECT_PLB_TRACES,
   selectDarAlerts: SELECT_DAR_ALERTS,
   selectHasReport: SELECT_HAS_REPORT,
+  selectLogOrigin: SELECT_LOG_ORIGIN,
+  selectTransitions: SELECT_TRANSITIONS,
+  selectLifecyclePopulation: SELECT_LIFECYCLE_POPULATION,
   upsertReport: UPSERT_REPORT,
 });
 
@@ -125,6 +183,22 @@ export function createPgQaReportStore(
     async loadDarAlerts({ fromMs, toMs }) {
       const { rows } = await db.query(SELECT_DAR_ALERTS, [iso(fromMs), iso(toMs)]);
       return rows.map(decodeDarAlert);
+    },
+
+    async loadLifecycleHistory({ fromMs, toMs, leadInMs }): Promise<QaLifecycleHistory> {
+      const leadInFrom = iso(fromMs - leadInMs);
+      const [origin, transitions, population] = await Promise.all([
+        db.query(SELECT_LOG_ORIGIN),
+        db.query(SELECT_TRANSITIONS, [leadInFrom, iso(toMs)]),
+        db.query(SELECT_LIFECYCLE_POPULATION, [leadInFrom, iso(fromMs), iso(toMs)]),
+      ]);
+      const [originRow] = origin.rows;
+      return {
+        logStartedAtMs:
+          originRow === undefined ? null : epochMs(field(originRow, 'started_at'), 'started_at'),
+        transitions: transitions.rows.map(decodeTransition),
+        population: population.rows.map(decodePopulationRow),
+      };
     },
 
     async has({ isoWeek, metricsVersion, reportVersion }) {
@@ -198,4 +272,38 @@ function alertType(value: unknown): AlertType {
   const known = ALERT_TYPES.find((type) => type === text);
   if (known === undefined) throw new Error(`alert_type ${JSON.stringify(text)} is not known`);
   return known;
+}
+
+export function decodeTransition(row: Record<string, unknown>): QaTransitionRow {
+  const from = field(row, 'from_status');
+  const reason = field(row, 'status_reason');
+  const reattached = field(row, 'reattached_at');
+  return {
+    publicId: string(field(row, 'public_id'), 'public_id'),
+    atMs: epochMs(field(row, 'transitioned_at'), 'transitioned_at'),
+    from: from === null ? null : lifecycleState(from, 'from_status'),
+    to: lifecycleState(field(row, 'to_status'), 'to_status'),
+    reason: reason === null ? null : string(reason, 'status_reason'),
+    maxFrpMw: optionalNumber(field(row, 'max_frp_mw'), 'max_frp_mw'),
+    hullAreaHa: optionalNumber(field(row, 'hull_area_ha'), 'hull_area_ha'),
+    merged: boolean(field(row, 'merged'), 'merged'),
+    reattachedAtMs: reattached === null ? null : epochMs(reattached, 'reattached_at'),
+  };
+}
+
+export function decodePopulationRow(row: Record<string, unknown>): QaLifecyclePopulationRow {
+  const status = field(row, 'status_at_start');
+  return {
+    publicId: string(field(row, 'public_id'), 'public_id'),
+    statusAtStart: status === null ? null : lifecycleState(status, 'status_at_start'),
+  };
+}
+
+function lifecycleState(value: unknown, name: string): LifecycleState {
+  if (!isLifecycleState(value)) throw new Error(`${name} is not a lifecycle state`);
+  return value;
+}
+
+function optionalNumber(value: unknown, name: string): number | null {
+  return value === null ? null : number(value, name);
 }
