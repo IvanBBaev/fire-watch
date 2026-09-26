@@ -23,6 +23,7 @@ interface Fakes {
   readonly store: QaReportStore;
   readonly plbQueries: QaWindowQuery[];
   readonly darQueries: QaWindowQuery[];
+  readonly lifecycleQueries: (QaWindowQuery & { readonly leadInMs: number })[];
   readonly saved: StoredWeeklyReport[];
   readonly hasQueries: unknown[];
 }
@@ -36,11 +37,13 @@ function fakes(
 ): Fakes {
   const plbQueries: QaWindowQuery[] = [];
   const darQueries: QaWindowQuery[] = [];
+  const lifecycleQueries: (QaWindowQuery & { readonly leadInMs: number })[] = [];
   const saved: StoredWeeklyReport[] = [];
   const hasQueries: unknown[] = [];
   return {
     plbQueries,
     darQueries,
+    lifecycleQueries,
     saved,
     hasQueries,
     reader: {
@@ -51,6 +54,10 @@ function fakes(
       loadDarAlerts(window) {
         darQueries.push(window);
         return Promise.resolve(options.alerts ?? []);
+      },
+      loadLifecycleHistory(window) {
+        lifecycleQueries.push(window);
+        return Promise.resolve({ logStartedAtMs: null, transitions: [], population: [] });
       },
     },
     store: {
@@ -109,6 +116,14 @@ describe('runWeeklyQaReport, scheduled', () => {
     expect(f.plbQueries).toEqual([{ fromMs: W38.fromMs, toMs: W38.toMs }]);
     expect(f.darQueries).toEqual([
       { fromMs: W38.fromMs - ALERT_GATING.values.suppressionWindowMs, toMs: W38.toMs },
+    ]);
+  });
+
+  it('reads the lifecycle history with 72 h of lead-in, the longer of FER and FLR', async () => {
+    const f = fakes();
+    await runWeeklyQaReport(deps(f));
+    expect(f.lifecycleQueries).toEqual([
+      { fromMs: W38.fromMs, toMs: W38.toMs, leadInMs: 72 * 3_600_000 },
     ]);
   });
 

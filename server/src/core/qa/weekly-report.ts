@@ -15,10 +15,10 @@
  *   - **DAR — measured** over the live pipeline's automatic outbox rows. A repeat of an alert
  *     decided just before Monday 00:00 is still a repeat, so the reader supplies a lead-in of
  *     one suppression window; lead-in alerts are compared against and never counted.
- *   - **Shadow-PCR, FER, FLR — unavailable**, each with the input it lacks. None of them is
- *     approximated: FER from `fire_events.status_changed_at` would lose precisely the
- *     events that re-activated — the premature declarations the numerator counts — so an
- *     approximation would be biased toward passing, which is worse than no number.
+ *   - **FER, FLR — measured** from the lifecycle transition log (migration 020), when the
+ *     log covers what each needs; otherwise unavailable with the instant the log began
+ *     (`lifecycle-metrics.ts`, which also explains FER's shifted declaration window).
+ *   - **Shadow-PCR — unavailable**, with the input it lacks. It is not approximated.
  *
  * CER and ZAP are in GLOSSARY §8 but not in D8's list; the report names them as not
  * implemented rather than leaving the omission to be discovered.
@@ -31,6 +31,14 @@ import type { EpochMs } from '../ports/clock.js';
 import { isoFromEpochMs } from '../ports/clock.js';
 import type { QaAlertRow } from '../ports/qa-report-store.js';
 import { dar, type DispatchedAlert, type DuplicateAlert } from './dar.js';
+import {
+  measureFer,
+  measureFlr,
+  type LifecycleUnavailable,
+  type MeasuredFer,
+  type MeasuredFlr,
+  type QaLifecycleHistory,
+} from './lifecycle-metrics.js';
 import type { ReportWindow } from './iso-week.js';
 import { QA_METRICS } from './qa-metrics-params.js';
 import { meetsAtMost, rateOf, type Rate } from './rate.js';
@@ -55,6 +63,8 @@ export interface WeeklyReportInput {
   readonly plbTraces: readonly PipelineTrace[];
   /** Automatic alerts decided in `[window.fromMs − suppression window, window.toMs)`. */
   readonly darAlerts: readonly QaAlertRow[];
+  /** Transitions in `[window.fromMs − lifecycleLeadInMs(), window.toMs)` and FLR's population. */
+  readonly lifecycle: QaLifecycleHistory;
 }
 
 export interface UnavailableMetric {
@@ -114,8 +124,8 @@ export interface WeeklyQaReport {
   readonly metrics: {
     readonly shadowPcr: UnavailableMetric;
     readonly shadowPlb: MeasuredPlb;
-    readonly fer: UnavailableMetric;
-    readonly flr: UnavailableMetric;
+    readonly fer: MeasuredFer | LifecycleUnavailable;
+    readonly flr: MeasuredFlr | LifecycleUnavailable;
     readonly dar: MeasuredDar;
   };
   readonly notImplemented: readonly { readonly metric: string; readonly why: string }[];
@@ -131,27 +141,6 @@ const SHADOW_PCR_UNAVAILABLE: UnavailableMetric = Object.freeze({
   needs: Object.freeze([
     'a store of EFFIS BA perimeters: id, geometry, area_ha, end date',
     'the default-sensitivity decision per synthetic grid zone and event (GATES shadow-PCR (b))',
-  ]),
-});
-
-const FER_UNAVAILABLE: UnavailableMetric = Object.freeze({
-  status: 'unavailable',
-  reason:
-    'FER counts events entering no_longer_detected in the week; fire_events keeps only the ' +
-    'current status and status_changed_at, so an event that re-activated has lost that ' +
-    'entry — and those are exactly the premature declarations the numerator counts. A ' +
-    'reconstruction would be biased toward passing.',
-  needs: Object.freeze(['a lifecycle transition log: event, from, to, at, status_reason']),
-});
-
-const FLR_UNAVAILABLE: UnavailableMetric = Object.freeze({
-  status: 'unavailable',
-  reason:
-    'FLR counts lifecycle direction reversals within 48 h; no table records a transition ' +
-    'history, only the current status.',
-  needs: Object.freeze([
-    'a lifecycle transition log with 48 h of lead-in before the week',
-    'the population of events active in the week',
   ]),
 });
 
@@ -191,8 +180,8 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyQaReport {
     metrics: Object.freeze({
       shadowPcr: SHADOW_PCR_UNAVAILABLE,
       shadowPlb: measurePlb(input),
-      fer: FER_UNAVAILABLE,
-      flr: FLR_UNAVAILABLE,
+      fer: measureFer(window, input.lifecycle),
+      flr: measureFlr(window, input.lifecycle),
       dar: measureDar(input),
     }),
     notImplemented: NOT_IMPLEMENTED,
@@ -317,11 +306,28 @@ export function renderReportMarkdown(report: WeeklyQaReport): string {
       `${quantileText(plb.shadowTotal.p95.value)} | n = ${String(plb.shadowTotal.n)} | ` +
       `<= ${formatMs(plb.shadowTotal.budgetMs)} | ${verdict(plb.shadowTotal.withinBudget)} |`,
   );
-  lines.push(
-    `| FER | unavailable | - | - | <= ${pct(lifecycle.ferMaxRate)} overall, ` +
-      `<= ${pct(lifecycle.ferMaxRateLarge)} large | - |`,
-  );
-  lines.push('| FLR | unavailable | - | - | flag + review (no numeric gate) | - |');
+  const ferTarget = `<= ${pct(lifecycle.ferMaxRate)} overall, <= ${pct(lifecycle.ferMaxRateLarge)} large`;
+  const ferMetric = metrics.fer;
+  if (ferMetric.status === 'measured') {
+    const [overall, large] = ferMetric.report.strata;
+    lines.push(
+      `| FER | measured | ${overall === undefined ? '-' : rateText(overall.rate)} | ` +
+        `${String(ferMetric.declarations)} declarations | ${ferTarget} | ` +
+        `overall ${verdict(overall?.meetsTarget ?? null)}, large ${verdict(large?.meetsTarget ?? null)} |`,
+    );
+  } else {
+    lines.push(`| FER | unavailable | - | - | ${ferTarget} | - |`);
+  }
+  const flrMetric = metrics.flr;
+  if (flrMetric.status === 'measured') {
+    lines.push(
+      `| FLR | measured | ${rateText(flrMetric.report.rate)} | ` +
+        `${String(flrMetric.report.rate.denominator)} active events | ` +
+        'flag + review (no numeric gate) | - |',
+    );
+  } else {
+    lines.push('| FLR | unavailable | - | - | flag + review (no numeric gate) | - |');
+  }
   lines.push(
     `| DAR | measured | ${rateText(darMetric.rate)} | ${String(darMetric.rate.denominator)} alerts | ` +
       `<= ${pct(darMetric.shadowMaxRate)} shadow, <= ${pct(darMetric.steadyMaxRate)} steady | ` +
@@ -365,12 +371,53 @@ export function renderReportMarkdown(report: WeeklyQaReport): string {
   }
   lines.push('');
 
+  if (ferMetric.status === 'measured') {
+    lines.push('## FER', '');
+    const report = ferMetric.report;
+    lines.push(
+      `Declarations entering no_longer_detected in [${ferMetric.declarationsFrom}, ` +
+        `${ferMetric.declarationsTo}) — shifted by the ${String(report.windowHours)} h FER ` +
+        `window, so each had its full window; graded against ${report.lifecycleParamsVersion}.`,
+      '',
+    );
+    lines.push('| Class | Rate | Target | Meets |');
+    lines.push('|---|---|---|---|');
+    for (const stratum of report.strata) {
+      lines.push(
+        `| ${stratum.name} | ${rateText(stratum.rate)} | ` +
+          `${stratum.maxRate === null ? '-' : `<= ${pct(stratum.maxRate)}`} | ` +
+          `${verdict(stratum.meetsTarget)} |`,
+      );
+    }
+    lines.push(
+      '',
+      `Premature: ${report.falseExtinguishIds.join(', ') || 'none'}. Unobservable closures ` +
+        `held out as their own class: ${report.excludedUnobservable.join(', ') || 'none'}.`,
+      '',
+    );
+  }
+
+  if (flrMetric.status === 'measured') {
+    lines.push('## FLR', '');
+    const report = flrMetric.report;
+    lines.push(
+      `≥ ${String(report.minReversals)} direction reversals within ${String(report.windowHours)} h; ` +
+        `transitions read from ${flrMetric.transitionsFrom}. Flagged for review: ` +
+        `${report.flaggedEventIds.join(', ') || 'none'}` +
+        (report.flaggedInactiveEventIds.length === 0
+          ? '.'
+          : `; flagged but not active in the week: ${report.flaggedInactiveEventIds.join(', ')}.`),
+      '',
+    );
+  }
+
   lines.push('## Unavailable metrics', '');
   for (const [name, metric] of [
     ['Shadow-PCR', metrics.shadowPcr],
     ['FER', metrics.fer],
     ['FLR', metrics.flr],
   ] as const) {
+    if (metric.status !== 'unavailable') continue;
     lines.push(`- **${name}**: ${metric.reason}`);
     for (const need of metric.needs) lines.push(`  - needs ${need}`);
   }

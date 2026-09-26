@@ -5,7 +5,7 @@
  * `qa_weekly_reports`, and a test of the job should be able to fake either alone. The
  * inclusion rules are stated here so an adapter cannot quietly pick others; the choices
  * that are not the documents' own are also stamped on every report through
- * `qa_weekly_report_v1` (`core/qa/weekly-report-params.ts`).
+ * `qa_weekly_report_v2` (`core/qa/weekly-report-params.ts`).
  *
  * ## PLB traces (`loadPlbTraces`)
  *
@@ -30,9 +30,24 @@
  *   - `eventKey` is the **merge-resolved** survivor's public id, following `merged_into` to
  *     its end, because DAR's definition makes that a precondition (`core/qa/dar.ts`).
  *   - `alertId` is the outbox row id as text.
+ *
+ * ## Lifecycle history (`loadLifecycleHistory`, migration 020)
+ *
+ *   - `logStartedAtMs` is `lifecycle_log_origin.started_at`, or `null` without the row.
+ *   - **Transitions**: every `fire_event_transitions` row with `transitioned_at` in
+ *     `[fromMs − leadInMs, toMs)`, creation rows included, ordered by event, instant, id.
+ *     `merged` is whether the event carries `merged_into` now. For a row entering
+ *     `no_longer_detected`, `reattachedAtMs` is the event's earliest `event_detections
+ *     .attached_at` in a **live** clustering run strictly after the transition.
+ *   - **Population** (FLR's): events **not** merged away that either have a transition in
+ *     `[fromMs − leadInMs, toMs)` or were `active` at `fromMs`. The status at `fromMs` is
+ *     the newest transition's `to` before it; else the first later transition's `from`
+ *     (`null` for a creation row: the event did not exist yet); else the current status,
+ *     which the log proves unchanged since it began.
  */
 
 import type { AlertType } from '../config/alert-gating.js';
+import type { QaLifecycleHistory } from '../qa/lifecycle-metrics.js';
 import type { PipelineTrace } from '../qa/shadow-plb.js';
 import type { EpochMs } from './clock.js';
 
@@ -53,6 +68,9 @@ export interface QaAlertRow {
 export interface QaReportInputReader {
   loadPlbTraces(window: QaWindowQuery): Promise<readonly PipelineTrace[]>;
   loadDarAlerts(window: QaWindowQuery): Promise<readonly QaAlertRow[]>;
+  loadLifecycleHistory(
+    window: QaWindowQuery & { readonly leadInMs: number },
+  ): Promise<QaLifecycleHistory>;
 }
 
 export interface StoredWeeklyReport {

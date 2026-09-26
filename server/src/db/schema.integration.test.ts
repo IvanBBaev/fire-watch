@@ -128,9 +128,11 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'erasure_requests',
       'event_detections',
       'events_shadow',
+      'fire_event_transitions',
       'fire_events',
       'ingest_batches',
       'ingest_quarantine',
+      'lifecycle_log_origin',
       'nrt_lag_histograms',
       'qa_weekly_reports',
       'source_status',
@@ -218,6 +220,28 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
         can_update: false,
         can_delete: false,
         class: 'personal',
+      });
+    });
+
+    it('keeps the lifecycle transition log append-only for the runtime role (migration 020)', async () => {
+      const { rows } = await db.query<Record<string, unknown>>(
+        `SELECT has_table_privilege('fire_watch_app', 'fire_event_transitions', 'SELECT') AS can_select,
+                has_table_privilege('fire_watch_app', 'fire_event_transitions', 'INSERT') AS can_insert,
+                has_table_privilege('fire_watch_app', 'fire_event_transitions', 'UPDATE') AS can_update,
+                has_table_privilege('fire_watch_app', 'fire_event_transitions', 'DELETE') AS can_delete,
+                has_table_privilege('fire_watch_app', 'lifecycle_log_origin', 'UPDATE') AS origin_update,
+                (SELECT class FROM table_backup_class
+                  WHERE table_name = 'fire_event_transitions') AS class`,
+      );
+      // FER grades the E weights with this history; a rewritten transition would rewrite
+      // the evidence. The trigger inserts as the writer, so INSERT is granted.
+      expect(rows[0]).toEqual({
+        can_select: true,
+        can_insert: true,
+        can_update: false,
+        can_delete: false,
+        origin_update: false,
+        class: 'main',
       });
     });
 

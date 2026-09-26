@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { StoredWeeklyReport } from '../../core/ports/qa-report-store.js';
 import {
+  decodePopulationRow,
+  decodeTransition,
   createPgQaReportStore,
   decodeDarAlert,
   decodePlbTrace,
@@ -203,5 +205,50 @@ describe('save', () => {
   it('throws when the digest guard left the stored row alone', async () => {
     const db = stubDb({ rowCount: 0 });
     await expect(createPgQaReportStore(db).save(REPORT)).rejects.toThrow(/different digest/);
+  });
+});
+
+describe('lifecycle history decoders (migration 020)', () => {
+  const transition = {
+    public_id: 'fw-2026-aaaaa',
+    transitioned_at: new Date('2026-09-14T05:00:00Z'),
+    from_status: 'active',
+    to_status: 'no_longer_detected',
+    status_reason: 'unobservable',
+    max_frp_mw: 12.5,
+    hull_area_ha: null,
+    merged: false,
+    reattached_at: null,
+  };
+
+  it('decodes a transition, keeping absent facts null', () => {
+    expect(decodeTransition(transition)).toEqual({
+      publicId: 'fw-2026-aaaaa',
+      atMs: Date.parse('2026-09-14T05:00:00Z'),
+      from: 'active',
+      to: 'no_longer_detected',
+      reason: 'unobservable',
+      maxFrpMw: 12.5,
+      hullAreaHa: null,
+      merged: false,
+      reattachedAtMs: null,
+    });
+    expect(decodeTransition({ ...transition, from_status: null }).from).toBe(null);
+  });
+
+  it('refuses a state outside the frozen vocabulary rather than counting it', () => {
+    expect(() => decodeTransition({ ...transition, to_status: 'out' })).toThrow(
+      /to_status is not a lifecycle state/,
+    );
+    expect(() =>
+      decodePopulationRow({ public_id: 'fw-2026-aaaaa', status_at_start: 'extinguished' }),
+    ).toThrow(/status_at_start/);
+  });
+
+  it('reads a population row whose event did not exist yet', () => {
+    expect(decodePopulationRow({ public_id: 'fw-2026-aaaaa', status_at_start: null })).toEqual({
+      publicId: 'fw-2026-aaaaa',
+      statusAtStart: null,
+    });
   });
 });

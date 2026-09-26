@@ -662,7 +662,8 @@ function describe(error: unknown): string {
 // Run only when this file is the process's entry point, never when a test imports it.
 const entry = process.argv[1];
 if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
-  // `exitCode`, not `exit()`: stdout to a pipe is asynchronous on macOS, and `exit()`
-  // would cut the payload off mid-write.
+  // `exitCode`, not `exit()`: a pipe write that would block is queued (always on
+  // macOS, on Linux whenever the parent drains slower than we write), and `exit()`
+  // would cut the payload or the refusal reason off mid-write.
   process.exitCode = await main();
 }

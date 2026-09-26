@@ -47,8 +47,12 @@ function alert(id: string, decidedAtMs: number, overrides: Partial<QaAlertRow> =
   };
 }
 
+/** A history with no log origin: FER and FLR cannot be measured and must say so. */
+const NO_LOG = { logStartedAtMs: null, transitions: [], population: [] } as const;
+
 function input(overrides: Partial<WeeklyReportInput> = {}): WeeklyReportInput {
   return {
+    lifecycle: NO_LOG,
     window: WEEK,
     generatedAtMs: WEEK.toMs + 5 * 60_000,
     pollIntervalMs: 600_000,
@@ -101,10 +105,10 @@ describe('buildWeeklyReport', () => {
     expect(buildWeeklyReport(input({ generatedAtMs: WEEK.toMs - 1 })).complete).toBe(false);
   });
 
-  it('reports PCR, FER and FLR as unavailable with what each needs, not as zero', () => {
+  it('reports PCR, and FER and FLR without a transition log, as unavailable — not as zero', () => {
     const { metrics } = buildWeeklyReport(input());
     for (const metric of [metrics.shadowPcr, metrics.fer, metrics.flr]) {
-      expect(metric.status).toBe('unavailable');
+      if (metric.status !== 'unavailable') throw new Error(`${metric.status} without a log`);
       expect(metric.reason.length).toBeGreaterThan(0);
       expect(metric.needs.length).toBeGreaterThan(0);
     }
@@ -213,13 +217,13 @@ describe('rendering', () => {
     );
     expect(markdown).toContain('| Shadow-PCR | unavailable |');
     expect(markdown).toContain('| 11 | 10 | 2.0 h |');
-    expect(markdown).toContain('- `lifecycle_transition_log`:');
+    expect(markdown).toContain('- `fer_declaration_window`:');
   });
 
   it('keeps the golden bytes', () => {
     const report = buildWeeklyReport(input());
-    expect(fnv1a(renderReportJson(report))).toMatchInlineSnapshot(`"9e59a236"`);
-    expect(fnv1a(renderReportMarkdown(report))).toMatchInlineSnapshot(`"1188a18e"`);
+    expect(fnv1a(renderReportJson(report))).toMatchInlineSnapshot(`"29dd5320"`);
+    expect(fnv1a(renderReportMarkdown(report))).toMatchInlineSnapshot(`"1fb94930"`);
   });
 });
 
