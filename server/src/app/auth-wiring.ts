@@ -51,6 +51,7 @@ import { createPgSignInFlows } from '../adapters/db/pg-auth.js';
 import { createPgChannelOptInFlows } from '../adapters/db/pg-channel-opt-in.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgWatchZoneStore } from '../adapters/db/pg-watch-zone-store.js';
+import { createPgZoneDeleter } from '../adapters/db/pg-zone-deletion.js';
 import { createPgZoneCreator } from '../adapters/db/pg-zone-creation.js';
 import {
   registerAccountExportRoutes,
@@ -244,6 +245,7 @@ function pgAccountSurface(options: {
   const tokens = createAuthTokens();
   const signIn = createPgSignInFlows(authPool, { tokens, mailer: options.mailer });
   const zoneStore = createPgWatchZoneStore(accountPool);
+  const deleteZone = createPgZoneDeleter(accountPool);
   return {
     signIn,
     authenticate: (token, at) => signIn.authenticate(token, at),
@@ -259,7 +261,10 @@ function pgAccountSurface(options: {
         : {
             create: createPgZoneCreator(accountPool, { cipher, newZoneId: randomUUID }),
             list: (accountId) => listOwnedWatchZones(accountId, { cipher, zones: zoneStore }),
-            remove: (accountId, zoneId, atIso) => zoneStore.softDelete(accountId, zoneId, atIso),
+            // A1.9: the soft-delete and the cancellation of the zone's queued alerts commit
+            // together; the route needs only whether a zone was deleted.
+            remove: async (accountId, zoneId, atIso) =>
+              (await deleteZone(accountId, zoneId, atIso)).deleted,
             exportAccount: createPgAccountExporter(accountPool, cipher),
           },
   };

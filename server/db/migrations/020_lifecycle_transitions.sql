@@ -1,4 +1,4 @@
--- Migration 019 — the lifecycle transition log (TASKS D8; GLOSSARY §8 FER, FLR;
+-- Migration 020 — the lifecycle transition log (TASKS D8; GLOSSARY §8 FER, FLR;
 -- ADR-002 D6 as amended by A2.3; 2026-09-26).
 --
 -- `fire_events` keeps only an event's *current* status and `status_changed_at`. FER counts

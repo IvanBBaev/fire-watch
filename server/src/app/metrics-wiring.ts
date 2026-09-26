@@ -17,8 +17,8 @@
  *     counts, finish time and duration of every loop the worker starts — the dispatch and
  *     R2 mirror loops through the `observe` hook their wiring takes — the ingest cycle's
  *     per-source counters, the monitors loop's meta-alert readings, the dispatch
- *     cycle's dropped sends (`dispatchObserver`), and the evaluation and digest cycles'
- *     deferred sends (`observeAlertEvaluation`, `observeAlertDigest`).
+ *     cycle's dropped sends (`dispatchObserver`), and the evaluation cycle's deferred
+ *     sends (`observeAlertEvaluation`).
  *   * Both: the event-loop lag p99 over the scrape interval, from a sampler the metrics
  *     listener owns (`createMetricsListener`) — never the demotion controller's, whose
  *     every read resets its window.
@@ -50,7 +50,6 @@ import {
 import type { AlertDigestCycleReport } from '../core/alerts/digest-pass.js';
 import type { AlertEvaluationCycleReport } from '../core/alerts/evaluation-cycle.js';
 import { noDeferrals } from '../core/alerts/outbox-enqueue.js';
-import type { AlertDeferralReason } from '../core/observability/alert-metrics.js';
 import type { TableGauge } from '../core/backup/table-gauges.js';
 import { evaluateFreshness } from '../core/health/freshness.js';
 import type { IngestCycleReport } from '../core/ingest/ingest-cycle.js';
@@ -178,17 +177,6 @@ export function dispatchObserver(
 export function alertEvaluationObserver(
   registry: MetricsRegistry,
 ): (run: JobRun<AlertEvaluationCycleReport>) => void {
-  return deferralObserver(registry);
-}
-
-/**
- * The deferral counter from any cycle that enqueues outbox rows. The evaluation and digest
- * cycles both enqueue through `enqueueCountingDeferrals`, so an `awaiting_approval` digest
- * row is the same fact as an evaluation one and lands in the same series.
- */
-function deferralObserver(
-  registry: MetricsRegistry,
-): (run: JobRun<{ readonly deferred: Readonly<Record<AlertDeferralReason, number>> }>) => void {
   return (run) => {
     for (const increment of alertDeferralIncrements(run.value?.deferred ?? noDeferrals())) {
       registry.incCounter(increment.descriptor, increment.labels, increment.by);
@@ -216,15 +204,21 @@ export function observeAlertEvaluation(
 }
 
 /**
- * The digest loop's report callback, instrumented the same way: loop metrics plus the
- * deferral counter (TASKS H3). One function for the same reason as the evaluation's.
+ * The digest pass's report callback, instrumented the same way: loop metrics plus the
+ * deferral counter, because every write path into the outbox is counted by it (A1.12). The
+ * pass writes every digest row `pending` while D5's budget B is unarmed, so today it adds
+ * zeros — which is still a production, not an absence.
  */
 export function observeAlertDigest(
   registry: MetricsRegistry,
   report: LoopReporter<AlertDigestCycleReport>,
   onError: MetricsErrorSink,
 ): LoopReporter<AlertDigestCycleReport> {
-  return observeLoop(registry, 'alert_digest', report, onError, deferralObserver(registry));
+  return observeLoop(registry, 'alert_digest', report, onError, (run) => {
+    for (const increment of alertDeferralIncrements(run.value?.deferred ?? noDeferrals())) {
+      registry.incCounter(increment.descriptor, increment.labels, increment.by);
+    }
+  });
 }
 
 /** Fleet control at scrape time (API). A read that throws exports nothing that scrape. */

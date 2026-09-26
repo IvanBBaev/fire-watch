@@ -3,13 +3,15 @@
  * one line at start-up when the loop is disabled.
  *
  * `alert_digest_cycle` carries the whole {@link AlertDigestCycleReport} — accounts read,
- * failed and gone, per-outcome counts, undeliverable windows, lost races, lines sent and
- * what was written. Counts and an instant only: the core's report carries no account id,
- * zone id, event id, distance or coordinate, and this adds none.
+ * failed and gone, per-outcome counts, undeliverable and copy-less groups, lost races,
+ * cipher failures, candidates by kind and what was written. `undeliverable` is lifted to
+ * the top level for grepping: a non-zero value means due windows are being re-offered
+ * every tick rather than spent. The report holds counts and an instant only: no account
+ * id, no zone id, no public id and never a coordinate (05 §5.3.2).
  *
- * `alert_digest_cycle_failed` is an outage: the account listing itself failed, or every
- * account did. A failed account among healthy ones is only a count, rolled back and
- * retried next tick.
+ * `alert_digest_cycle_failed` is a cycle in which every account failed (or the listing
+ * did); accounts decided before a failure stay committed, and the derived watermark makes
+ * the retry skip them.
  *
  * `alert_digest_disabled` is written once, at start-up, with the blockers (see
  * `alert-digest-wiring.ts`).
@@ -40,6 +42,7 @@ export function reportAlertDigestCycle(
   deps.writeLine(
     canonicalJson({
       alert_digest_cycle: run.value,
+      undeliverable: run.value.undeliverable,
       duration_ms: run.finishedAt - run.startedAt,
     }),
   );

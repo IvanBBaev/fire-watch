@@ -15,7 +15,7 @@
  *   - **DAR — measured** over the live pipeline's automatic outbox rows. A repeat of an alert
  *     decided just before Monday 00:00 is still a repeat, so the reader supplies a lead-in of
  *     one suppression window; lead-in alerts are compared against and never counted.
- *   - **FER, FLR — measured** from the lifecycle transition log (migration 019), when the
+ *   - **FER, FLR — measured** from the lifecycle transition log (migration 020), when the
  *     log covers what each needs; otherwise unavailable with the instant the log began
  *     (`lifecycle-metrics.ts`, which also explains FER's shifted declaration window).
  *   - **Shadow-PCR — unavailable**, with the input it lacks. It is not approximated.

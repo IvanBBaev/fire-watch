@@ -1,30 +1,34 @@
 /**
- * Wiring for the live digest pass (TASKS H3; ADR-004 D1, D3, A1.7, A1.11, A1.12): the loop
- * that pays the `defer` and `seed` debts of the evaluation loop and zone creation, one
- * account per transaction (`core/alerts/digest-pass.ts`, `pg-alert-digest-store.ts`).
+ * Wiring for the live digest pass (TASKS H3/D9; ADR-004 D1, D3, A1.7, A1.8, A1.11, A1.12;
+ * migration 018): the loop that, once per tick and per account, decides whether the
+ * account's 09:00 digest window is due and writes what it resolved to — the
+ * `alert_digest_log` rows that are the watermark and, for a `send`, the outbox rows — in
+ * one transaction per account (`core/alerts/digest-pass.ts`).
  *
  * ## Disabled, with reasons, until every blocker is gone
  *
- * Like `alert-evaluation-wiring.ts`, the wiring either returns `enabled: true` with the
- * cycle's dependencies or `enabled: false` with every blocker named, and never throws for
- * a blocker. The blockers:
+ * Same contract as `alert-evaluation-wiring.ts`: either `enabled: true` with the cycle's
+ * dependencies, or `enabled: false` with the blockers — and never a throw for a blocker, so
+ * a worker without zone keys keeps ingesting. The blockers:
  *
- *   - `zone_keyring_unset` — no `FIRE_WATCH_ZONE_KEY_ID`/`FIRE_WATCH_ZONE_KEY`: no centre
- *     can be opened, so no fire can be placed in a zone. (A *malformed* keyring is still a
- *     `ConfigError` from `loadZonesConfig`.)
+ *   - `zone_keyring_unset` — no `FIRE_WATCH_ZONE_KEY_ID`/`FIRE_WATCH_ZONE_KEY`: no zone
+ *     centre can be opened, so no pair's distance is known and A1.12's nearest-zone fold
+ *     cannot run. (A *malformed* keyring is still a `ConfigError`.)
  *   - `digest_routing_unarmed` — no {@link AlertDigestRouting}: which channel a digest goes
- *     out on and its reviewed template are founder decisions (H2/D7) with no production
- *     implementation. Running without one would be harmless — an undeliverable window is
- *     not spent — but it would decrypt every zone every tick to write nothing.
+ *     out on (H2) and the reviewed digest template (D7) are founder decisions with no
+ *     production implementation. Running without one would decide every due window
+ *     `undeliverable`, which writes nothing and re-offers the window on every tick — a
+ *     loop that works hard to do nothing.
  *   - `cadence_unratified` — {@link ALERT_DIGEST_CADENCE} is null: no tick interval or
- *     account page size has been ratified, and none is invented here.
+ *     account page size has been ratified, and none is invented here. The interval bounds
+ *     how late after 09:00 a digest is written (and how late after quiet hours end a held
+ *     one is); the page size bounds one listing query, not a transaction.
  *
  * ## Its own pool
  *
- * Two connections, created only when enabled: one account's transaction at a time, plus
- * the account listing, which runs on the pool between transactions. A digest holds an
- * account row `FOR SHARE` and must not take a connection from the FIRMS poll or wait
- * behind an evaluation batch.
+ * Two connections, created only when enabled: the account listing and one account's
+ * transaction never overlap, and neither may take a connection from the FIRMS poll or the
+ * evaluation loop.
  */
 
 import { systemClock } from '../adapters/clock/system-clock.js';
@@ -42,10 +46,9 @@ export interface AlertDigestCadence {
 }
 
 /**
- * **Unratified — deliberately null.** The window opens at 09:00 local
- * (`digest_params_v1`); how soon after that a digest goes out is the tick interval, and
- * how many accounts one listing page takes bounds a cycle's memory. Both are founder
- * numbers, not wiring defaults.
+ * **Unratified — deliberately null.** No spec fixes how often the pass ticks or how many
+ * accounts one listing reads. The interval is a product number (a digest written at 09:14
+ * is a 09:00 digest fourteen minutes late), so it is a founder number, not a default.
  */
 export const ALERT_DIGEST_CADENCE: AlertDigestCadence = Object.freeze({
   intervalMs: null,
@@ -59,11 +62,14 @@ export const ALERT_DIGEST_BLOCKERS = [
 ] as const;
 export type AlertDigestBlocker = (typeof ALERT_DIGEST_BLOCKERS)[number];
 
-/** Two: one account's transaction, and the listing between transactions. */
+/** Two: the account listing and one account's transaction, never at once. */
 const ALERT_DIGEST_POOL_MAX = 2;
 
 export type AlertDigestWiring =
-  | { readonly enabled: false; readonly blockers: readonly AlertDigestBlocker[] }
+  | {
+      readonly enabled: false;
+      readonly blockers: readonly AlertDigestBlocker[];
+    }
   | {
       readonly enabled: true;
       readonly intervalMs: number;
@@ -73,7 +79,7 @@ export type AlertDigestWiring =
     };
 
 export interface AlertDigestWiringOptions {
-  /** Where a digest goes and what it says. Absent in every deployment today (H2/D7). */
+  /** The digest routing. Absent in every deployment today (H2/D7). */
   readonly routing?: AlertDigestRouting | null;
   /** Injected for tests; defaults to {@link ALERT_DIGEST_CADENCE}. */
   readonly cadence?: AlertDigestCadence;
