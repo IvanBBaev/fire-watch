@@ -25,6 +25,7 @@ const REPORT: PurgeReport = {
     ended_sessions: { armed: true, cutoff: '2026-09-16T03:00:00Z', deleted: 4, more: false },
     account_tombstones: { armed: false },
     alert_decision_log: { armed: false },
+    alert_digest_log: { armed: false },
   },
 };
 

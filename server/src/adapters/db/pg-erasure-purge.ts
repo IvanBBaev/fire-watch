@@ -8,7 +8,9 @@
  * DEFINER function that refuses a cutoff inside the 30-day horizon; the runtime role has
  * no DELETE on `erasure_requests`. The alert decision log likewise goes only through
  * migration 014's `purge_alert_decision_log`, because the runtime role has no DELETE on it
- * either. The other targets use the role's existing grants.
+ * either, and the digest log only through migration 019's `purge_alert_digest_log`, which
+ * also keeps every account's newest spent window (the digest watermark). The other targets
+ * use the role's existing grants.
  *
  * Every target ships unarmed (`PURGE_RETENTION` is all null), so in production nothing
  * here runs until a retention is ratified.
@@ -31,10 +33,14 @@ SELECT purge_erasure_ledger($1::timestamptz, $2::integer) AS purged`;
 const PURGE_ALERT_DECISION_LOG = `
 SELECT purge_alert_decision_log($1::timestamptz, $2::integer) AS purged`;
 
+const PURGE_ALERT_DIGEST_LOG = `
+SELECT purge_alert_digest_log($1::timestamptz, $2::integer) AS purged`;
+
 /** Targets purged through a SECURITY DEFINER function that answers with a `purged` count. */
 const FUNCTION_TARGETS: ReadonlySet<PurgeTarget> = new Set([
   'erasure_ledger',
   'alert_decision_log',
+  'alert_digest_log',
 ]);
 
 const PURGE_EXPIRED_LINK_REQUESTS = `
@@ -81,6 +87,7 @@ export const ERASURE_PURGE_SQL: Readonly<Record<PurgeTarget, string>> = {
   ended_sessions: PURGE_ENDED_SESSIONS,
   account_tombstones: PURGE_ACCOUNT_TOMBSTONES,
   alert_decision_log: PURGE_ALERT_DECISION_LOG,
+  alert_digest_log: PURGE_ALERT_DIGEST_LOG,
 };
 
 export function createPgErasurePurge(db: PgPurgeQueryable): PurgeExecutor {

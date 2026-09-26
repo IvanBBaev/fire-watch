@@ -10,11 +10,12 @@
  * null target is reported `armed: false` and deletes nothing. Arming one is a one-line
  * change to {@link PURGE_RETENTION} by PR, and the planner then holds it to its floor.
  *
- * **`alert_digest_log` (migration 018) is deliberately not a target**, armed or not. Its
- * newest spent row per account is the digest watermark, so a plain age cutoff would reset
- * it and re-owe yesterday's window; the purge it needs keeps that row, and neither that
- * function nor its retention exists yet (migration 018 header). Like every other personal
- * table without a target, it is still erased with the account (`erasure-plan.ts`).
+ * **`alert_digest_log` (migration 018) is purged only around its watermark.** Its newest
+ * spent window per account *is* the digest watermark, so a plain age cutoff would reset it
+ * and re-owe yesterday's window. Migration 019's `purge_alert_digest_log` therefore never
+ * deletes a row of an account's newest spent window (or of any later one), whatever its
+ * age; older rows go once they pass the retention. The retention is unarmed like every
+ * other, and the table is still erased with the account (`erasure-plan.ts`).
  *
  * **Floors are what the system itself needs, not policy.** A ledger row must outlive the
  * erasure horizon, because it is what a restore from inside the backup window replays; a
@@ -35,6 +36,7 @@ export const PURGE_TARGETS = [
   'ended_sessions',
   'account_tombstones',
   'alert_decision_log',
+  'alert_digest_log',
 ] as const;
 
 export type PurgeTarget = (typeof PURGE_TARGETS)[number];
@@ -53,6 +55,9 @@ export const PURGE_RETENTION: PurgeRetention = {
   account_tombstones: null,
   // Open: how long "why no alert?" stays answerable (TASKS H7) is a founder decision.
   alert_decision_log: null,
+  // Open: how long a digest decision stays on record is a founder decision. The watermark
+  // is protected structurally by the function, not by this number.
+  alert_digest_log: null,
 };
 
 export interface PurgeTargetSpec {
@@ -89,6 +94,12 @@ export const PURGE_TARGET_SPECS: Readonly<Record<PurgeTarget, PurgeTargetSpec>> 
     floorMs: 0,
     floorReason:
       'nothing in the system reads an old decision back; how long an explanation stays answerable is policy, not a floor',
+  },
+  alert_digest_log: {
+    anchor: 'decided_at',
+    floorMs: 0,
+    floorReason:
+      'the pass reads back only the newest spent window per account, which the purge function never deletes',
   },
 };
 
