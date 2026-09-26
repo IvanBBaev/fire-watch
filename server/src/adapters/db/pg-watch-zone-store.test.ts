@@ -60,10 +60,6 @@ describe('the statements', () => {
     }
   });
 
-  it('scopes the owner-facing delete by account', () => {
-    expect(WATCH_ZONE_SQL.softDelete).toContain('account_id = $1::uuid');
-  });
-
   it('reads quiet hours as HH:MM, the vocabulary the decision takes', () => {
     expect(WATCH_ZONE_SQL.selectAccountSettings).toContain("'HH24:MI'");
     expect(WATCH_ZONE_SQL.selectAccountSettings).toContain('deleted_at IS NULL');
@@ -115,11 +111,6 @@ describe('reads', () => {
   it('refuses a row whose ciphertext is not bytes', async () => {
     const db = stubDb([{ ...stored, centre_ciphertext: 'not bytes' }]);
     await expect(createPgWatchZoneStore(db).listForAccount(ACCOUNT)).rejects.toThrow(/byte/);
-  });
-
-  it('reports a delete that matched nothing as false', async () => {
-    expect(await createPgWatchZoneStore(stubDb([], 0)).softDelete(ACCOUNT, ZONE, 'x')).toBe(false);
-    expect(await createPgWatchZoneStore(stubDb([], 1)).softDelete(ACCOUNT, ZONE, 'x')).toBe(true);
   });
 
   it('returns null settings for a missing or deleted account', async () => {

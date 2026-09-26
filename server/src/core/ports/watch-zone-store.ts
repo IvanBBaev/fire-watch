@@ -80,9 +80,7 @@ export interface WatchZoneStore {
     gridVersion: string,
     cells: readonly string[],
   ): Promise<readonly StoredWatchZone[]>;
-  /**
-   * Soft-deletes one of the account's zones. `false` when there was no such live zone —
-   * absent, already deleted, or someone else's, deliberately indistinguishable.
-   */
-  softDelete(accountId: string, zoneId: string, atIso: string): Promise<boolean>;
+  // No delete here, on purpose: deleting a zone must cancel its queued alerts in the same
+  // transaction (ADR-004 A1.9), so it lives in `adapters/db/pg-zone-deletion.ts` and a
+  // bare soft-delete is not offered to any caller.
 }
