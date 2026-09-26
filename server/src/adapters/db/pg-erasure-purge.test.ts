@@ -4,7 +4,11 @@ import { PURGE_TARGETS } from '../../core/erasure/purge-plan.js';
 import { createPgErasurePurge, ERASURE_PURGE_SQL } from './pg-erasure-purge.js';
 
 const CUTOFF = '2026-08-24T03:00:00Z';
-const FUNCTION_TARGETS: readonly string[] = ['erasure_ledger', 'alert_decision_log'];
+const FUNCTION_TARGETS: readonly string[] = [
+  'erasure_ledger',
+  'alert_decision_log',
+  'alert_digest_log',
+];
 
 function stubDb(result: { rows: Record<string, unknown>[]; rowCount: number | null }) {
   const queries: { text: string; values: readonly unknown[] }[] = [];
@@ -38,6 +42,16 @@ describe('createPgErasurePurge', () => {
     ]);
     expect(ERASURE_PURGE_SQL.alert_decision_log).toMatch(/purge_alert_decision_log\(/);
     expect(ERASURE_PURGE_SQL.alert_decision_log).not.toMatch(/DELETE/);
+  });
+
+  it('purges the digest log only through its watermark-keeping function', async () => {
+    const stub = stubDb({ rows: [{ purged: 2 }], rowCount: 1 });
+    expect(await createPgErasurePurge(stub.db).purge('alert_digest_log', CUTOFF, 50)).toBe(2);
+    expect(stub.queries).toEqual([
+      { text: ERASURE_PURGE_SQL.alert_digest_log, values: [CUTOFF, 50] },
+    ]);
+    expect(ERASURE_PURGE_SQL.alert_digest_log).toMatch(/purge_alert_digest_log\(/);
+    expect(ERASURE_PURGE_SQL.alert_digest_log).not.toMatch(/DELETE/);
   });
 
   it('reads the row count for the other targets', async () => {

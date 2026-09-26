@@ -1881,6 +1881,29 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   the store, not in the worker, so `digest_pass_unwired` stays in `ALERT_EVALUATION_GAPS`.
   `docs/legal/ropa.md` and `breach-runbook.md` omit both 014 and 018 (legal docs, left for
   the founder).*
+  *2026-09-26 (wave G, continued) — the live digest pass is built and wired, disabled like
+  the evaluation loop. Migration **018** `alert_digest_log` and `core/alerts/digest-pass.ts`
+  (`runAlertDigestCycle`, one transaction per account, watermark derived from the log) had
+  landed without a test, an adapter or a caller. Added: `digest-pass.test.ts` (25 tests:
+  send/hold/suppress/none, the held window re-sent under its own subkey, undeliverable and
+  copy-less groups spending nothing, the lost-race guard, A1.12's nearest-zone fold, A1.8's
+  seed-after-window rule, per-account rollback, id-free report; six mutations of the core
+  each fail a test); `adapters/db/pg-alert-digest-store.ts` (account `FOR SHARE` against
+  erasure, watermark = newest spent window over all zones incl. soft-deleted, dated by its
+  **earliest** `decided_at`; digestible pairs = state ≠ `none`, not merged, not superseded,
+  not invalidated, `active`/`signal_weakening`; newest evaluation `defer` from 014) with a
+  unit suite and an integration suite run **as `fire_watch_app`** against PostGIS 16-3.4 —
+  7/7 green here, and four SQL mutations (min→max, invalidated kept, no `FOR SHARE`,
+  deleted zones dropped from the watermark) each fail it; `app/alert-digest-wiring.ts` +
+  reporter + `observeAlertDigest` (loop metrics + the A1.12 deferral counter). The worker
+  reports `alert_digest_disabled` with `zone_keyring_unset`, `digest_routing_unarmed`,
+  `cadence_unratified` (`ALERT_DIGEST_CADENCE` is null: tick interval and account page size
+  are founder numbers). The evaluation gap is now `digest_pass_disabled`, reported only
+  while the digest loop is not running beside it. **Known limit:** decision-log rows stay on
+  the event they were taken on, so after a merge/reignition fold the survivor's pair is
+  owed as `active` rather than `deferred` — still listed, only the kind label is lost, and
+  the replay loses it the same way (its debts do not follow a fold). Still open: digest routing/template (H2/D7), the cadence, and the 018
+  retention (the watermark-keeping purge landed in 019, see I4).*
 - [ ] **H4 — Gating config + budgets + breaker + kill switch.** Spec: ADR-004
   D4/D5 as amended by A16. Needs: H1, D9. B=500/T-approve, G=2,000/10 min,
   ingest-side breaker leg, deterministic cutoff + deferred metric. **Done
@@ -2061,6 +2084,31 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   cancel pending outbox. Open: retentions, ledger backup class, retained template params,
   grace period, separate erasure login, restore runbook.*
   *2026-09-25 (wave C) — `DELETE /api/v1/account` wired to the production `createPgAccountEraser` on its own account pool (Origin + session, 204, cookie cleared); Docker-gated integration test (tombstone, `erasure_requests` row, dead cookie) written, not run. Erasure is immediate (no grace period).*
+  *2026-09-26 (wave G, continued) — `alert_digest_log` is now a purge target, unarmed like
+  the rest. Migration **019** `purge_alert_digest_log(cutoff, max_rows)` (SECURITY DEFINER,
+  014's guards) deletes a row only when it is past the cutoff **and** its window is older
+  than its account's newest `send`/`suppress` window (soft-deleted zones included), so the
+  digest watermark — window and earliest `decided_at` — reads back unchanged and yesterday's
+  window is never re-owed. `PURGE_TARGETS`/`PURGE_RETENTION` gain `alert_digest_log: null`
+  (floor 0: the function protects what the pass reads). Integration-tested as
+  `fire_watch_app` (watermark identical before/after, holds and never-spent accounts kept,
+  per-account isolation, a watermark held only by a soft-deleted zone, row cap, future
+  cutoff refused, no direct DELETE); three SQL mutations each fail it. 014's
+  `purge_alert_decision_log`, until now executed nowhere, gained its own integration test
+  (`pg-erasure-purge.integration.test.ts`: cutoff, cap, guards, no direct DELETE).*
+  *2026-09-26 — the 2026-09-23 follow-up "zone soft-delete does not cancel pending outbox"
+  is closed. ADR-004 A1.9 is normative ("in the same transaction as account/zone
+  deletion"), and the dispatcher's liveness re-check alone never reached an
+  `awaiting_approval` row. `adapters/db/pg-zone-deletion.ts` deletes a zone in one
+  transaction: account `FOR NO KEY UPDATE` (waits out a digest pass holding it `FOR SHARE`,
+  and blocks the next until commit), the account-scoped soft-delete, then every
+  `pending`/`awaiting_approval`/`claimed` row of the zone closed `cancelled_erasure` under
+  row locks. `DELETE /api/v1/zones/:id` uses it; `WatchZoneStore.softDelete` is removed so no
+  bare delete path remains. Rows are cancelled, not pseudonymized: the soft-deleted zone
+  row stays until account erasure, which rewrites the outbox rows of every zone incl.
+  soft-deleted ones. A row the evaluation loop inserts after the commit (it matched before
+  the delete) is `pending` and closed by the liveness re-check. Integration suite as
+  `fire_watch_app` (3 tests; three SQL mutations each fail it) + 5 unit tests.*
 - [ ] **I5 — Privacy pages + disclaimers.** Spec: A8; 09. Needs: I1. ЗЗП/LANCE
   layered disclaimers, Esri/AWS recipients disclosed.
   *2026-09-24 — built, uncommitted, not ticked (legal review pending). `/privacy` is in the
