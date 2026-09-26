@@ -177,6 +177,9 @@ describe.skipIf(!hasDocker)('the weekly QA report store and reader', () => {
     await db.query('DELETE FROM event_detections');
     await db.query('DELETE FROM clustering_runs');
     await db.query('UPDATE fire_events SET merged_into = NULL');
+    // Migration 019's log references the events it records; production never deletes an
+    // event, so only this reset has to clear the history first.
+    await db.query('DELETE FROM fire_event_transitions');
     await db.query('DELETE FROM fire_events');
     await db.query('DELETE FROM watch_zones');
     await db.query('DELETE FROM accounts');
