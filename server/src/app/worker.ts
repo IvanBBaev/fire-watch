@@ -38,6 +38,7 @@
 import { systemClock } from '../adapters/clock/system-clock.js';
 import { createHealthchecksHeartbeat } from '../adapters/monitoring/healthchecks-heartbeat.js';
 import { systemSleeper } from '../adapters/scheduler/system-sleeper.js';
+import { runAlertDigestCycle } from '../core/alerts/digest-pass.js';
 import { runAlertEvaluationCycle } from '../core/alerts/evaluation-cycle.js';
 import { runEffisRefresh } from '../core/effis/effis-refresh.js';
 import { runIdentityCycle } from '../core/identity/identity-cycle.js';
@@ -51,6 +52,8 @@ import {
   reportAlertEvaluationCycle,
   reportAlertEvaluationDisabled,
 } from './alert-evaluation-reporter.js';
+import { reportAlertDigestCycle, reportAlertDigestDisabled } from './alert-digest-reporter.js';
+import { wireAlertDigest } from './alert-digest-wiring.js';
 import { wireAlertEvaluation } from './alert-evaluation-wiring.js';
 import { ConfigError, describeConfig, loadConfig } from './config.js';
 import { reportCycle } from './cycle-reporter.js';
@@ -144,7 +147,13 @@ async function main(): Promise<number> {
   const lag = wireLagHistograms(config);
   // H3: disabled with named blockers until cadence, routing (H2/D7) and the zone keyring
   // are all in place; a malformed keyring is still a ConfigError.
-  const alertEval = wireAlertEvaluation(config, process.env, { routing: null });
+  // H3: the digest pass that pays the evaluation loop's defers — same regime, its own
+  // blockers (digest routing is H2/D7 too).
+  const alertDigest = wireAlertDigest(config, process.env, { routing: null });
+  const alertEval = wireAlertEvaluation(config, process.env, {
+    routing: null,
+    digestEnabled: alertDigest.enabled,
+  });
   const qa = wireQaReport(config);
   const purge = wireErasurePurge(config);
   const r2 = loadR2MirrorConfig(process.env, config.staticSnapshotUrl);
@@ -322,6 +331,23 @@ async function main(): Promise<number> {
     } else {
       reportAlertEvaluationDisabled(alertEval, { writeLine });
     }
+    if (alertDigest.enabled) {
+      loops.push([
+        'alert_digest',
+        runRepeatedly({
+          intervalMs: alertDigest.intervalMs,
+          clock: systemClock,
+          sleeper: systemSleeper,
+          signal: controller.signal,
+          run: () => runAlertDigestCycle(alertDigest.deps),
+          report: (run) => {
+            reportAlertDigestCycle(run, { writeLine });
+          },
+        }),
+      ]);
+    } else {
+      reportAlertDigestDisabled(alertDigest, { writeLine });
+    }
     if (refresh === null) {
       // Visible, because "the FWI layer never updates" must be traceable to this line
       // rather than to a loop that silently was not wired.
@@ -403,6 +429,7 @@ async function main(): Promise<number> {
       qa.close(),
       purge.close(),
       alertEval.enabled ? alertEval.close() : Promise.resolve(),
+      alertDigest.enabled ? alertDigest.close() : Promise.resolve(),
       mirror.kind === 'enabled' ? mirror.close() : Promise.resolve(),
       metricsListener === null ? Promise.resolve() : metricsListener.close(),
     ]);
