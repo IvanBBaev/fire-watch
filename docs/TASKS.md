@@ -981,6 +981,20 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   `unavailable` with a reason (no EFFIS perimeter store, no lifecycle transition log).
   Open: week boundary (ISO/UTC assumed, unratified), DAR instant (`decided_at`), season
   bounds. The 11-test integration suite has not run (no Docker).*
+  *2026-09-26 — FER and FLR measured. Migration **019** adds `fire_event_transitions`,
+  written by an `AFTER INSERT OR UPDATE OF status` trigger on `fire_events` (every writer
+  logs; creation rows included; `max_frp_mw` and hull ha recorded as of the transition), and
+  `lifecycle_log_origin`. `core/qa/lifecycle-metrics.ts` feeds the existing `fer()`/`flr()`:
+  unavailable for any week the log does not cover (FER from − 72 h, FLR from − 48 h);
+  FER grades declarations in the window shifted back 72 h so each had its full re-attach
+  window (a report built at Monday 00:00 cannot see Wednesday); a second closure of one event
+  gets `#2` instead of throwing; `isLargeEvent` judges the recorded facts; tombstones are left
+  out of FLR (a merge is undated). Report config `qa_weekly_report_v2`, open decisions
+  `fer_declaration_window`, `flr_tombstones`, `fer_large_fuel`. The reader's SQL passed 16/16
+  on PostGIS 3.4.2 outside Docker, with 5 SQL and 5 core mutants each failing a test. Also:
+  the "integration tests written, not run" remarks across C9/D8/H4/H8/I2 are stale — CI run
+  10 on `ebd2e60` ran all 25 integration files with `FIRE_WATCH_REQUIRE_DOCKER=1`, green.
+  Shadow-PCR stays unavailable (no EFFIS perimeter store).*
 - [x] **D9 — Pure alert-decision function (pulled forward).** Spec: ADR-004 D4
   gating as amended by A16. Needs: D1. Side-effect-free decision fn over
   (event, zone, config) so fixtures can assert alerts years before channels

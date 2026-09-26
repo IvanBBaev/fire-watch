@@ -52,6 +52,7 @@ describe('reportQaWeekly', () => {
       pollIntervalMs: 600_000,
       plbTraces: [],
       darAlerts: [],
+      lifecycle: { logStartedAtMs: null, transitions: [], population: [] },
     });
     const lines: string[] = [];
     reportQaWeekly(

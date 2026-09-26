@@ -16,6 +16,7 @@ import type { Clock } from '../ports/clock.js';
 import type { QaReportInputReader, QaReportStore } from '../ports/qa-report-store.js';
 import { ALERT_GATING } from '../config/alert-gating.js';
 import { lastClosedIsoWeek, type ReportWindow } from './iso-week.js';
+import { lifecycleLeadInMs } from './lifecycle-metrics.js';
 import { QA_METRICS } from './qa-metrics-params.js';
 import {
   buildWeeklyReport,
@@ -65,9 +66,14 @@ export async function runWeeklyQaReport(
   }
 
   const leadIn = ALERT_GATING.values.suppressionWindowMs;
-  const [plbTraces, darAlerts] = await Promise.all([
+  const [plbTraces, darAlerts, lifecycle] = await Promise.all([
     deps.reader.loadPlbTraces({ fromMs: window.fromMs, toMs: window.toMs }),
     deps.reader.loadDarAlerts({ fromMs: window.fromMs - leadIn, toMs: window.toMs }),
+    deps.reader.loadLifecycleHistory({
+      fromMs: window.fromMs,
+      toMs: window.toMs,
+      leadInMs: lifecycleLeadInMs(),
+    }),
   ]);
   // Stamped after the reads, so `complete` cannot claim a week closed that was still open
   // when the rows were read.
@@ -78,6 +84,7 @@ export async function runWeeklyQaReport(
     pollIntervalMs: deps.pollIntervalMs,
     plbTraces,
     darAlerts,
+    lifecycle,
   });
   const json = renderReportJson(report);
   const markdown = renderReportMarkdown(report);

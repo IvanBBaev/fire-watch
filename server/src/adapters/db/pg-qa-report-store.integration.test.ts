@@ -24,6 +24,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { VirtualClock } from '../../core/ports/clock.js';
 import type { StoredWeeklyReport } from '../../core/ports/qa-report-store.js';
+import { measureFer, measureFlr } from '../../core/qa/lifecycle-metrics.js';
 import { isoWeekWindow } from '../../core/qa/iso-week.js';
 import { runWeeklyQaReport } from '../../core/qa/weekly-report-job.js';
 import { createPgQaReportStore, type PgQaReportQueryable } from './pg-qa-report-store.js';
@@ -220,6 +221,131 @@ describe.skipIf(!hasDocker)('the weekly QA report store and reader', () => {
       expect(traces[1]?.eventUpdatedAtMs).toBeNull();
       expect(traces[0]?.availableAtMs).toBe(Date.parse(at(1)));
       expect(traces[0]?.ingestedAtMs).toBe(Date.parse(at(1)) + 60_000);
+    });
+  });
+
+  describe('loadLifecycleHistory (migration 019)', () => {
+    const LEAD_IN = 72 * 3_600_000;
+
+    /** The lifecycle store's own statement shape: status, reason, instant, anchor, seq. */
+    async function move(publicId: string, status: string, when: string, reason: string | null) {
+      await db.query(
+        `UPDATE fire_events
+            SET status = $2, status_reason = $3, status_changed_at = $4,
+                inactive_since = CASE WHEN $2 IN ('active', 'signal_weakening') THEN NULL
+                                      ELSE $4::timestamptz END,
+                display_tier = CASE WHEN $2 = 'archived' THEN 'archive' ELSE 'map' END,
+                seq = nextval('fire_events_seq_seq')
+          WHERE public_id = $1`,
+        [publicId, status, reason, when],
+      );
+    }
+
+    /** An event from before the log began: its creation row is not in the history. */
+    async function preLog(publicId: string): Promise<string> {
+      const id = await insertEvent(publicId);
+      await db.query('DELETE FROM fire_event_transitions WHERE fire_event_id = $1', [id]);
+      return id;
+    }
+
+    const read = () =>
+      store.loadLifecycleHistory({ fromMs: W38.fromMs, toMs: W38.toMs, leadInMs: LEAD_IN });
+
+    beforeEach(async () => {
+      await db.query('UPDATE lifecycle_log_origin SET started_at = $1', [at(-24 * 30)]);
+    });
+
+    it('reads the log origin', async () => {
+      expect((await read()).logStartedAtMs).toBe(W38.fromMs - 24 * 30 * 3_600_000);
+    });
+
+    it('derives each event’s status at the window start from the history, or the row', async () => {
+      await preLog('fw-2026-befor'); // weakened before the week
+      await move('fw-2026-befor', 'signal_weakening', at(-50), null);
+      await preLog('fw-2026-after'); // first change inside the week
+      await move('fw-2026-after', 'signal_weakening', at(10), null);
+      await preLog('fw-2026-silnt'); // active all week, never changed
+      const archived = await preLog('fw-2026-archd'); // long archived, never changed
+      await db.query(
+        `UPDATE fire_events SET status = 'archived', display_tier = 'archive',
+                inactive_since = $2 WHERE id = $1`,
+        [archived, at(-24 * 60)],
+      );
+      await db.query('DELETE FROM fire_event_transitions WHERE fire_event_id = $1', [archived]);
+      const survivor = await preLog('fw-2026-survr');
+      await insertEvent('fw-2026-mergd', survivor); // born in the week, merged away
+
+      const { population } = await read();
+
+      expect(population).toEqual([
+        { publicId: 'fw-2026-after', statusAtStart: 'active' },
+        { publicId: 'fw-2026-befor', statusAtStart: 'signal_weakening' },
+        { publicId: 'fw-2026-silnt', statusAtStart: 'active' },
+        { publicId: 'fw-2026-survr', statusAtStart: 'active' },
+      ]);
+    });
+
+    it('returns transitions in range with the tombstone flag, creation rows included', async () => {
+      const survivor = await preLog('fw-2026-survr');
+      await insertEvent('fw-2026-mergd', survivor);
+      await preLog('fw-2026-oldev');
+      await move('fw-2026-oldev', 'signal_weakening', at(-100), null); // before the lead-in
+
+      const { transitions } = await read();
+
+      expect(transitions.map((t) => [t.publicId, t.from, t.to, t.merged])).toEqual([
+        ['fw-2026-mergd', null, 'active', true],
+      ]);
+    });
+
+    it('finds the first live re-attachment strictly after a declaration', async () => {
+      const id = await preLog('fw-2026-backk');
+      await move('fw-2026-backk', 'no_longer_detected', at(5), 'miss_evidence');
+      const live = await insertRun('live');
+      const offline = await insertRun('offline');
+      await insertDetection(1, at(4));
+      await insertDetection(2, at(6));
+      await insertDetection(3, at(9));
+      await attach(live, id, 1, at(4)); // before the declaration: evidence already weighed
+      await attach(offline, id, 2, at(6)); // a backfill's timing, not the pipeline's
+      await attach(live, id, 3, at(9));
+
+      const [declaration] = (await read()).transitions;
+      expect(declaration).toMatchObject({
+        publicId: 'fw-2026-backk',
+        from: 'active',
+        to: 'no_longer_detected',
+        reason: 'miss_evidence',
+        reattachedAtMs: W38.fromMs + 9 * 3_600_000,
+      });
+    });
+
+    it('feeds FER and FLR end to end', async () => {
+      await preLog('fw-2026-flapp');
+      for (const [hour, status] of [
+        [2, 'signal_weakening'],
+        [6, 'active'],
+        [10, 'signal_weakening'],
+        [14, 'active'],
+      ] as const) {
+        await move('fw-2026-flapp', status, at(hour), null);
+      }
+      const id = await preLog('fw-2026-early');
+      // Declared in the FER window (shifted back 72 h), re-attached 10 h later.
+      await move('fw-2026-early', 'no_longer_detected', at(-48), 'miss_evidence');
+      const live = await insertRun('live');
+      await insertDetection(7, at(-38));
+      await attach(live, id, 7, at(-38));
+
+      const history = await read();
+      const ferResult = measureFer(W38, history);
+      const flrResult = measureFlr(W38, history);
+
+      if (ferResult.status !== 'measured' || flrResult.status !== 'measured') {
+        throw new Error('expected both measured');
+      }
+      expect(ferResult.report.falseExtinguishIds).toEqual(['fw-2026-early']);
+      expect(flrResult.report.flaggedEventIds).toEqual(['fw-2026-flapp']);
     });
   });
 
