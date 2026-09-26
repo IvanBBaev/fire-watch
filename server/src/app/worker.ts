@@ -82,6 +82,7 @@ import {
   instrumentHeartbeat,
   loopObserver,
   monitorObserver,
+  observeAlertDigest,
   observeAlertEvaluation,
   observeLoop,
   type MetricsErrorSink,
@@ -340,9 +341,13 @@ async function main(): Promise<number> {
           sleeper: systemSleeper,
           signal: controller.signal,
           run: () => runAlertDigestCycle(alertDigest.deps),
-          report: (run) => {
-            reportAlertDigestCycle(run, { writeLine });
-          },
+          report: observeAlertDigest(
+            metrics,
+            (run) => {
+              reportAlertDigestCycle(run, { writeLine });
+            },
+            onMetricsError,
+          ),
         }),
       ]);
     } else {
