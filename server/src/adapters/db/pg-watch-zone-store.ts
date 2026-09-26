@@ -82,19 +82,12 @@ WHERE grid_version = $1::text AND grid_cell = ANY($2::text[])
   AND deleted_at IS NULL AND centre_ciphertext IS NOT NULL
 ORDER BY id`;
 
-/** Scoped by account so another account's zone id deletes nothing. */
-const SOFT_DELETE = `
-UPDATE watch_zones
-SET deleted_at = $3::timestamptz
-WHERE id = $2::uuid AND account_id = $1::uuid AND deleted_at IS NULL`;
-
 /** Exported for the tests that assert the statements' shape rather than their effect. */
 export const WATCH_ZONE_SQL = {
   selectAccountSettings: SELECT_ACCOUNT_SETTINGS,
   insertZone: INSERT_ZONE,
   selectForAccount: SELECT_FOR_ACCOUNT,
   selectInCells: SELECT_IN_CELLS,
-  softDelete: SOFT_DELETE,
 } as const;
 
 /** The bound values of {@link INSERT_ZONE}, in order. Exported so the test can inspect them. */
@@ -147,11 +140,6 @@ export function createPgWatchZoneStore(db: PgWatchZoneQueryable): WatchZoneStore
       if (cells.length === 0) return [];
       const result = await db.query(SELECT_IN_CELLS, [gridVersion, [...cells]]);
       return result.rows.map(decodeZone);
-    },
-
-    async softDelete(accountId, zoneId, atIso): Promise<boolean> {
-      const result = await db.query(SOFT_DELETE, [accountId, zoneId, atIso]);
-      return (result.rowCount ?? 0) > 0;
     },
   };
 }

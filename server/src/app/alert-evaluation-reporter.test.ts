@@ -75,11 +75,11 @@ describe('reportAlertEvaluationDisabled', () => {
   it('names the blockers and the gaps', () => {
     const out: string[] = [];
     reportAlertEvaluationDisabled(
-      { blockers: ['zone_keyring_unset'], gaps: ['digest_pass_unwired'] },
+      { blockers: ['zone_keyring_unset'], gaps: ['digest_pass_disabled'] },
       { writeLine: (line) => out.push(line) },
     );
     expect(out).toEqual([
-      '{"alert_evaluation_disabled":{"blockers":["zone_keyring_unset"],"gaps":["digest_pass_unwired"]}}',
+      '{"alert_evaluation_disabled":{"blockers":["zone_keyring_unset"],"gaps":["digest_pass_disabled"]}}',
     ]);
   });
 });

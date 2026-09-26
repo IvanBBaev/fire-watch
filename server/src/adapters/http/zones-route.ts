@@ -58,7 +58,10 @@ export interface ZonesRouteDeps {
   readonly create: (request: CreateWatchZoneRequest, at: EpochMs) => Promise<CreatedWatchZone>;
   /** `listOwnedWatchZones` over a pg store and the cipher. */
   readonly list: (accountId: string) => Promise<readonly OwnedWatchZone[]>;
-  /** `WatchZoneStore.softDelete`; false when the account owns no live zone by that id. */
+  /**
+   * `createPgZoneDeleter(...)`: soft-delete and cancel the zone's queued alerts in one
+   * transaction (ADR-004 A1.9); false when the account owns no live zone by that id.
+   */
   readonly remove: (accountId: string, zoneId: string, atIso: string) => Promise<boolean>;
   readonly allowedOrigins: readonly string[];
   readonly clock: Clock;
