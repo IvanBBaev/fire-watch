@@ -7,26 +7,26 @@ import { reportAlertDigestCycle, reportAlertDigestDisabled } from './alert-diges
 const T0 = 1_765_620_900_000;
 const T1 = T0 + 250;
 
-const report: AlertDigestCycleReport = {
-  atIso: '2025-12-13T10:15:00Z',
+const report = (undeliverable: number): AlertDigestCycleReport => ({
+  atIso: '2025-12-13T07:05:00Z',
   pages: 1,
   accountsRead: 2,
   accountsFailed: 0,
   accountsGone: 0,
-  outcomes: { none: 0, hold: 0, suppress: 1, send: 1 },
-  undeliverable: 0,
+  outcomes: { send: 1, hold: 0, suppress: 1, none: 0 },
+  undeliverable,
   groupsWithoutCopy: 0,
   alreadyDecided: 0,
   cipherFailures: 0,
   pairsRead: 3,
   pairsOutsideZone: 0,
   candidates: { deferred: 1, seeded: 0, active: 2 },
-  linesSent: 2,
-  digestsLogged: 2,
+  linesSent: 3,
+  digestsLogged: 3,
   outboxInserted: 1,
   outboxAlreadyDecided: 0,
   deferred: { over_budget_b: 0, manual_approval: 0 },
-};
+});
 
 function lines(run: JobRun<AlertDigestCycleReport>): string[] {
   const out: string[] = [];
@@ -35,13 +35,22 @@ function lines(run: JobRun<AlertDigestCycleReport>): string[] {
 }
 
 describe('reportAlertDigestCycle', () => {
-  it('writes the whole report and the duration on one line', () => {
-    const [line, extra] = lines({ startedAt: T0, finishedAt: T1, value: report, error: null });
-    expect(extra).toBeUndefined();
-    expect(JSON.parse(line ?? '')).toEqual({ alert_digest_cycle: report, duration_ms: 250 });
+  it('writes one canonical line with the report, undeliverable and the duration', () => {
+    const [line, ...rest] = lines({ startedAt: T0, finishedAt: T1, value: report(2), error: null });
+    expect(rest).toEqual([]);
+    const parsed = JSON.parse(line ?? '') as Record<string, unknown>;
+    expect(Object.keys(parsed)).toEqual(['alert_digest_cycle', 'duration_ms', 'undeliverable']);
+    expect(parsed['undeliverable']).toBe(2);
+    expect(parsed['duration_ms']).toBe(250);
+    expect(parsed['alert_digest_cycle']).toEqual(report(2));
   });
 
-  it('writes the failure with its message and when it happened', () => {
+  it('is byte-identical for the same run', () => {
+    const run = { startedAt: T0, finishedAt: T1, value: report(0), error: null };
+    expect(lines(run)).toEqual(lines(run));
+  });
+
+  it('writes the failure with its message and instant', () => {
     const [line] = lines({
       startedAt: T0,
       finishedAt: T1,
@@ -49,20 +58,20 @@ describe('reportAlertDigestCycle', () => {
       error: new Error('every one of 2 digest accounts failed'),
     });
     expect(JSON.parse(line ?? '')).toEqual({
-      alert_digest_cycle_failed: { error: 'every one of 2 digest accounts failed', at: T1 },
+      alert_digest_cycle_failed: { at: T1, error: 'every one of 2 digest accounts failed' },
     });
   });
 });
 
 describe('reportAlertDigestDisabled', () => {
-  it('names every blocker, in order', () => {
+  it('names the blockers', () => {
     const out: string[] = [];
     reportAlertDigestDisabled(
-      { blockers: ['zone_keyring_unset', 'digest_routing_unarmed', 'cadence_unratified'] },
+      { blockers: ['digest_routing_unarmed', 'cadence_unratified'] },
       { writeLine: (line) => out.push(line) },
     );
     expect(out).toEqual([
-      '{"alert_digest_disabled":{"blockers":["zone_keyring_unset","digest_routing_unarmed","cadence_unratified"]}}',
+      '{"alert_digest_disabled":{"blockers":["digest_routing_unarmed","cadence_unratified"]}}',
     ]);
   });
 });

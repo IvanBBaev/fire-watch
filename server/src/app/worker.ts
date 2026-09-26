@@ -32,7 +32,9 @@
  * its public age every minute, only when the FIRE_WATCH_R2_* group is configured. The D8
  * loop checks hourly whether the last closed ISO week has a stored QA report and builds it
  * if not. The I4 erasure purge runs daily; every retention is unarmed until ratified, so
- * today it reports and deletes nothing.
+ * today it reports and deletes nothing. The H3 alert evaluation loop and the D9 digest pass
+ * each run on their own pool only once their blockers (zone keyring, routing, a ratified
+ * cadence) are gone; until then each writes one `…_disabled` line naming them.
  */
 
 import { systemClock } from '../adapters/clock/system-clock.js';
@@ -48,12 +50,12 @@ import { runWeeklyQaReport } from '../core/qa/weekly-report-job.js';
 import { noopHeartbeat, type Heartbeat } from '../core/ports/heartbeat.js';
 import { runRepeatedly, type JobStats } from '../core/scheduler/repeating-job.js';
 import { runWeatherRefresh } from '../core/weather/weather-refresh.js';
+import { reportAlertDigestCycle, reportAlertDigestDisabled } from './alert-digest-reporter.js';
+import { wireAlertDigest } from './alert-digest-wiring.js';
 import {
   reportAlertEvaluationCycle,
   reportAlertEvaluationDisabled,
 } from './alert-evaluation-reporter.js';
-import { reportAlertDigestCycle, reportAlertDigestDisabled } from './alert-digest-reporter.js';
-import { wireAlertDigest } from './alert-digest-wiring.js';
 import { wireAlertEvaluation } from './alert-evaluation-wiring.js';
 import { ConfigError, describeConfig, loadConfig } from './config.js';
 import { reportCycle } from './cycle-reporter.js';
@@ -146,10 +148,10 @@ async function main(): Promise<number> {
   const refresh = wireRefreshJobs(config);
   const identity = wireIdentity(config);
   const lag = wireLagHistograms(config);
-  // H3: disabled with named blockers until cadence, routing (H2/D7) and the zone keyring
-  // are all in place; a malformed keyring is still a ConfigError.
-  // H3: the digest pass that pays the evaluation loop's defers — same regime, its own
-  // blockers (digest routing is H2/D7 too).
+  // H3/D9: both alert loops are disabled with named blockers until cadence, routing (H2/D7)
+  // and the zone keyring are all in place; a malformed keyring is still a ConfigError. The
+  // evaluation loop reports the digest pass as a gap whenever the digest loop is not running,
+  // because its deferrals are then owed with nothing to pay them.
   const alertDigest = wireAlertDigest(config, process.env, { routing: null });
   const alertEval = wireAlertEvaluation(config, process.env, {
     routing: null,
@@ -196,9 +198,10 @@ async function main(): Promise<number> {
     }
 
     // The always-on loops (ingest, identity, lag histograms, monitors, QA report, erasure purge)
-    // plus the optional ones: dispatch, alert evaluation, the two C4 refresh loops and the R2
-    // mirror. Independent loops on independent cadences, sharing one abort signal: a
-    // slow EFFIS GetMap must not delay a FIRMS poll, and one SIGTERM drains all of them.
+    // plus the optional ones: dispatch, alert evaluation, the digest pass, the two C4 refresh
+    // loops and the R2 mirror. Independent loops on independent cadences, sharing one abort
+    // signal: a slow EFFIS GetMap must not delay a FIRMS poll, and one SIGTERM drains all of
+    // them.
     const loops: [name: string, stats: Promise<JobStats>][] = [];
     loops.push(
       [

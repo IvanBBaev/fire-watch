@@ -21,6 +21,7 @@ const retentionsArb = fc.record({
   ended_sessions: retentionArb,
   account_tombstones: retentionArb,
   alert_decision_log: retentionArb,
+  alert_digest_log: retentionArb,
 }) as fc.Arbitrary<PurgeRetention>;
 const atArb = fc.integer({ min: 0, max: 3 * 365 }).map((days) => START + days * DAY_MS);
 
@@ -61,6 +62,7 @@ describe('planPurge, for any retention', () => {
             ended_sessions: null,
             account_tombstones: null,
             alert_decision_log: null,
+            alert_digest_log: null,
             [target]: days,
           } as PurgeRetention;
           const belowFloor = days < 0 || days * DAY_MS < PURGE_TARGET_SPECS[target].floorMs;

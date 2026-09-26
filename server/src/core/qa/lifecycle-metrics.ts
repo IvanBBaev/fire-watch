@@ -1,13 +1,13 @@
 /**
  * FER and FLR for one report window, from the lifecycle transition log (TASKS D8;
- * GLOSSARY §8; migration 019).
+ * GLOSSARY §8; migration 020).
  *
  * `fer.ts` and `flr.ts` are the metrics. This module turns the log's rows into their
  * inputs, and decides — for each — whether the log can answer at all.
  *
  * ## When the log cannot answer
  *
- * The log begins with migration 019 (`lifecycle_log_origin`). A week it does not fully
+ * The log begins with migration 020 (`lifecycle_log_origin`). A week it does not fully
  * cover would read as an empty history, and an empty history is a perfect score. So:
  *
  *   - **FER** is measured only if the log began at or before the start of its declaration

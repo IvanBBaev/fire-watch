@@ -31,7 +31,7 @@
  *     its end, because DAR's definition makes that a precondition (`core/qa/dar.ts`).
  *   - `alertId` is the outbox row id as text.
  *
- * ## Lifecycle history (`loadLifecycleHistory`, migration 019)
+ * ## Lifecycle history (`loadLifecycleHistory`, migration 020)
  *
  *   - `logStartedAtMs` is `lifecycle_log_origin.started_at`, or `null` without the row.
  *   - **Transitions**: every `fire_event_transitions` row with `transitioned_at` in

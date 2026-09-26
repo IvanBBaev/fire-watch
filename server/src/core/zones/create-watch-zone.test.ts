@@ -100,9 +100,6 @@ function harness(
     listLiveInCells() {
       return Promise.resolve([]);
     },
-    softDelete() {
-      return Promise.resolve(false);
-    },
   };
   const candidates: ZoneSeedCandidateReader = {
     candidatesWithin(centre, radiusM) {

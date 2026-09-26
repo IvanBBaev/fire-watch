@@ -60,7 +60,7 @@ export interface QaWeeklyReportParams {
 
 export const QA_WEEKLY_REPORT: VersionedConfig<QaWeeklyReportParams> = defineConfig(
   'qa_weekly_report',
-  // v2 (2026-09-26): FER and FLR measured from the transition log (migration 019).
+  // v2 (2026-09-26): FER and FLR measured from the transition log (migration 020).
   'qa_weekly_report_v2',
   {
     week: { calendar: 'iso8601', timeZone: 'UTC', ratified: false },

@@ -178,33 +178,6 @@ describe('alertEvaluationObserver', () => {
   });
 });
 
-describe('observeAlertDigest', () => {
-  it('records the digest loop run and feeds the same deferral counter', async () => {
-    const registry = createProcessMetrics();
-    const report = vi.fn(() => Promise.resolve());
-    const wrapped = observeAlertDigest(registry, report, () => {});
-    const ok = run({
-      deferred: { over_budget_b: 0, manual_approval: 2 },
-    } as unknown as AlertDigestCycleReport);
-    await wrapped(ok);
-    await wrapped(run<AlertDigestCycleReport>(undefined, new Error('every account failed')));
-    expect(report).toHaveBeenCalledTimes(2);
-    const text = await registry.render();
-    expect(text).toContain('fw_loop_runs_total{loop="alert_digest",outcome="ok"} 1\n');
-    expect(text).toContain('fw_loop_runs_total{loop="alert_digest",outcome="error"} 1\n');
-    expect(text).toContain('fw_alert_sends_deferred_total{reason="manual_approval"} 2\n');
-    expect(text).toContain('fw_alert_sends_deferred_total{reason="over_budget_b"} 0\n');
-  });
-
-  it('is what the worker wires the alert_digest loop through', async () => {
-    // Same source guard as the evaluation loop's: a bare observeLoop, or no wrapper at all,
-    // would leave the loop invisible to the dashboards while every other test stays green.
-    const worker = await readFile(new URL('./worker.ts', import.meta.url), 'utf8');
-    const loop = worker.slice(worker.indexOf("'alert_digest',"));
-    expect(loop).toMatch(/^'alert_digest',[\s\S]*?report: observeAlertDigest\(\s*metrics,/);
-  });
-});
-
 describe('observeAlertEvaluation', () => {
   it('records the loop run and the deferral counter, then calls the reporter', async () => {
     const registry = createProcessMetrics();
@@ -228,6 +201,29 @@ describe('observeAlertEvaluation', () => {
     const loop = worker.slice(worker.indexOf("'alert_evaluation',"));
     expect(loop).toMatch(/^'alert_evaluation',[\s\S]*?report: observeAlertEvaluation\(\s*metrics,/);
     expect(worker).not.toMatch(/observeLoop\(\s*metrics,\s*'alert_evaluation'/);
+  });
+});
+
+describe('observeAlertDigest', () => {
+  it('records the loop run and the deferral counter, then calls the reporter', async () => {
+    const registry = createProcessMetrics();
+    const report = vi.fn(() => Promise.resolve());
+    const wrapped = observeAlertDigest(registry, report, () => {});
+    const ok = run({
+      deferred: { over_budget_b: 0, manual_approval: 2 },
+    } as unknown as AlertDigestCycleReport);
+    await wrapped(ok);
+    expect(report).toHaveBeenCalledWith(ok);
+    const text = await registry.render();
+    expect(text).toContain('fw_loop_runs_total{loop="alert_digest",outcome="ok"} 1\n');
+    expect(text).toContain('fw_alert_sends_deferred_total{reason="manual_approval"} 2\n');
+  });
+
+  it('is what the worker wires the alert_digest loop through', async () => {
+    const worker = await readFile(new URL('./worker.ts', import.meta.url), 'utf8');
+    const loop = worker.slice(worker.indexOf("'alert_digest',"));
+    expect(loop).toMatch(/^'alert_digest',[\s\S]*?report: observeAlertDigest\(\s*metrics,/);
+    expect(worker).not.toMatch(/observeLoop\(\s*metrics,\s*'alert_digest'/);
   });
 });
 

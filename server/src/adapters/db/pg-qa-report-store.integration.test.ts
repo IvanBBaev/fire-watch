@@ -178,7 +178,7 @@ describe.skipIf(!hasDocker)('the weekly QA report store and reader', () => {
     await db.query('DELETE FROM event_detections');
     await db.query('DELETE FROM clustering_runs');
     await db.query('UPDATE fire_events SET merged_into = NULL');
-    // Migration 019's log references the events it records; production never deletes an
+    // Migration 020's log references the events it records; production never deletes an
     // event, so only this reset has to clear the history first.
     await db.query('DELETE FROM fire_event_transitions');
     await db.query('DELETE FROM fire_events');
@@ -224,7 +224,7 @@ describe.skipIf(!hasDocker)('the weekly QA report store and reader', () => {
     });
   });
 
-  describe('loadLifecycleHistory (migration 019)', () => {
+  describe('loadLifecycleHistory (migration 020)', () => {
     const LEAD_IN = 72 * 3_600_000;
 
     /** The lifecycle store's own statement shape: status, reason, instant, anchor, seq. */

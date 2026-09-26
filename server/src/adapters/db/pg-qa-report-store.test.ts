@@ -208,7 +208,7 @@ describe('save', () => {
   });
 });
 
-describe('lifecycle history decoders (migration 019)', () => {
+describe('lifecycle history decoders (migration 020)', () => {
   const transition = {
     public_id: 'fw-2026-aaaaa',
     transitioned_at: new Date('2026-09-14T05:00:00Z'),

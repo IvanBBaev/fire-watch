@@ -223,7 +223,7 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       });
     });
 
-    it('keeps the lifecycle transition log append-only for the runtime role (migration 019)', async () => {
+    it('keeps the lifecycle transition log append-only for the runtime role (migration 020)', async () => {
       const { rows } = await db.query<Record<string, unknown>>(
         `SELECT has_table_privilege('fire_watch_app', 'fire_event_transitions', 'SELECT') AS can_select,
                 has_table_privilege('fire_watch_app', 'fire_event_transitions', 'INSERT') AS can_insert,

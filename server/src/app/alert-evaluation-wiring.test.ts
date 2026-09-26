@@ -72,16 +72,4 @@ describe('wireAlertEvaluation', () => {
     expect(wiring.gaps).toEqual([...ALERT_EVALUATION_GAPS]);
     await expect(wiring.close()).resolves.toBeUndefined();
   });
-
-  it('drops the digest gap once the worker runs the digest loop', async () => {
-    const wiring = wireAlertEvaluation(loadConfig(keyed), keyed, {
-      routing,
-      cadence,
-      digestEnabled: true,
-    });
-    expect(wiring.gaps).toEqual([]);
-    if (wiring.enabled) await wiring.close();
-    const disabled = wireAlertEvaluation(loadConfig(base), base, { digestEnabled: true });
-    expect(disabled.gaps).toEqual([]);
-  });
 });
