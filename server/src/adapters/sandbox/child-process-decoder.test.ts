@@ -19,6 +19,13 @@ const REF: GranuleRef = {
 const BYTES = new Uint8Array([0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 /** A decoder written in whatever Node this test is running under. */
+/**
+ * Scripts that write and then end set `process.exitCode` rather than calling
+ * `process.exit()`, as the real decoder does: a pipe write that would block is queued,
+ * and `exit()` discards the queue. Alone, a child never fills its pipe; with the whole
+ * suite running, the parent drains slowly enough that it does, and the refusal reason —
+ * the last thing written — was the part that went missing.
+ */
 function decoderRunning(script: string, options: Record<string, unknown> = {}) {
   return createChildProcessDecoder({
     command: process.execPath,
@@ -189,7 +196,7 @@ describe('what the decoder is allowed to know', () => {
 describe('a decoder that declines', () => {
   it('is a refusal, not a crash, when it says so with its exit code', async () => {
     const decoder = decoderRunning(
-      `process.stderr.write('unsupported product version'); process.exit(${String(DECODER_REFUSED_EXIT)})`,
+      `process.stderr.write('unsupported product version'); process.exitCode = ${String(DECODER_REFUSED_EXIT)}`,
     );
 
     const result = await decoder.decode(REF, BYTES);
@@ -206,7 +213,7 @@ describe('a decoder that declines', () => {
 
   it('has its diagnosis flattened and capped, not stored as an error page', async () => {
     const decoder = decoderRunning(
-      `process.stderr.write('x'.repeat(4000)); process.exit(${String(DECODER_REFUSED_EXIT)})`,
+      `process.stderr.write('x'.repeat(4000)); process.exitCode = ${String(DECODER_REFUSED_EXIT)}`,
     );
 
     const result = await decoder.decode(REF, BYTES);
@@ -221,7 +228,7 @@ describe('a decoder that declines', () => {
     const decoder = decoderRunning(
       `for (let i = 0; i < 400; i += 1) process.stderr.write('HDF5-DIAG: #' + i + ' noise noise noise\\n');
        process.stderr.write('\\n${DECODER_REASON_PREFIX}the superblock is truncated\\n');
-       process.exit(${String(DECODER_REFUSED_EXIT)})`,
+       process.exitCode = ${String(DECODER_REFUSED_EXIT)}`,
     );
 
     const result = await decoder.decode(REF, BYTES);
@@ -236,10 +243,10 @@ describe('a decoder that declines', () => {
   it('keeps the last reason when a decoder gives more than one, and the plain text when none', async () => {
     const twice = decoderRunning(
       `process.stderr.write('${DECODER_REASON_PREFIX}first\\n${DECODER_REASON_PREFIX}second\\n');
-       process.exit(${String(DECODER_REFUSED_EXIT)})`,
+       process.exitCode = ${String(DECODER_REFUSED_EXIT)}`,
     );
     const plain = decoderRunning(
-      `process.stderr.write('just text'); process.exit(${String(DECODER_REFUSED_EXIT)})`,
+      `process.stderr.write('just text'); process.exitCode = ${String(DECODER_REFUSED_EXIT)}`,
     );
 
     expect((await twice.decode(REF, BYTES)).error).toBe('decoder rejected the granule: second');
@@ -248,7 +255,7 @@ describe('a decoder that declines', () => {
 
   it('carries the reason of a decoder that dies, too', async () => {
     const decoder = decoderRunning(
-      `process.stderr.write('x'.repeat(20000) + '\\n${DECODER_REASON_PREFIX}wasm trap\\n'); process.exit(70)`,
+      `process.stderr.write('x'.repeat(20000) + '\\n${DECODER_REASON_PREFIX}wasm trap\\n'); process.exitCode = 70`,
     );
 
     const result = await decoder.decode(REF, BYTES);
