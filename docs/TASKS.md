@@ -2096,6 +2096,19 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   cutoff refused, no direct DELETE); three SQL mutations each fail it. 014's
   `purge_alert_decision_log`, until now executed nowhere, gained its own integration test
   (`pg-erasure-purge.integration.test.ts`: cutoff, cap, guards, no direct DELETE).*
+  *2026-09-26 — the 2026-09-23 follow-up "zone soft-delete does not cancel pending outbox"
+  is closed. ADR-004 A1.9 is normative ("in the same transaction as account/zone
+  deletion"), and the dispatcher's liveness re-check alone never reached an
+  `awaiting_approval` row. `adapters/db/pg-zone-deletion.ts` deletes a zone in one
+  transaction: account `FOR NO KEY UPDATE` (waits out a digest pass holding it `FOR SHARE`,
+  and blocks the next until commit), the account-scoped soft-delete, then every
+  `pending`/`awaiting_approval`/`claimed` row of the zone closed `cancelled_erasure` under
+  row locks. `DELETE /api/v1/zones/:id` uses it; `WatchZoneStore.softDelete` is removed so no
+  bare delete path remains. Rows are cancelled, not pseudonymized: the soft-deleted zone
+  row stays until account erasure, which rewrites the outbox rows of every zone incl.
+  soft-deleted ones. A row the evaluation loop inserts after the commit (it matched before
+  the delete) is `pending` and closed by the liveness re-check. Integration suite as
+  `fire_watch_app` (3 tests; three SQL mutations each fail it) + 5 unit tests.*
 - [ ] **I5 — Privacy pages + disclaimers.** Spec: A8; 09. Needs: I1. ЗЗП/LANCE
   layered disclaimers, Esri/AWS recipients disclosed.
   *2026-09-24 — built, uncommitted, not ticked (legal review pending). `/privacy` is in the
