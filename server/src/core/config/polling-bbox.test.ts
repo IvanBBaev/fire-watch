@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { configDigest } from './versioned-config.js';
 import {
   ALERTABLE_BUFFER_KM,
   BULGARIA_ENVELOPE,
@@ -38,6 +39,15 @@ describe('polling_bbox_v1', () => {
 
   it('states the buffer as 2 × ε_max + the largest watch-zone radius', () => {
     expect(MIN_BBOX_BUFFER_KM).toBe(2 * 6 + 30);
+  });
+
+  it('pins the digest, because the version alone is on every row we ever store', () => {
+    // `ingest_config_version` is written per detection and is how a row is explained years
+    // later. The version string is hand-written, so widening the box without bumping it
+    // would leave two different polls both claiming `polling_bbox_v1`. The digest is what
+    // notices: this literal has to change in the same commit as the values.
+    expect(POLLING_BBOX.digest).toBe(configDigest(POLLING_BBOX.values));
+    expect(POLLING_BBOX.digest).toBe('91e946a7');
   });
 });
 

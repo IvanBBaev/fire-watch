@@ -1,0 +1,38 @@
+{
+  "id": "S14",
+  "title": "Alert decisions at 03:30 local, 25 Oct 2026 / 28 Mar 2027",
+  "asserts": "quiet hours are classified from the decision instant through the tz database on both Europe/Sofia transitions - the repeated 03:30 is inside them on both passes, the skipped hour needs no special case, and 07:00 local is outside - while the deferrals each window collects fold into one 09:00 digest per account, keyed by that window start, across a 25-hour window and a 23-hour one",
+  "required": "suite",
+  "owner": "WP6",
+  "engine": "alert",
+  "clockStart": "2026-10-24T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1",
+    "alert_gating": "alert_gating_v1",
+    "digest_params": "digest_params_v1"
+  },
+  "inputs": [
+    "poll-01.json",
+    "poll-02.json",
+    "poll-03.json",
+    "poll-04.json",
+    "poll-05.json",
+    "poll-06.json",
+    "poll-07.json",
+    "poll-08.json",
+    "poll-09.json",
+    "poll-10.json",
+    "poll-11.json",
+    "poll-12.json",
+    "poll-13.json",
+    "poll-14.json"
+  ],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

@@ -1,0 +1,13 @@
+{
+  "cloudCover": [
+    { "fromIso": "2026-08-20T00:00:00Z", "toIso": "2026-08-21T13:00:00Z", "percent": 0 }
+  ],
+  "declarations": [
+    {
+      "detectionUid": "bbd6f8c1ce362d3dfc4bb75ef43c7845aaf8008fe84e9bb72bd1adac76658c0b",
+      "declaredAtIso": "2026-08-20T18:00:00Z",
+      "state": "officially_extinguished",
+      "attribution": "РДПБЗН Пловдив"
+    }
+  ]
+}

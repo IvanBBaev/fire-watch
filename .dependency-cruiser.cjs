@@ -43,14 +43,62 @@ module.exports = {
       to: { dependencyTypes: ['core'] },
     },
     {
+      name: 'contracts-is-platform-neutral',
+      severity: 'error',
+      comment:
+        'ADR-005 D3: the contracts package is imported verbatim by the server and by the ' +
+        'browser bundle, so a node builtin here is a module the web cannot load. ' +
+        '`node.ts` is the one deliberate exception, reached through the ' +
+        '`@fire-watch/contracts/node` subpath and never from the barrel. This is also ' +
+        'what keeps the never-send lint under the same platform ban it was under while ' +
+        'it lived in server/src/core.',
+      from: {
+        path: '^packages/contracts/src/',
+        pathNot: '^packages/contracts/src/node\\.ts$',
+      },
+      to: { dependencyTypes: ['core'] },
+    },
+    {
       name: 'only-the-gateway-sends',
       severity: 'error',
       comment:
         'ADR-004 D1: every outbound notification leaves through the gateway, which is ' +
         'the single place suppression, budgets, the kill switch and the never-send lint ' +
         'are applied. A second sender is an unaudited send path.',
-      from: { pathNot: '^server/src/(adapters/alerts/gateway|app)/' },
+      from: {
+        pathNot: [
+          // The gateway, and the provider adapters themselves.
+          '^server/src/adapters/alerts/(gateway|channels)/',
+          // Exactly one composition root, and not the whole of `app/`. Wiring a channel
+          // into the gateway is legitimate; wiring is all that is. An exemption for the
+          // directory would let any future worker, route or CLI reach a provider and
+          // still pass — which is the direct send this rule exists to fail.
+          '^server/src/app/alert-wiring\\.ts$',
+          // The sign-in mailer (I1) borrows the SES transport — signing and the bounded
+          // request — for one transactional mail that is not an alert. What it may take
+          // from the channels directory is pinned by the next rule.
+          '^server/src/adapters/mail/ses-auth-mailer\\.ts$',
+          // A test may exercise an adapter directly; it ships nothing.
+          '\\.test\\.ts$',
+        ],
+      },
       to: { path: '^server/src/adapters/alerts/channels/' },
+    },
+    {
+      name: 'auth-mailer-reuses-transport-only',
+      severity: 'error',
+      comment:
+        'I1: the sign-in mailer may reuse the SES transport (sigv4.ts, provider-http.ts) ' +
+        'and nothing else from the alert channels. Importing a channel adapter would make ' +
+        'it a second alert sender outside the gateway.',
+      from: { path: '^server/src/adapters/mail/ses-auth-mailer\\.ts$' },
+      to: {
+        path: '^server/src/adapters/alerts/',
+        pathNot: [
+          '^server/src/adapters/alerts/channels/email/sigv4\\.ts$',
+          '^server/src/adapters/alerts/channels/provider-http\\.ts$',
+        ],
+      },
     },
     {
       name: 'web-core-is-framework-free',
@@ -78,7 +126,12 @@ module.exports = {
     {
       name: 'no-dev-deps-in-shipped-code',
       severity: 'error',
-      from: { path: '^(server|web|packages)/src/', pathNot: '\\.test\\.tsx?$' },
+      comment:
+        'A dev dependency in shipped code is a module that exists on a developer machine ' +
+        'and not in production. The workspace packages are matched one level deep ' +
+        '(`packages/<name>/src/`) rather than as `packages/src/`, which nothing is: ' +
+        'without that, package sources are outside this rule entirely.',
+      from: { path: '^(server|web|packages/[^/]+)/src/', pathNot: '\\.test\\.tsx?$' },
       to: { dependencyTypes: ['npm-dev'] },
     },
   ],

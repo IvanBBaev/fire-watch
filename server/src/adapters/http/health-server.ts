@@ -1,9 +1,14 @@
 /**
- * The probe surface (OPERATIONS §2) — three routes and nothing else.
+ * The probe surface (OPERATIONS §2) — three routes, plus the one read path this process
+ * also serves when it is wired for it.
  *
  *   GET /healthz                 liveness: the process is up. No database, ever.
  *   GET /readyz                  readiness: this box can reach its database.
  *   GET /api/health/freshness    the canonical freshness answer, 500 when blind.
+ *   GET /snapshot.json           T1 (ADR-003), only with `snapshot` deps — see below.
+ *   GET /api/v1/stream           T0 (ADR-003), only with `stream` deps.
+ *   GET /api/v1/client-config    fleet control (ADR-003 A1.1), only with `clientConfig` deps.
+ *   GET /overlays/effis/:file    EFFIS overlays (TASKS G4), only with `effisOverlay` deps.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -21,15 +26,37 @@
  *   * Unauthenticated but rate-limited: a credential on a health endpoint is a credential
  *     whose expiry pages you at 03:00. Liveness alone is exempt from the limiter — it
  *     answers from memory, and refusing it turns a flood into a restart loop.
+ *
+ * The read-path routes are the opposite of a probe on every one of those axes — cacheable
+ * or long-lived by design, no per-IP throttle, RFC 7807 refusals — so each lives in its
+ * own module (`snapshot-route.ts`, `stream-route.ts`, `client-config-route.ts`) with its
+ * own encapsulated error handler, and the only thing this file knows about them is that
+ * the hook below must leave them alone.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import type { FreshnessRowId } from '@fire-watch/contracts';
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 
 import { evaluateFreshness } from '../../core/health/freshness.js';
 import { createRateLimiter } from '../../core/http/rate-limiter.js';
 import type { Clock } from '../../core/ports/clock.js';
 import type { DatabaseProbe, FreshnessReader } from '../../core/ports/freshness-reader.js';
+import {
+  CLIENT_CONFIG_PATH,
+  registerClientConfigRoute,
+  type ClientConfigRouteDeps,
+} from './client-config-route.js';
+import { clientKey } from './client-key.js';
+import {
+  EFFIS_OVERLAY_PATH,
+  registerEffisOverlayRoute,
+  type EffisOverlayRouteDeps,
+} from './effis-overlay-route.js';
+import { sendProblem, type CodedProblemSpec } from './problem.js';
+import { SNAPSHOT_PATH, registerSnapshotRoute, type SnapshotRouteDeps } from './snapshot-route.js';
+import { STREAM_PATH, registerStreamRoute, type StreamRouteDeps } from './stream-route.js';
 
 /** Generous for a human, cheap for us; low enough that a loop is not a free connection tap. */
 export const DEFAULT_RATE_LIMIT = 60;
@@ -42,18 +69,36 @@ const MAX_BODY_BYTES = 1024;
 const LIVENESS_PATH = '/healthz';
 
 /**
+ * The routes that speak the probe vocabulary (OPERATIONS §2.2) — `{status: …}` bodies —
+ * and so get the probe limiter's `{status: 'rate_limited'}` refusal. A request that matched
+ * nothing is a probe-surface request too (see the hook).
+ */
+const PROBE_PATHS: ReadonlySet<string> = new Set([
+  LIVENESS_PATH,
+  '/readyz',
+  '/api/health/freshness',
+]);
+
+/**
+ * The limiter's refusal on a route mounted later on this server that is *not* a probe —
+ * the account surface (`wireAuthRoutes`), whose contract is that every refusal is a problem
+ * document with a `code` (PROBLEM_CODES). The code is the one the account surface's own
+ * limiters use, so a client has one rate-limit branch whichever limiter answered.
+ */
+export const RATE_LIMITED_PROBLEM: Omit<CodedProblemSpec, 'retryAfterSeconds'> = {
+  status: 429,
+  title: 'Too many requests',
+  detail: 'Too many requests from this client; retry after the indicated delay.',
+  code: 'rate_limited',
+};
+
+/**
  * The two database-touching routes share this cap on concurrent requests. The rate limiter
  * is per-client; this bounds the *aggregate*, so a distributed burst cannot stack sockets
  * behind the health pool's two connections and its one-second acquire timeout — everything
  * past the cap is refused from memory instead of joining the queue it would time out in.
  */
 const MAX_DB_IN_FLIGHT = 8;
-
-/**
- * Longer than any textual IP, v6 zones included. A rate-limit key is an identity, not
- * storage: an edge header stuffed with garbage must not mint kilobyte-sized keys.
- */
-const MAX_CLIENT_KEY_LENGTH = 64;
 
 export interface HealthServerDeps {
   readonly reader: FreshnessReader;
@@ -81,6 +126,28 @@ export interface HealthServerDeps {
    * means the same thing as an absent key here: no edge, key on the socket.
    */
   readonly clientIpHeader?: string | undefined;
+  /**
+   * The T1 read path, when this process serves it (ADR-003). Absent on a box that only
+   * probes. The route sets its own cache headers and answers no per-IP limiter, so the
+   * onRequest hook exempts it the way it exempts liveness — nothing else here changes.
+   */
+  readonly snapshot?: SnapshotRouteDeps | undefined;
+  /**
+   * The T0 read path, when this process serves it (ADR-003). Exempt from the hook for the
+   * same reasons as the snapshot, plus one: a stream held open for an hour must not count
+   * as sixty requests a minute against the client's probe budget.
+   */
+  readonly stream?: StreamRouteDeps | undefined;
+  /**
+   * The fleet-control document (ADR-003 A1.1), when this process serves it. Edge-cached
+   * for one config TTL, which is the opposite of a probe, so the hook exempts it too.
+   */
+  readonly clientConfig?: ClientConfigRouteDeps | undefined;
+  /**
+   * EFFIS overlays (TASKS G4, ADR-001 A1.2/A2.2), when this box holds the refresh state
+   * dir. Edge-cached, so the hook exempts them like the other read paths.
+   */
+  readonly effisOverlay?: EffisOverlayRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -124,6 +191,20 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
   let dbInFlight = 0;
 
   app.addHook('onRequest', (request, reply, done) => {
+    // The read-path routes are not probes: they own their cache headers and A1.3 forbids
+    // a per-IP throttle on them (the stream has its own per-client cap). The comparison
+    // is against the *matched* pattern, so a request that matched nothing — a 404 — is
+    // still a probe-surface request.
+    const matched = request.routeOptions.url;
+    if (
+      matched === SNAPSHOT_PATH ||
+      matched === STREAM_PATH ||
+      matched === CLIENT_CONFIG_PATH ||
+      matched === EFFIS_OVERLAY_PATH
+    ) {
+      done();
+      return;
+    }
     noStore(reply);
     // Liveness is exempt from the limiter: it answers from memory and costs nothing, and
     // a 429'd liveness probe turns a harmless flood into a restart loop — the exact
@@ -134,10 +215,18 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     }
     const decision = limiter.check(clientKey(request, deps.clientIpHeader), deps.clock.now());
     if (!decision.allowed) {
-      void reply
-        .code(429)
-        .header('retry-after', String(decision.retryAfterSeconds))
-        .send({ status: 'rate_limited' });
+      if (matched === undefined || PROBE_PATHS.has(matched)) {
+        void reply
+          .code(429)
+          .header('retry-after', String(decision.retryAfterSeconds))
+          .send({ status: 'rate_limited' });
+        return;
+      }
+      void sendProblem(
+        reply,
+        { ...RATE_LIMITED_PROBLEM, retryAfterSeconds: decision.retryAfterSeconds },
+        { correlationId: randomUUID(), instance: matched },
+      );
       return;
     }
     done();
@@ -215,6 +304,19 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     return reply.code(verdict.httpStatus).send(verdict.report);
   });
 
+  if (deps.snapshot !== undefined) registerSnapshotRoute(app, deps.snapshot);
+  // The stream's per-client cap keys on the same edge-owned header as the limiter. Without
+  // it every client behind the edge shares the edge's socket address, and the seventh
+  // viewer anywhere would be refused as if one client held six streams.
+  if (deps.stream !== undefined) {
+    registerStreamRoute(app, {
+      ...deps.stream,
+      clientIpHeader: deps.stream.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.clientConfig !== undefined) registerClientConfigRoute(app, deps.clientConfig);
+  if (deps.effisOverlay !== undefined) registerEffisOverlayRoute(app, deps.effisOverlay);
+
   return app;
 }
 
@@ -251,24 +353,6 @@ function sendOpaque(error: unknown, reply: FastifyReply): FastifyReply {
     return reply.code(statusCode).send({ status: 'bad_request' });
   }
   return reply.code(500).send({ status: 'error' });
-}
-
-/**
- * The rate-limit key: the edge-owned header when it is configured and present, the socket
- * address otherwise. The fallback keeps loopback traffic — the supervisor's probe, a
- * curl over SSH — keyed sanely on a box where the header is configured but the request
- * never went through the edge. See {@link HealthServerDeps} for why the header can be
- * believed at all.
- */
-function clientKey(request: FastifyRequest, clientIpHeader: string | undefined): string {
-  if (clientIpHeader !== undefined) {
-    const raw = request.headers[clientIpHeader];
-    const value = (Array.isArray(raw) ? raw[0] : raw)?.trim();
-    if (value !== undefined && value !== '') {
-      return value.slice(0, MAX_CLIENT_KEY_LENGTH);
-    }
-  }
-  return request.ip;
 }
 
 /**

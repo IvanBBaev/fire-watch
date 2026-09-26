@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // CI-12 is a Node program reading the built bundle from disk; it never runs in a
+    // browser and never ships, so it is its own project rather than part of `web/src`.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "./dist-types",
+    "tsBuildInfoFile": "./dist-types/.tsbuildinfo",
+    "noEmit": false,
+    "emitDeclarationOnly": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist-types"]
+}

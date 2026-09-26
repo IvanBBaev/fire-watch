@@ -1,0 +1,41 @@
+{
+  "fixtureId": "S16",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 3
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 3
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-yhrxz",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "confirmed",
+      "detectionUids": [
+        "1393c220efe31be698b527a709ff9ebbb1ce1aa7cd7d7f83e55da876ad198759",
+        "48775ed89826f546460a8fef4c4048e7288e81bb2caba54db06fb231746a5f50",
+        "606ec3e8dcdb2b4043946f558ec3648c196900de5936aa69ac2526bb762a81c8",
+        "6ac02b8dc7b2460e598157ef05fafd37df389f3e3fdac334d26c155b07080e0f",
+        "a0026c312d5d5ef7d8900036552c4f333afb2dc10b04c8e52b53fa61a90e266f",
+        "cd9551d4940c35f32483d8e3ab2a17e986f486cade54d7f1dd4fd8cdfd7ecb39"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

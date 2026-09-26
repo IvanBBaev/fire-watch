@@ -195,6 +195,38 @@ discontinuity in semantics.
 | Two overpasses, two satellites, night detection, FRP 40 MW, coherent | x_best=.95, x_persist=.33, x_multisrc=1, x_night=1, x_coherence=1, x_frp=.37 | ≈ +2.8 | **0.94** | Confirmed |
 | GEO-only cluster, 4 consecutive 10-min slots, daytime | x_best=.55, x_persist=.33 (capped), | ≈ −0.7 | **0.33** | Unverified (matches 03-geodata's `unconfirmed` GEO rule) |
 
+> **Errata (2026-09-03 · D12 implementation) — four arithmetic defects in the table
+> above. The formula is not one of them.** Recomputed by hand from this section's own
+> weights and §3.4's own feature definitions while writing `server/src/core/scoring/`:
+>
+> 1. **Rows 3 and 4 print a `z` their own feature values do not produce.** Row 3 is
+>    −2.0 + 1.8(.95) + .7 + .6 + .5(.32) + .3 = **+1.47**, not ≈ +1.6. Row 4 is
+>    −2.0 + 1.8(.95) + 1.0(.33) + .8 + .7 + .6 + .5(.37) = **+2.325**, not ≈ +2.8.
+> 2. **The `x_frp` cells are not reachable from the FRP the same row states.** §3.4 gives
+>    `min(ln(1 + FRP_max) / ln(101), 1)`, so 25 MW → **0.70596** (row 3 prints .32) and
+>    40 MW → **0.80465** (row 4 prints .37); .32 and .37 correspond to ≈ 3.4 MW and
+>    ≈ 4.5 MW. Note the direction: substituting the correct `x_frp` moves row 3's z to
+>    **+1.663**, i.e. *towards* the published ≈ +1.6. The likeliest reading — offered as a
+>    conjecture, not a finding — is that the `z` column was computed from correct feature
+>    values and the `x_frp` cells were transcribed from a different scale.
+> 3. **The `score` column follows the rounded `z`, not the exact one.** σ(−3.9), σ(−0.5),
+>    σ(+1.6), σ(+2.8), σ(−0.7) reproduce 0.02 / 0.38 / 0.83 / 0.94 / 0.33 to two places,
+>    so the column is internally consistent with an input that has already lost precision.
+> 4. **Row 5's `x_persist` contradicts the cap the same cell names.** Four consecutive
+>    10-min GEO slots span forty minutes, and §3.4 allows GEO "max 1 overpass-equivalent
+>    per 3 h" — so n = 1 and `x_persist = min(1 − 1, 3)/3 = **0**`, not .33 (capped). The
+>    row's z is then −1.01 and its score 0.267.
+>
+> **What this changes, and what it does not.** The **bucket is unchanged in all five
+> rows**, row 5 recomputed included — and the bucket is the only part of this table a user
+> ever sees, so nothing downstream of §3.2's contract moves. `score_params_v0` pins the
+> intercept, the ten weights and the §3.2 `c_i` table exactly as printed here; no
+> parameter was adjusted to make a row land, in either direction. The five cases are
+> asserted in `server/src/core/scoring/score.test.ts` twice: once transcribed verbatim
+> from this table, and once with the features as §3.4 defines them, each divergence
+> carried in a comment so it stays visible instead of being silently absorbed. Correcting
+> the table itself is a founder's edit and is deliberately not made here.
+
 The night-high single-pass case scoring "Confirmed" is intentional and consistent with
 03-geodata §5.2.3's alert rule ("1 detection if night + high"): night high-confidence VIIRS
 is the cleanest signal in the entire stack (no solar FP channels; Schroeder et al. 2014).

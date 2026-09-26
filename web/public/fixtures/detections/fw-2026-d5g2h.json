@@ -1,0 +1,50 @@
+{
+  "type": "FeatureCollection",
+  "event_id": "fw-2026-d5g2h",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.324, 42.075] },
+      "properties": {
+        "uid": "det-d5g2h-001",
+        "observed_at": "2026-08-09T00:52:00Z",
+        "source_id": "firms:viirs:snpp",
+        "scan_km": 0.46,
+        "track_km": 0.43
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.331, 42.081] },
+      "properties": {
+        "uid": "det-d5g2h-002",
+        "observed_at": "2026-08-09T00:52:00Z",
+        "source_id": "firms:viirs:snpp",
+        "scan_km": 0.47,
+        "track_km": 0.43
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.337, 42.078] },
+      "properties": {
+        "uid": "det-d5g2h-003",
+        "observed_at": "2026-08-09T01:43:00Z",
+        "source_id": "firms:viirs:noaa20",
+        "scan_km": 0.71,
+        "track_km": 0.52
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.329, 42.086] },
+      "properties": {
+        "uid": "det-d5g2h-004",
+        "observed_at": "2026-08-09T04:12:00Z",
+        "source_id": "lsasaf:seviri:frp-pixel",
+        "scan_km": 4.8,
+        "track_km": 6.2
+      }
+    }
+  ]
+}

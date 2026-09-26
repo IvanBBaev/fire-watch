@@ -1,0 +1,21 @@
+{
+  "id": "S8",
+  "title": "Transient source outage",
+  "asserts": "the three VIIRS feeds spend 44 h outside their freshness budget and their overpasses weigh nothing while they are out, so the event is still signal_weakening on the strength of SLSTR alone; the first poll after recovery closes it, and the fixture ends inside the 48 h map window that close opened",
+  "required": "pre-season",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-14T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json", "poll-04.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

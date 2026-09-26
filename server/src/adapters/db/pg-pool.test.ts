@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_STATEMENT_TIMEOUT_MS,
+  QUERY_TIMEOUT_GRACE_MS,
   createPgPool,
   startupOptions,
   type PgPoolOptions,
@@ -55,6 +56,23 @@ describe('createPgPool', () => {
     expect(pool.options.options).toBe('-c role=fire_watch_app');
     expect(pool.options.application_name).toBe('fire-watch-test');
     await pool.end();
+  });
+
+  it('bounds the wait on a server that cannot answer, just behind its own timeout', async () => {
+    const pool = createPgPool({ ...OPTIONS, statementTimeoutMs: 1_000 });
+
+    // statement_timeout is the server's; a paused or partitioned server never enforces it.
+    expect(pool.options.query_timeout).toBe(1_000 + QUERY_TIMEOUT_GRACE_MS);
+    await pool.end();
+  });
+
+  it('takes an explicit read timeout, and sets none when statements are unbounded', async () => {
+    const explicit = createPgPool({ ...OPTIONS, queryTimeoutMs: 5_000 });
+    const unbounded = createPgPool({ ...OPTIONS, statementTimeoutMs: 0 });
+
+    expect(explicit.options.query_timeout).toBe(5_000);
+    expect(unbounded.options.query_timeout).toBeUndefined();
+    await Promise.all([explicit.end(), unbounded.end()]);
   });
 
   it('opens one connection by default, which is what a sequential cycle needs', async () => {

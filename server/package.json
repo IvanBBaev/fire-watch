@@ -9,6 +9,16 @@
     "api": "node dist/app/api.js",
     "worker": "node dist/app/worker.js",
     "ingest": "node dist/app/ingest-cli.js",
+    "backfill": "node dist/app/backfill-cli.js",
+    "promote": "node dist/app/sp-promotion-cli.js",
+    "shadow-diff": "node dist/app/shadow-diff-cli.js",
+    "qa-report": "node dist/app/qa-report-cli.js",
+    "backup": "node dist/app/backup-cli.js",
+    "restore": "node dist/app/restore-cli.js",
+    "erasure-drill": "node dist/app/erasure-drill-cli.js",
+    "restore-drill": "node dist/app/restore-drill-cli.js",
+    "zone-key-rotation": "node dist/app/zone-key-rotation-cli.js",
+    "replay": "node dist/adapters/fixtures/replay-cli.js",
     "typecheck": "tsc --build",
     "test": "vitest run",
     "test:integration": "vitest run --project integration",
@@ -16,16 +26,21 @@
     "db:rollback": "dbmate --no-dump-schema down",
     "db:status": "dbmate status",
     "db:new": "dbmate new",
-    "db:schema": "dbmate dump"
+    "db:schema": "dbmate dump",
+    "db:codegen": "kysely-codegen --dialect postgres --out-file src/db/types.generated.ts --exclude-pattern '{schema_migrations,spatial_ref_sys,geography_columns,geometry_columns}'"
   },
   "dependencies": {
     "@fire-watch/contracts": "workspace:*",
     "fastify": "^5.11.0",
+    "h5wasm": "0.10.3",
+    "kysely": "^0.29.4",
     "pg": "^8.22.0"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.0.4",
     "@types/pg": "^8.20.0",
-    "dbmate": "2.34.1"
+    "dbmate": "2.34.1",
+    "fast-check": "^4.0.0",
+    "kysely-codegen": "^0.20.0"
   }
 }

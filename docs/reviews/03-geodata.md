@@ -332,7 +332,8 @@ migration.
 
 ### 5.3 PostGIS schema (DDL)
 
-> **Non-normative.** The schema owner is `server/db/migrations/001_initial_schema.sql`;
+> **Non-normative** (review 13 §3.2(11), TASKS B4). The schema owner is
+> `server/db/migrations/001_initial_schema.sql`;
 > this block is a column inventory that predates ADR-002 and is superseded wherever the
 > two differ. Known differences, all deliberate: `fire_events` here uses a ULID primary
 > key and lists an `out` status, neither of which exists (D6 fixes the state list, and

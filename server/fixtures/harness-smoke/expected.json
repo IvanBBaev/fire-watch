@@ -19,6 +19,7 @@
     {
       "publicId": "smoke-001",
       "status": "active",
+      "displayTier": null,
       "bucket": "unverified",
       "detectionUids": [
         "033330d1266b1b02c49d0586dfb90c5c67cbdc536f64b5697705d2800a517271",
@@ -32,6 +33,7 @@
     {
       "publicId": "smoke-002",
       "status": "active",
+      "displayTier": null,
       "bucket": "unverified",
       "detectionUids": ["331623aaa3de29822bfd8c67347ef059fe69f45aa32c4c9a64ecedf9249b1cbc"],
       "mergedInto": null,
@@ -41,6 +43,7 @@
     {
       "publicId": "smoke-003",
       "status": "active",
+      "displayTier": null,
       "bucket": "unverified",
       "detectionUids": ["c6627fb707778992e1e9a2e05e58601f9552e23f6d06ed84fd37254579eb5aa5"],
       "mergedInto": null,

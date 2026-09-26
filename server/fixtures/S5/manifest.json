@@ -1,0 +1,20 @@
+{
+  "id": "S5",
+  "title": "Single-detection noise",
+  "asserts": "one uncorroborated detection is one event and never an alert, and its ADR-002 D6 score leaves it Unverified: a single low-confidence daytime MODIS pixel scores 0.103090, which is what \"stays Unverified\" means once something computes it",
+  "required": "pre-merge",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-07T13:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json"],
+  "expected": "expected.json"
+}

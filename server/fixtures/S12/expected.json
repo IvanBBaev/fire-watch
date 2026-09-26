@@ -1,0 +1,41 @@
+{
+  "fixtureId": "S12",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 1
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 1
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-0wdnz",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "a9ab218eb81b6884e8583029048161baf1a771768e78e52eef2bb0320864c4e9",
+        "bbd6f8c1ce362d3dfc4bb75ef43c7845aaf8008fe84e9bb72bd1adac76658c0b"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

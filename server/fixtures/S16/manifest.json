@@ -1,0 +1,20 @@
+{
+  "id": "S16",
+  "title": "Fire straddling the polling-bbox edge",
+  "asserts": "a fire whose pixels fall on both sides of the alertable east edge is one event holding every pixel: the polled box reaches far enough past that edge for the whole fire to arrive inside one query, so the edge cannot hand it a second identity or a truncated geometry",
+  "required": "pre-season",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-12T03:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json"],
+  "expected": "expected.json"
+}

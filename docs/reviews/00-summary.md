@@ -315,10 +315,298 @@ mechanics; [GATE-v2] B2B contracts + Data Act check.
   branding, legal form and partnerships will force it; the Watch Duty evidence favours
   the civic frame with a commercial B2B arm.
 
+# Round 3 synthesis — the four seats nobody filled (16–19)
+
+*Date: 2026-08-25. Inputs: `15-role-gap-analysis.md`, which asked which senior seats the
+first two rounds never staffed, then `16-editorial.md`, `17-hardware-rf.md`,
+`18-support-continuity.md`, `19-accessibility-inclusion.md`. Unlike rounds 1 and 2, these
+reviewed the corpus **as it stood in August 2026** — including `GATES.md`, `RISKS.md`,
+`OPERATIONS.md`, `IMPLEMENTATION-PLAN.md` and `DATA-SOURCES-EXTENDED.md`, all written after
+round 2 closed.*
+
+## Why a third round
+
+Round 15's method was two tests: **T-A**, does a decision in the corpus have an owner; and
+**T-B**, does an artifact have an author. A role that fails T-A but passes T-B is the most
+dangerous shape — the documents exist, so the gap is invisible. Four seats failed T-A, and
+the meta-finding was the reason to fill them: **a finding with no seat behind it is a
+finding that will be rediscovered at cost.** Nine candidate roles were considered and five
+rejected with the owning section cited (15 §5) — privacy/DPO into 05, database reliability
+into 03/04, meteorology into 11/12 — so the question does not have to be reopened.
+
+## Verdicts
+
+All four returned **conditional GO**, with one partial hold: hardware (17) is CONDITIONAL GO
+on the €100–400 receive dish and **HOLD on everything else** until the licence answer, a
+paying customer or grant, and a named maintenance owner exist.
+
+## Convergent themes (found independently by all four new roles)
+
+### T13. Every new seat found the same shape: a decision already taken, an owner missing
+The public curated voice is a product the corpus ships without an editorial standard (16);
+a satellite receive station is a purchase the source survey already scheduled as wave 2
+without deciding what owning hardware means (17); "1–2 volunteer moderators" is a headcount
+appearing in a risk mitigation and a DoD with no pipeline behind it (18); and accessibility
+is a set of good fragments with no target, owner or gate (19). In all four cases the work
+was *planned* and unowned — which is exactly the T-A failure round 15 predicted.
+
+### T14. The solo operator is now the binding constraint, and the load has never been summed
+Editorial found that "moderation and curation are the same hours" (16 §5.9). Support summed
+the whole corpus at **~15–35 h/week at peak, on top of a day job** (18 §5.9.2). Hardware
+found that maintenance capacity, not budget, caps any field fleet (17 §5.8.5). Accessibility
+found its own work scheduled into March–April 2027, the most contended month in the plan
+(19 §5.9.4). Four unrelated lenses converged on two windows — **August peak** and
+**March–April pre-season** — and on the same conclusion: the levers are all already in the
+corpus, but they are a budget that must balance, not independent options.
+
+### T15. Honesty has to be perceivable, not merely true
+Round 1's T6 was "silence must be suspicious" for data freshness. Round 3 generalised it
+four ways: a screen-reader user gets no degradation banner if it is drawn on the canvas, so
+invariant 3 is *false* for that user (19 §5.4.4); a user cannot distinguish "no official
+statement exists" from "nobody swept today", so curation needs its own visible clock
+(16 §5.6); a field sensor that stops reporting looks identical to a forest that stopped
+burning, so every field asset must heartbeat independently of its measurement (17 §5.8.4);
+and an unanswered person does not degrade gracefully to a T2 fallback (18 §5.1).
+
+### T16. Anything without a gate drifts; each new review converted a preference into an artifact
+L-15 and L-16 now exist. So do the four-question hardware ownership rule (17 §5.1), the
+four-tier source ladder and the admin form that refuses to save without a capture
+(16 §5.2, §5.10), the continuity file (18 App. B), the seasonal manual accessibility pass
+(19 App. B), and a proposed canvas/DOM parity check. The corpus's own history is the
+evidence: everything with a gate has held, everything with only a recommendation has drifted.
+
+## Extensions and corrections to earlier themes
+
+- **T3 (alert reliability *and* safety) gains a third axis: perceivability.** The alert is
+  the one surface with no accessible fallback — if the push is unreadable, there is no
+  second surface (19 §5.3).
+- **T10 (false reassurance is the #1 harm) now has a second source.** Round 2 traced
+  reassurance to the *absence* of a detection; 16 traces it to our own curated voice, which
+  is worse because it is affirmative. Hence the never-publishable list and the two-source
+  rule with three named exceptions.
+- **T11 (never borrow authority) extends to language.** 16 §5.7: never publish a
+  translated operational state — an official Bulgarian statement stays in Bulgarian, quoted
+  verbatim, with the translated frame around it. 19 §5.7.4 reached the same rule
+  independently from the accessibility side.
+- **T12 / R3's cost ceiling is corrected upward in scope.** A €100–400 dish amortises with
+  its tail to roughly €10–25/month — comparable to the *entire* infra line (17 §5.4). The
+  ≤ €25/mo ceiling is a total, and hardware competes inside it.
+- **04's July open question is answered.** "What does owning hardware mean for a solo
+  operator?" now has a testable answer: unplugged-safe, a named servicer within reach, a
+  three-year cost inside R3, and a defined outcome if the project stops (17 §5.1).
+- **CP3's sunset branch is now executable.** "Data archived and published" had one verb
+  doing all the work; 18 §5.5.4 and 17 §5.10 together specify it.
+
+## Notable single-role findings
+
+- **Editorial (16):** a measurement-independence defect invisible from inside either
+  document — `RISKS.md` §2 makes news-log corroboration "the independent CER leg" while
+  `GATES.md` §4 makes the same named curator responsible for the public curated voice. The
+  product's accuracy metric would be scored by the judgement it measures. Fix: source-first
+  sweep, blinding, one-way flow.
+- **Hardware (17):** the normative rule that keeps the purchase safe — *the EUMETCast
+  station is an optional accelerator; no code path may depend on the station's presence.*
+  Also the liability line the project should never cross casually: a lithium battery in a
+  solar enclosure in dry forest, owned by a wildfire-safety product, would be **our** fire.
+- **Support (18):** someone will write "има пожар над село X, какво да правим", possibly at
+  02:40. An automatic first-line-112 auto-reply is a mail-filter rule that removes the worst
+  failure mode in the corpus for approximately zero cost. Separately: invariant 5 is the
+  only promise in the project with an unbounded horizon and no continuity mechanism.
+- **Accessibility (19):** the argument the legal review missed — CP3 counts media embeds and
+  the GTM plan targets municipalities, which are public-sector bodies with their own Web
+  Accessibility Directive obligations. An inaccessible embed is a distribution problem
+  wearing an accessibility costume. Also the reduced-motion trap: the pulsing halo *is* the
+  "new event" fact, and `prefers-reduced-motion` deletes it.
+
+## Consolidated new actions (adds to the round-1 and round-2 lists)
+
+1. **`GATES.md` §3 gains L-15 and L-16** — editorial standard published with the correction
+   path rehearsed; accessibility target declared and verified. Both **landed**.
+2. **`RISKS.md` §2 gains three watchlist rows** — hardware-commitment creep (17 R-1),
+   curated-statement error (16 R-1), single-operator archive survival (18 R-2). **Landed.**
+3. **Before the beta serves real users:** one support inbox with a published, deliberately
+   weak undertaking; the life-safety auto-reply; the standing reply set; and a routed clock
+   for privacy/legal contact (18 §5.3–§5.4).
+4. **The continuity file and the archive continuity plan** — custodian, licence, one annual
+   deposit outside our infrastructure, domain runway, published degradation path (18 §5.5).
+5. **Into WP6's admin form:** the required-field set (tier, source URL, capture, curator,
+   second source, justification), refusing T4 sources and refusing to save without a
+   capture; the `curated_correction` state; a "last curation sweep" timestamp (16 §5.5–§5.10).
+6. **Into WP4's spec, decided in December rather than March:** the parity fact list, the
+   alert-path requirements, and a non-drag path to arming an alert (19 §5.3–§5.4).
+7. **The four-question ownership rule** becomes the standing pre-purchase test for any
+   physical asset (17 §5.1); wave 6 (X-band) stays sequenced licence → customer → maintenance
+   owner → capital.
+8. **Resolve the WCAG version disagreement into one documented target** (19 §6 Q1) — two
+   live accessibility targets is worse than either one.
+
+## Open questions escalated across reviews
+
+- **Who is the second person?** 16 §6 asks for someone who can do a curation sweep; 18 §6
+  asks for someone who can answer an inbox for two weeks in August and hold the continuity
+  file. Same person, plausibly the same recruit — the strongest cross-review convergence of
+  round 3.
+- **Does crowdsourced reporting ship in the 2027 season at all?** 16 §5.9 says no on
+  capacity grounds; 18 §5.6.4 says no independently, because volunteer availability is
+  anti-correlated with need. If both are accepted, the moderator line re-scopes from
+  "moderator for reports" to "second reader and cover" — a much easier recruit.
+- **WCAG 2.1 or 2.2, and who decides?** An open disagreement with 09 §4.3, stated rather
+  than silently applied (19 §6 Q1).
+- **What licence does the archive carry, and where is the second copy deposited?** (18 §6 Q2.)
+- **Does the Turkish alert locale ship?** Decide at CP2 with reach data; the binding
+  constraint is a safety-translation reviewer, not engineering (19 §5.7.6).
+- **Does an embed pull us into a public body's accessibility perimeter?** → 09 (19 §5.1.4).
+- **Is the October recovery block real,** given CP1's report is due 31 October inside it
+  (18 §5.9.3)?
+
+# Round 4 synthesis — the seats the implementation opened (20–23)
+
+Round 4 differs from the three before it in one way that matters: it reviews a *build*, not a
+design. Rounds 1–3 read documents; round 4 read the working tree, the CI workflow, the
+provisioning contract, the repository's settings through the API, and the WORKLOG that
+recorded eighteen sessions of agent-dispatched implementation. The seats it filled were
+opened by that implementation, not by anything a design review missed.
+
+## Why a fourth round
+
+Review 15's stopping rule said a new review is commissioned only when a document written after
+the corpus closed creates a decision nobody owns. Review 20 re-ran 15's two tests (decision
+ownership T-A, artifact ownership T-B) over fourteen post-corpus artifacts and found three
+seats missing — all three of the shape 15 called dangerous, where an artifact exists and the
+decision it embodies has no owner: the provisioning contract with a cap decision deferred to
+"§9-level policy"; a ~35,000-line uncommitted codebase with no rule for when it is integrated;
+an archive with a versioned plan and no dataset identity, lineage rule or retention owner.
+Eleven candidate roles were tested and rejected in 20 §5, including a re-test of fire
+meteorology (still rejected; the trigger is now sharpened to "the day `DATA-SOURCES.md` §D6's
+own-FWI line becomes code") and a re-affirmation that database reliability stays with 03.
+
+## Verdicts
+
+All three returned **conditional GO**, and all three conditions are dated:
+
+- **21 (platform & release):** GO conditional on the user-data cap decision this week and on
+  the seven-day ordered path to a host being started before further D-track work.
+- **22 (engineering practice):** GO conditional on the founder asking for the integration series
+  this week — a founder act under TASKS §0 rule 4 — and on rule 8 being adopted or refused.
+- **23 (data engineering & stewardship):** GO conditional on a dataset record before D7 starts,
+  a retention owner this month, and field-level retention floors before the poller runs
+  unattended.
+
+Review 20 itself concludes that none of the three gaps is fatal and that all three are cheap
+to close now and expensive to rediscover later.
+
+## Convergent themes (found independently by all three new roles)
+
+1. **The three clocks are one clock.** No host (21 R-1), no integration (22 R-1), no recording
+   (23 R-4/R-9) are the same finding seen from three seats: every day without a provisioned,
+   deployed, recording VM is a day of unbackfillable shadow-season data (DATA-SOURCES §E2),
+   and the plan's own hard date for it — "early September 2026" — has passed. 21 §5.7 gives
+   the sequence; 21 §6 Q6 asks the D-track to pause for it; 23 E5 lists what each unrecorded
+   day costs.
+2. **Artifacts whose owner was assumed.** The deploy pipeline is assumed by OPERATIONS §9.3,
+   review 04 §5.6 and `infra/README.md` and exists in none (21 §5.2). Integration is assumed
+   by every gate and has no cadence rule (22 §5.1). Retention is assumed by the backup schedule
+   and OPERATIONS §6.2 rule 11 says in writing it has no owner (23 §5.3). This is review 15
+   §7.3's dangerous shape three times over, and it is why round 4 exists.
+3. **Doc-to-code drift, found three ways.** L-12 and L-15 require a staging environment review
+   04 §6 Q7 ruled out (21 §5.6); GATES said 02:30 where a passing test said 03:30 (22 §5.5);
+   TASKS A19 declares the Open-Meteo cloud proxy for CP1 where the code records ECMWF `tcc`
+   and fences Open-Meteo out (23 §5.4). Parameter drift is impossible in this codebase because
+   every tunable has a digest; prose drift has no mechanism. 22 E6 proposes one.
+4. **The project's own candour made the round possible.** `infra/README.md`'s "Honest status"
+   block, WORKLOG entries that record wrong assertions and dead agents, OPERATIONS rule 11's
+   "no owner", the `fuelBand: null` comment that says "not a stand-in". All three reviews cite
+   the project's record of itself more than they cite their own inspection.
+5. **Almost nothing new in the gates.** One launch gate added (L-17, one deploy path and a
+   passed restore drill); two CI gates proposed and escalated, not added (override expiry,
+   doc-pinned numbers); two existing gates asked to be reworded (L-12, L-15). Round 4 is
+   decisions and code, not more gates — which is what 15's stopping rule predicted.
+
+## Extensions and corrections to earlier themes
+
+- **15 §7.1 (data stewardship folded into 18):** condition met in substance — the archive now
+  owes a named corpus to the fit, a lineage rule to the permalinks, a retention rule to itself
+  and NOAA-21 rows to L-14. 18 §5.5 keeps survival unchanged; 23 takes the rest and says it
+  closes when its records are absorbed (23 §5.8).
+- **13 B2 (protection before the poller):** asserted, not built — the restore half is two
+  stubs that exit 64 and the R2 backup token is write-only by design, so a restore credential
+  does not exist. 21 E6 and §5.7 make the ordering executable.
+- **04 §6 Q6 (retention):** answered by proposal in 23 E3 with an owner and a date.
+- **04 §6 Q7 (no staging) vs L-12 checkbox 6 and L-15:** both documents are right and the
+  gate text is wrong; 21 E8 proposes "rehearsal profile" wording, escalated as a disagreement.
+- **05 §5.6.1 (branch protection, environments):** asked in June, still unset; API-verified
+  (21 §5.3). SHA-pinned Actions and Renovate *were* done.
+- **06 §5.2 ("outcomes, not internals"):** challenged for identity fixtures, where the
+  transitions are the outcome; 22 E4 proposes an optional `trace` block and escalates (22 Q7).
+- **06 §5.7 (shadow rollout):** cannot start this season without a deployed baseline; 22 Q5
+  asks GATES to say the first season's D-track changes are pre-baseline.
+- **ADR-002 A1.4 (promotion):** correct and honest in the code; 23 E2 asks the ADR for the
+  three sentences about what a permalink shows after the swap, escalated (23 Q2).
+
+## Notable single-role findings
+
+- **21:** the rendered provisioning payload is 49,431 bytes against a 32,768-byte provider cap,
+  the script correctly refuses to submit it, and the choice between slimming the contract and a
+  pre-signed `#include` has been deferred since the file was written. Recommendation: slim.
+- **22:** measured, not assumed — six commits all on 2026-08-09; 208 untracked source files,
+  34,968 lines; 86 of 130 test files untracked; `main` unprotected; CI last ran on the last
+  commit. The harness inside the tree caught two wrong hand-derived traces in one session; the
+  process that produced them is unchanged.
+- **23:** FIRMS serves NOAA-21 as NRT only, so the SP corpus cannot contain it and L-14's
+  2027-constellation replay depends entirely on live rows the poller records this season and
+  keeps. A 56-day window applied by habit deletes a launch gate's input.
+
+## Consolidated new actions (adds to the round-1, round-2 and round-3 lists)
+
+1. **`GATES.md` §3 gains L-17** — one deploy path, restore-proven. **Landed.** Two CI gates
+   (override expiry, 21 E4; doc-pinned numbers, 22 E6) are proposed, not added.
+2. **`RISKS.md` §2 gains three rows** — no delivery path to a host (21 R-1), unintegrated
+   single-copy codebase (22 R-1), archive without dataset identity or retention owner (23 R-1).
+   **Landed.**
+3. **This week, founder:** decide the cap (21 E1, option 1 recommended); ask for the
+   integration series (22 E1) and protect `main` (21 E5); start 21 §5.7 day 0 (accounts,
+   secrets, `production` environment).
+4. **Before the poller runs unattended:** RB-2 written, restore credential minted off-VM,
+   drill passed on a scratch VM (21 E6); the record-now table with retention floors (23 E5);
+   the cloud-proxy discrepancy resolved (23 E4).
+5. **This month, founder:** retention with an owner (23 E3); the CP1 protocol and
+   `docs/reports/` (20 §7 Q2); TASKS §0 rule 8 adopted or refused (22 E2); the `[~]` progress
+   marker and the pending-decisions block (22 E5). **Block landed** in TASKS §0 (fifteen
+   decisions, one line each, dated and due); the `[~]` marker waits for the 06 author.
+6. **Before D7 starts:** the dataset record (23 E1) — **opened** as `docs/data/DATASETS.md`
+   with DS-1 (SP archive), DS-2 (season-1 live record), DS-3 (EFFIS labels) and DS-4 (GEO
+   2025), every one unfetched and dated blank; engine-derived, human-reviewed traces
+   (22 E4 rules 1 and 3).
+7. **Not in this season:** publication and deposit (23 E9), static-data provenance (23 E7),
+   drift detection as a job (21 E9), the dispatch model written down (22 E7).
+
+## Open questions escalated across reviews
+
+Those with a decider and a date first:
+
+- **Founder, this week:** the cap (21 Q1); the integration ask (22 Q1); does the D-track
+  pause (21 Q6).
+- **Founder, this month:** retention (23 Q1); where rule 8 and the review standard live
+  (22 Q2); the stopping-rule amendment (20 Q1); the pending-decisions block (20 Q3).
+- **Gate owners:** L-12/L-15 "staging" wording (21 Q2, with the 06 author); 06 §5.2 versus
+  an optional trace block (22 Q7); shadow rollout pre-baseline (22 Q5).
+- **ADR-002 owners:** the permalink-after-swap sentences (23 Q2).
+- **11 author:** is ECMWF `tcc` an honest enough cloud proxy for CP1 (23 Q3).
+- **Open, no deadline:** CI-16/CI-17 (21 Q3, 22 Q3); the restore credential's holder
+  (21 Q4); who reviews the harness (22 Q6); output licence memo (23 Q5); whether 23 persists
+  as a seat (23 Q7); what the corpus is now called (20 Q6).
+
 ## Where the corpus stands
 
-Twelve reviews, one synthesis, zero code — by design. The skeleton survived twelve
-different senior lenses with no fatal finding; every unresolved item is either an ADR
-away (002–005), a backfill experiment away (week 1), or a founder decision with a named
-deadline. The pre-code phase has done its job when ADR-002 and ADR-005 are written and
-the ANALYSIS.md amendments land — after that, the honest next step is code.
+Nineteen role reviews across four rounds, two audits, two role-gap analyses, four syntheses.
+Rounds 1 and 2 tested the *skeleton* and found no fatal flaw. Round 3 tested the *seats* and
+found four decisions with no owner. Round 4 tested the *build* and found three more — none
+fatal, all three of the dangerous shape, all three now carrying a dated condition, a risk row
+and a named decider instead of an assumption.
+
+The stopping rule stands as review 15 wrote it, with review 20 §7 Q1's amendment proposed and
+not yet adopted: **after round 4 the corpus grows only on a founder request that names the
+ownerless decision.** The practice seats were the last structural gap a review could fill.
+What remains is not review. It is the founder decisions with dates on them — the cap, the
+integration ask, retention, the CP1 protocol — the gates that now exist and must be met, and a
+host running code that has been committed.

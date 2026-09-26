@@ -1,0 +1,42 @@
+{
+  "fixtureId": "S7",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 1
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-04.json",
+      "detections": 0
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-kttp6",
+      "status": "signal_weakening",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": ["c2c8ee1a9c57529961ac7dbf1cf016ae767a75dfb78a8e03a88e4b422a91b56c"],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

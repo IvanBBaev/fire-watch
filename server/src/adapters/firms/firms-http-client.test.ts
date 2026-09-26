@@ -4,9 +4,11 @@ import { buildAreaQuery } from '../../core/ingest/firms-poller.js';
 import type { Clock } from '../../core/ports/clock.js';
 import type { FirmsAreaQuery } from '../../core/ports/firms-client.js';
 import {
+  FIRMS_AVAILABILITY_BASE_URL,
   FIRMS_BASE_URL,
   FirmsHttpError,
   areaUrl,
+  availabilityUrl,
   createFirmsHttpClient,
 } from './firms-http-client.js';
 
@@ -90,6 +92,70 @@ describe('areaUrl', () => {
     expect(areaUrl(FIRMS_BASE_URL, MAP_KEY, buildAreaQuery('firms:viirs:noaa20'))).toContain(
       '/VIIRS_NOAA20_NRT/20,39,31,46/2',
     );
+  });
+});
+
+describe('availabilityUrl', () => {
+  it('is the documented path shape, with the key as a path segment', () => {
+    expect(availabilityUrl(FIRMS_AVAILABILITY_BASE_URL, MAP_KEY, 'VIIRS_SNPP_NRT')).toBe(
+      `${FIRMS_AVAILABILITY_BASE_URL}/${MAP_KEY}/VIIRS_SNPP_NRT`,
+    );
+  });
+
+  it('encodes the product so it cannot escape into the path', () => {
+    expect(availabilityUrl(FIRMS_AVAILABILITY_BASE_URL, MAP_KEY, '../../admin')).toContain(
+      '..%2F..%2Fadmin',
+    );
+  });
+
+  it('refuses an empty product', () => {
+    expect(() => availabilityUrl(FIRMS_AVAILABILITY_BASE_URL, MAP_KEY, ' ')).toThrow(/product/);
+  });
+});
+
+describe('createFirmsHttpClient — data availability (pitfall 10)', () => {
+  const availabilityQuery = { source: 'firms:viirs:snpp', product: 'VIIRS_SNPP_NRT' } as const;
+
+  it('asks the data_availability endpoint and stamps fetched_at from the clock', async () => {
+    const log = stubFetch(() => new Response('data_id,min_date,max_date\n'));
+
+    const result = await client(log, 1_754_130_000_000).fetchDataAvailability?.(availabilityQuery);
+
+    expect(log.urls).toEqual([`${FIRMS_AVAILABILITY_BASE_URL}/${MAP_KEY}/VIIRS_SNPP_NRT`]);
+    expect(result?.csv).toBe('data_id,min_date,max_date\n');
+    expect(result?.fetchedAt).toBe(1_754_130_000_000);
+  });
+
+  it('follows a redirected base url instead of leaving one leg pointed at NASA', async () => {
+    // A test or a mirror that redirects the area fetch must not have its health check
+    // quietly talk to the internet.
+    const log = stubFetch(() => new Response(''));
+    const redirected = createFirmsHttpClient({
+      mapKey: MAP_KEY,
+      clock: fixedClock(0),
+      fetch: log.fetch,
+      baseUrl: 'http://127.0.0.1:9/api/area/csv',
+    });
+
+    await redirected.fetchDataAvailability?.(availabilityQuery);
+
+    expect(log.urls[0]).toBe(
+      `http://127.0.0.1:9/api/data_availability/csv/${MAP_KEY}/VIIRS_SNPP_NRT`,
+    );
+  });
+
+  it('redacts the key from an availability failure too', async () => {
+    const log = stubFetch(
+      (url) => new TypeError(`fetch failed: ECONNREFUSED while requesting ${url}`),
+    );
+
+    const error = await client(log)
+      .fetchDataAvailability?.(availabilityQuery)
+      .catch((thrown: unknown) => thrown);
+
+    expect((error as Error).message).not.toContain(MAP_KEY);
+    expect((error as Error).message).toContain('<MAP_KEY>');
+    expect((error as Error).message).toContain('VIIRS_SNPP_NRT availability');
   });
 });
 

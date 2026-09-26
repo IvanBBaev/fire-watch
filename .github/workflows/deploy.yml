@@ -1,0 +1,186 @@
+# Deploy pipeline (TASKS J4, GATES §3 L-12, OPERATIONS §9.3).
+#
+# The only route to the host (L-17). A deploy is a manual dispatch from `main` that must
+# pass, in order:
+#   1. `ci`          — the full ci.yml job set, reused rather than duplicated (review 21 E2);
+#   2. `deploy-gate` — infra/deploy-gate: season regime, the 8 L-12 checkboxes, the
+#                      pre-season golden replay (box 1, machine-decided) and the
+#                      OPERATIONS §9.3 rule 4 freeze boxes. The human boxes are the dispatch
+#                      inputs below; an unticked box fails the gate, it is never skipped;
+#   3. `deploy`      — STUB. There is no host yet (E2), so it only prints what it would do.
+#
+# DEPLOY_STEP_IS_STUB — infra/provision.sh looks for this marker and keeps printing the
+# first-deploy hand-off while it is present. Remove it in the same change that makes the
+# `deploy` job real.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      hotfix:
+        description: 'Hotfix: exempt from the deploy window and the freeze boxes (needs an incident)'
+        type: boolean
+        default: false
+      incident:
+        description: 'Hotfix only: the incident this fixes (OPERATIONS §9.3 rule 4)'
+        type: string
+        default: ''
+      second_ack:
+        description: 'Hotfix only: second person acknowledging box 2 during a severe event (06 §5.7)'
+        type: string
+        default: ''
+      l12_2_no_severe_event:
+        description: 'L12-2 No active severe event in the AOI'
+        type: boolean
+        default: false
+      l12_3_expand_contract:
+        description: 'L12-3 Migration is expand-contract'
+        type: boolean
+        default: false
+      l12_4_alert_logic_flagged:
+        description: 'L12-4 Alert-logic diff is none, or flagged defaulting to old behavior'
+        type: boolean
+        default: false
+      l12_5_rollback_rehearsed:
+        description: 'L12-5 Rollback rehearsed: one command, under 5 minutes'
+        type: boolean
+        default: false
+      l12_6_kill_switches:
+        description: 'L12-6 Kill switches verified in staging'
+        type: boolean
+        default: false
+      l12_7_post_deploy_watch:
+        description: 'L12-7 Committed to the 30-min post-deploy watch + manual canary'
+        type: boolean
+        default: false
+      l12_8_physical_push:
+        description: 'L12-8 One real push received on a physical device'
+        type: boolean
+        default: false
+      freeze_degradation:
+        description: 'FREEZE-DEGRADATION fw_degradation_tier is 0'
+        type: boolean
+        default: false
+      freeze_major_fire:
+        description: 'FREEZE-MAJOR-FIRE No active major-fire event'
+        type: boolean
+        default: false
+      freeze_error_budget:
+        description: 'FREEZE-ERROR-BUDGET No error-budget freeze in force'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One deploy at a time, and a queued one is never cancelled by the next. The group
+# differs from ci.yml's so the reused workflow cannot deadlock against its caller.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy-gate:
+    name: Deploy gate (L-12)
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Only main deploys
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error title=Deploy gate::deploys run from main only, got ${GITHUB_REF}"
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build replay and gate
+        run: pnpm exec tsc --build server infra/deploy-gate
+
+      # Box 1 evidence. The replay exits 0 while pre-season scenarios are blocked, so
+      # the gate reads the stderr notes too; `set +e` keeps a red replay from ending the
+      # step before the gate can report it.
+      - name: Golden replay (pre-season set)
+        run: |
+          set +e
+          node server/dist/adapters/fixtures/replay-cli.js --gate=pre-season \
+            2> "$RUNNER_TEMP/replay.log"
+          echo "$?" > "$RUNNER_TEMP/replay.exit"
+          cat "$RUNNER_TEMP/replay.log"
+          exit 0
+
+      # Free-text inputs travel through env, never through `${{ }}` inside the script,
+      # so an input cannot inject shell.
+      - name: Evaluate the gate
+        env:
+          HOTFIX: ${{ inputs.hotfix }}
+          INCIDENT: ${{ inputs.incident }}
+          SECOND_ACK: ${{ inputs.second_ack }}
+          ACTOR: ${{ github.actor }}
+          T_L12_2: ${{ inputs.l12_2_no_severe_event }}
+          T_L12_3: ${{ inputs.l12_3_expand_contract }}
+          T_L12_4: ${{ inputs.l12_4_alert_logic_flagged }}
+          T_L12_5: ${{ inputs.l12_5_rollback_rehearsed }}
+          T_L12_6: ${{ inputs.l12_6_kill_switches }}
+          T_L12_7: ${{ inputs.l12_7_post_deploy_watch }}
+          T_L12_8: ${{ inputs.l12_8_physical_push }}
+          T_FREEZE_DEGRADATION: ${{ inputs.freeze_degradation }}
+          T_FREEZE_MAJOR_FIRE: ${{ inputs.freeze_major_fire }}
+          T_FREEZE_ERROR_BUDGET: ${{ inputs.freeze_error_budget }}
+        run: |
+          args=()
+          tick() { if [[ "$1" == "true" ]]; then args+=(--tick "$2"); fi; }
+          tick "$T_L12_2" L12-2
+          tick "$T_L12_3" L12-3
+          tick "$T_L12_4" L12-4
+          tick "$T_L12_5" L12-5
+          tick "$T_L12_6" L12-6
+          tick "$T_L12_7" L12-7
+          tick "$T_L12_8" L12-8
+          tick "$T_FREEZE_DEGRADATION" FREEZE-DEGRADATION
+          tick "$T_FREEZE_MAJOR_FIRE" FREEZE-MAJOR-FIRE
+          tick "$T_FREEZE_ERROR_BUDGET" FREEZE-ERROR-BUDGET
+          if [[ "$HOTFIX" == "true" ]]; then
+            args+=(--hotfix --incident "$INCIDENT")
+            if [[ -n "$SECOND_ACK" ]]; then args+=(--second-ack "$SECOND_ACK"); fi
+          fi
+          node infra/deploy-gate/dist/cli.js "${args[@]}" \
+            --replay-exit "$(cat "$RUNNER_TEMP/replay.exit")" \
+            --replay-log "$RUNNER_TEMP/replay.log" \
+            --actor "$ACTOR" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy (stub — no host yet)
+    needs: deploy-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # When this becomes real it takes `environment: production` (secrets from GitHub
+    # Environments, OPERATIONS §8.2 rule 1) and runs `deploy.sh <git-sha>` on the box.
+    steps:
+      - name: Deploy (stub)
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          echo "::notice title=Deploy stub::gate passed for ${SHA}; no host exists yet (E2), nothing was deployed"
+          echo "Would run: deploy.sh ${SHA} on the host (OPERATIONS §9.3)"

@@ -1,0 +1,61 @@
+{
+  "type": "FeatureCollection",
+  "event_id": "fw-2026-g4v8n",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [25.932, 40.984] },
+      "properties": {
+        "uid": "det-g4v8n-001",
+        "observed_at": "2026-08-09T00:52:00Z",
+        "source_id": "firms:viirs:snpp",
+        "scan_km": 0.4,
+        "track_km": 0.4
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [25.938, 40.988] },
+      "properties": {
+        "uid": "det-g4v8n-002",
+        "observed_at": "2026-08-09T00:52:00Z",
+        "source_id": "firms:viirs:snpp",
+        "scan_km": 0.41,
+        "track_km": 0.4
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [25.945, 40.993] },
+      "properties": {
+        "uid": "det-g4v8n-003",
+        "observed_at": "2026-08-09T01:43:00Z",
+        "source_id": "firms:viirs:noaa20",
+        "scan_km": 0.52,
+        "track_km": 0.46
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [25.951, 40.997] },
+      "properties": {
+        "uid": "det-g4v8n-004",
+        "observed_at": "2026-08-09T08:15:00Z",
+        "source_id": "eumetsat:slstr:frp",
+        "scan_km": 1.0,
+        "track_km": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [25.94, 40.99] },
+      "properties": {
+        "uid": "det-g4v8n-005",
+        "observed_at": "2026-08-09T09:45:00Z",
+        "source_id": "lsasaf:seviri:frp-pixel",
+        "scan_km": 4.8,
+        "track_km": 6.2
+      }
+    }
+  ]
+}

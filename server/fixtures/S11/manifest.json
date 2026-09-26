@@ -1,0 +1,21 @@
+{
+  "id": "S11",
+  "title": "Source retired mid-replay",
+  "asserts": "the only feed that ever saw this fire is MODIS, and it retires the morning after the detection; the surviving VIIRS and SLSTR overpasses still weigh misses, so E crosses the bar on schedule and the event closes and ages out of the map window instead of sitting active forever on a feed that no longer flies",
+  "required": "pre-season",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-01T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json", "poll-04.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

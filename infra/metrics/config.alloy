@@ -1,0 +1,78 @@
+// Fire Watch -> Grafana Cloud (TASKS C5; OPERATIONS §3 leg 1, §8, §9.1).
+//
+// Alloy runs as one more compose service on the VM. It scrapes the internal /metrics
+// listener of the `api` and `worker` services over the compose network, reads the nightly
+// backup's textfile from the host, and remote-writes everything to Grafana Cloud, where
+// the rules in ./rules are evaluated off-box.
+//
+// Secrets are files, never literals and never environment values (OPERATIONS §8.2):
+//
+//   /run/secrets/fire_watch_metrics_token   the bearer token the api and worker demand
+//                                            (the same file they read through
+//                                            FIRE_WATCH_METRICS_TOKEN_FILE)
+//   /run/secrets/grafana_cloud_token         the Grafana Cloud access-policy token with
+//                                            metrics:write only
+//
+// Non-secret settings come from the environment and have no defaults, so a missing one
+// fails the config load rather than shipping to the wrong stack:
+//
+//   GRAFANA_CLOUD_PROM_URL        e.g. https://prometheus-prod-XX-prod-eu-west-2.grafana.net/api/prom/push
+//   GRAFANA_CLOUD_PROM_USERNAME   the stack's numeric Prometheus instance id
+//   FIRE_WATCH_METRICS_PORT       the port both services bind their metrics listener to
+//   FIRE_WATCH_ENVIRONMENT        `production` or `staging`; becomes the `env` label
+
+prometheus.scrape "fire_watch" {
+  targets = [
+    {"__address__" = "api:" + sys.env("FIRE_WATCH_METRICS_PORT"), "service" = "api"},
+    {"__address__" = "worker:" + sys.env("FIRE_WATCH_METRICS_PORT"), "service" = "worker"},
+  ]
+  metrics_path      = "/metrics"
+  scheme            = "http"
+  scrape_interval   = "30s"
+  scrape_timeout    = "10s"
+  bearer_token_file = "/run/secrets/fire_watch_metrics_token"
+  forward_to        = [prometheus.relabel.fire_watch.receiver]
+}
+
+// Host metrics: the backup CLI's textfile (a one-shot job has no listener) and the
+// filesystem collector behind the disk rule. The host's / is mounted read-only at
+// /host/root and the textfile directory at /host/metrics (see README.md).
+prometheus.exporter.unix "host" {
+  set_collectors = ["filesystem", "textfile"]
+  rootfs_path    = "/host/root"
+
+  textfile {
+    directory = "/host/metrics"
+  }
+
+  filesystem {
+    mount_points_exclude = "^/(dev|proc|run|sys|var/lib/docker/.+)($|/)"
+    fs_types_exclude     = "^(autofs|binfmt_misc|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|nsfs|overlay|proc|pstore|securityfs|squashfs|sysfs|tmpfs|tracefs)$"
+  }
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  scrape_interval = "60s"
+  forward_to      = [prometheus.relabel.fire_watch.receiver]
+}
+
+// One label on every series, so staging can never page as production.
+prometheus.relabel "fire_watch" {
+  rule {
+    target_label = "env"
+    replacement  = sys.env("FIRE_WATCH_ENVIRONMENT")
+  }
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL")
+
+    basic_auth {
+      username      = sys.env("GRAFANA_CLOUD_PROM_USERNAME")
+      password_file = "/run/secrets/grafana_cloud_token"
+    }
+  }
+}

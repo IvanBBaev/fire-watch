@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The API process: the probe surface, and for now nothing else.
+ * The API process: the probe surface, the T1 snapshot and the T0 stream, and nothing else.
  *
  *   node server/dist/app/api.js
  *
@@ -9,26 +9,25 @@
  * endpoint slow exactly when it is being asked whether things are slow — and a restart of
  * the API would silently skip a poll.
  *
- * Shutdown drains in-flight requests before releasing the pool, so a rolling deploy never
- * answers a probe with a connection error it caused itself.
+ * Shutdown drains in-flight requests before releasing the pools, so a rolling deploy never
+ * answers a probe with a connection error it caused itself; open streams are told when to
+ * reconnect and closed first, because a server waiting on them would never close at all.
  */
 
-import { canonicalJson } from '../core/determinism/canonical-json.js';
-import { ConfigError, describeConfig, loadConfig } from './config.js';
-import { wireHealthServer } from './health-wiring.js';
-
-const APPLICATION_NAME = 'fire-watch-api';
+import { startApi } from './api-composition.js';
+import { ConfigError } from './config.js';
+import { processLog } from './logging.js';
 
 /** A misconfiguration is not a data problem, and the exit code says which one it was. */
 const EXIT_MISCONFIGURED = 2;
 
-async function main(): Promise<number> {
-  const config = loadConfig(process.env, APPLICATION_NAME);
-  process.stderr.write(`${canonicalJson({ starting: describeConfig(config) })}\n`);
+/** Redacting from the first line, including the one that reports a config failure (C8). */
+const log = processLog();
 
-  const wiring = wireHealthServer(config);
-  await wiring.listen();
-  process.stderr.write(`${canonicalJson({ listening: true })}\n`);
+async function main(): Promise<number> {
+  // The composition lives in api-composition.ts so that the integration test boots
+  // exactly this process's wiring; what remains here is the signal handling.
+  const api = await startApi(process.env, log);
 
   await new Promise<void>((resolve) => {
     const stop = (signal: string): void => {
@@ -38,18 +37,18 @@ async function main(): Promise<number> {
       // even when the drain is hung, and even when they mixed SIGTERM with SIGINT.
       process.removeListener('SIGTERM', stop);
       process.removeListener('SIGINT', stop);
-      process.stderr.write(`${canonicalJson({ stopping: { signal } })}\n`);
+      log.note({ stopping: { signal } });
       resolve();
     };
     process.once('SIGTERM', stop);
     process.once('SIGINT', stop);
   });
 
-  await wiring.close();
+  await api.close();
   return 0;
 }
 
 process.exitCode = await main().catch((error: unknown) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  log.fatal(error);
   return error instanceof ConfigError ? EXIT_MISCONFIGURED : 1;
 });

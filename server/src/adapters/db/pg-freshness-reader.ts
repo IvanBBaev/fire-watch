@@ -18,9 +18,11 @@
  */
 
 import { isMonitoredFeedId, isMonitoredSourceId, type FreshnessRowId } from '@fire-watch/contracts';
+import type { Selectable } from 'kysely';
 
 import type { FreshnessObservation } from '../../core/health/freshness.js';
 import type { DatabaseProbe, FreshnessReader } from '../../core/ports/freshness-reader.js';
+import type { SourceStatus } from '../../db/types.generated.js';
 
 /**
  * The slice of `pg` this module uses. Structural, like the archive's — but this one reads,
@@ -30,14 +32,17 @@ export interface PgReadable {
   query(text: string, values?: readonly unknown[]): Promise<{ rows: readonly SourceStatusRow[] }>;
 }
 
-/** One `source_status` row as the driver hands it over: `timestamptz` arrives as a `Date`. */
-export interface SourceStatusRow {
-  readonly source: string;
-  readonly last_attempt_at: Date | null;
-  readonly last_success_at: Date | null;
-  readonly last_data_at: Date | null;
-  readonly consecutive_failures: number;
-}
+/**
+ * One `source_status` row as the driver hands it over: `timestamptz` arrives as a `Date`.
+ * Derived from the generated schema types (B4) — the picked keys are exactly the columns
+ * `SELECT_SOURCE_STATUS` names, so a renamed column fails to compile here.
+ */
+export type SourceStatusRow = Readonly<
+  Pick<
+    Selectable<SourceStatus>,
+    'source' | 'last_attempt_at' | 'last_success_at' | 'last_data_at' | 'consecutive_failures'
+  >
+>;
 
 /**
  * `= ANY($1)` rather than an `IN` list built per call: one prepared statement shape, so the

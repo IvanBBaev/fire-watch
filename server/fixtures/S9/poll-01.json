@@ -1,0 +1,35 @@
+{
+  "availableAt": "2026-10-24T23:52:00Z",
+  "detections": [
+    {
+      "detectionUid": "b871317c08aabc3f311b6171025737d02fe6a823526f70d5bae441815f6b8f06",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-10-24T23:30:00Z",
+      "latCanonical": "42.06000",
+      "lonCanonical": "27.55000",
+      "confidence": "high",
+      "frpMw": 28.4,
+      "dayNight": "N"
+    },
+    {
+      "detectionUid": "6ae6e59dbf11c45c5701123041bba9bc0ba0de5f0b4328d9397b78ba60713bf9",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-10-24T23:30:00Z",
+      "latCanonical": "42.06700",
+      "lonCanonical": "27.55600",
+      "confidence": "nominal",
+      "frpMw": 13.2,
+      "dayNight": "N"
+    },
+    {
+      "detectionUid": "cef04e9f14885889c1519836034f545f7f51302223dc97d062ce62c8e7f85a9d",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-10-24T23:30:00Z",
+      "latCanonical": "42.07300",
+      "lonCanonical": "27.56300",
+      "confidence": "high",
+      "frpMw": 41.7,
+      "dayNight": "N"
+    }
+  ]
+}

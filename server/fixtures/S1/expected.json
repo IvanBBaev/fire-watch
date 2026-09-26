@@ -1,0 +1,39 @@
+{
+  "fixtureId": "S1",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 3
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 2
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-gawn4",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "7a57142a0d96e0089abbaf871ba6f16778743c6cc185dad67ff7e29e66853512",
+        "9bda7f7c82b232d79b4696dcf126fb9a6d4904db93443f993f601416b8ff41af",
+        "c0fbf236f6ffc71655ceb28ff3518dfd2212b3e812e5fa93098f3d2babe89ef1",
+        "c24a2d9b5834e4cb566cb2d8eeec9f70b075e6ffc9545ff28b03d0c65f671012"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

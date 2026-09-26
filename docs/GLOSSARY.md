@@ -37,9 +37,10 @@
 | **E-accumulator** | Miss-evidence accumulator: weighted clear-sky missed overpasses driving `no_longer_detected` (threshold E ≥ 3.0; ≥ 5.0 for large events; cloud-gated; frozen during source outages). | ADR-002 D6, review 11 §5 |
 | **T_LINK** | Maximum same-event temporal gap (fitted p99 intra-fire detection gap; expected 36–60 h). | ADR-002 D2 |
 | **T_REIGNITE** | Cluster-level reignition linking window (fitted p95 inter-episode gap, expected 4–8 d, clamped by the fuel windows in §6). | ADR-002 D2 |
-| **Outbox** | `alert_outbox` — transactional alert-decision log with mandatory provenance (`trigger_type`, `trigger_ref`, `rule_version`, `template_id`, stage timestamps). Audit trail, latency instrumentation, and liability artifact in one. | ADR-004 D1 |
+| **Outbox** | `alert_outbox` — transactional alert-decision log with mandatory provenance (`trigger_type`, `trigger_ref`, `rule_version`, `template_id`, stage timestamps) plus, since A1.1, the human trail (`actor_id`, `approver_id`, `approval_mode`, `approved_at`, `budget_override`) and A1.2's stored `priority`. Audit trail, latency instrumentation, and liability artifact in one. | ADR-004 D1, A1.1, A1.2 |
 | **Notification gateway** | The only module that can reach a provider adapter (lint-enforced). Owns budgets, circuit breaker, token buckets, template rendering, the never-send lint, and the kill switch. | ADR-004 D2 |
 | **Golden replay** | The deterministic fixture suite (scenarios S1–S9) whose double run must produce a byte-identical event registry. | ADR-002 acceptance, review 06 §5.2 |
+| **Dataset entry (`DS-n`)** | One dated record per corpus version in `docs/data/DATASETS.md`. Identity is the tuple — plan id and digest, area, polling-bbox version, manifest sha256 at `--check` — never the disk. A fit, calibration, replay or checkpoint cites the entry, not "the backfill"; a new entry is the refit trigger. | review 23 E1, GATES §2 |
 | **FRP** | Fire Radiative Power (MW) — radiometric intensity of a detection. | data sources |
 | **FWI** | Canadian Fire Weather Index as harmonized by EFFIS — a **~8 km weather-based danger index**, never a statement that fire is present (§7). | review 12 §5.1 |
 
@@ -149,9 +150,11 @@ afterwards — hence every element below is pinned, not "conventional".
 | `escalation` | growth / status worsening | respected; folds into digest under suppression |
 | `digest` | daily 09:00 summary | n/a |
 
-- Gating default: score **≥ 0.45 (Likely+)** AND (≥2 detections OR 1 night-time
-  high-confidence detection); optional per-zone floor 0.30. GEO detections alone
-  never alert.
+- Gating: the **system** gate is score **≥ 0.45 (Likely+)** AND (≥2 detections OR 1
+  night-time high-confidence detection). A **new zone is created stricter** than that —
+  ≥ 0.75 (Confirmed), the recommended position — and the user opts down to 0.45, or to
+  0.30 in zone settings only, behind an explicit warning (A1.7). The persistence
+  condition is not user-adjustable. GEO detections alone never alert.
 - **Zero alerts from a single low-confidence detection** — CI invariant.
 - **There is no "resolved"/"safe" notification and never will be** (ADR-004 D4) —
   lifecycle and score downgrades never notify.
@@ -201,8 +204,8 @@ languages, placeholders only, **in CI-11 scope**.
 | `stale_sources` | Global banner — snapshot `generated_at` past 2× cadence budget, **or** every active polar source past its freshness budget (12 H6) | **Satellite data delayed since HH:MM** — showing the last data we have. The absence of new detections is not evidence that the fire is out. | **Сателитните данни са забавени от HH:MM** — показваме последните налични данни. Липсата на нови засичания не е доказателство, че пожарът е изгасен. |
 | `lifecycle_frozen` | Per-event badge while its sources are stale (E-accumulator frozen, ADR-002 D6) | Status not current — status tracking is paused while satellite data is delayed. | Статусът не е актуален — обновяването на състоянието е спряно, докато сателитните данни са забавени. |
 | `empty_state` | Map / zone with no detections in the window (§5 rule 4) | No satellite detections in this area. This is not a statement that there are no fires. | Няма сателитни засичания в тази зона. Това не означава, че няма пожари. |
-| `freshness_chip` | Global chip + per-event line (07 P2) | Observed HH:MM (N min ago) · next update expected ~HH:MM–HH:MM | Засечено в HH:MM (преди N мин) · следващо обновяване ~HH:MM–HH:MM |
-| `freshness_chip_unknown` | Same, when the pass predictor has no window | Observed HH:MM (N min ago) · next update time unknown | Засечено в HH:MM (преди N мин) · следващо обновяване: неизвестно |
+| `freshness_chip` | Global chip + per-event line (07 P2) | Observed \<observed time\> (\<relative age\>) · next update expected ~HH:MM–HH:MM | Засечено в \<час на наблюдение\> (\<изминало време\>) · следващо обновяване ~HH:MM–HH:MM |
+| `freshness_chip_unknown` | Same, when the pass predictor has no window | Observed \<observed time\> (\<relative age\>) · next update time unknown | Засечено в \<час на наблюдение\> (\<изминало време\>) · следващо обновяване: неизвестно |
 | `cloud_blind_close` | Event closed after ≥14 d with zero detections **and** zero accumulable overpasses (14 H1) | **No observation has been possible for N days** — continuous cloud cover. We do not know whether this fire is still burning: the event is closed because we cannot see it, not because it is out. | **От N дни наблюдение не е било възможно** — постоянна облачност. Не знаем дали пожарът още гори: събитието е затворено, защото не можем да наблюдаваме, а не защото пожарът е изгасен. |
 | `official_then_redetected` | Satellite detections arriving after an official локализиран/ликвидиран statement (14 H2) | New satellite detections on \<date HH:MM\>, after the fire was declared \<contained\|extinguished\> by authorities on \<date\> — source. Both facts are shown as they stand. | Нови сателитни засичания на \<дата HH:MM\>, след като пожарът беше обявен за \<локализиран\|ликвидиран\> от властите на \<дата\> — източник. Показваме и двата факта; не преценяваме кой от тях е меродавен. |
 

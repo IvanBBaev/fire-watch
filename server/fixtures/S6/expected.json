@@ -1,0 +1,51 @@
+{
+  "fixtureId": "S6",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 1
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 1
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-snbr9",
+      "status": "signal_weakening",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": ["eb6cd5e10aba07fe4a82c4d042ca74561c8d2008c0e0e2278b44c3f649eb1fda"],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-xpdh4",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "unverified",
+      "detectionUids": ["ea22744c2aa30e1b024e31f2a2059e3fa3d9f14d40c8b5660648ec950999ba6e"],
+      "mergedInto": null,
+      "relation": {
+        "publicId": "fw-2026-snbr9",
+        "kind": "possible_reignition"
+      },
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

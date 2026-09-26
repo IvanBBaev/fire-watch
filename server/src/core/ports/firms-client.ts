@@ -36,8 +36,30 @@ export interface FirmsAreaResponse {
   readonly availableAt: number;
 }
 
+export interface FirmsAvailabilityQuery {
+  /** The §1a canonical source, for the error message. */
+  readonly source: SourceId;
+  /** The registry's `queriedProduct`; the provider's `data_id` for the same thing. */
+  readonly product: string;
+}
+
+export interface FirmsAvailabilityResponse {
+  readonly csv: string;
+  /** When the answer was in our hands; the reference the staleness age is measured from. */
+  readonly fetchedAt: number;
+}
+
 export interface FirmsAreaClient {
   fetchArea(query: FirmsAreaQuery): Promise<FirmsAreaResponse>;
+  /**
+   * The provider's own account of what it has published (DATA-SOURCES §A1.1 pitfall 10).
+   *
+   * Optional, and deliberately so: it is a diagnostic, not a leg of ingestion. A client
+   * that cannot answer it — a replay driven from a fixture, a backfill reading files —
+   * omits it, and the cycle reports the upstream state as unchecked rather than pretending
+   * to a verdict. The area fetch is what a client must implement to be one at all.
+   */
+  fetchDataAvailability?(query: FirmsAvailabilityQuery): Promise<FirmsAvailabilityResponse>;
 }
 
 /**

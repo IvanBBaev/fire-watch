@@ -1,0 +1,21 @@
+{
+  "id": "S6",
+  "title": "Megafire cooling + reignition",
+  "asserts": "a 180 MW fire cools for a day and a half under broken cloud: E reaches 3.5, past the ordinary closing bar but short of the large-event one, so the megafire weakens instead of going no_longer_detected; the detection that returns 60 h later is past T_LINK and therefore seeds a second event carrying a possible_reignition relation back to the first, on the same ground, inside the mixed-fuel window",
+  "required": "pre-merge",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-05T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "S1",
+  "title": "Slavyanka border-crossing",
+  "asserts": "one fire whose pixels fall on both sides of the BG/GR border is one event, and the border pixel re-delivered by the second country download does not seed a second one",
+  "required": "pre-merge",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-04T03:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json"],
+  "expected": "expected.json"
+}

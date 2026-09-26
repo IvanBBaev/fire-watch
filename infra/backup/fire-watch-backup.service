@@ -1,0 +1,38 @@
+# Fire Watch nightly backup, the node job (TASKS C6; OPERATIONS §6.2).
+#
+# Replaces the shell job cloud-init installs (/usr/local/sbin/fw-backup, rclone):
+# same unit name, same schedule, same failure hook, so installing this file over
+# /etc/systemd/system/fire-watch-backup.service is the whole swap. See README.md.
+[Unit]
+Description=Fire Watch nightly encrypted pg_dump to R2 (OPERATIONS 6.2)
+Documentation=file:///srv/fire-watch/infra/backup/README.md
+Requires=docker.service
+After=docker.service fire-watch.service
+# A not-yet-deployed box must not generate failures (and pages) every night.
+ConditionPathExists=/srv/fire-watch/compose.yaml
+ConditionPathExists=/etc/fire-watch/secrets.env
+ConditionPathExists=/srv/fire-watch/server/dist/app/backup-cli.js
+
+[Service]
+Type=oneshot
+# Root: reads secrets.env (root:root 0600, §8.2 rule 1) and drives the docker
+# socket. `docker compose exec` needs the compose directory as its cwd.
+User=root
+WorkingDirectory=/srv/fire-watch
+# backup.env: BACKUP_STAGING, BACKUP_KEEP_LOCAL, PGUSER/PGDATABASE overrides.
+# secrets.env: BACKUP_AGE_RECIPIENT, FIRE_WATCH_BACKUP_R2_* (the write-only
+# token) and FIRE_WATCH_HEARTBEAT_URL. No value is ever logged.
+EnvironmentFile=/etc/fire-watch/backup.env
+EnvironmentFile=/etc/fire-watch/secrets.env
+UMask=0077
+ExecStart=/usr/bin/node /srv/fire-watch/server/dist/app/backup-cli.js
+# The backup must never be the reason an ingest cycle misses its freshness
+# budget (§1.2).
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=3600
+# Two paging paths, deliberately redundant: the job pings
+# <heartbeat>/nightly-backup/fail itself on a run that fails, and this hook
+# covers the failures the job cannot report (misconfiguration, a crash, the
+# timeout). A night that never runs is the healthchecks grace period's to catch.
+OnFailure=fw-notify-failure@%n.service

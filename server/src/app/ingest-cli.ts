@@ -17,25 +17,30 @@
  * be diffed and a log search can find a source by name.
  */
 
-import { canonicalJson } from '../core/determinism/canonical-json.js';
 import { cycleFailed, runIngestCycle } from '../core/ingest/ingest-cycle.js';
 import { ConfigError, describeConfig, loadConfig } from './config.js';
 import { wireIngest } from './ingest-wiring.js';
+import { processLog } from './logging.js';
 
 const APPLICATION_NAME = 'fire-watch-ingest';
 
 /** A misconfiguration is not a data problem, and the exit code says which one it was. */
 const EXIT_MISCONFIGURED = 2;
 
+/** Redacting from the first line, including the one that reports a config failure (C8). */
+const log = processLog();
+
 async function main(): Promise<number> {
   const config = loadConfig(process.env, APPLICATION_NAME);
-  process.stderr.write(`${canonicalJson({ starting: describeConfig(config) })}\n`);
+  log.note({ starting: describeConfig(config) });
 
   const wiring = wireIngest(config);
   try {
     const report = await runIngestCycle(wiring.deps);
 
-    process.stdout.write(`${canonicalJson({ ingest_cycle: report })}\n`);
+    // Through the sink, not `process.stdout`: the report carries each source's error
+    // string verbatim, and a FIRMS error string is where a key would appear.
+    log.event({ ingest_cycle: report });
     return cycleFailed(report) ? 1 : 0;
   } finally {
     // Ends the pool even when the cycle threw, so a failing run does not leave a
@@ -47,6 +52,6 @@ async function main(): Promise<number> {
 process.exitCode = await main().catch((error: unknown) => {
   // A cycle records its own failures; reaching here means the wiring itself failed —
   // no key, no database, a role the login user is not a member of.
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  log.fatal(error);
   return error instanceof ConfigError ? EXIT_MISCONFIGURED : 1;
 });

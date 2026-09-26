@@ -163,7 +163,7 @@ S9 covers UTC/DST for ingest/lifecycle (ADR-002 acceptance) — but quiet hours
 untested across transitions. **The DST fallback (25 Oct 2026, 04:00→03:00) lands
 inside the live shadow window** — the shadow diff that weekend is a free real-data
 DST test if someone looks. Spring-forward 28 Mar 2027 lands inside the spring-burn
-shadow. **Fix:** fixture **S14** (decision at 02:30 local on both transition nights;
+shadow. **Fix:** fixture **S14** (decision at 03:30 local on both transition nights;
 assert quiet-hours classification and single digest); add "review the 25–26 Oct
 shadow diff for time-window anomalies" to the CP1 protocol checklist.
 
@@ -216,9 +216,18 @@ T0 cap fail-silent to T1.
 | S11 | Source retired mid-replay (MODIS) | E still accumulates from remaining sources; lifecycle progresses |
 | S12 | Re-detection within T_LINK after `officially_extinguished` | Return to `active`, dual-fact copy, escalation (not new_fire) |
 | S13 | Zone created over an active event | Zero sends for pre-existing events; normal alerts afterward |
-| S14 | Alert decisions at 02:30 local on 25 Oct 2026 / 28 Mar 2027 | Quiet-hours classification stable; exactly one 09:00 digest |
+| S14 | Alert decisions at 03:30 local on 25 Oct 2026 / 28 Mar 2027 | Quiet-hours classification stable; exactly one 09:00 digest |
 | S15 | Cursor-only polling client + event removal | Convergence after ≤1 full-snapshot cycle (fast-check, client suite) |
 | S16 | Fire straddling the polling-bbox edge | Buffer absorbs it; one event, correct geometry |
+
+> **Errata, 2026-09-07.** Both S14 entries above read **02:30** when this review was
+> written; the number is corrected to **03:30** in place. 02:30 is the Central European
+> fold, and this section's own parenthetical already gives Bulgaria's: `Europe/Sofia`
+> goes 04:00 EEST → 03:00 EET on 25 Oct 2026 and 03:00 EET → 04:00 EEST on 28 Mar 2027,
+> so 03:30 is the local reading that happens twice and then not at all, while 02:30 is
+> unambiguous on both dates. The fixture as authored probes 03:30; 02:30 survives in it
+> only as the pre-gap March probe. GATES §1.1 carries the same correction with the
+> reasoning next to the table.
 
 ## 6. Where these land
 

@@ -1,0 +1,21 @@
+{
+  "id": "S7",
+  "title": "Cloudy gap",
+  "asserts": "two days of unbroken cloud over a fire nobody has seen since Monday accrue no miss evidence at all, and a third day at half weight leaves E short of the bar: the event weakens but never reaches no_longer_detected",
+  "required": "pre-season",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-10T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json", "poll-04.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

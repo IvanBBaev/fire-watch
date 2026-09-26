@@ -223,6 +223,27 @@ describe.skipIf(!hasDocker)('the ingest write path', () => {
       expect(after).toEqual(before);
     });
 
+    it('lands nothing new when the same window is polled again ten minutes later', async () => {
+      // The one above re-submits a records array; this one re-runs the poll — same bytes
+      // off the wire, a fresh `available_at`, records minted a second time from scratch —
+      // because that is what the scheduler does every ten minutes and the uid is only
+      // "deterministic" if it survives the round trip through the parser twice.
+      const body = csv(row(), row({ acq_time: '1130' }));
+
+      const first = await store.appendDetections(detectionRecords(await poll(body, AVAILABLE_AT)));
+      const before = await storedDetections();
+      const repoll = await poll(body, AVAILABLE_AT + 600_000);
+      const second = await store.appendDetections(detectionRecords(repoll));
+
+      expect(first).toEqual({ received: 2, inserted: 2, alreadyPresent: 0 });
+      // Counted and discarded, not an error and not a duplicate row.
+      expect(second).toEqual({ received: 2, inserted: 0, alreadyPresent: 2 });
+      // Including `available_at`: the archive keeps when we *first* could have acted, so a
+      // latency measurement taken from it does not improve every time we re-poll.
+      expect(await storedDetections()).toEqual(before);
+      expect(repoll.availableAt).toBe(AVAILABLE_AT + 600_000);
+    });
+
     it('inserts only what is new when the window overlaps', async () => {
       const first = await poll(csv(row()), AVAILABLE_AT);
       await store.appendDetections(detectionRecords(first));

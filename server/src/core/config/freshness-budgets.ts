@@ -32,7 +32,12 @@
  * (§1.1(4)): a retired source leaves {@link MONITORED_SOURCE_IDS}, and with it this table.
  */
 
-import { BUDGETED_JOB_IDS, MONITORED_FEED_IDS, type FreshnessRowId } from '@fire-watch/contracts';
+import {
+  BUDGETED_JOB_IDS,
+  MONITORED_FEED_IDS,
+  SNAPSHOT_PUSH_WARN_SECONDS,
+  type FreshnessRowId,
+} from '@fire-watch/contracts';
 
 import { defineConfig, type VersionedConfig } from './versioned-config.js';
 
@@ -163,12 +168,12 @@ const ROWS: readonly FreshnessBudget[] = [
     pages: false,
   },
 
-  // The snapshot push is the only job that 500s, and 5 minutes is not a round number: it is
-  // exactly where ADR-003's "the map is never more than 5 minutes stale" promise breaks.
+  // The snapshot push is the only job that 500s, and its warn budget is the one threshold
+  // the client also has to know (GLOSSARY §3b trigger 1) — so it is imported, not repeated.
   {
     row: 'snapshot-push',
     nominalCadenceSeconds: 1 * MINUTE,
-    warnSeconds: 5 * MINUTE,
+    warnSeconds: SNAPSHOT_PUSH_WARN_SECONDS,
     criticalSeconds: 15 * MINUTE,
     pages: true,
   },

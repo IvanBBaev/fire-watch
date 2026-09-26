@@ -35,6 +35,7 @@ import type { AppendResult, DetectionStore } from '../ports/detection-store.js';
 import type { QuarantineEntry, QuarantineStore } from '../ports/quarantine-store.js';
 import { evaluateBatch, type AnomalyDecision } from './anomaly-breaker.js';
 import { detectionRecords, pollAttempt } from './detection-records.js';
+import { evaluateUpstreamAvailability, type UpstreamAvailability } from './firms-availability.js';
 import {
   describeViolations,
   partitionByValidity,
@@ -73,6 +74,13 @@ export interface SourceIngestResult {
   readonly duplicatesWithinBatch: number;
   /** The breaker's verdict on this batch; `null` when there was no batch to judge. */
   readonly anomaly: AnomalyDecision | null;
+  /**
+   * What the provider says it has published (pitfall 10); `null` when the client cannot
+   * answer that question, which is how a replay and a backfill report it. This is the one
+   * signal that separates "no fires" from "no data" — an empty poll is a success either
+   * way, so without it a dead upstream is a quiet afternoon in every other metric here.
+   */
+  readonly upstream: UpstreamAvailability | null;
   /** Every failure this source hit, joined; `null` when it hit none. */
   readonly error: string | null;
 }
@@ -92,6 +100,8 @@ export interface IngestCycleDeps extends PollFirmsDeps {
   readonly sources?: readonly SourceId[];
   /** Defaults to `ingest_anomaly_v1`; a replay pins the version it reproduces. */
   readonly anomalyConfig?: typeof INGEST_ANOMALY;
+  /** Defaults to the pitfall table's 6 h. Lowered in tests, never on the live path. */
+  readonly availabilityStaleAfterMs?: number;
 }
 
 const NOTHING_APPENDED: AppendResult = { received: 0, inserted: 0, alreadyPresent: 0 };
@@ -116,6 +126,9 @@ export async function runIngestCycle(deps: IngestCycleDeps): Promise<IngestCycle
 async function ingestSource(source: SourceId, deps: IngestCycleDeps): Promise<SourceIngestResult> {
   const run = await pollFirmsSource(source, deps);
   const availableAt = run.availableAt;
+  // Asked on every cycle, including a failed one: "is the provider still publishing?" is
+  // most worth answering exactly when our own poll came back empty or broken.
+  const upstream = await checkUpstream(source, run.query.product, deps);
 
   let appended = NOTHING_APPENDED;
   let invalid: readonly InvalidDetection<IngestedDetection>[] = [];
@@ -176,8 +189,46 @@ async function ingestSource(source: SourceId, deps: IngestCycleDeps): Promise<So
     quarantined: invalid.length,
     duplicatesWithinBatch: run.duplicatesWithinBatch,
     anomaly,
+    upstream,
     error: joinErrors([run.error ?? null, writeError, bookkeepingError, statusError]),
   };
+}
+
+/**
+ * The provider's own account of what it has published (pitfall 10).
+ *
+ * Never throws and never fails a cycle. It is a diagnostic about somebody else's system:
+ * losing it costs us the ability to explain a silence, while letting it throw would cost us
+ * the detections already in hand — and an availability endpoint that is down is precisely
+ * the moment the fire data matters most.
+ */
+async function checkUpstream(
+  source: SourceId,
+  product: string,
+  deps: IngestCycleDeps,
+): Promise<UpstreamAvailability | null> {
+  const fetchDataAvailability = deps.client.fetchDataAvailability?.bind(deps.client);
+  if (fetchDataAvailability === undefined) return null;
+
+  try {
+    const response = await fetchDataAvailability({ source, product });
+    return evaluateUpstreamAvailability({
+      product,
+      csv: response.csv,
+      now: response.fetchedAt,
+      ...(deps.availabilityStaleAfterMs === undefined
+        ? {}
+        : { staleAfterMs: deps.availabilityStaleAfterMs }),
+    });
+  } catch (error) {
+    return {
+      product,
+      state: 'unknown',
+      maxDate: null,
+      ageSeconds: null,
+      reason: describeError(error),
+    };
+  }
 }
 
 /**

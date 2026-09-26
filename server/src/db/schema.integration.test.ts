@@ -109,17 +109,30 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
 
   it('creates every table the application expects', async () => {
     expect(await tableNames()).toEqual([
+      'account_sessions',
       'accounts',
+      'alert_decision_log',
+      'alert_digest_log',
+      'alert_evaluated_events',
+      'alert_evaluation_cursor',
       'alert_outbox',
       'alert_states',
+      'alerts_shadow',
+      'auth_link_requests',
+      'channel_confirmations',
       'channel_subscriptions',
+      'clustering_batches',
       'clustering_runs',
       'clusters',
       'detections',
+      'erasure_requests',
       'event_detections',
+      'events_shadow',
       'fire_events',
       'ingest_batches',
       'ingest_quarantine',
+      'nrt_lag_histograms',
+      'qa_weekly_reports',
       'source_status',
       'sources',
       'table_backup_class',
@@ -156,6 +169,56 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       // ADR-004 A1.3 rewrites an expired row in place; deleting it would destroy the
       // audit trail of a decision that was already acted on.
       expect(rows[0]?.can_delete).toBe(false);
+    });
+
+    it('keeps the alert decision log append-only for the runtime role (migration 014)', async () => {
+      const { rows } = await db.query<{
+        can_insert: boolean;
+        can_update: boolean;
+        can_delete: boolean;
+        class: string | null;
+      }>(
+        `SELECT has_table_privilege('fire_watch_app', 'alert_decision_log', 'INSERT') AS can_insert,
+                has_table_privilege('fire_watch_app', 'alert_decision_log', 'UPDATE') AS can_update,
+                has_table_privilege('fire_watch_app', 'alert_decision_log', 'DELETE') AS can_delete,
+                (SELECT class FROM table_backup_class
+                  WHERE table_name = 'alert_decision_log') AS class`,
+      );
+      // A decision record that could be rewritten would not be evidence; retention goes
+      // through purge_alert_decision_log and erasure through the zone cascade.
+      expect(rows[0]).toEqual({
+        can_insert: true,
+        can_update: false,
+        can_delete: false,
+        class: 'personal',
+      });
+    });
+
+    it('keeps the alert digest log append-only for the runtime role (migration 018)', async () => {
+      const { rows } = await db.query<{
+        can_select: boolean;
+        can_insert: boolean;
+        can_update: boolean;
+        can_delete: boolean;
+        class: string | null;
+      }>(
+        `SELECT has_table_privilege('fire_watch_app', 'alert_digest_log', 'SELECT') AS can_select,
+                has_table_privilege('fire_watch_app', 'alert_digest_log', 'INSERT') AS can_insert,
+                has_table_privilege('fire_watch_app', 'alert_digest_log', 'UPDATE') AS can_update,
+                has_table_privilege('fire_watch_app', 'alert_digest_log', 'DELETE') AS can_delete,
+                (SELECT class FROM table_backup_class
+                  WHERE table_name = 'alert_digest_log') AS class`,
+      );
+      // The log is evidence and the digest watermark: a rewritten row would re-send a
+      // window. The pass reads it (SELECT) to derive the watermark; erasure goes through
+      // the zone cascade, and there is no retention purge yet (migration 018 header).
+      expect(rows[0]).toEqual({
+        can_select: true,
+        can_insert: true,
+        can_update: false,
+        can_delete: false,
+        class: 'personal',
+      });
     });
 
     it('discards a re-polled detection instead of refining it', async () => {
@@ -257,17 +320,24 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
         queried_product: string;
         product_tier: string | null;
         status: string;
-        status_effective_from: Date;
+        status_effective_from: string;
         attach_only: boolean;
-      }>(`SELECT * FROM sources ORDER BY id`);
+      }>(
+        // The DATE leaves as text: `pg` parses a bare date as local midnight, so a
+        // `Date` round-trip shifts it a day on any host east of UTC. COLLATE "C" so the
+        // order is the bytewise one the JS sort below uses.
+        `SELECT id, queried_product, product_tier, status,
+                to_char(status_effective_from, 'YYYY-MM-DD') AS status_effective_from,
+                attach_only
+           FROM sources ORDER BY id COLLATE "C"`,
+      );
 
-      const asDate = (value: Date): string => value.toISOString().slice(0, 10);
       const projected = rows.map((row) => ({
         id: row.id,
         queriedProduct: row.queried_product,
         productTier: row.product_tier,
         status: row.status,
-        statusEffectiveFrom: asDate(row.status_effective_from),
+        statusEffectiveFrom: row.status_effective_from,
         attachOnly: row.attach_only,
       }));
 
@@ -298,13 +368,17 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
   });
 
   describe('lifecycle vocabulary (ADR-002 D6, GLOSSARY §3)', () => {
+    // Migration 004 ties `display_tier` and `inactive_since` to `status`, so a row is
+    // written the way a lifecycle transition would write it, not with the defaults.
     const insertEvent = (status: string): Promise<unknown> =>
       db.query(
         `INSERT INTO fire_events (
            public_id, status, status_changed_at, started_at, last_detection_at,
-           centroid, config_version, source_registry_version
+           centroid, config_version, source_registry_version, display_tier, inactive_since
          ) VALUES ($1, $2, now(), now(), now(),
-                   ST_SetSRID(ST_MakePoint(23.3, 42.7), 4326), 'clustering_params_v1', $3)`,
+                   ST_SetSRID(ST_MakePoint(23.3, 42.7), 4326), 'clustering_params_v1', $3,
+                   CASE WHEN $2 = 'archived' THEN 'archive' ELSE 'map' END,
+                   CASE WHEN $2 IN ('active', 'signal_weakening') THEN NULL ELSE now() END)`,
         [`fw-2026-${Math.random().toString(36).slice(2, 7)}`, status, SOURCE_REGISTRY_VERSION],
       );
 
@@ -340,6 +414,83 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
           `UPDATE fire_events SET merged_into = id WHERE id = (SELECT min(id) FROM fire_events)`,
         ),
       ).rejects.toThrow(/fire_events_merged_into_not_self/);
+    });
+
+    it('keeps the display tier and the inactivity anchor consistent with the status', async () => {
+      // An active event cannot sit in the archive, and an archived one cannot be on the
+      // map: the snapshot trusts `display_tier` without re-deriving it (migration 004).
+      await expect(
+        db.query(
+          `UPDATE fire_events SET display_tier = 'archive'
+            WHERE status = 'active' AND id = (SELECT min(id) FROM fire_events WHERE status = 'active')`,
+        ),
+      ).rejects.toThrow(/fire_events_display_tier_matches_status/);
+      await expect(
+        db.query(
+          `UPDATE fire_events SET inactive_since = now()
+            WHERE id = (SELECT min(id) FROM fire_events WHERE status = 'active')`,
+        ),
+      ).rejects.toThrow(/fire_events_inactive_since_matches_status/);
+    });
+  });
+
+  describe('seq discipline (ADR-003 A1.4 R1, migration 004)', () => {
+    const seqOf = async (publicId: string): Promise<string> => {
+      const { rows } = await db.query<{ seq: string }>(
+        `SELECT seq::text AS seq FROM fire_events WHERE public_id = $1`,
+        [publicId],
+      );
+      return rows[0]?.seq ?? '';
+    };
+    const anyActive = async (): Promise<string> => {
+      const { rows } = await db.query<{ public_id: string }>(
+        `SELECT public_id FROM fire_events WHERE status = 'active' ORDER BY id LIMIT 1`,
+      );
+      return rows[0]?.public_id ?? '';
+    };
+
+    it('bumps seq when a writer changes a projected column and forgets seq', async () => {
+      const publicId = await anyActive();
+      const before = await seqOf(publicId);
+      // The removal path a hand-run curation UPDATE takes: no `seq = nextval(...)`.
+      await db.query(`UPDATE fire_events SET invalidated = true WHERE public_id = $1`, [publicId]);
+      const after = await seqOf(publicId);
+      expect(BigInt(after)).toBeGreaterThan(BigInt(before));
+      await db.query(`UPDATE fire_events SET invalidated = false WHERE public_id = $1`, [publicId]);
+      expect(BigInt(await seqOf(publicId))).toBeGreaterThan(BigInt(after));
+    });
+
+    it('leaves seq alone on a bookkeeping-only update', async () => {
+      const publicId = await anyActive();
+      const before = await seqOf(publicId);
+      // The E accumulator is written every tick; a seq bump there would be a cache miss
+      // for every client every tick, for nothing the snapshot shows.
+      await db.query(
+        `UPDATE fire_events SET miss_evidence = miss_evidence + 0.1, updated_at = now()
+          WHERE public_id = $1`,
+        [publicId],
+      );
+      expect(await seqOf(publicId)).toBe(before);
+    });
+
+    it('refuses a seq that moves backwards', async () => {
+      const publicId = await anyActive();
+      await expect(
+        db.query(`UPDATE fire_events SET seq = seq - 1 WHERE public_id = $1`, [publicId]),
+      ).rejects.toThrow(/must not move backwards/);
+    });
+
+    it('accepts the explicit nextval a transition writes, without a second bump', async () => {
+      const publicId = await anyActive();
+      const { rows } = await db.query<{ next: string; seq: string }>(
+        `UPDATE fire_events
+            SET status = 'no_longer_detected', status_changed_at = now(),
+                inactive_since = now(), seq = nextval('fire_events_seq_seq')
+          WHERE public_id = $1
+          RETURNING seq::text AS seq, currval('fire_events_seq_seq')::text AS next`,
+        [publicId],
+      );
+      expect(rows[0]?.seq).toBe(rows[0]?.next);
     });
   });
 
@@ -400,6 +551,55 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
         ),
       ).rejects.toThrow(/watch_zones_radius_m_check/);
     });
+
+    it('gives the outbox a claim lease and a shipped locale (migration 015)', async () => {
+      const { rows: columns } = await db.query<{
+        column_name: string;
+        data_type: string;
+        is_nullable: string;
+        column_default: string | null;
+      }>(
+        `SELECT column_name, data_type, is_nullable, column_default
+           FROM information_schema.columns
+          WHERE table_name = 'alert_outbox' AND column_name IN ('claimed_at', 'locale')
+          ORDER BY column_name`,
+      );
+      expect(columns).toEqual([
+        {
+          column_name: 'claimed_at',
+          data_type: 'timestamp with time zone',
+          is_nullable: 'YES',
+          column_default: null,
+        },
+        {
+          column_name: 'locale',
+          data_type: 'text',
+          is_nullable: 'NO',
+          column_default: "'bg'::text",
+        },
+      ]);
+
+      const { rows: checks } = await db.query<{ conname: string; definition: string }>(
+        `SELECT conname, pg_get_constraintdef(oid) AS definition
+           FROM pg_constraint
+          WHERE conrelid = 'alert_outbox'::regclass
+            AND conname IN ('alert_outbox_claim_has_lease', 'alert_outbox_locale_shipped')
+          ORDER BY conname`,
+      );
+      expect(checks.map((row) => row.conname)).toEqual([
+        'alert_outbox_claim_has_lease',
+        'alert_outbox_locale_shipped',
+      ]);
+      expect(checks[0]?.definition).toContain('claimed_at IS NOT NULL');
+      expect(checks[1]?.definition).toMatch(/'bg'.*'en'/);
+
+      const { rows: indexes } = await db.query<{ indexdef: string }>(
+        `SELECT indexdef FROM pg_indexes
+          WHERE tablename = 'alert_outbox' AND indexname = 'alert_outbox_claim_lease'`,
+      );
+      expect(indexes[0]?.indexdef).toContain('(claimed_at)');
+      expect(indexes[0]?.indexdef).toContain("'claimed'");
+    });
   });
 
   describe('backup classification (OPERATIONS §6.2)', () => {
@@ -410,7 +610,18 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       const classified = await db.query<{ table_name: string }>(
         `SELECT table_name FROM table_backup_class ORDER BY table_name COLLATE "C"`,
       );
-      expect(classified.rows.map((row) => row.table_name)).toEqual(await tableNames());
+      // `tableNames()` leaves out dbmate's `schema_migrations`, which migration 013
+      // registers; `spatial_ref_sys` is PostGIS's and stays unregistered (the backup's
+      // relation query skips extension tables).
+      const expected = [...(await tableNames()), 'schema_migrations'].sort();
+      expect(classified.rows.map((row) => row.table_name)).toEqual(expected);
+    });
+
+    it("registers dbmate's schema_migrations as main, so a main-only restore keeps its history", async () => {
+      const { rows } = await db.query<{ class: string }>(
+        `SELECT class FROM table_backup_class WHERE table_name = 'schema_migrations'`,
+      );
+      expect(rows).toEqual([{ class: 'main' }]);
     });
 
     it('keeps every foreign key pointing from personal to main, never the reverse', async () => {

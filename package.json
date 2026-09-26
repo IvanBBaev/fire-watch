@@ -15,10 +15,17 @@
     "format:write": "prettier --write .",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
+    "test:e2e": "pnpm --filter @fire-watch/web build && vitest run --project e2e",
+    "test:budgets": "pnpm --filter @fire-watch/web build && vitest run --project budgets",
+    "test:timing": "pnpm --filter @fire-watch/web build && vitest run --project timing",
     "test:watch": "vitest --project unit",
     "boundaries": "depcruise --config .dependency-cruiser.cjs packages server web",
     "audit": "pnpm audit --audit-level=high",
-    "verify": "pnpm run typecheck && pnpm run lint && pnpm run format && pnpm run boundaries && pnpm run test"
+    "deploy-gate": "tsc --build infra/deploy-gate && node infra/deploy-gate/dist/cli.js",
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run format && pnpm run boundaries && pnpm run test",
+    "loadtest": "tsc --build loadtest && node loadtest/dist/src/adapters/cli.js",
+    "tiles": "tsc --build infra/tiles && node infra/tiles/dist/cli.js",
+    "status": "tsc --build infra/status && node infra/status/dist/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

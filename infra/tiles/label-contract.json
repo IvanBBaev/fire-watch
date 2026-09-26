@@ -1,0 +1,5 @@
+{
+  "comment": "Shared by the glyph build (infra/tiles) and the outdoor style (web/src/map/outdoor-style.ts); both sides test against this file. fontstacks: every text-font the style names, one font per stack. labelFields: every feature property the style can render as text.",
+  "fontstacks": ["Noto Sans Regular", "Noto Sans Bold", "Noto Sans Italic"],
+  "labelFields": ["name:bg", "name"]
+}

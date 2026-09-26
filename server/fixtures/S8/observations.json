@@ -1,0 +1,22 @@
+{
+  "cloudCover": [
+    { "fromIso": "2026-08-14T00:00:00Z", "toIso": "2026-08-18T10:00:00Z", "percent": 0 }
+  ],
+  "outages": [
+    {
+      "source": "firms:viirs:snpp",
+      "fromIso": "2026-08-14T00:50:00Z",
+      "toIso": "2026-08-15T21:00:00Z"
+    },
+    {
+      "source": "firms:viirs:noaa20",
+      "fromIso": "2026-08-14T00:50:00Z",
+      "toIso": "2026-08-15T21:00:00Z"
+    },
+    {
+      "source": "firms:viirs:noaa21",
+      "fromIso": "2026-08-14T00:50:00Z",
+      "toIso": "2026-08-15T21:00:00Z"
+    }
+  ]
+}

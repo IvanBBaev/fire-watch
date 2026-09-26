@@ -1,0 +1,34 @@
+# Scrape targets and the host (OPERATIONS §3 leg 1, §9; TASKS C5).
+#
+# `up` is written by Alloy per target; `service` is the label config.alloy attaches.
+# node_filesystem_* comes from Alloy's unix exporter (filesystem collector).
+groups:
+  - name: fire-watch-targets
+    interval: 1m
+    rules:
+      - alert: MetricsTargetDown
+        expr: up{service=~"api|worker"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'Alloy cannot scrape the {{ $labels.service }} metrics listener'
+
+      - alert: WorkerSeriesAbsent
+        expr: absent(fw_loop_runs_total{loop="ingest"})
+        for: 30m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'No ingest loop runs are reaching Grafana Cloud (worker down or not scraped)'
+
+      - alert: HostDiskFilling
+        expr: 1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 0.80
+        for: 15m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'Filesystem {{ $labels.mountpoint }} is more than 80% full'

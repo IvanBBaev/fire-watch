@@ -20,6 +20,20 @@ export const DEFAULT_STATEMENT_TIMEOUT_MS = 30_000;
 /** A transaction left open holds back autovacuum on an append-only table. */
 export const DEFAULT_IDLE_IN_TRANSACTION_TIMEOUT_MS = 60_000;
 
+/**
+ * How long past its own `statement_timeout` the client waits for the server to answer.
+ *
+ * `statement_timeout` is enforced by the *server*, so it bounds nothing when the server
+ * cannot run at all — a frozen VM, a paused container, a network partition that leaves the
+ * socket open. A query sent on a pooled connection then waits forever: `/readyz` hangs
+ * instead of answering 503, the snapshot never reaches its 503 + Retry-After, and a cycle
+ * wedges behind it. The client-side read timeout is what turns that silence into an error;
+ * the grace keeps it strictly behind the server's own timeout, so a server that *is*
+ * answering always reports its own cancellation first. A timed-out query rejects, and
+ * `pool.query` then destroys the connection rather than returning it to the pool.
+ */
+export const QUERY_TIMEOUT_GRACE_MS = 1_000;
+
 export interface PgPoolOptions {
   readonly databaseUrl: string;
   /** Assumed on every connection; see the module comment. A bare identifier. */
@@ -31,15 +45,25 @@ export interface PgPoolOptions {
   readonly statementTimeoutMs?: number;
   readonly idleInTransactionTimeoutMs?: number;
   readonly connectionTimeoutMs?: number;
+  /**
+   * The client-side read timeout. Defaults to the statement timeout plus
+   * {@link QUERY_TIMEOUT_GRACE_MS}; none when the statement timeout is 0 (disabled).
+   */
+  readonly queryTimeoutMs?: number;
 }
 
 export function createPgPool(options: PgPoolOptions): Pool {
+  const statementTimeoutMs = options.statementTimeoutMs ?? DEFAULT_STATEMENT_TIMEOUT_MS;
+  const queryTimeoutMs =
+    options.queryTimeoutMs ??
+    (statementTimeoutMs > 0 ? statementTimeoutMs + QUERY_TIMEOUT_GRACE_MS : undefined);
   const config: PoolConfig = {
     connectionString: options.databaseUrl,
     application_name: options.applicationName,
     options: startupOptions(options.role),
     max: options.max ?? 1,
-    statement_timeout: options.statementTimeoutMs ?? DEFAULT_STATEMENT_TIMEOUT_MS,
+    statement_timeout: statementTimeoutMs,
+    ...(queryTimeoutMs === undefined ? {} : { query_timeout: queryTimeoutMs }),
     idle_in_transaction_session_timeout:
       options.idleInTransactionTimeoutMs ?? DEFAULT_IDLE_IN_TRANSACTION_TIMEOUT_MS,
     connectionTimeoutMillis: options.connectionTimeoutMs ?? 10_000,

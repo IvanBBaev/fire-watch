@@ -10,3 +10,10 @@ tiles/
 # turn every future edit into an unreadable diff.
 docs/
 *.md
+
+# kysely-codegen output, compared byte-for-byte against a fresh run in CI (B4) —
+# any reformatting would read as schema drift.
+server/src/db/types.generated.ts
+
+# Seeded and removed by the `only-the-gateway-sends` boundary test.
+**/__boundary-fixture.*.ts

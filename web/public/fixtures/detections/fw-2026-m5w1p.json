@@ -1,0 +1,17 @@
+{
+  "type": "FeatureCollection",
+  "event_id": "fw-2026-m5w1p",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [22.03, 41.42] },
+      "properties": {
+        "uid": "det-m5w1p-001",
+        "observed_at": "2026-08-09T08:15:00Z",
+        "source_id": "eumetsat:slstr:frp",
+        "scan_km": 1.0,
+        "track_km": 1.0
+      }
+    }
+  ]
+}

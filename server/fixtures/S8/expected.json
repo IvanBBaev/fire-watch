@@ -1,0 +1,42 @@
+{
+  "fixtureId": "S8",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 1
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-04.json",
+      "detections": 0
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-d47tv",
+      "status": "no_longer_detected",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": ["f7cd8c4081330acb79d8ca35fcebf5827a6f44a799e161292e04a77cc118255b"],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

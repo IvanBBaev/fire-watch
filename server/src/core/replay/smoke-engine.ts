@@ -43,6 +43,8 @@ export function createSmokeEngine(context: ReplayContext): ReplayEngine {
         publicId: group.publicId,
         // A single fixed state: this engine has no lifecycle and must not pretend to.
         status: 'active',
+        // And therefore no display tier either: placing an event is a lifecycle decision.
+        displayTier: null,
         bucket: 'unverified',
         detectionUids: group.detectionUids,
         mergedInto: null,

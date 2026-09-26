@@ -488,7 +488,8 @@ truth" bugs. Send `retry: 5000` on connect.
 
 ### 5.8 Database schema (initial migration, abridged)
 
-> **Non-normative.** The schema owner is `server/db/migrations/001_initial_schema.sql`.
+> **Non-normative** (review 13 §3.2(11), TASKS B4). The schema owner is
+> `server/db/migrations/001_initial_schema.sql`.
 > This block predates ADR-002 and ADR-004 and is superseded wherever the two differ.
 > Known differences: `detections` here has a surrogate `id` and a `UNIQUE (detection_uid)`
 > that a partitioned table cannot have — the real key is `(acq_ts, detection_uid)`, which

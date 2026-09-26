@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # deploy.yml (TASKS J4) reuses these jobs rather than duplicating them (review 21 E2).
+  workflow_call:
 
 # Actions are pinned to a commit SHA, never to a tag: a tag is mutable and a compromised
 # upstream can move it onto malicious code without any change landing in this repo.
@@ -60,25 +62,148 @@ jobs:
       - name: Tests
         run: pnpm run test
 
-      # CI-2: the whole golden-replay register runs twice, in two separate processes, and
-      # the reports must be byte-identical. The test suite already double-runs in-process;
-      # this adds the environment as a variable — a far-away zone and a Turkish locale are
-      # where a stray `localeCompare`, `toLowerCase` or local-time format gives a different
-      # answer. `tsc --build` in the Typecheck step above already emitted server/dist.
-      - name: Determinism double-run
+      # CI-1 and CI-2 in one step, because they need the same two runs.
+      #
+      # CI-1 is `--gate=pre-merge`: every GATES §1.1 scenario that stage demands has to have
+      # a fixture and that fixture has to be green. The register is data, so the gate also
+      # fails on a directory claiming an `S<n>` id the register does not define, and prints
+      # the entries it is not yet demanding — the scenarios still waiting on D4/D6/D10 — so
+      # the gap between this gate and the one §1.1 describes stays visible on every run.
+      #
+      # CI-2 is the byte diff: the whole register runs twice, in two separate processes, and
+      # the reports must be identical. The test suite already double-runs in-process; this
+      # adds the environment as a variable — a far-away zone and a Turkish locale are where
+      # a stray `localeCompare`, `toLowerCase` or local-time format gives a different answer.
+      # The gate's own output goes to stderr, so it never enters the diff.
+      # `tsc --build` in the Typecheck step above already emitted server/dist.
+      - name: Golden replay + determinism double-run
         run: |
           set -euo pipefail
           TZ=UTC LC_ALL=C \
-            node server/dist/adapters/fixtures/replay-cli.js > "$RUNNER_TEMP/replay-a.json"
+            node server/dist/adapters/fixtures/replay-cli.js --gate=pre-merge > "$RUNNER_TEMP/replay-a.json"
           TZ=Pacific/Kiritimati LC_ALL=tr_TR.UTF-8 \
-            node server/dist/adapters/fixtures/replay-cli.js > "$RUNNER_TEMP/replay-b.json"
+            node server/dist/adapters/fixtures/replay-cli.js --gate=pre-merge > "$RUNNER_TEMP/replay-b.json"
           diff -u "$RUNNER_TEMP/replay-a.json" "$RUNNER_TEMP/replay-b.json" \
             || { echo "::error::CI-2: the replay is not deterministic across environments"; exit 1; }
+
+  # CI-7: the whole product, in a real browser, with SSE switched off — the fixture origin
+  # serves `transport: "poll"` and answers `/api/v1/stream` with 503, and the suite asserts
+  # the stream is never requested. It runs after `verify` because it is the slowest job and
+  # a type error or a failing unit test should be reported before a browser is downloaded.
+  #
+  # CI-18 rides in the same project and the same browser (`web/e2e/a11y.e2e.ts`): WP4's
+  # three layout floors — 200 % reflow, 44 px targets, the 16 px text floor — measured from
+  # the rendered layout at four viewports (three narrow, one two-column), plus the list
+  # reached by Tab alone with no WebGL. One job, because both gates need the built bundle and a real browser, and a
+  # second download of Chrome to say so would buy nothing.
+  e2e:
+    name: End-to-end (polling only) + accessibility floors
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # CI-12, the byte half: builds the web app and weighs what it emitted — entry, map
+      # chunk, critical path and CSS, gzip -9 against the ADR-005 D3 numbers — with every
+      # chunk classified from the build's own manifest, and no webfont or @font-face
+      # allowed. It rides here rather than in `verify` because it needs the production
+      # build, and it runs first because it takes a second and needs no browser. The e2e
+      # step below rebuilds; `vite build` is deterministic, so both see the same bundle.
+      # The timing half of CI-12 (map-ready on 4G/3G) is not enforced — see docs/GATES.md.
+      - name: Bundle byte budgets (CI-12)
+        run: pnpm run test:budgets
+
+      # The browser is not a package dependency: `puppeteer-core` ships no binary and the
+      # install above is `--ignore-scripts`, so nobody downloads a browser for a job that
+      # never opens one. The build to install is the one `puppeteer-core` was released
+      # against — the same constant `web/e2e/harness/browser.ts` looks for first — so CI
+      # and a developer who ran the printed install command drive the same binary.
+      - name: Resolve the pinned browser build
+        id: browser
+        run: |
+          set -euo pipefail
+          build="$(pnpm --filter @fire-watch/web exec node -e \
+            "import('puppeteer-core/internal/revisions.js').then((m) => console.log(m.PUPPETEER_REVISIONS['chrome-headless-shell']))")"
+          echo "build=${build}" >> "$GITHUB_OUTPUT"
+
+      # Restore and save are separate steps rather than one `actions/cache`: a failed or
+      # half-finished download must not be saved under the key, or every later run would
+      # restore a broken browser and skip the install that would have fixed it.
+      - name: Restore the browser cache
+        id: browser-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ runner.os }}-chrome-headless-shell-${{ steps.browser.outputs.build }}
+
+      # Chrome for Testing storage is this job's only third-party network dependency. If it
+      # is down, fall back to the Chrome the runner image ships: a different build is a far
+      # smaller loss of signal than a gate that cannot run at all, and the fallback is
+      # visible in the log as a warning.
+      - name: Install the pinned headless shell
+        id: browser-install
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          build="${{ steps.browser.outputs.build }}"
+          # `--path` is required: the CLI installs into the working directory by default,
+          # which under `pnpm --filter` is `web/` — not the cache the suite reads.
+          if pnpm --filter @fire-watch/web exec browsers install \
+            "chrome-headless-shell@${build}" --path "${HOME}/.cache/puppeteer"; then
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::chrome-headless-shell@${build} could not be installed; falling back to the runner's Google Chrome"
+            test -x /usr/bin/google-chrome
+            echo "FIRE_WATCH_E2E_BROWSER=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save the browser cache
+        if: steps.browser-install.outputs.installed == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ runner.os }}-chrome-headless-shell-${{ steps.browser.outputs.build }}
+
+      # Builds the web app and runs `vitest --project e2e` against the built assets: the
+      # gate is the shipped bundle, not a dev server. The project contains both CI-7 and
+      # CI-18, so a red here is one of the two — the failing file names which.
+      - name: Polling-only end-to-end and accessibility suites (CI-7, CI-18)
+        run: pnpm run test:e2e
 
   integration:
     name: Migrations against PostGIS
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      # For the drift gate below. Same pinned image as the testcontainers suite; the
+      # password is a throwaway for a container that lives only for this job.
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fire_watch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,10 +223,39 @@ jobs:
       # This job is the only thing that ever executes the migration SQL — no contributor
       # is required to have Docker, so the suite skips itself on a laptop. Here that skip
       # would be a false green, so the flag turns a missing daemon into a failure.
+      # The flag is honoured per file, so it only guards the files that remember to read
+      # it. The report check below is the backstop that does not depend on each file: an
+      # integration run with any skipped or todo test — or no tests at all — fails here.
       - name: Migration up/down/up and schema invariants
-        run: pnpm run test:integration
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run --project integration \
+            --reporter=default --reporter=json --outputFile.json=integration-report.json
+          node -e '
+            const r = JSON.parse(require("node:fs").readFileSync("integration-report.json", "utf8"));
+            const skipped = r.numPendingTests + r.numTodoTests;
+            console.log(`integration: ${r.numPassedTests}/${r.numTotalTests} passed, ${skipped} skipped`);
+            if (r.numTotalTests === 0 || skipped > 0) {
+              console.log("::error::integration suite skipped tests; a skipped Docker suite is a false green");
+              process.exit(1);
+            }
+          '
         env:
           FIRE_WATCH_REQUIRE_DOCKER: '1'
+
+      # B4: server/src/db/types.generated.ts is committed, and kysely-codegen against a
+      # freshly migrated database is its single source of truth. Regenerate here and fail
+      # on any difference — a migration that changes the schema must land together with
+      # the regenerated types.
+      - name: Generated DB types drift gate
+        run: |
+          set -euo pipefail
+          pnpm --filter @fire-watch/server run db:migrate
+          pnpm --filter @fire-watch/server run db:codegen
+          git diff --exit-code -- server/src/db/types.generated.ts \
+            || { echo "::error::server/src/db/types.generated.ts is stale; run db:codegen against a migrated database and commit the result"; exit 1; }
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/fire_watch?sslmode=disable
 
   supply-chain:
     name: Supply chain

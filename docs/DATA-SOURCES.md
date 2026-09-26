@@ -3,7 +3,7 @@
 *Date: 2026-07-30. Status: reference catalog (pre-code). All facts verified against
 primary sources in July 2026 unless marked UNVERIFIED. Companion to ADR-001 (A1:
 imagery/attribution constraints), ADR-002 (per-source clustering parameters),
-ANALYSIS.md §3, and `reviews/09-legal.md` (licensing).*
+ANALYSIS.md §3, and `reviews/09-legal-licensing.md` (licensing).*
 
 Scope: every satellite-derived (and directly supporting) data source Fire Watch could
 consume — active fire, imagery, burned area, fire danger, weather, smoke, lightning,
@@ -63,7 +63,7 @@ normalized enum exists for UX and alert gating only.
 |---|---|
 | Instruments | MODIS 1 km on Terra + Aqua, via FIRMS (MCD14) |
 | Status 7/2026 | **Aqua instrument shutdown ~26 Aug 2026; Terra science ends ~Feb 2027.** MODIS is no longer a live-pipeline source |
-| Role for us | Historical archive for golden-replay fixtures and pre-2026 backfill only (ADR-002 keeps the MODIS ε formula for fixture replay) |
+| Role for us | Historical archive for golden-replay fixtures and pre-2026 backfill only (ADR-002 keeps the MODIS ε formula for fixture replay); register entry DS-1 in `docs/data/DATASETS.md` |
 | Licence | Same as FIRMS (CC0/open + disclaimer) |
 
 Do not add MODIS to any live ingest path; season 1 starts after Aqua's shutdown.
@@ -340,7 +340,13 @@ wind + gusts, precip, CAPE, total cloud cover. **Free, no registration** —
 `ecmwf-opendata` client, direct HTTPS, or the AWS `ecmwf-forecasts` mirror.
 **CC BY 4.0 — commercial OK, with no service-tier condition attached**: the licence
 does not change when the product starts charging, so nothing has to be re-decided at
-monetization.
+monetization. ECMWF's own **Terms of Use apply in addition** to CC BY 4.0 and carry the
+attribution obligation; both are pinned verbatim, with their retrieval date, in
+`docs/licenses/ecmwf-open-data.md`. Ours is the *service* case — we compute and publish
+derived values rather than republishing GRIB fields — so the five-component notice in
+attribution row 22 is what must be rendered, prominently, on any surface showing an
+ECMWF-derived value, including a mandatory indication that the material has been
+modified.
 
 Fit: this is **the** source for every weather input we compute ourselves — wind-driven
 spread context, own FWI computation, ECMWF total precipitation as the corroboration
@@ -451,6 +457,10 @@ reasoning):
 - If the sidecar slips past pre-season 2027, the fallback is ECMWF `tcc`, **not**
   Open-Meteo — see the RISKS watchlist row "Cloud-observability handover".
 
+**Register (2026-09-03).** Everything this section records at overpass — the raw CLM, the
+six ECMWF fields, `available_at` — is part of the season-1 live record, DS-2 in
+`docs/data/DATASETS.md`, which carries the proposed per-field retention floor (23 E5)
+until the schedule has an owner (23 E3).
 ### E3. Precipitation — GPM IMERG ("did it rain on the fire")
 
 0.1°, half-hourly; **Early run ≈ 4 h latency**; NASA GES DISC via Earthdata login;
@@ -589,6 +599,7 @@ licence text plus its retrieval date into `docs/licenses/` (09 §2.3.5).
 | 19 | Esri World Imagery (optional toggle) | injected by the ArcGIS MapLibre plugin — **never hand-coded** | `Powered by Esri` + the plugin's live data-provider list (currently `© Esri, Maxar, Earthstar Geographics, and the GIS User Community`; 09 records it as `© Esri, Vantor, Earthstar Geographics, and the GIS User Community` after the provider rename). CI-13 asserts the plugin's attribution element is present when the toggle is on, not our copy of the wording | Esri Master Agreement + ArcGIS attribution docs (09 §2.2.H) |
 | 20 | **Derivation sentence** (satisfies CC BY "indicate changes" for every row above, and keeps our output from reading as an official product) | `/credits` + About, **render** | `Fire events shown on this map are derived by [Product] from the sources above (clustering, filtering, enrichment). Errors and omissions are ours, not the data providers'.` | 09 §2.4; ADR-001 A1.4 |
 | 21 | EOX Sentinel-2 cloudless 2018+ | **not rendered — layer not shipped** (dropped, ADR-001 A1.3) | Recorded only so the layer cannot be re-added without the paid contract: `EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data [year])` | EOX licence page (09 §2.2.I) |
+| 22 | **ECMWF Open Data (IFS/AIFS) — *service* form** (our case: we compute from the fields and publish a derived product, we do not republish GRIB) | `/credits`, **render** whenever an ECMWF-derived value is shown; the Terms require the attribution be displayed **prominently**, so it may not sit behind a closed expander | All five components, together: `This service is based on data and products of the European Centre for Medium-Range Weather Forecasts (ECMWF)` + `Source www.ecmwf.int` + `This ECMWF data is published under a Creative Commons Attribution 4.0 International (CC BY 4.0). https://creativecommons.org/licenses/by/4.0/` + `ECMWF does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use.` + an indication that the material has been modified — **mandatory for us** (everything we publish from this feed is resampled or derived), wording **ours** because ECMWF dictates the obligation and not the sentence: `ECMWF data has been modified.` | ECMWF Terms of Use for Open Data Products, `https://apps.ecmwf.int/datasets/licences/general/` (retrieved 2026-08-15; pinned verbatim in `docs/licenses/ecmwf-open-data.md`) |
 
 Assembled map-corner line (09 §2.4, unchanged in substance; the DEM sentences live on
 `/credits` because they do not fit a map corner):
@@ -612,7 +623,7 @@ same PR as the adapter.
 | Public domain / CC0 | Landsat, FIRMS | Free incl. commercial; FIRMS requires LANCE disclaimer replication |
 | NASA open | GIBS, IMERG, VNP64A1 | Free incl. commercial; acknowledgment lines; no implied endorsement |
 | Copernicus open | All Sentinels, CDSE mosaics, CLMS, DEM GLO-30, CAMS, CEMS/EFFIS | Free incl. commercial; mandatory attribution (+ "modified Copernicus" formulas; DEM has a fixed attribution sentence) |
-| CC BY 4.0 | EFFIS, LSA SAF, ECMWF Open Data, GHSL, GeoNames, WorldCover, Open-Meteo *data* | Free incl. commercial with attribution |
+| CC BY 4.0 | EFFIS, LSA SAF, ECMWF Open Data, GHSL, GeoNames, WorldCover, Open-Meteo *data* | Free incl. commercial with attribution; ECMWF applies its own Terms of Use **in addition** (prominent attribution, liability disclaimer, modification notation — row 22) |
 | EUMETSAT open | Data Store products (LI, CLM, FRP, FIRC) | Free with attribution; licence accepted at registration — confirm per-product text |
 | ODbL | OSM-derived | Share-alike on derived databases; keep separable; no OSM IDs in event records |
 | **Non-commercial traps** | EOX 2018+, Blitzortung, Open-Meteo *service* free tier **(decided: dev-only, §D3/§D6)**, GEE noncommercial, Planet E&R, Maxar Open Data, FireSat free tier (planned) | Unusable or conditional for a commercial entity — each needs an explicit decision before any paid tier launches |

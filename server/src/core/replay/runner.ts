@@ -12,9 +12,10 @@
  * order- or time-dependent then shows up as a diff instead of as an intermittent
  * failure in October.
  *
- * The harness is also where CI-6 is enforced rather than trusted: an offline replay that
- * emits an alert throws here, at the boundary, so no engine bug can turn a backfill into
- * a wall of 3 AM notifications.
+ * The harness is also where CI-6 is enforced rather than trusted: an offline replay whose
+ * gate decides to notify throws here, at the boundary, so no engine bug can turn a backfill
+ * into a wall of 3 AM notifications. Seeding state during a backfill is not notifying, and
+ * is what reprocessing is for, so those decisions pass through and are recorded.
  */
 
 import {
@@ -24,11 +25,26 @@ import {
 } from '../determinism/batch-order.js';
 import { canonicalJson } from '../determinism/canonical-json.js';
 import { VirtualClock, isoFromEpochMs, type Clock, type EpochMs } from '../ports/clock.js';
-import type { FixtureManifest, ReplayBatchInput, ReplayDetectionInput } from './fixture-format.js';
+import type {
+  FixtureManifest,
+  ObservationContext,
+  ReplayBatchInput,
+  ReplayDetectionInput,
+} from './fixture-format.js';
 
+/**
+ * One loaded fixture: what the satellites delivered, what else was true while they did,
+ * and what the scenario asserts.
+ *
+ * `observations` is always present — `EMPTY_OBSERVATIONS` when the manifest names no file
+ * — so that a tick reads the same three arrays whether or not the fixture happens to care
+ * about cloud, and no consumer has to branch on a null that means "nothing was going on".
+ */
 export interface ReplayFixture {
   readonly manifest: FixtureManifest;
   readonly batches: readonly ReplayBatchInput[];
+  /** Cloud, source outages and official declarations — the tick's non-detection inputs. */
+  readonly observations: ObservationContext;
   /** Whatever the fixture's `expected.json` holds; compared with `diffAgainstExpected`. */
   readonly expected: unknown;
 }
@@ -43,21 +59,60 @@ export type ReplayDetection = ReplayDetectionInput & OrderableDetection;
  */
 export interface ReplayEvent {
   readonly publicId: string;
-  readonly status: string;
-  readonly bucket: string;
+  /**
+   * `null` where no implemented decision assigns the field yet — the lifecycle accumulator
+   * for `status` (D4), the score for `bucket` (ADR-002 D6). A fixture then asserts `null`
+   * and goes red the day that decision lands, which is the point: the alternative is
+   * asserting a plausible constant that no function produced, and a suite full of those
+   * proves the engine still agrees with a guess someone made once.
+   */
+  readonly status: string | null;
+  /**
+   * Where the event shows (A1.3) — `map`, `feed` or `archive`, and `null` on anything that
+   * has no lifecycle to place it: the smoke engine, and a merge tombstone, which is a
+   * pointer to the survivor rather than an event with a state of its own.
+   *
+   * Asserted next to `status` and never derived from it. The two answer different
+   * questions — a `no_longer_detected` event stays on the map for 48 h — and a fixture that
+   * asserted only the state would go green on a regression that dropped events off the map
+   * the moment they stopped being detected.
+   */
+  readonly displayTier: string | null;
+  readonly bucket: string | null;
   readonly detectionUids: readonly string[];
   readonly mergedInto: string | null;
   readonly relation: { readonly publicId: string; readonly kind: string } | null;
   readonly labels: readonly string[];
 }
 
+/**
+ * One alert-gate decision, as a fixture asserts it. Every decision is recorded, not only
+ * the sending ones: "this zone was seeded and stayed silent" is the outcome half of the
+ * scenarios exist for, and a report that listed only sends could not tell it apart from a
+ * gate that never ran.
+ *
+ * `alertType` and `alertSubkey` are `null` for every outcome but `send`, because that is
+ * what the gate returns — a deferred alert has not chosen its subkey yet.
+ */
 export interface ReplayAlert {
   readonly zoneId: string;
   readonly publicId: string;
-  readonly alertType: string;
-  readonly alertSubkey: string;
+  /** `send`, `defer`, `seed` or `suppress` — the gate's four answers. */
+  readonly outcome: string;
+  /** Why, in the gate's own vocabulary. The half of a decision a fixture reads. */
+  readonly reason: string;
+  readonly alertType: string | null;
+  readonly alertSubkey: string | null;
   readonly atIso: string;
 }
+
+/**
+ * The outcomes that put a notification somewhere: `send` writes an outbox row, `defer`
+ * holds one for the next digest. `seed` and `suppress` write neither, which is why an
+ * offline replay may produce them — reprocessing is *required* to seed state (ADR-004
+ * A1.8), and a gate that declines during a backfill has done nothing to be silent about.
+ */
+const NOTIFYING_OUTCOMES: readonly string[] = ['send', 'defer'];
 
 export interface ReplayContext {
   /** Already positioned at the current batch's instant when `ingest` is called. */
@@ -65,6 +120,13 @@ export interface ReplayContext {
   readonly configVersions: Readonly<Record<string, string>>;
   readonly mode: 'live' | 'offline';
   readonly allowRevive: boolean;
+  /**
+   * Everything the fixture declared that did not arrive as a detection: cloud, source
+   * outages, official statements. An engine that drives the lifecycle needs all three —
+   * without them every expected pass is recorded `cloud_blocked` and no miss evidence can
+   * accrue at all.
+   */
+  readonly observations: ObservationContext;
   /** The only way out. Rejected outright in offline mode (CI-6 / I4). */
   readonly emitAlert: (alert: ReplayAlert) => void;
 }
@@ -97,11 +159,12 @@ export function runReplay(fixture: ReplayFixture, createEngine: ReplayEngineFact
     configVersions: manifest.configVersions,
     mode: manifest.mode,
     allowRevive: manifest.allowRevive,
+    observations: fixture.observations,
     emitAlert: (alert) => {
-      if (manifest.mode === 'offline') {
+      if (manifest.mode === 'offline' && NOTIFYING_OUTCOMES.includes(alert.outcome)) {
         throw new Error(
-          `${manifest.id}: an offline replay emitted ${alert.alertType} for ${alert.publicId} — ` +
-            'reprocessing and backfill must be silent (ADR-002 I4, gate CI-6)',
+          `${manifest.id}: an offline replay decided ${alert.outcome} (${alert.reason}) for ` +
+            `${alert.publicId} — reprocessing and backfill must be silent (ADR-002 I4, gate CI-6)`,
         );
       }
       alerts.push(alert);

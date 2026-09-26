@@ -13,6 +13,7 @@ import type {
   FirmsAreaClient,
   FirmsAreaQuery,
   FirmsAreaResponse,
+  FirmsAvailabilityResponse,
 } from '../ports/firms-client.js';
 import type {
   IngestBatchRecord,
@@ -533,6 +534,184 @@ describe('the anomaly breaker leg', () => {
   });
 });
 
+/**
+ * The archive as the database implements it: one row per `detection_uid`, the first write
+ * wins, a repeat is counted and dropped. `ON CONFLICT (acq_ts, detection_uid) DO NOTHING`
+ * in about six lines, so the cycle-level idempotence claim can be tested without Docker.
+ */
+function memoryStore(): StubStore & { readonly rows: Map<string, DetectionRecord> } {
+  const rows = new Map<string, DetectionRecord>();
+  const appended: DetectionRecord[][] = [];
+  const attempts: PollAttempt[] = [];
+  return {
+    rows,
+    appended,
+    attempts,
+    appendDetections(records: readonly DetectionRecord[]): Promise<AppendResult> {
+      appended.push([...records]);
+      let inserted = 0;
+      for (const record of records) {
+        if (rows.has(record.detectionUid)) continue;
+        rows.set(record.detectionUid, record);
+        inserted += 1;
+      }
+      return Promise.resolve({
+        received: records.length,
+        inserted,
+        alreadyPresent: records.length - inserted,
+      });
+    },
+    recordPollAttempt(attempt: PollAttempt): Promise<void> {
+      attempts.push(attempt);
+      return Promise.resolve();
+    },
+  };
+}
+
+describe('runIngestCycle — double-polling the same window (pitfall 3, C1 done-when)', () => {
+  it('lands zero new rows the second time, without an error', async () => {
+    // The whole `day_range=2` overlap rests on this: every cycle re-polls a window it has
+    // already seen, and the re-sent rows must be a counted no-op rather than a duplicate,
+    // an error, or an updated row. Two real cycles against the same response, not one
+    // records array submitted twice.
+    const store = memoryStore();
+    const body = HEADER + row('41.85012') + row('41.85013', '1130');
+    const client = stubClient(() => body);
+
+    const first = await runIngestCycle(deps({ client, store }));
+    const afterFirst = new Map(store.rows);
+    const second = await runIngestCycle(deps({ client, store }));
+
+    expect(first.sources[0]).toMatchObject({ received: 2, inserted: 2, alreadyPresent: 0 });
+    expect(second.sources[0]).toMatchObject({
+      outcome: 'stored',
+      received: 2,
+      inserted: 0,
+      alreadyPresent: 2,
+      error: null,
+    });
+    expect(client.queries).toHaveLength(2);
+    // Byte-for-byte the same archive, including `available_at`: the first observation is
+    // what the row keeps, because that is when we could first have acted on it.
+    expect(store.rows).toEqual(afterFirst);
+  });
+
+  it('inserts only the rows the new window added', async () => {
+    const store = memoryStore();
+    let body = HEADER + row('41.85012');
+    const client = stubClient(() => body);
+
+    await runIngestCycle(deps({ client, store }));
+    body = HEADER + row('41.85012') + row('41.85013', '1130');
+    const second = await runIngestCycle(deps({ client, store }));
+
+    expect(second.sources[0]).toMatchObject({ received: 2, inserted: 1, alreadyPresent: 1 });
+    expect(store.rows.size).toBe(2);
+  });
+});
+
+describe('runIngestCycle — is the provider still publishing? (pitfall 10)', () => {
+  const AVAILABILITY_HEADER = 'data_id,min_date,max_date\n';
+
+  function availabilityClient(
+    areaBody: string,
+    availability: string | Error,
+  ): StubClient & FirmsAreaClient {
+    const base = stubClient(() => areaBody);
+    return {
+      ...base,
+      fetchDataAvailability(): Promise<FirmsAvailabilityResponse> {
+        return availability instanceof Error
+          ? Promise.reject(availability)
+          : Promise.resolve({ csv: availability, fetchedAt: AVAILABLE_AT });
+      },
+    };
+  }
+
+  it('separates "no fires" from "no data" — the two an empty poll cannot tell apart', async () => {
+    const publishing = availabilityClient(
+      HEADER,
+      `${AVAILABILITY_HEADER}VIIRS_SNPP_NRT,2012-01-20,2026-08-02\n`,
+    );
+    const silent = availabilityClient(
+      HEADER,
+      `${AVAILABILITY_HEADER}VIIRS_SNPP_NRT,2012-01-20,2026-07-30\n`,
+    );
+
+    const quiet = await runIngestCycle(deps({ client: publishing }));
+    const outage = await runIngestCycle(deps({ client: silent }));
+
+    // Identical polls — HTTP 200, header row, zero detections — and opposite verdicts.
+    expect(quiet.sources[0]).toMatchObject({ outcome: 'stored', received: 0 });
+    expect(outage.sources[0]).toMatchObject({ outcome: 'stored', received: 0 });
+    expect(quiet.sources[0]?.upstream).toMatchObject({
+      product: 'VIIRS_SNPP_NRT',
+      state: 'fresh',
+      maxDate: '2026-08-02',
+    });
+    expect(outage.sources[0]?.upstream).toMatchObject({ state: 'stale', maxDate: '2026-07-30' });
+    expect(outage.sources[0]?.upstream?.reason).toMatch(/published nothing since 2026-07-30/);
+  });
+
+  it('asks even when our own poll failed, which is when the answer matters most', async () => {
+    const client = {
+      ...stubClient(() => new Error('FIRMS returned 503')),
+      fetchDataAvailability: (): Promise<FirmsAvailabilityResponse> =>
+        Promise.resolve({
+          csv: `${AVAILABILITY_HEADER}VIIRS_SNPP_NRT,2012-01-20,2026-08-02\n`,
+          fetchedAt: AVAILABLE_AT,
+        }),
+    };
+
+    const report = await runIngestCycle(deps({ client }));
+
+    // The provider is fine and we are not: that is a bug on our side, and the cycle says so
+    // rather than leaving an operator to assume NASA is down.
+    expect(report.sources[0]).toMatchObject({ outcome: 'poll_failed' });
+    expect(report.sources[0]?.upstream).toMatchObject({ state: 'fresh' });
+  });
+
+  it('honours the staleness threshold it is given', async () => {
+    const client = availabilityClient(
+      HEADER,
+      `${AVAILABILITY_HEADER}VIIRS_SNPP_NRT,2012-01-20,2026-08-01\n`,
+    );
+
+    const strict = await runIngestCycle(deps({ client }));
+    const lenient = await runIngestCycle(
+      deps({ client, availabilityStaleAfterMs: 48 * 3_600_000 }),
+    );
+
+    // 11:29 UTC on the 2nd is eleven and a half hours past the end of the 1st: over the
+    // pitfall's six-hour line, under a two-day one. Same response, both verdicts, so the
+    // threshold is genuinely the configured number and not a constant with a setter.
+    expect(strict.sources[0]?.upstream).toMatchObject({ state: 'stale', ageSeconds: 41_370 });
+    expect(lenient.sources[0]?.upstream).toMatchObject({ state: 'fresh', ageSeconds: 41_370 });
+  });
+
+  it('never lets a broken availability endpoint break a cycle', async () => {
+    const store = stubStore();
+    const client = availabilityClient(
+      HEADER + row('41.85012'),
+      new Error('FIRMS returned 502 for VIIRS_SNPP_NRT availability'),
+    );
+
+    const report = await runIngestCycle(deps({ client, store }));
+
+    expect(report.sources[0]).toMatchObject({ outcome: 'stored', inserted: 1, error: null });
+    expect(report.sources[0]?.upstream).toMatchObject({ state: 'unknown', maxDate: null });
+    expect(report.sources[0]?.upstream?.reason).toContain('502');
+  });
+
+  it('reports nothing rather than a guess when the client cannot answer', async () => {
+    // A replay or a backfill drives the cycle from files; there is no endpoint to ask, and
+    // `unknown` would claim we tried.
+    const report = await runIngestCycle(deps());
+
+    expect(report.sources[0]?.upstream).toBeNull();
+  });
+});
+
 describe('cycleFailed', () => {
   const result = {
     source: 'firms:viirs:snpp' as const,
@@ -544,6 +723,7 @@ describe('cycleFailed', () => {
     quarantined: 0,
     duplicatesWithinBatch: 0,
     anomaly: null,
+    upstream: null,
     error: null,
   };
 

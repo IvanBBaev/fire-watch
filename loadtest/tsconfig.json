@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // The K2 / L-3 load-test harness. It never ships in an image: an operator runs it from
+    // a load-generator box against staging, so it is its own project (like
+    // `infra/deploy-gate`) rather than a workspace package, and its runtime code imports
+    // nothing but Node built-ins. The smoke test alone reaches into `server/` — through
+    // the project reference below, so it type-checks against the server's declarations —
+    // to stand the real read-path routes up in-process.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist"],
+  "references": [{ "path": "../server" }]
+}

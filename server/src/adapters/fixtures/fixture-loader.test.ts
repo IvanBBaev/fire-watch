@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { assertDeterministic } from '../../core/replay/double-run.js';
+import { EMPTY_OBSERVATIONS } from '../../core/replay/fixture-format.js';
 import { diffAgainstExpected, runReplay, serializeReport } from '../../core/replay/runner.js';
 import { createSmokeEngine } from '../../core/replay/smoke-engine.js';
 import { MANIFEST_FILE, listFixtureDirectories, loadFixture } from './fixture-loader.js';
@@ -126,5 +127,78 @@ describe('CI-2 — the determinism double-run', () => {
     expect(serializeReport(runReplay(shuffled, createSmokeEngine))).toBe(
       serializeReport(runReplay(fixture, createSmokeEngine)),
     );
+  });
+});
+
+describe('loadFixture — the observation context', () => {
+  /** The first row of `harness-smoke/poll-01.json`, so a declaration can name it. */
+  const SMOKE_UID = '331623aaa3de29822bfd8c67347ef059fe69f45aa32c4c9a64ecedf9249b1cbc';
+
+  /** A copy of the smoke fixture with an observations file wired into its manifest. */
+  function withObservations(body: unknown, file = 'observations.json'): string {
+    const directory = copyOf(SMOKE);
+    writeFileSync(join(directory, file), JSON.stringify(body), 'utf8');
+    rewrite<Record<string, unknown>>(directory, MANIFEST_FILE, (json) => ({
+      ...json,
+      observations: file,
+    }));
+    return directory;
+  }
+
+  it('gives a fixture that names no observations file the shared empty context', () => {
+    // Every fixture in the register predates the field; none of them has to grow one, and
+    // a consumer still reads the same three arrays.
+    expect(loadFixture(SMOKE).observations).toBe(EMPTY_OBSERVATIONS);
+  });
+
+  it('reads the file the manifest names', () => {
+    const directory = withObservations({
+      cloudCover: [{ fromIso: '2026-08-02T11:00:00Z', toIso: '2026-08-02T13:00:00Z', percent: 85 }],
+      outages: [{ source: 'firms:viirs:noaa20', fromIso: '2026-08-02T11:00:00Z', toIso: null }],
+      declarations: [
+        {
+          detectionUid: SMOKE_UID,
+          state: 'officially_extinguished',
+          declaredAtIso: '2026-08-03T09:00:00Z',
+          attribution: 'ГДПБЗН, РДПБЗН Хасково',
+        },
+      ],
+    });
+
+    const fixture = loadFixture(directory);
+
+    expect(fixture.observations.cloudCover).toHaveLength(2);
+    expect(fixture.observations.outages[0]?.source).toBe('firms:viirs:noaa20');
+    expect(fixture.observations.declarations[0]?.detectionUid).toBe(SMOKE_UID);
+  });
+
+  it('names the observations file that is missing', () => {
+    const directory = withObservations({});
+    rmSync(join(directory, 'observations.json'));
+
+    expect(() => loadFixture(directory)).toThrow(/fixture file is missing: .*observations\.json/);
+  });
+
+  it('names the observations file in a format error', () => {
+    const directory = withObservations({ clouds: [] }, 'weather.json');
+
+    expect(() => loadFixture(directory)).toThrow(/weather\.json: unknown key "clouds"/);
+  });
+
+  it('rejects a declaration that names a detection no poll delivers', () => {
+    // A mistyped uid names an event that never exists, so the declaration would silently
+    // do nothing and the scenario would assert the outcome of a statement it never made.
+    const directory = withObservations({
+      declarations: [
+        {
+          detectionUid: 'f'.repeat(64),
+          state: 'officially_contained',
+          declaredAtIso: '2026-08-03T09:00:00Z',
+          attribution: 'ГДПБЗН',
+        },
+      ],
+    });
+
+    expect(() => loadFixture(directory)).toThrow(/which no poll in this fixture delivers/);
   });
 });

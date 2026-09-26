@@ -11,6 +11,8 @@ export default tseslint.config(
       '**/node_modules/**',
       'data/**',
       'tiles/**',
+      // Seeded and removed by the boundary test; never real source.
+      '**/__boundary-fixture.*.ts',
     ],
   },
   js.configs.recommended,
@@ -23,7 +25,7 @@ export default tseslint.config(
           // Tool configs sit outside every tsconfig on purpose — they are not shipped
           // code and must not widen the build graph — but they still get linted with
           // type information via the default project.
-          allowDefaultProject: ['*.config.ts'],
+          allowDefaultProject: ['*.config.ts', 'web/vite.config.ts'],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -57,12 +59,14 @@ export default tseslint.config(
   },
   {
     // Adapters are where the outside world is allowed in, and tests must be able to
-    // construct instants directly.
+    // construct instants directly. The e2e harness is a test process against a real
+    // browser and a real clock: its deadlines and its `Date` headers are the wall clock.
     files: [
       '**/src/adapters/**/*.ts',
       '**/*.test.ts',
       '**/*.test.tsx',
       'packages/contracts/src/**/*.ts',
+      'web/e2e/**/*.ts',
     ],
     rules: { 'no-restricted-syntax': 'off' },
   },

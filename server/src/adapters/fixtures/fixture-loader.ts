@@ -12,6 +12,10 @@
  * behaves differently than it would in production, and the fixture quietly asserts
  * something that can never happen. Recomputing the digest on load makes that a load
  * error instead of a wrong green.
+ *
+ * The observation context — cloud, source outages, official declarations — is read the
+ * same way: the file is named by the manifest, parsed in the core, and cross-checked
+ * against the polls before the fixture is handed back.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -20,7 +24,10 @@ import { join } from 'node:path';
 import { detectionUid } from '@fire-watch/contracts/node';
 
 import {
+  EMPTY_OBSERVATIONS,
+  assertObservationsResolve,
   parseFixtureManifest,
+  parseObservationContext,
   parseReplayBatch,
   type ReplayBatchInput,
 } from '../../core/replay/fixture-format.js';
@@ -40,9 +47,21 @@ export function loadFixture(directory: string): ReplayFixture {
     return batch;
   });
 
+  // A fixture that names no observations file gets the shared empty context rather than a
+  // null, so every consumer downstream reads the same three arrays (see `ReplayFixture`).
+  const observations =
+    manifest.observations === null
+      ? EMPTY_OBSERVATIONS
+      : parseObservationContext(
+          readJson(join(directory, manifest.observations)),
+          `${directory}/${manifest.observations}`,
+        );
+  assertObservationsResolve(observations, batches);
+
   return {
     manifest,
     batches,
+    observations,
     expected: readJson(join(directory, manifest.expected)),
   };
 }

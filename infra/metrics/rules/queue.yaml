@@ -1,0 +1,69 @@
+# Notification queue and approval deadline (GATES L-8, ADR-004 D6, A1.12; TASKS C5).
+#
+# The readings come from the worker's monitors loop (fw_notification_queue_*,
+# fw_alert_approval_pending_seconds). A reading the loop could not take is removed rather
+# than frozen, so a stalled monitors loop is its own page (MonitorsLoopStalled): without
+# it, the queue rule would go quiet exactly when nobody is measuring the queue.
+#
+# Thresholds are the code's, asserted by server/src/app/metrics-rules.test.ts:
+#   600 s  = OUTBOX_QUEUE_PAGE_SECONDS (meta-alert-params.ts)
+#   1800 s = alert_budgets_v1.approvalPendingPageMs / 1000
+#   > 0    = A1.12 "any increment of sends_dropped pages" (alertDeferralPages, alert-metrics.ts)
+#
+# fw_alert_sends_dropped_total is produced by the dispatch loop (reason="ttl_expired", a
+# claimed send the gateway refused as past its TTL). Its series exist from the first cycle
+# at zero, so increase() sees the first drop. reason="expired_unapproved" has no producer
+# yet (no sweeper closes an unapproved row at its deadline) and stays at its absent value.
+#
+# fw_alert_sends_deferred_total{reason=over_budget_b|manual_approval} is produced by the
+# alert_evaluation loop (rows newly entering awaiting_approval, A1.12). It has no rule on
+# purpose: A1.12 pages on the approval deadline (AlertApprovalPending) and on drops, not
+# on a deferral itself. It reads 0 while D5's budget B is unarmed.
+groups:
+  - name: fire-watch-queue
+    interval: 1m
+    rules:
+      - alert: NotificationQueueStuck
+        expr: max by (env) (fw_notification_queue_oldest_seconds) > 600
+        for: 2m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'Oldest pending notification is older than 600 s (L-8)'
+
+      - alert: AlertApprovalPending
+        expr: max by (env) (fw_alert_approval_pending_seconds) > 1800
+        for: 1m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'A mass-notification decision has waited on a human for over 30 minutes (A1.12)'
+
+      - alert: AlertSendsDropped
+        expr: sum by (env) (increase(fw_alert_sends_dropped_total[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'An authorised alert send died before delivery (A1.12: any drop is an incident)'
+
+      - alert: MonitorsLoopStalled
+        expr: time() - max by (env) (fw_loop_last_finished_timestamp_seconds{loop="monitors"}) > 300
+        for: 2m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: "The worker's monitors loop has not finished a cycle in 5 minutes; queue rules are blind"
+
+      - alert: IngestLoopFailing
+        expr: sum by (env) (increase(fw_loop_runs_total{loop="ingest",outcome="error"}[30m])) >= 3
+        for: 0m
+        labels:
+          severity: warning
+          page: 'false'
+        annotations:
+          summary: 'The ingest cycle failed 3 or more times in 30 minutes'

@@ -7,15 +7,21 @@
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --build",
-    "test": "vitest run",
+    "test": "vitest run --project unit",
     "dev": "vite"
   },
   "dependencies": {
     "@fire-watch/contracts": "workspace:*",
     "@preact/signals": "^2.10.0",
-    "preact": "^10.29.7"
+    "maplibre-gl": "6.1.0",
+    "preact": "^10.29.7",
+    "preact-iso": "^2.12.1"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "26.2.1",
+    "@puppeteer/browsers": "^3.0.6",
+    "fast-check": "^4.0.0",
+    "puppeteer-core": "^25.4.0",
     "vite": "8.1.5"
   }
 }

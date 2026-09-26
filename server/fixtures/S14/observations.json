@@ -1,0 +1,73 @@
+{
+  "zones": [
+    {
+      "zoneId": "zone-strandzha-a",
+      "accountId": "acct-01",
+      "createdAtIso": "2026-10-24T00:00:00Z",
+      "minScore": 0.45,
+      "timezone": "Europe/Sofia",
+      "quietHoursStart": "22:00",
+      "quietHoursEnd": "07:00",
+      "newFireOverridesQuietHours": false,
+      "distanceKm": 6.4
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "accountId": "acct-02",
+      "createdAtIso": "2026-10-24T00:00:00Z",
+      "minScore": 0.45,
+      "timezone": "Europe/Sofia",
+      "quietHoursStart": "22:00",
+      "quietHoursEnd": "07:00",
+      "newFireOverridesQuietHours": true,
+      "distanceKm": 6.4
+    }
+  ],
+  "scores": [
+    {
+      "detectionUid": "3e7c349fc59d6ff6e355e6e64409f60597475a585df646d7f4ca74ca64a9f23b",
+      "fromIso": "2026-10-24T00:30:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "9d5f9345982932cff63b633b46cd99debef7e2b1ee18f4a26401b5801e11e417",
+      "fromIso": "2026-10-25T00:30:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "5d181332c83b2b16ac1e02d9226b10813e7d9c558ad2875d7f382c0e1a819178",
+      "fromIso": "2026-10-25T01:30:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "a2923c9dae62fad4e83c85c141997bc5b845812dbb4b5e3dbe1bd911673b3ca5",
+      "fromIso": "2026-10-25T04:00:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "5fcb147ff38d960abd612d83f4b3f7a0678fbdd69dc58623432654ae85b78c67",
+      "fromIso": "2026-10-25T05:00:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "d91ecf879c101c87b54ff54def2558c63b6d5a996b57e041623bec8d061b4cab",
+      "fromIso": "2027-03-27T01:30:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "5a5c373b00a4623847d6bd1449dfaf656833ce49c23561572e69f812cca30fc3",
+      "fromIso": "2027-03-28T00:30:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "4107c3b9750a3e0190ca0fcde16b720e3eae8819d9dd55b6fbd61513b8225ee3",
+      "fromIso": "2027-03-28T01:30:00Z",
+      "score": 0.62
+    },
+    {
+      "detectionUid": "750992d2e18d4ec7125ad4cf66a4ed134e5197a713f53bc25a4f23c408d2abb6",
+      "fromIso": "2027-03-28T04:00:00Z",
+      "score": 0.62
+    }
+  ]
+}

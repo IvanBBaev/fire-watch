@@ -1,0 +1,15 @@
+{
+  "availableAt": "2026-08-07T13:20:00Z",
+  "detections": [
+    {
+      "detectionUid": "f1602c51777e78896daf3e1be9b4ab2169dce6f0f3d90078d88b17b017509118",
+      "source": "firms:modis",
+      "acqTsIso": "2026-08-07T10:54:00Z",
+      "latCanonical": "42.31000",
+      "lonCanonical": "25.62000",
+      "confidence": "low",
+      "frpMw": 4.6,
+      "dayNight": "D"
+    }
+  ]
+}

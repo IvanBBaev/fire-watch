@@ -1,0 +1,21 @@
+{
+  "id": "S12",
+  "title": "Re-detection within T_LINK after officially_extinguished",
+  "asserts": "the fire service declares the fire extinguished and a satellite sees it again 35 h later, inside T_LINK: the same event returns to active carrying both detections and the declaration it was given, rather than a second event being minted as a new fire",
+  "required": "pre-season",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-20T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

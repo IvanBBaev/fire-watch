@@ -1,0 +1,40 @@
+{
+  "about": "TASKS G4 cache-poisoning fixtures. Each entry is one EFFIS WMS GetMap answer for the fwi layer (1100x700 requested). Generated once with node:zlib; the PNGs are palette images with a transparent sea.",
+  "fixtures": [
+    {
+      "file": "good.png",
+      "status": 200,
+      "content_type": "image/png",
+      "expected_verdict": "good",
+      "expected_rule": null
+    },
+    {
+      "file": "service-exception.xml.body",
+      "status": 200,
+      "content_type": "text/xml; charset=UTF-8",
+      "expected_verdict": "reject",
+      "expected_rule": "content_type_mismatch"
+    },
+    {
+      "file": "error-page.html.body",
+      "status": 200,
+      "content_type": "text/html",
+      "expected_verdict": "reject",
+      "expected_rule": "content_type_mismatch"
+    },
+    {
+      "file": "wrong-size.png",
+      "status": 200,
+      "content_type": "image/png",
+      "expected_verdict": "reject",
+      "expected_rule": "png_dimensions_mismatch"
+    },
+    {
+      "file": "blank.png",
+      "status": 200,
+      "content_type": "image/png",
+      "expected_verdict": "suspect",
+      "expected_rule": "png_fully_transparent"
+    }
+  ]
+}

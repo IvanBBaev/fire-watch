@@ -1,0 +1,27 @@
+# Backup table shrinkage (OPERATIONS §6.3 rule 2; TASKS C5, C6). Info only, never a page.
+#
+# Several tables shrink by design (the clustering working set, expired auth links,
+# sessions), so the backup job reports a decrease and refuses nothing; what counts as an
+# incident is decided here, off-box. Until the founder sets per-table policy, a table in
+# the `main` set that lost more than half its rows night over night is an info line.
+groups:
+  - name: fire-watch-shrinkage
+    interval: 15m
+    rules:
+      - alert: BackupTableShrank
+        expr: max by (env, relation, set) (fw_backup_table_rows{set="main"}) < 0.5 * max by (env, relation, set) (fw_backup_table_rows{set="main"} offset 1d)
+        for: 0m
+        labels:
+          severity: info
+          page: 'false'
+        annotations:
+          summary: 'Table {{ $labels.relation }} lost more than half its rows since the previous night'
+
+      - alert: BackupTableVanished
+        expr: max by (env, relation, set) (fw_backup_table_rows offset 1d) unless max by (env, relation, set) (fw_backup_table_rows)
+        for: 0m
+        labels:
+          severity: info
+          page: 'false'
+        annotations:
+          summary: "Table {{ $labels.relation }} was in the previous night's backup and is not in tonight's"

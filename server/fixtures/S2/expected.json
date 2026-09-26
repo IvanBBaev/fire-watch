@@ -1,0 +1,54 @@
+{
+  "fixtureId": "S2",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 1
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-k1skj",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "confirmed",
+      "detectionUids": [
+        "6e2268186550e1411f8813e1164a7350507f83de799e0d7b12cfb90ba02a7efd",
+        "95f11361fc413f21845c883d55a37c1a13d531bed725d6271ba83437e2832c90",
+        "c1e2619e5b1edc6c46d9bf92a3fd32097d6671a1e018d18d03f18f05007c6023",
+        "c49679c992c9915fdc1bbdfd89606792a62b6a9a84ab6b5dbe82b21578609df0",
+        "ebb680c41553276346719c37d9ffdd14dc8e3814a144d9158ac1312bf3a52425"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-xfgb4",
+      "status": null,
+      "displayTier": null,
+      "bucket": null,
+      "detectionUids": [],
+      "mergedInto": "fw-2026-k1skj",
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

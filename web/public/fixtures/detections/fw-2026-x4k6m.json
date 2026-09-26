@@ -1,0 +1,28 @@
+{
+  "type": "FeatureCollection",
+  "event_id": "fw-2026-x4k6m",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [23.148, 41.768] },
+      "properties": {
+        "uid": "det-x4k6m-001",
+        "observed_at": "2026-08-09T07:56:00Z",
+        "source_id": "eumetsat:slstr:frp",
+        "scan_km": 1.0,
+        "track_km": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [23.154, 41.773] },
+      "properties": {
+        "uid": "det-x4k6m-002",
+        "observed_at": "2026-08-09T07:56:00Z",
+        "source_id": "eumetsat:slstr:frp",
+        "scan_km": 1.0,
+        "track_km": 1.0
+      }
+    }
+  ]
+}

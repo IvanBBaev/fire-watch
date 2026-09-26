@@ -1,0 +1,70 @@
+{
+  "type": "FeatureCollection",
+  "event_id": "fw-2026-w3r7e",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.188, 41.762] },
+      "properties": {
+        "uid": "det-w3r7e-001",
+        "observed_at": "2026-08-05T00:58:00Z",
+        "source_id": "firms:viirs:snpp",
+        "scan_km": 0.4,
+        "track_km": 0.4
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.196, 41.766] },
+      "properties": {
+        "uid": "det-w3r7e-002",
+        "observed_at": "2026-08-05T00:58:00Z",
+        "source_id": "firms:viirs:snpp",
+        "scan_km": 0.4,
+        "track_km": 0.4
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.204, 41.771] },
+      "properties": {
+        "uid": "det-w3r7e-003",
+        "observed_at": "2026-08-05T01:49:00Z",
+        "source_id": "firms:viirs:noaa20",
+        "scan_km": 0.49,
+        "track_km": 0.44
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.211, 41.776] },
+      "properties": {
+        "uid": "det-w3r7e-004",
+        "observed_at": "2026-08-05T01:49:00Z",
+        "source_id": "firms:viirs:noaa20",
+        "scan_km": 0.49,
+        "track_km": 0.44
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.199, 41.78] },
+      "properties": {
+        "uid": "det-w3r7e-005",
+        "observed_at": "2026-08-06T01:31:00Z",
+        "source_id": "firms:viirs:noaa21"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [26.207, 41.759] },
+      "properties": {
+        "uid": "det-w3r7e-006",
+        "observed_at": "2026-08-06T10:22:00Z",
+        "source_id": "lsasaf:seviri:frp-pixel",
+        "scan_km": 4.8,
+        "track_km": 6.2
+      }
+    }
+  ]
+}

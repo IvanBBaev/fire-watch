@@ -1,0 +1,78 @@
+# Freshness budgets (OPERATIONS §1; TASKS C5).
+#
+# The API computes the verdict at scrape time from `freshness_budgets_v1`, the same code
+# path as /api/health/freshness, so these rules restate no threshold: a budget change is a
+# config diff in server/src/core/config/freshness-budgets.ts and nothing here moves.
+# Only the snapshot-push rules below carry numbers, because the snapshot push is timed
+# from the worker's heartbeat gauge rather than read from the API.
+#
+# Labels: `severity` (critical | warning | info) and `page` ("true" routes to the
+# fw-alerts pager, OPERATIONS §3.1; "false" goes to the dashboard/daily review only).
+groups:
+  - name: fire-watch-freshness
+    interval: 1m
+    rules:
+      - alert: FreshnessCritical
+        expr: max by (env, row) (fw_freshness_state{state="critical"}) == 1 and on (env, row) max by (env, row) (fw_freshness_pages) == 1
+        for: 2m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'Freshness row {{ $labels.row }} is past its critical budget'
+          runbook: docs/runbooks/README.md
+
+      - alert: FreshnessCriticalUnpaged
+        expr: max by (env, row) (fw_freshness_state{state="critical"}) == 1 and on (env, row) max by (env, row) (fw_freshness_pages) == 0
+        for: 5m
+        labels:
+          severity: warning
+          page: 'false'
+        annotations:
+          summary: 'Freshness row {{ $labels.row }} is past its critical budget (context-only row)'
+
+      - alert: FreshnessWarn
+        expr: max by (env, row) (fw_freshness_state{state="warn"}) == 1
+        for: 5m
+        labels:
+          severity: warning
+          page: 'false'
+        annotations:
+          summary: 'Freshness row {{ $labels.row }} is past its warn budget'
+
+      - alert: FreshnessCollectorDown
+        expr: max by (env) (fw_freshness_collector_up) == 0
+        for: 5m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'The API cannot read freshness observations; every freshness rule is blind'
+
+      - alert: FreshnessCollectorAbsent
+        expr: absent(fw_freshness_collector_up)
+        for: 10m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'No freshness series reach Grafana Cloud (API down, scrape broken or Alloy dead)'
+
+      # snapshot-push: warn 300 s (SNAPSHOT_PUSH_WARN_SECONDS), critical 900 s, pages.
+      - alert: SnapshotPushLate
+        expr: time() - max by (env) (fw_job_last_success_timestamp_seconds{job_id="snapshot-push"}) > 900
+        for: 1m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'No successful R2 snapshot push for over 15 minutes (T2 lifeline)'
+
+      - alert: SnapshotPushSlow
+        expr: time() - max by (env) (fw_job_last_success_timestamp_seconds{job_id="snapshot-push"}) > 300
+        for: 1m
+        labels:
+          severity: warning
+          page: 'false'
+        annotations:
+          summary: 'No successful R2 snapshot push for over 5 minutes'

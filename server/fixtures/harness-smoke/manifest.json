@@ -4,6 +4,7 @@
   "asserts": "the harness itself is deterministic: fixed batch order, virtual clock, canonical report",
   "required": "pre-merge",
   "owner": "WP0",
+  "engine": "smoke",
   "clockStart": "2026-08-02T11:00:00Z",
   "mode": "live",
   "allowRevive": false,

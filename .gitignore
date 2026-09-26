@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Per-project declaration output: every tsconfig emits declarations only, into its own
+# dist-types/ (web, web/e2e, server, packages/*). Build artefacts, never sources.
+dist-types/
 build/
 coverage/
 *.tsbuildinfo

@@ -1,0 +1,30 @@
+{
+  "fixtureId": "S5",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 1
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-rpzna",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "unverified",
+      "detectionUids": ["f1602c51777e78896daf3e1be9b4ab2169dce6f0f3d90078d88b17b017509118"],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

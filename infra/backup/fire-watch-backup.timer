@@ -1,0 +1,16 @@
+# Same schedule as the cloud-init timer; see README.md.
+[Unit]
+Description=Nightly Fire Watch backup
+
+[Timer]
+# The hour is a placeholder (OPERATIONS §6.2 says "nightly", not when): 02:20
+# UTC sits away from the FIRMS overpass clusters. A founder decision.
+OnCalendar=*-*-* 02:20:00
+RandomizedDelaySec=900
+# A VM that was down at 02:20 runs the backup when it comes back rather than
+# skipping a night: the RPO is 24 h and a skipped night silently doubles it.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

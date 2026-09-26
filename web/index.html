@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="bg">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Fire Watch</title>
+    <!--
+      Link-preview defaults (TASKS F6). An event page overrides these in the browser
+      (web/src/ui/share/share-meta.ts); scrapers that run no JavaScript see these until
+      the edge injection of 08-frontend §5.1.6 replaces the block between the markers.
+    -->
+    <!-- og:begin -->
+    <meta property="og:site_name" content="Fire Watch" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Fire Watch" />
+    <meta name="twitter:card" content="summary" />
+    <!-- og:end -->
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/boot.ts"></script>
+  </body>
+</html>

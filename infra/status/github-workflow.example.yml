@@ -1,0 +1,86 @@
+# J5 — off-infra status page (OPERATIONS §10). EXAMPLE, not active: copy it to
+# `.github/workflows/status.yml` in the repository that will host the page (see
+# infra/status/README.md, "Where it runs"), then set the repository variables below.
+#
+# It runs on GitHub's runners, so it shares no failure domain with the origin VM:
+# when the origin is down, this job still probes it, records the outage and
+# publishes. GitHub's cron is best-effort (runs can start late or be skipped under
+# load), which is why the page carries its own generation time and turns on a
+# "this page itself is stale" banner after --stale-after minutes.
+#
+# Repository variables (Settings → Secrets and variables → Actions → Variables);
+# none of them is secret, all of them are public endpoints:
+#   FIRE_WATCH_STATUS_API_BASE      API origin, e.g. https://api.<domain>
+#   FIRE_WATCH_STATUS_SNAPSHOT_URL  the snapshot document the map reads
+#   FIRE_WATCH_STATUS_MIRROR_URL    the T2 mirror object (HEAD only)
+#   FIRE_WATCH_STATUS_ANNOUNCE      second announcement channel (URL or handle)
+#   FIRE_WATCH_STATUS_PAGE_URL      this page's public origin, e.g. https://status.<domain>
+#
+# Third-party actions: pin each to a full commit SHA before enabling, as
+# .github/workflows/ci.yml does.
+
+name: Status page
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One publish at a time; a newer run supersedes a queued one, never a running one.
+concurrency:
+  group: status-page
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # The previously published status.json carries incident start times and the
+      # two-consecutive-failures rule across runs. A missing or unreadable one is a
+      # first run, never a failure. The probe exits 0 whenever it published: an
+      # outage is the page's content, not a failed job.
+      - name: Probe and render
+        env:
+          FIRE_WATCH_STATUS_API_BASE: ${{ vars.FIRE_WATCH_STATUS_API_BASE }}
+          FIRE_WATCH_STATUS_SNAPSHOT_URL: ${{ vars.FIRE_WATCH_STATUS_SNAPSHOT_URL }}
+          FIRE_WATCH_STATUS_MIRROR_URL: ${{ vars.FIRE_WATCH_STATUS_MIRROR_URL }}
+          FIRE_WATCH_STATUS_ANNOUNCE: ${{ vars.FIRE_WATCH_STATUS_ANNOUNCE }}
+          PREVIOUS: ${{ vars.FIRE_WATCH_STATUS_PAGE_URL }}
+        run: |
+          set -euo pipefail
+          args=(probe --out _site)
+          if [ -n "${PREVIOUS}" ]; then args+=(--previous "${PREVIOUS%/}/status.json"); fi
+          pnpm run status "${args[@]}"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

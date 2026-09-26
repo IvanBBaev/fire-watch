@@ -9,5 +9,8 @@
     "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
+  // Written and deleted by the `only-the-gateway-sends` boundary test. Excluded so a
+  // leftover from an interrupted run cannot break an unrelated build.
+  "exclude": ["src/**/__boundary-fixture.*.ts"],
   "references": [{ "path": "../packages/contracts" }]
 }

@@ -1,0 +1,169 @@
+{
+  "fixtureId": "S13",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1",
+    "alert_gating": "alert_gating_v1",
+    "digest_params": "digest_params_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 2
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-7x4ng",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "66697b6310f82a325d1aa4d7fcdd7bec6557331cb6394c703147237cb3d99bb6",
+        "6cce5c10f904b51e02de6f08529f396440e0d2dc575335cf6278a84a86b79b3f"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-cvwdt",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "3f0a4c6ccff93807b6fdee8d8f07f78724421b9d3ab554db1c825a841d9f7bd4",
+        "8589dfec22890dda90fec0646f0602ce375b0e85093c3f9798a166e94ed2c8dc"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-ewnpa",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "5467c1740895660425ebce7f683e492504bb48c8985703cd54e3a078e035153e",
+        "a9c5b4a6f350246671f159e2f68e16dd82cf61f2361d5cd9dc35a446f49e5beb"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": [
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-cvwdt",
+      "outcome": "seed",
+      "reason": "pre_existing_event",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T05:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-ewnpa",
+      "outcome": "seed",
+      "reason": "pre_existing_event",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T05:20:00Z"
+    },
+    {
+      "zoneId": "zone-elhovo",
+      "publicId": "fw-2026-7x4ng",
+      "outcome": "seed",
+      "reason": "pre_existing_event",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-7x4ng",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-elhovo",
+      "publicId": "fw-2026-cvwdt",
+      "outcome": "seed",
+      "reason": "pre_existing_event",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-cvwdt",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-elhovo",
+      "publicId": "fw-2026-ewnpa",
+      "outcome": "seed",
+      "reason": "pre_existing_event",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-ewnpa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-7x4ng",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-08-20T06:00:00Z",
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-cvwdt",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-08-20T06:00:00Z",
+      "atIso": "2026-08-20T07:20:00Z"
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "publicId": "fw-2026-ewnpa",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-08-20T06:00:00Z",
+      "atIso": "2026-08-20T07:20:00Z"
+    }
+  ]
+}

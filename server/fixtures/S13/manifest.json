@@ -1,0 +1,23 @@
+{
+  "id": "S13",
+  "title": "Zone created over an active event",
+  "asserts": "a zone drawn over fires that are already burning seeds them silently in one evaluation, per zone, alerts normally on the next fire it sees, and reports the seeded fires only in the next 09:00 digest",
+  "required": "suite",
+  "owner": "WP6",
+  "engine": "alert",
+  "clockStart": "2026-08-20T03:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1",
+    "alert_gating": "alert_gating_v1",
+    "digest_params": "digest_params_v1"
+  },
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

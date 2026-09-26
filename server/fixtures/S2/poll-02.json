@@ -1,0 +1,25 @@
+{
+  "availableAt": "2026-08-05T14:50:00Z",
+  "detections": [
+    {
+      "detectionUid": "ebb680c41553276346719c37d9ffdd14dc8e3814a144d9158ac1312bf3a52425",
+      "source": "firms:viirs:noaa20",
+      "acqTsIso": "2026-08-05T11:42:00Z",
+      "latCanonical": "41.86000",
+      "lonCanonical": "26.13600",
+      "confidence": "nominal",
+      "frpMw": 9.8,
+      "dayNight": "D"
+    },
+    {
+      "detectionUid": "c1e2619e5b1edc6c46d9bf92a3fd32097d6671a1e018d18d03f18f05007c6023",
+      "source": "firms:viirs:noaa20",
+      "acqTsIso": "2026-08-05T11:42:00Z",
+      "latCanonical": "41.86000",
+      "lonCanonical": "26.14600",
+      "confidence": "nominal",
+      "frpMw": 12.4,
+      "dayNight": "D"
+    }
+  ]
+}

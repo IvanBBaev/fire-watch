@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GranuleRef } from '../../core/ports/granule-decoder.js';
 import {
+  DECODER_REASON_PREFIX,
   DECODER_REFUSED_EXIT,
   GRANULE_REF_ENV,
   childEnv,
@@ -212,6 +213,48 @@ describe('a decoder that declines', () => {
 
     expect(result.error?.length).toBeLessThan(600);
     expect(result.error).toContain('…');
+  });
+
+  it('puts its own reason first, however much its libraries said before it', async () => {
+    // libhdf5 prints a diagnostic stack longer than the whole error budget; the decoder's
+    // reason comes last. It must survive both the stderr window and the cap.
+    const decoder = decoderRunning(
+      `for (let i = 0; i < 400; i += 1) process.stderr.write('HDF5-DIAG: #' + i + ' noise noise noise\\n');
+       process.stderr.write('\\n${DECODER_REASON_PREFIX}the superblock is truncated\\n');
+       process.exit(${String(DECODER_REFUSED_EXIT)})`,
+    );
+
+    const result = await decoder.decode(REF, BYTES);
+
+    expect(result.outcome).toBe('refused');
+    expect(result.error).toMatch(
+      /^decoder rejected the granule: the superblock is truncated \[stderr: HDF5-DIAG: #0 /,
+    );
+    expect(result.error?.length).toBeLessThan(600);
+  });
+
+  it('keeps the last reason when a decoder gives more than one, and the plain text when none', async () => {
+    const twice = decoderRunning(
+      `process.stderr.write('${DECODER_REASON_PREFIX}first\\n${DECODER_REASON_PREFIX}second\\n');
+       process.exit(${String(DECODER_REFUSED_EXIT)})`,
+    );
+    const plain = decoderRunning(
+      `process.stderr.write('just text'); process.exit(${String(DECODER_REFUSED_EXIT)})`,
+    );
+
+    expect((await twice.decode(REF, BYTES)).error).toBe('decoder rejected the granule: second');
+    expect((await plain.decode(REF, BYTES)).error).toBe('decoder rejected the granule: just text');
+  });
+
+  it('carries the reason of a decoder that dies, too', async () => {
+    const decoder = decoderRunning(
+      `process.stderr.write('x'.repeat(20000) + '\\n${DECODER_REASON_PREFIX}wasm trap\\n'); process.exit(70)`,
+    );
+
+    const result = await decoder.decode(REF, BYTES);
+
+    expect(result.outcome).toBe('crashed');
+    expect(result.error).toMatch(/^decoder exited with code 70: wasm trap \[stderr: x+/);
   });
 });
 

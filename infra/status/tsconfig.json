@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // J5: the off-infra status page, the DNS email-auth checker and the defensive-domain
+    // candidate list. None of it ships in an image: the status probe runs on a GitHub-hosted
+    // runner (off our infrastructure by construction), the other two are operator tools. Its
+    // runtime code imports nothing but Node built-ins, so it is its own project like
+    // `infra/deploy-gate`. It emits JavaScript because the workflow executes it.
+    //
+    // The contracts reference exists for two reasons, both compile-time or test-time only:
+    // the freshness body parser is typed against `FreshnessReport` (type imports are erased,
+    // so nothing from `packages/contracts` is loaded at runtime), and the copy catalog and
+    // the founder notices are linted in tests by the real never-send function.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist"],
+  "references": [{ "path": "../../packages/contracts" }]
+}

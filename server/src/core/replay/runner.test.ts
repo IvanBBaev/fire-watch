@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseFixtureManifest, parseReplayBatch } from './fixture-format.js';
+import { EMPTY_OBSERVATIONS, parseFixtureManifest, parseReplayBatch } from './fixture-format.js';
 import {
   diffAgainstExpected,
   runReplay,
@@ -53,6 +53,7 @@ function makeFixture(options: {
       asserts: 'nothing on its own',
       required: 'suite',
       owner: 'WP0',
+      engine: 'smoke',
       clockStart: options.clockStart ?? '2026-08-02T11:00:00Z',
       mode: options.mode ?? 'live',
       allowRevive: false,
@@ -72,6 +73,7 @@ function makeFixture(options: {
       ),
     ),
     expected: options.expected ?? null,
+    observations: EMPTY_OBSERVATIONS,
   };
 }
 
@@ -103,6 +105,7 @@ const emptyRecording = (): Recording => ({ ingests: [], context: null });
 
 const event = (overrides: Partial<ReplayEvent> & { publicId: string }): ReplayEvent => ({
   status: 'active',
+  displayTier: 'map',
   bucket: 'unverified',
   detectionUids: [],
   mergedInto: null,
@@ -113,8 +116,10 @@ const event = (overrides: Partial<ReplayEvent> & { publicId: string }): ReplayEv
 
 const alert = (overrides: Partial<ReplayAlert> & { publicId: string }): ReplayAlert => ({
   zoneId: 'zone-1',
+  outcome: 'send',
+  reason: 'new_fire',
   alertType: 'new_fire',
-  alertSubkey: '-',
+  alertSubkey: 'once',
   atIso: '2026-08-02T11:41:00Z',
   ...overrides,
 });
@@ -267,6 +272,48 @@ describe('runReplay alerts', () => {
       runReplay(fixture, (context) => ({
         ingest: () => {
           context.emitAlert(alert({ publicId: 'fw-2026-aaaaa' }));
+        },
+        events: () => [],
+      })),
+    ).toThrow(/CI-6/);
+  });
+
+  it('lets an offline replay seed state, which is what reprocessing is for', () => {
+    // The other half of CI-6. A backfill that refused to seed would leave every zone
+    // believing each reprocessed event is new, and the first live poll after it would
+    // notify about fires that had been burning for a week.
+    const fixture = makeFixture({
+      mode: 'offline',
+      batches: [{ name: 'a.json', availableAt: '2026-08-02T11:41:00Z', detections: [{ n: 1 }] }],
+    });
+
+    const report = runReplay(fixture, (context) => ({
+      ingest: () => {
+        context.emitAlert(
+          alert({ publicId: 'fw-2026-aaaaa', outcome: 'seed', reason: 'reprocessing' }),
+        );
+        context.emitAlert(
+          alert({ publicId: 'fw-2026-bbbbb', outcome: 'suppress', reason: 'below_zone_floor' }),
+        );
+      },
+      events: () => [],
+    }));
+
+    expect(report.alerts.map((entry) => entry.outcome)).toEqual(['seed', 'suppress']);
+  });
+
+  it('throws when an offline replay defers, because a deferral is a queued notification', () => {
+    const fixture = makeFixture({
+      mode: 'offline',
+      batches: [{ name: 'a.json', availableAt: '2026-08-02T11:41:00Z', detections: [{ n: 1 }] }],
+    });
+
+    expect(() =>
+      runReplay(fixture, (context) => ({
+        ingest: () => {
+          context.emitAlert(
+            alert({ publicId: 'fw-2026-aaaaa', outcome: 'defer', reason: 'quiet_hours' }),
+          );
         },
         events: () => [],
       })),

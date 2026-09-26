@@ -1,0 +1,47 @@
+{
+  "fixtureId": "S9",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 3
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 3
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 3
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-j1eyd",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "confirmed",
+      "detectionUids": [
+        "196d5682acf3a9fe67ccda1a9ec2aacd3893e621d28262796351f45a916fcf7f",
+        "6ae6e59dbf11c45c5701123041bba9bc0ba0de5f0b4328d9397b78ba60713bf9",
+        "a47e893d33de07c434ad6ba0288ac39bae0bd9b40d603fdf2c68f8ebdb551a9e",
+        "ac1bfd08ed8b7bc14da5ddc1835d7b1837339c944b061ac268399abf8e28fc1a",
+        "b74ed76db2558b85cadfac1d021fd306fbf22b5064d7ef42473531041eadffd3",
+        "b871317c08aabc3f311b6171025737d02fe6a823526f70d5bae441815f6b8f06",
+        "cef04e9f14885889c1519836034f545f7f51302223dc97d062ce62c8e7f85a9d",
+        "ebef63be51f7fb5f901482bcec0af8b39b7231686f1007077128608c258aac5e"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": []
+}

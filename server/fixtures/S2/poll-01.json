@@ -1,0 +1,25 @@
+{
+  "availableAt": "2026-08-05T03:10:00Z",
+  "detections": [
+    {
+      "detectionUid": "c49679c992c9915fdc1bbdfd89606792a62b6a9a84ab6b5dbe82b21578609df0",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-08-05T00:06:00Z",
+      "latCanonical": "41.86000",
+      "lonCanonical": "26.10000",
+      "confidence": "high",
+      "frpMw": 47.3,
+      "dayNight": "N"
+    },
+    {
+      "detectionUid": "6e2268186550e1411f8813e1164a7350507f83de799e0d7b12cfb90ba02a7efd",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-08-05T00:06:00Z",
+      "latCanonical": "41.86000",
+      "lonCanonical": "26.11000",
+      "confidence": "nominal",
+      "frpMw": 15.1,
+      "dayNight": "N"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // The WP5 tile/glyph build (TASKS G1, G2) is an operator-run Node program: it never
+    // ships in an image or the web bundle and imports nothing but Node built-ins, so it
+    // is its own project, like `infra/deploy-gate`. It emits JavaScript because
+    // `build.sh` executes it.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist"]
+}

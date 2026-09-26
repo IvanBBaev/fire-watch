@@ -46,6 +46,19 @@ import type {
  */
 export const DECODER_REFUSED_EXIT = 65;
 
+/**
+ * The prefix of the one stderr line the decoder writes to say *why*, in its own words.
+ *
+ * A decoder's stderr is not only its own: the library it drives writes there too, and
+ * libhdf5's HDF5-DIAG stack alone runs past {@link MAX_ERROR_CHARS} for a file truncated
+ * at the superblock. Without a marker the decoder's one-line reason arrives last and is
+ * the first thing the cap cuts. With one, the wall finds the reason wherever it is and
+ * puts it first; the rest of stderr follows it as context, and the cap trims that instead.
+ *
+ * The line is `fw-decoder-reason: <text>` on a line of its own; the last one wins.
+ */
+export const DECODER_REASON_PREFIX = 'fw-decoder-reason: ';
+
 /** Variables the child may see, over and above the ones it is given explicitly. */
 const INHERITED_ENV = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TZ'] as const;
 
@@ -59,7 +72,9 @@ const DEFAULT_KILL_GRACE_MS = 2_000;
 /** How long to wait for the pipes after the child is gone before giving up on them. */
 const REAP_GRACE_MS = 1_000;
 
+/** The first stderr bytes kept, and — separately — the last ones, where a final reason lands. */
 const MAX_STDERR_BYTES = 8 * 1024;
+const MAX_STDERR_TAIL_BYTES = 4 * 1024;
 const MAX_ERROR_CHARS = 500;
 const MAX_NAME_CHARS = 256;
 
@@ -96,9 +111,8 @@ export function createChildProcessDecoder(options: ChildProcessDecoderOptions): 
       return new Promise<DecodeResult>((resolve) => {
         const startedAt = performance.now();
         const stdout: Buffer[] = [];
-        const stderr: Buffer[] = [];
+        const stderr = new StderrWindow();
         let bytesOut = 0;
-        let stderrBytes = 0;
         let settled = false;
         let flooded = false;
         let timedOut = false;
@@ -194,8 +208,6 @@ export function createChildProcessDecoder(options: ChildProcessDecoderOptions): 
         });
 
         child.stderr.on('data', (chunk: Buffer) => {
-          if (stderrBytes >= MAX_STDERR_BYTES) return;
-          stderrBytes += chunk.length;
           stderr.push(chunk);
         });
 
@@ -282,10 +294,59 @@ function text(chunks: readonly Buffer[]): string {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-/** Whatever the decoder said about itself, on one line and bounded. */
-function diagnostics(stderr: readonly Buffer[]): string {
-  const said = text(stderr).replace(/\s+/g, ' ').trim();
-  return said === '' ? '' : `: ${said}`;
+/**
+ * A bounded view of a child's stderr: the head, because that is where a crash usually
+ * starts explaining itself, and a rolling tail, because that is where a decoder's final
+ * {@link DECODER_REASON_PREFIX} line lands after whatever its libraries printed first.
+ */
+class StderrWindow {
+  private readonly head: Buffer[] = [];
+  private headBytes = 0;
+  private tail: Buffer = Buffer.alloc(0);
+  private skipped = 0;
+
+  push(chunk: Buffer): void {
+    const room = MAX_STDERR_BYTES - this.headBytes;
+    if (room > 0) {
+      const taken = chunk.subarray(0, room);
+      this.head.push(taken);
+      this.headBytes += taken.length;
+      chunk = chunk.subarray(taken.length);
+      if (chunk.length === 0) return;
+    }
+    const joined = Buffer.concat([this.tail, chunk]);
+    const drop = Math.max(0, joined.length - MAX_STDERR_TAIL_BYTES);
+    this.skipped += drop;
+    this.tail = joined.subarray(drop);
+  }
+
+  /** Everything kept, with a visible gap where the middle was dropped. */
+  text(): string {
+    const head = text(this.head);
+    if (this.tail.length === 0) return head;
+    return `${head}${this.skipped > 0 ? '\n…\n' : ''}${this.tail.toString('utf8')}`;
+  }
+}
+
+/**
+ * Whatever the decoder said about itself, on one line and bounded — its own reason
+ * first when it gave one, the rest of stderr after it.
+ */
+function diagnostics(stderr: StderrWindow): string {
+  const lines = stderr.text().split(/\r?\n/);
+  let reason: string | null = null;
+  const rest: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith(DECODER_REASON_PREFIX)) {
+      reason = line.slice(DECODER_REASON_PREFIX.length);
+    } else {
+      rest.push(line);
+    }
+  }
+  const flat = (value: string): string => value.replace(/\s+/g, ' ').trim();
+  const said = flat(rest.join('\n'));
+  if (reason === null || flat(reason) === '') return said === '' ? '' : `: ${said}`;
+  return said === '' ? `: ${flat(reason)}` : `: ${flat(reason)} [stderr: ${said}]`;
 }
 
 function cap(message: string): string {

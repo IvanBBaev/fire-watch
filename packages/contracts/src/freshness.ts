@@ -80,6 +80,23 @@ export const BUDGETED_JOB_IDS = [
 export type BudgetedJobId = (typeof BUDGETED_JOB_IDS)[number];
 
 /**
+ * The one budget number that is shared vocabulary rather than server-side config-as-data:
+ * how long the snapshot push may be late before the snapshot itself is called stale.
+ *
+ * Every other threshold reaches the client inside the freshness report, which is why the
+ * client never hardcodes one. This one cannot: GLOSSARY §3b gives `stale_sources` two
+ * triggers, and the first — "snapshot `generated_at` past 2× cadence budget" — exists
+ * precisely for the case where the report is *not* arriving. A threshold delivered by the
+ * pipeline cannot describe that pipeline being down, so the number lives here, imported by
+ * the server's budget table as the `snapshot-push` warn budget and doubled by the client.
+ * One definition, two readers — the §1.1(3) rule, not an exception to it.
+ *
+ * 5 minutes is not a round number: it is exactly where ADR-003's "the map is never more
+ * than 5 minutes stale" promise breaks.
+ */
+export const SNAPSHOT_PUSH_WARN_SECONDS = 5 * 60;
+
+/**
  * Every job that pings a dead-man's switch after success (§3, leg 2). Wider than the
  * budgeted set by two:
  *

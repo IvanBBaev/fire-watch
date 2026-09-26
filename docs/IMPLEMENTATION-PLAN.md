@@ -281,7 +281,11 @@ Sources per [`DATA-SOURCES.md`](DATA-SOURCES.md) wave 1:
   *without* loading the map, for accessibility and low-bandwidth users; not a
   fallback view, a first-class one.
 - **Accessibility criteria (testable):** 200% font-scale reflow with no horizontal
-  scrolling; 44 px minimum touch targets; 16 px body-text floor.
+  scrolling; 44 px minimum touch targets; 16 px body-text floor. Tested, not merely
+  stated: gate **CI-18** (`web/e2e/a11y.e2e.ts`, GATES §1) measures all three from the
+  rendered layout at four viewports on every in-scope surface — three narrow ones and
+  the two-column layout above `48rem`; the legs a headless browser cannot assert honestly — OS font scale, assistive technology, the keyboard
+  order's agreement with the visual one — are the dated manual protocol in GATES §1.2.
 - **Visual-regression suite** over the map shell, panels, banners and share cards.
 - **Place-name localization** — Bulgarian place names and transliteration rules
   (`name:bg` → transliteration → `name` chain). This is broader than translating UI

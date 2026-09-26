@@ -1,0 +1,1578 @@
+{
+  "fixtureId": "S14",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1",
+    "alert_gating": "alert_gating_v1",
+    "digest_params": "digest_params_v1"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-04.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-05.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-06.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-07.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-08.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-09.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-10.json",
+      "detections": 0
+    },
+    {
+      "name": "poll-11.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-12.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-13.json",
+      "detections": 2
+    },
+    {
+      "name": "poll-14.json",
+      "detections": 0
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-4n8f7",
+      "status": "no_longer_detected",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "3e7c349fc59d6ff6e355e6e64409f60597475a585df646d7f4ca74ca64a9f23b",
+        "a40d5d4ba26beec1c0d44ca858fc71d62aa278ab4253dda7e1657d1cfdde6872"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-gdv6q",
+      "status": "no_longer_detected",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "9d5f9345982932cff63b633b46cd99debef7e2b1ee18f4a26401b5801e11e417",
+        "cd3f05af89200a462e60f7717836ed500d7d26aa5ea3320fb7e5e7bc1c843922"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-nqg8n",
+      "status": "no_longer_detected",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "5fcb147ff38d960abd612d83f4b3f7a0678fbdd69dc58623432654ae85b78c67",
+        "9060ba65bcab9c705f355961d04c9f21d77dfaa5dd20da9c2e0526ac27fc94d0"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-p23gc",
+      "status": "no_longer_detected",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "a2923c9dae62fad4e83c85c141997bc5b845812dbb4b5e3dbe1bd911673b3ca5",
+        "f2bf77361ae57fc0f9ad7cd5ab73c6c6c4cffeb23c5d87c2d1688d935dec5cd6"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2026-y24jh",
+      "status": "no_longer_detected",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "122195413dfaaa074e0753bd811f75d6e6dab42d18d129b6945c5c095939a70b",
+        "5d181332c83b2b16ac1e02d9226b10813e7d9c558ad2875d7f382c0e1a819178"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2027-a6n0t",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "4107c3b9750a3e0190ca0fcde16b720e3eae8819d9dd55b6fbd61513b8225ee3",
+        "87cab52b117927b0bfaa0776d3f5472c424cfa868ed4939fdfda70d141f8b2cf"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2027-b00g0",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "88a8554861a8078925a77de05ae75e9264ec31af4fe7a9f435d3c55f6460d355",
+        "d91ecf879c101c87b54ff54def2558c63b6d5a996b57e041623bec8d061b4cab"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2027-meyxa",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "5a5c373b00a4623847d6bd1449dfaf656833ce49c23561572e69f812cca30fc3",
+        "e45d42e9635e946e9da901ffd945bc4a795490b50a020c654838629f0db61ef8"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    },
+    {
+      "publicId": "fw-2027-y1sqj",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "750992d2e18d4ec7125ad4cf66a4ed134e5197a713f53bc25a4f23c408d2abb6",
+        "f45802765aea6368ab1b68da7a3b9990b2989fb7533d3bbd9d2454044085a6ca"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": []
+    }
+  ],
+  "alerts": [
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-24T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-24T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-24T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-24T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-24T06:00:00Z",
+      "atIso": "2026-10-24T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-24T06:00:00Z",
+      "atIso": "2026-10-24T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T05:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-10-25T07:00:00Z",
+      "atIso": "2026-10-25T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-27T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-27T07:00:00Z",
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-27T07:00:00Z",
+      "atIso": "2027-03-27T07:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-28T00:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "defer",
+      "reason": "quiet_hours",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T01:30:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-y1sqj",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-y1sqj",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2027-03-28T04:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-4n8f7",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-gdv6q",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-nqg8n",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-p23gc",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2026-y24jh",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-y1sqj",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-y1sqj",
+      "outcome": "suppress",
+      "reason": "no_new_ladder_step",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-a",
+      "publicId": "fw-2027-y1sqj",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-a6n0t",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-b00g0",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-meyxa",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    },
+    {
+      "zoneId": "zone-strandzha-b",
+      "publicId": "fw-2027-y1sqj",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2027-03-28T06:00:00Z",
+      "atIso": "2027-03-28T06:00:00Z"
+    }
+  ]
+}

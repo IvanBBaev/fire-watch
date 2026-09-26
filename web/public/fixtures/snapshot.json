@@ -1,0 +1,283 @@
+{
+  "type": "FeatureCollection",
+  "schema_version": 2,
+  "generated_at": "2026-08-09T09:58:00Z",
+  "max_seq": 1042,
+  "partial": false,
+  "sources": [
+    { "source_id": "firms:viirs:snpp", "last_observed_at": "2026-08-09T00:52:00Z" },
+    { "source_id": "firms:viirs:noaa20", "last_observed_at": "2026-08-09T01:43:00Z" },
+    { "source_id": "firms:viirs:noaa21", "last_observed_at": "2026-08-09T01:02:00Z" },
+    { "source_id": "eumetsat:slstr:frp", "last_observed_at": "2026-08-09T08:15:00Z" },
+    { "source_id": "lsasaf:seviri:frp-pixel", "last_observed_at": "2026-08-09T09:45:00Z" },
+    { "source_id": "lsasaf:fci:frp-pixel", "last_observed_at": "2026-08-09T09:50:00Z" }
+  ],
+  "features": [
+    {
+      "type": "Feature",
+      "id": "fw-2026-q7f3d",
+      "geometry": { "type": "Point", "coordinates": [25.9, 41.93] },
+      "properties": {
+        "id": "fw-2026-q7f3d",
+        "seq": 1042,
+        "status": "active",
+        "score_bucket": "confirmed",
+        "merged_into": null,
+        "first_observed_at": "2026-08-07T11:14:00Z",
+        "last_observed_at": "2026-08-09T09:47:00Z",
+        "detection_count": 14,
+        "place_name_bg": "Харманли",
+        "place_name_en": "Harmanli",
+        "area_ha": 320,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-b2n5c",
+      "geometry": { "type": "Point", "coordinates": [27.52, 41.98] },
+      "properties": {
+        "id": "fw-2026-b2n5c",
+        "seq": 1038,
+        "status": "active",
+        "score_bucket": "likely",
+        "merged_into": null,
+        "first_observed_at": "2026-08-08T22:36:00Z",
+        "last_observed_at": "2026-08-09T09:32:00Z",
+        "detection_count": 6,
+        "place_name_bg": "Малко Търново",
+        "place_name_en": "Malko Tarnovo",
+        "area_ha": 85,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-x4k6m",
+      "geometry": { "type": "Point", "coordinates": [23.15, 41.77] },
+      "properties": {
+        "id": "fw-2026-x4k6m",
+        "seq": 1027,
+        "status": "active",
+        "score_bucket": "unverified",
+        "merged_into": null,
+        "first_observed_at": "2026-08-09T07:41:00Z",
+        "last_observed_at": "2026-08-09T07:56:00Z",
+        "detection_count": 2,
+        "place_name_bg": "Кресна",
+        "place_name_en": "Kresna",
+        "area_ha": null,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-d5g2h",
+      "geometry": { "type": "Point", "coordinates": [26.33, 42.08] },
+      "properties": {
+        "id": "fw-2026-d5g2h",
+        "seq": 1013,
+        "status": "signal_weakening",
+        "score_bucket": "confirmed",
+        "merged_into": null,
+        "first_observed_at": "2026-08-05T10:03:00Z",
+        "last_observed_at": "2026-08-09T04:12:00Z",
+        "detection_count": 9,
+        "place_name_bg": "Тополовград",
+        "place_name_en": "Topolovgrad",
+        "area_ha": 140,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-t6p4a",
+      "geometry": { "type": "Point", "coordinates": [26.32, 42.68] },
+      "properties": {
+        "id": "fw-2026-t6p4a",
+        "seq": 986,
+        "status": "no_longer_detected",
+        "score_bucket": "likely",
+        "merged_into": null,
+        "first_observed_at": "2026-08-06T23:58:00Z",
+        "last_observed_at": "2026-08-07T23:41:00Z",
+        "detection_count": 4,
+        "place_name_bg": "Сливен",
+        "place_name_en": "Sliven",
+        "area_ha": 24,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-w3r7e",
+      "geometry": { "type": "Point", "coordinates": [26.2, 41.77] },
+      "properties": {
+        "id": "fw-2026-w3r7e",
+        "seq": 954,
+        "status": "officially_contained",
+        "score_bucket": "confirmed",
+        "merged_into": null,
+        "first_observed_at": "2026-08-03T09:26:00Z",
+        "last_observed_at": "2026-08-06T10:22:00Z",
+        "detection_count": 22,
+        "place_name_bg": "Свиленград",
+        "place_name_en": "Svilengrad",
+        "area_ha": 410,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-n6j5d",
+      "geometry": { "type": "Point", "coordinates": [23.28, 41.57] },
+      "properties": {
+        "id": "fw-2026-n6j5d",
+        "seq": 730,
+        "status": "archived",
+        "score_bucket": "likely",
+        "merged_into": null,
+        "first_observed_at": "2026-07-18T11:47:00Z",
+        "last_observed_at": "2026-07-21T12:19:00Z",
+        "detection_count": 61,
+        "place_name_bg": "Сандански",
+        "place_name_en": "Sandanski",
+        "area_ha": 1280,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-z7c3f",
+      "geometry": { "type": "Point", "coordinates": [25.97, 41.9] },
+      "properties": {
+        "id": "fw-2026-z7c3f",
+        "seq": 991,
+        "status": "archived",
+        "score_bucket": "confirmed",
+        "merged_into": "fw-2026-q7f3d",
+        "first_observed_at": "2026-08-07T12:03:00Z",
+        "last_observed_at": "2026-08-08T01:26:00Z",
+        "detection_count": 3,
+        "place_name_bg": "Изворово",
+        "place_name_en": "Izvorovo",
+        "area_ha": null,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-g4v8n",
+      "geometry": { "type": "Point", "coordinates": [25.94, 40.99] },
+      "properties": {
+        "id": "fw-2026-g4v8n",
+        "seq": 1040,
+        "status": "active",
+        "score_bucket": "confirmed",
+        "merged_into": null,
+        "first_observed_at": "2026-08-08T13:22:00Z",
+        "last_observed_at": "2026-08-09T09:45:00Z",
+        "detection_count": 11,
+        "place_name_bg": "Александруполис",
+        "place_name_en": "Alexandroupoli",
+        "area_ha": 260,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-k9s2r",
+      "geometry": { "type": "Point", "coordinates": [27.78, 41.72] },
+      "properties": {
+        "id": "fw-2026-k9s2r",
+        "seq": 1035,
+        "status": "active",
+        "score_bucket": "likely",
+        "merged_into": null,
+        "first_observed_at": "2026-08-09T01:02:00Z",
+        "last_observed_at": "2026-08-09T09:32:00Z",
+        "detection_count": 5,
+        "place_name_bg": "Къркларели",
+        "place_name_en": "Kırklareli",
+        "area_ha": 70,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-r3h6t",
+      "geometry": { "type": "Point", "coordinates": [22.29, 43.9] },
+      "properties": {
+        "id": "fw-2026-r3h6t",
+        "seq": 1022,
+        "status": "signal_weakening",
+        "score_bucket": "confirmed",
+        "merged_into": null,
+        "first_observed_at": "2026-08-06T15:38:00Z",
+        "last_observed_at": "2026-08-09T02:14:00Z",
+        "detection_count": 8,
+        "place_name_bg": "Заечар",
+        "place_name_en": "Zaječar",
+        "area_ha": 190,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-m5w1p",
+      "geometry": { "type": "Point", "coordinates": [22.03, 41.42] },
+      "properties": {
+        "id": "fw-2026-m5w1p",
+        "seq": 1008,
+        "status": "active",
+        "score_bucket": "unverified",
+        "merged_into": null,
+        "first_observed_at": "2026-08-09T08:15:00Z",
+        "last_observed_at": "2026-08-09T08:15:00Z",
+        "detection_count": 1,
+        "place_name_bg": "Кавадарци",
+        "place_name_en": "Kavadarci",
+        "area_ha": null,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-p8d3k",
+      "geometry": { "type": "Point", "coordinates": [22.94, 43.99] },
+      "properties": {
+        "id": "fw-2026-p8d3k",
+        "seq": 972,
+        "status": "no_longer_detected",
+        "score_bucket": "likely",
+        "merged_into": null,
+        "first_observed_at": "2026-08-05T12:47:00Z",
+        "last_observed_at": "2026-08-07T13:05:00Z",
+        "detection_count": 7,
+        "place_name_bg": "Калафат",
+        "place_name_en": "Calafat",
+        "area_ha": 55,
+        "next_pass_window": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-v2j7c",
+      "geometry": { "type": "Point", "coordinates": [20.72, 40.63] },
+      "properties": {
+        "id": "fw-2026-v2j7c",
+        "seq": 941,
+        "status": "officially_contained",
+        "score_bucket": "confirmed",
+        "merged_into": null,
+        "first_observed_at": "2026-08-02T10:58:00Z",
+        "last_observed_at": "2026-08-05T11:36:00Z",
+        "detection_count": 18,
+        "place_name_bg": "Корча",
+        "place_name_en": "Korçë",
+        "area_ha": 340,
+        "next_pass_window": null
+      }
+    }
+  ]
+}

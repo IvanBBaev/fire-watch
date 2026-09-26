@@ -1,0 +1,15 @@
+{
+  "availableAt": "2026-08-21T12:00:00Z",
+  "detections": [
+    {
+      "detectionUid": "a9ab218eb81b6884e8583029048161baf1a771768e78e52eef2bb0320864c4e9",
+      "source": "firms:viirs:snpp",
+      "acqTsIso": "2026-08-21T11:10:00Z",
+      "latCanonical": "42.30000",
+      "lonCanonical": "25.60000",
+      "confidence": "nominal",
+      "frpMw": 45.0,
+      "dayNight": "D"
+    }
+  ]
+}

@@ -233,10 +233,10 @@ external probe leg only**; self-reported metrics inform, they never score.
 | SLO | Target | Monthly budget | Surfaces covered | Measured by |
 |---|---|---|---|---|
 | **Map read path** | **99.9%** | 43 min | basemap tiles, style/sprites/glyphs, `/snapshot.json`, EFFIS overlay proxy, the R2 static snapshot, the app shell | UptimeRobot on the R2 snapshot URL + a tile URL |
-| **API (interactive)** | **99.5%** | 3 h 39 min | event detail, `/api/client-config`, permalink resolution, auth, watch-zone CRUD | UptimeRobot on `/healthz` + Grafana RED per route |
+| **API (interactive)** | **99.5%** | 3 h 39 min | event detail, `/api/v1/client-config`, permalink resolution, auth, watch-zone CRUD | UptimeRobot on `/healthz` + Grafana RED per route |
 | **Freshness** | **99% of intervals** | ~7 h | FIRMS data visible ≤10 min after we could have fetched it | `fw_ingest_to_visible_seconds` against §1.2 |
 | **Alert dispatch** | p95 ≤60 s push, ≤5 min email | — | decision → provider ack | owned by ADR-004 D9 and gate L-8; restated here only for completeness |
-| **SSE (T0)** | **none — best-effort** | — | `/api/stream` | ADR-003 Decision 1: SSE is an enhancement and carries no availability target. A T0 outage is not an incident. |
+| **SSE (T0)** | **none — best-effort** | — | `/api/v1/stream` | ADR-003 Decision 1: SSE is an enhancement and carries no availability target. A T0 outage is not an incident. |
 
 The 99.9% tier is achievable only because it is **origin-independent by construction**
 (ADR-003 T2), not because the VM is reliable. The 99.5% tier is what a single VM with
@@ -434,6 +434,93 @@ that identify a subscriber do not.
    A1.3's destroyed columns. Recorded like every other drill result (rule 3), and a
    missing retention leg is a missing drill (rule 5).
 
+### 6.4 FIRMS SP backfill — the raw-CSV season archive
+
+**This is the "documented backfill script" §6.1's tier-2 row points at.** Raw
+detections are re-fetchable only for as long as FIRMS keeps its standard-processing
+archive and our key keeps working; the downloaded corpus is what the D7 parameter fit
+actually runs over, so it is fetched once, verified by hash, and treated as an artifact
+with provenance — not as a cache. Its register entry is DS-1 in `docs/data/DATASETS.md`: the
+manifest sha256 at the last `--check`, failed chunks, promotion runs and the consumers
+that cite the corpus are recorded there, not here.
+
+1. **What it downloads.** The plan is config-as-data
+   (`firms_sp_backfill_2020_2025_v1`, `server/src/core/backfill/backfill-plan.ts`):
+   `MODIS_SP`, `VIIRS_SNPP_SP` and `VIIRS_NOAA20_SP` over the `polling_bbox_v1` area
+   (`20,39,31,46`), 2020-01-01 through 2025-12-31 inclusive, chunked into ≤10-day
+   windows (the Area API's archive maximum) that never cross a calendar-year boundary —
+   37 chunks per year, 222 per source, **666 requests total**. NOAA-21 is deliberately
+   absent: FIRMS serves it NRT-only, so a NOAA-21 SP spec is *appended* under a new plan
+   version when the product appears. The manifest records the plan version and digest,
+   and a run refuses to resume into an archive downloaded under a different plan or
+   bbox — mixing differently-shaped windows would bias every metric fit across the seam.
+2. **Directory layout.** Everything lives under `FIRE_WATCH_ARCHIVE_DIR`; year
+   directories are truthful because chunks never straddle years, so the GATES season
+   split (fit 2020–2023, calibrate 2024, test 2025) is a directory selection, not a
+   filter:
+
+   ```text
+   $FIRE_WATCH_ARCHIVE_DIR/
+     firms/
+       sp-backfill-manifest.json
+       MODIS_SP/
+         2020/MODIS_SP_2020-01-01_10d.csv
+         …
+         2025/MODIS_SP_2025-12-27_5d.csv
+       VIIRS_SNPP_SP/…
+       VIIRS_NOAA20_SP/…
+   ```
+
+3. **Manifest format.** `firms/sp-backfill-manifest.json` is pretty-printed JSON with
+   sorted keys (human-readable and diffable): a header pinning `manifest_version`,
+   `plan`, `plan_digest`, `area` and `polling_bbox_version`, then one entry per chunk
+   keyed `<product>/<start-date>/<Nd>` carrying `source`, `product`, `start_date`,
+   `day_range`, `path`, `status` (`complete` | `failed` — "in progress" is deliberately
+   unrepresentable), `fetched_at`, and for complete entries `bytes` and `sha256`. Files
+   are written to a `.partial` name and renamed only when whole, the entry is written
+   only after the rename, and the manifest itself is rewritten atomically after **every**
+   chunk — so a kill at any instant leaves either a skippable complete chunk or an
+   orphan file the next run re-downloads, never a partial file recorded as complete.
+4. **Start command.** On the VM (or any box with the disk and the key):
+
+   ```sh
+   export FIRMS_MAP_KEY=…                       # §8.1; never in the repo
+   export FIRE_WATCH_ARCHIVE_DIR=/var/lib/fire-watch/archive   # absolute path
+   pnpm -F @fire-watch/server build && pnpm -F @fire-watch/server backfill
+   ```
+
+   Optional: `FIRE_WATCH_BACKFILL_DELAY_MS` (default 5000, bounds 1000–600000) and
+   `FIRMS_BASE_URL` (same override the worker takes). One canonical-JSON line per chunk
+   goes to stdout; exit 0 means nothing left undone (a clean SIGTERM/Ctrl+C also exits
+   0 — interrupting and rerunning is the normal way to operate it), exit 1 means failed
+   chunks to retry by rerunning, exit 2 is misconfiguration.
+5. **Politeness and resume.** Single-flight — one request in the air, a fixed pause
+   between consecutive requests, no parallelism. At the default 5 s spacing the full
+   666-request plan takes ~70 minutes and sits far under the 5,000-transactions/10-min
+   quota; reruns skip every chunk the manifest vouches for (entry complete **and** the
+   file's size matches) without touching the network, so a resume with nothing to do
+   finishes in seconds. FIRMS serves rate-limit notices as HTTP 200 text; the runner
+   refuses any 200 whose header row is not detection CSV and records it as a failed
+   chunk rather than archiving the notice.
+6. **Integrity check.** `pnpm -F @fire-watch/server backfill -- --check` re-hashes every
+   complete file against the manifest's sha256 — no network, no key needed — and exits
+   non-zero on any mismatch or missing file. Run it after the initial download, after
+   any disk event, and before handing the corpus to the fit.
+7. **Copies.** The primary copy lives on the VM disk under `FIRE_WATCH_ARCHIVE_DIR`.
+   Until TASKS C6 lands (season archive to R2), that is a **single copy** and §6.1's
+   tier-2 logic is what tolerates it: the corpus is re-fetchable by rerunning this same
+   plan. Once C6 syncs it to R2, `--check` before the sync is what keeps a corrupted
+   file from silently replacing a good replica.
+
+**Archive layout notes** (dated, per DATA-SOURCES §A9):
+
+- **2026-08-12** — layout v1: `firms/<PRODUCT>/<year>/<PRODUCT>_<start>_<Nd>.csv` plus
+  `firms/sp-backfill-manifest.json`, written by plan `firms_sp_backfill_2020_2025_v1`
+  over `polling_bbox_v1`. Three SP products, 2020–2025, year-bounded ≤10-day chunks.
+- **2026-09-03** — the archive is DS-1 in `docs/data/DATASETS.md` (23 E1); the season-1 live
+  record is DS-2 there, with the proposed per-field retention floors (23 E5) that §6.2
+  rule 11's schedule may not go below once it has an owner (23 E3).
+
 ---
 
 ## 7. Upgrade triggers
@@ -449,7 +536,7 @@ likely cause and the only one that scales.
 | # | Measured condition | Action | Cost | Notes |
 |---|---|---|---|---|
 | U-1 | Cache hit ratio on `/snapshot.json` or tiles <95% during elevated traffic | Fix the cache rule. No other action until resolved. | €0 | Origin load is a function of TTL, not audience |
-| U-2 | Sustained CPU >70% for 1 h **at T1**, or `nodejs_eventloop_lag_seconds` p99 >200 ms sustained across a week | VM resize one step (2 vCPU/4 GB → 4 vCPU/8 GB class) | +€5–8/mo | ~1–2 min reboot; T2 covers the gap; never during an active incident |
+| U-2 | Sustained CPU >70% for 1 h **at T1**, or `fw_event_loop_lag_p99_seconds` >200 ms sustained across a week | VM resize one step (2 vCPU/4 GB → 4 vCPU/8 GB class) | +€5–8/mo | ~1–2 min reboot; T2 covers the gap; never during an active incident |
 | U-3 | Disk >80% used | Grow the volume one step; prune Docker logs/images first | +€2–4/mo | The retention/archive policy is a separate open decision (§6.2 rule 11) |
 | U-4 | `pg_pool` waiting >0 for 5 min | Separate API and worker pools and cap each before adding hardware | €0 | Contention, not capacity |
 | U-5 | Process FD or conntrack usage >60% of the configured maximum (§9) | Raise the tuned constants in `infra/cloud-init.yaml` and redeploy the host config; if already at the tuned values, go to U-6 | €0 | Never raise limits by hand on the box (§9.2) |

@@ -1,0 +1,67 @@
+/*
+ * Status surfaces: the single banner slot and the freshness chip.
+ *
+ * Neutral grays and amber only — red belongs to fire on the map and to nothing else
+ * (07-product-ux P8/P9: one meaning of red per view). Body text stays at the 16px floor
+ * (night-use rule) and the [?] affordance keeps a 44px minimum tap target while the chip
+ * itself stays visually compact — but every one of those numbers is written in `rem`, not
+ * `px`. A freshness line pinned to 16px is a line that stays 16px when the reader doubles
+ * their browser's font size and everything around it doubles: the one line review 19
+ * §5.8.1 says must survive that is the one line that would not have (WCAG 1.4.4).
+ */
+
+.fw-banner {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: #4a3f22;
+  background: #faf0d1;
+  border-bottom: 1px solid #e3d3a1;
+}
+
+.fw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.fw-chip--fresh {
+  color: #333a40;
+  background: #eef1f3;
+}
+
+.fw-chip--aging {
+  color: #5c4a1c;
+  background: #faf0d1;
+}
+
+.fw-chip--stale {
+  color: #43494e;
+  background: #dfe3e6;
+}
+
+/*
+ * The visible glyph is small, but the interactive area is the full tap target: the anchor
+ * box itself is what the thumb lands on, and negative vertical margins keep the chip's
+ * visual height from growing with it. Both scale with the text, so the target never falls
+ * behind the glyph it belongs to.
+ */
+.fw-chip__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  margin: -0.875rem 0;
+  border-radius: 999px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

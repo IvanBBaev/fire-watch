@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // The L-12 deploy gate (J4) is a Node program `deploy.yml` runs before the deploy job;
+    // it never ships in an image and imports nothing but Node built-ins, so it is its own
+    // project rather than part of `server/`. It emits JavaScript because CI executes it.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist"]
+}

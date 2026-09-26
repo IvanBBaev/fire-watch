@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { VirtualClock } from '../ports/clock.js';
+import { EMPTY_OBSERVATIONS } from './fixture-format.js';
 import { createSmokeEngine } from './smoke-engine.js';
 import type { ReplayContext, ReplayDetection } from './runner.js';
 
@@ -24,6 +25,8 @@ function context(): ReplayContext {
     configVersions: { smoke: 'smoke_engine_v1' },
     mode: 'live',
     allowRevive: false,
+    // The smoke engine has no lifecycle to read them with, and must not grow one.
+    observations: EMPTY_OBSERVATIONS,
     emitAlert: () => {
       throw new Error('the smoke engine has no alerting and must never grow any');
     },

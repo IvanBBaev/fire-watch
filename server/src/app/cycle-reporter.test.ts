@@ -21,6 +21,7 @@ const SOURCE_RESULT: SourceIngestResult = {
   quarantined: 0,
   duplicatesWithinBatch: 0,
   anomaly: null,
+  upstream: null,
   error: null,
 };
 
@@ -103,6 +104,38 @@ describe('reportCycle', () => {
     });
 
     expect(heartbeat.pings).toEqual(['ingest-cycle']);
+  });
+
+  it('carries a stale upstream into the log without silencing the switch', async () => {
+    // Pitfall 10's alarm has to be visible somewhere, and the cycle line is where an
+    // operator looks. It must not go through the heartbeat: our worker is healthy — it
+    // polled, it got a 200 — and a quiet switch would page the wrong person for NASA
+    // having stopped publishing. The paging leg for that is the freshness budget (C5).
+    const heartbeat = fakeHeartbeat();
+    const lines: string[] = [];
+    const quietUpstream = cycle({
+      ...SOURCE_RESULT,
+      received: 0,
+      inserted: 0,
+      upstream: {
+        product: 'VIIRS_SNPP_NRT',
+        state: 'stale',
+        maxDate: '2026-07-30',
+        ageSeconds: 214_170,
+        reason: 'VIIRS_SNPP_NRT has published nothing since 2026-07-30',
+      },
+    });
+
+    await reportCycle(completedRun(quietUpstream), {
+      heartbeat,
+      writeLine: (line) => lines.push(line),
+    });
+
+    expect(heartbeat.pings).toEqual(['ingest-cycle']);
+    expect(JSON.parse(lines[0] ?? '')).toMatchObject({
+      degraded: false,
+      ingest_cycle: { sources: [{ upstream: { state: 'stale', maxDate: '2026-07-30' } }] },
+    });
   });
 
   it('stays quiet when the run itself threw and there is no report at all', async () => {

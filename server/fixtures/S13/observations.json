@@ -1,0 +1,43 @@
+{
+  "zones": [
+    {
+      "zoneId": "zone-elhovo",
+      "accountId": "acct-01",
+      "createdAtIso": "2026-08-20T06:00:00Z",
+      "minScore": 0.45,
+      "timezone": "Europe/Sofia",
+      "quietHoursStart": "22:00",
+      "quietHoursEnd": "07:00",
+      "newFireOverridesQuietHours": false,
+      "distanceKm": 9.8
+    },
+    {
+      "zoneId": "zone-svilengrad",
+      "accountId": "acct-01",
+      "createdAtIso": "2026-08-20T04:00:00Z",
+      "minScore": 0.45,
+      "timezone": "Europe/Sofia",
+      "quietHoursStart": "22:00",
+      "quietHoursEnd": "07:00",
+      "newFireOverridesQuietHours": false,
+      "distanceKm": 3.2
+    }
+  ],
+  "scores": [
+    {
+      "detectionUid": "8589dfec22890dda90fec0646f0602ce375b0e85093c3f9798a166e94ed2c8dc",
+      "fromIso": "2026-08-20T03:20:00Z",
+      "score": 0.82
+    },
+    {
+      "detectionUid": "a9c5b4a6f350246671f159e2f68e16dd82cf61f2361d5cd9dc35a446f49e5beb",
+      "fromIso": "2026-08-20T05:20:00Z",
+      "score": 0.71
+    },
+    {
+      "detectionUid": "6cce5c10f904b51e02de6f08529f396440e0d2dc575335cf6278a84a86b79b3f",
+      "fromIso": "2026-08-20T07:20:00Z",
+      "score": 0.88
+    }
+  ]
+}
