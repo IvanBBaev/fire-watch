@@ -373,6 +373,19 @@ export interface FireEvents {
   updated_at: Generated<Timestamp>;
 }
 
+export interface FireEventTransitions {
+  fire_event_id: Int8;
+  from_status: string | null;
+  hull_area_ha: number | null;
+  id: Generated<Int8>;
+  max_frp_mw: number | null;
+  recorded_at: Generated<Timestamp>;
+  seq: Int8;
+  status_reason: string | null;
+  to_status: string;
+  transitioned_at: Timestamp;
+}
+
 export interface IngestBatches {
   already_present: number;
   anomaly_tripped: boolean;
@@ -401,6 +414,11 @@ export interface IngestQuarantine {
   row_index: number | null;
   scope: string;
   source: string;
+}
+
+export interface LifecycleLogOrigin {
+  id: number;
+  started_at: Timestamp;
 }
 
 export interface NrtLagHistograms {
@@ -494,9 +512,11 @@ export interface DB {
   erasure_requests: ErasureRequests;
   event_detections: EventDetections;
   events_shadow: EventsShadow;
+  fire_event_transitions: FireEventTransitions;
   fire_events: FireEvents;
   ingest_batches: IngestBatches;
   ingest_quarantine: IngestQuarantine;
+  lifecycle_log_origin: LifecycleLogOrigin;
   nrt_lag_histograms: NrtLagHistograms;
   qa_weekly_reports: QaWeeklyReports;
   source_status: SourceStatus;
