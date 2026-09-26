@@ -19,13 +19,6 @@ const REF: GranuleRef = {
 const BYTES = new Uint8Array([0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 /** A decoder written in whatever Node this test is running under. */
-/**
- * Scripts that write and then end set `process.exitCode` rather than calling
- * `process.exit()`, as the real decoder does: a pipe write that would block is queued,
- * and `exit()` discards the queue. Alone, a child never fills its pipe; with the whole
- * suite running, the parent drains slowly enough that it does, and the refusal reason —
- * the last thing written — was the part that went missing.
- */
 function decoderRunning(script: string, options: Record<string, unknown> = {}) {
   return createChildProcessDecoder({
     command: process.execPath,
@@ -225,10 +218,13 @@ describe('a decoder that declines', () => {
   it('puts its own reason first, however much its libraries said before it', async () => {
     // libhdf5 prints a diagnostic stack longer than the whole error budget; the decoder's
     // reason comes last. It must survive both the stderr window and the cap.
+    // `exitCode`, not `process.exit()`: ~12 KB can outrun the pipe (Linux CI shrinks pipe
+    // buffers under load), Node then queues the rest, and `process.exit()` drops that queue —
+    // reason line included. The real decoder ends with `exitCode` for the same reason.
     const decoder = decoderRunning(
       `for (let i = 0; i < 400; i += 1) process.stderr.write('HDF5-DIAG: #' + i + ' noise noise noise\\n');
        process.stderr.write('\\n${DECODER_REASON_PREFIX}the superblock is truncated\\n');
-       process.exitCode = ${String(DECODER_REFUSED_EXIT)}`,
+       process.exitCode = ${String(DECODER_REFUSED_EXIT)};`,
     );
 
     const result = await decoder.decode(REF, BYTES);
