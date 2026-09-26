@@ -30,6 +30,8 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 export interface Accounts {
   created_at: Generated<Timestamp>;
   deleted_at: Timestamp | null;
+  email: string | null;
+  email_verified_at: Timestamp | null;
   id: Generated<string>;
   new_fire_overrides_quiet_hours: Generated<boolean>;
   quiet_hours_end: Generated<string>;
@@ -37,22 +39,83 @@ export interface Accounts {
   timezone: Generated<string>;
 }
 
+export interface AccountSessions {
+  account_id: string;
+  created_at: Timestamp;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  last_seen_at: Timestamp;
+  revoked_at: Timestamp | null;
+  token_hash: Buffer;
+  ua_family: string;
+}
+
+export interface AlertDecisionLog {
+  alert_type: string | null;
+  code: string;
+  decided_at: Timestamp;
+  fire_event_id: Int8;
+  id: Generated<Int8>;
+  in_quiet_hours: boolean;
+  ladder_step: number;
+  outcome: string;
+  pass: string;
+  reason: string;
+  recorded_at: Generated<Timestamp>;
+  rule_version: string;
+  trigger_ref_seq: Int8;
+  watch_zone_id: string;
+}
+
+export interface AlertDigestLog {
+  decided_at: Timestamp;
+  entry_count: number;
+  id: Generated<Int8>;
+  outcome: string;
+  reason: string;
+  recorded_at: Generated<Timestamp>;
+  rule_version: string;
+  watch_zone_id: string;
+  window_start: Timestamp;
+}
+
+export interface AlertEvaluatedEvents {
+  evaluated_at: Timestamp;
+  fire_event_id: Int8;
+  last_seq: Int8;
+  last_status: string;
+}
+
+export interface AlertEvaluationCursor {
+  id: number;
+  last_seq: Int8;
+  updated_at: Timestamp;
+}
+
 export interface AlertOutbox {
+  /**
+   * A1.1: the human who initiated a manual send. NULL on automatic rows.
+   */
   actor_id: string | null;
   alert_subkey: string;
   alert_type: string;
   approval_mode: string | null;
   approved_at: Timestamp | null;
   approver_id: string | null;
+  /**
+   * A1.1/D5: the row was released past budget B by a human.
+   */
   budget_override: Generated<boolean>;
   budget_seq: number | null;
   channel: string;
   channel_subscription_id: string | null;
+  claimed_at: Timestamp | null;
   decided_at: Generated<Timestamp>;
   dispatched_at: Timestamp | null;
   fire_event_id: Int8;
   id: Generated<Int8>;
   last_error: string | null;
+  locale: Generated<string>;
   priority: Generated<number>;
   provider_ack_at: Timestamp | null;
   pseudonymized_at: Timestamp | null;
@@ -61,6 +124,23 @@ export interface AlertOutbox {
   template_id: string;
   template_params: Generated<Json>;
   trigger_ref_seq: Int8;
+  /**
+   * A1.1 four-value provenance: what caused the row. Equals alert_type on automatic rows.
+   */
+  trigger_type: string;
+  watch_zone_id: string | null;
+}
+
+export interface AlertsShadow {
+  alert_subkey: string;
+  alert_type: string;
+  candidate_version: string;
+  decided_at: Timestamp;
+  recorded_at: Generated<Timestamp>;
+  rule_version: string;
+  shadow_event_key: string;
+  template_id: string;
+  template_params: Generated<Json>;
   trigger_type: string;
   watch_zone_id: string;
 }
@@ -75,13 +155,63 @@ export interface AlertStates {
   watch_zone_id: string;
 }
 
+export interface AuthLinkRequests {
+  consumed_at: Timestamp | null;
+  email: string;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  requested_at: Timestamp;
+  superseded_at: Timestamp | null;
+  token_hash: Buffer;
+  ua_family: string;
+}
+
+export interface ChannelConfirmations {
+  account_id: string;
+  channel: string;
+  channel_subscription_id: string | null;
+  consumed_at: Timestamp | null;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  issued_at: Timestamp;
+  revoked_at: Timestamp | null;
+  superseded_at: Timestamp | null;
+  token_hash: Buffer;
+}
+
 export interface ChannelSubscriptions {
   account_id: string;
   channel: string;
+  confirmed_at: Timestamp | null;
   created_at: Generated<Timestamp>;
   endpoint: string;
   id: Generated<string>;
   revoked_at: Timestamp | null;
+}
+
+export interface ClusteringBatches {
+  already_assigned: number;
+  attached: number;
+  /**
+   * available_at of the ingest batch, as stamped on its detections. Also the engine batch instant.
+   */
+  available_at: Timestamp;
+  /**
+   * Wall-clock time of the commit that clustered the batch. Operational only; no rule reads it.
+   */
+  clustered_at: Generated<Timestamp>;
+  clustering_run_id: Int8;
+  /**
+   * ClusterBatchResult.stats.detections: non-quarantined rows handed to the engine.
+   */
+  detections: number;
+  merged: number;
+  seeded: number;
+  /**
+   * Source of the ingest batch (ingest_batches key, with available_at).
+   */
+  source: string;
+  unattached: number;
 }
 
 export interface ClusteringRuns {
@@ -91,6 +221,10 @@ export interface ClusteringRuns {
   created_at: Generated<Timestamp>;
   id: Generated<Int8>;
   kind: string;
+  /**
+   * Instant of the previous lifecycle tick over this run's events; the start of the next evidence window.
+   */
+  lifecycle_ticked_at: Timestamp | null;
   params: Generated<Json>;
   promoted_at: Timestamp | null;
   window_end: Timestamp | null;
@@ -106,6 +240,14 @@ export interface Clusters {
   hull: string | null;
   id: Generated<Int8>;
   last_detection_at: Timestamp;
+  /**
+   * Instant the public_id was minted (the engine batch instant). Its UTC year is the cosmetic fw-YYYY.
+   */
+  minted_at: Timestamp;
+  /**
+   * Detection the cluster was created by; the frozen seed of its public_id. Never changes.
+   */
+  seed_detection_uid: string;
   updated_at: Generated<Timestamp>;
 }
 
@@ -137,6 +279,14 @@ export interface Detections {
   track_km: number | null;
 }
 
+export interface ErasureRequests {
+  account_hash: Buffer;
+  counts: Json;
+  deadline_at: Timestamp;
+  erased_at: Timestamp;
+  plan_version: string;
+}
+
 export interface EventDetections {
   acq_ts: Timestamp;
   attached_at: Generated<Timestamp>;
@@ -145,21 +295,61 @@ export interface EventDetections {
   fire_event_id: Int8;
 }
 
+export interface EventsShadow {
+  candidate_config_digest: string;
+  candidate_version: string;
+  detection_uids: string[];
+  invalidated: Generated<boolean>;
+  last_detection_at: Timestamp;
+  merged_into_key: string | null;
+  recorded_at: Generated<Timestamp>;
+  score: number;
+  shadow_key: string;
+  started_at: Timestamp;
+  status: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface FireEvents {
   centroid: string;
   config_version: string;
   created_at: Generated<Timestamp>;
   detection_count: Generated<number>;
+  /**
+   * Read surface (ADR-002 D6 display tiers): map = active set served by /snapshot.json, feed = list only, archive. Written by lifecycle transitions, never derived at read time (ADR-003 A1.4 R1).
+   */
   display_tier: Generated<string>;
+  /**
+   * UTC midnight of the day geo_weight_spent belongs to. NULL with geo_weight_spent when no GEO weight was carried.
+   */
+  geo_weight_day: Timestamp | null;
+  /**
+   * GEO miss weight already spent on geo_weight_day (the daily cap balance). Bookkeeping: never bumps seq.
+   */
+  geo_weight_spent: number | null;
   hull: string | null;
   hull_diameter_km: number | null;
   id: Generated<Int8>;
+  /**
+   * Instant of the transition out of active/signal_weakening that the time rules count from (A2.2). NULL while active or weakening.
+   */
   inactive_since: Timestamp | null;
   invalidated: Generated<boolean>;
   invalidated_reason: string | null;
   last_detection_at: Timestamp;
+  /**
+   * UTC midnight the event's current run of observation-free days is counted from; NULL until the first lifecycle tick. Bookkeeping: never bumps seq.
+   */
+  lifecycle_blind_since: Timestamp | null;
+  /**
+   * Newest acquisition the previous lifecycle tick knew about; NULL until the first tick. The redetection test compares against it.
+   */
+  lifecycle_seen_detection_at: Timestamp | null;
   max_frp_mw: number | null;
   merged_into: Int8 | null;
+  /**
+   * Accumulated miss evidence E carried between lifecycle ticks (ADR-002 D4). Bookkeeping: never bumps seq.
+   */
   miss_evidence: Generated<number>;
   nearest_place: Json | null;
   needs_review: Generated<boolean>;
@@ -167,6 +357,10 @@ export interface FireEvents {
   related_event_id: Int8 | null;
   relation_kind: string | null;
   score: Generated<number>;
+  /**
+   * score_params version that produced score (ADR-002 D5/D6); NULL = never scored (tombstone, absorbed seed, or not touched since 017). Bookkeeping: never bumps seq.
+   */
+  score_params_version: string | null;
   seq: Generated<Int8>;
   source_mix: Generated<Json>;
   source_registry_version: string;
@@ -209,6 +403,35 @@ export interface IngestQuarantine {
   source: string;
 }
 
+export interface NrtLagHistograms {
+  below: number;
+  computed_at: Generated<Timestamp>;
+  counts: number[];
+  day: Timestamp;
+  edges_minutes: number[];
+  histogram_digest: string;
+  histogram_version: string;
+  max_lag_ms: Int8 | null;
+  min_lag_ms: Int8 | null;
+  overflow: number;
+  source: string;
+  total: number;
+}
+
+export interface QaWeeklyReports {
+  generated_at: Timestamp;
+  iso_week: string;
+  metrics_digest: string;
+  metrics_version: string;
+  report_digest: string;
+  report_json: string;
+  report_markdown: string;
+  report_version: string;
+  window_end: Timestamp;
+  window_start: Timestamp;
+  written_at: Generated<Timestamp>;
+}
+
 export interface Sources {
   attach_only: boolean;
   id: string;
@@ -237,9 +460,14 @@ export interface TableBackupClass {
 
 export interface WatchZones {
   account_id: string;
-  area: string;
+  area: string | null;
+  centre_ciphertext: Buffer | null;
+  centre_coarsened: boolean | null;
+  centre_key_id: string | null;
   created_at: Generated<Timestamp>;
   deleted_at: Timestamp | null;
+  grid_cell: string | null;
+  grid_version: string | null;
   id: Generated<string>;
   min_score: Generated<number>;
   name: string;
@@ -247,17 +475,30 @@ export interface WatchZones {
 }
 
 export interface DB {
+  account_sessions: AccountSessions;
   accounts: Accounts;
+  alert_decision_log: AlertDecisionLog;
+  alert_digest_log: AlertDigestLog;
+  alert_evaluated_events: AlertEvaluatedEvents;
+  alert_evaluation_cursor: AlertEvaluationCursor;
   alert_outbox: AlertOutbox;
   alert_states: AlertStates;
+  alerts_shadow: AlertsShadow;
+  auth_link_requests: AuthLinkRequests;
+  channel_confirmations: ChannelConfirmations;
   channel_subscriptions: ChannelSubscriptions;
+  clustering_batches: ClusteringBatches;
   clustering_runs: ClusteringRuns;
   clusters: Clusters;
   detections: Detections;
+  erasure_requests: ErasureRequests;
   event_detections: EventDetections;
+  events_shadow: EventsShadow;
   fire_events: FireEvents;
   ingest_batches: IngestBatches;
   ingest_quarantine: IngestQuarantine;
+  nrt_lag_histograms: NrtLagHistograms;
+  qa_weekly_reports: QaWeeklyReports;
   source_status: SourceStatus;
   sources: Sources;
   table_backup_class: TableBackupClass;
