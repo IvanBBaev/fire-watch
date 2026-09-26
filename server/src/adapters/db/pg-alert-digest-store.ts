@@ -43,8 +43,9 @@
  * (ADR-002 I3), the row moves and its `defer` history does not, so the survivor's pair
  * reads `lastDeferredAtIso: null` and is owed as `active` (or `seeded`) rather than
  * `deferred`. It is still listed — `active` is owed unconditionally — so no fire is lost
- * from a digest; only the kind label, and whatever copy keys on it, can differ from the
- * replay, which carries the debt across the fold in memory.
+ * from a digest; only the kind label, and whatever copy keys on it, is affected. The replay
+ * (`core/replay/alert-engine.ts`) behaves the same way: its debts are keyed by the parent's
+ * public id and `migrateParentStates` moves the state rows, not the debts.
  */
 
 import type {
