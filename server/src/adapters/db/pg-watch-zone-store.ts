@@ -35,8 +35,12 @@ export interface PgWatchZoneQueryable {
   ): Promise<{ rows: Row[]; rowCount: number | null }>;
 }
 
-/** `to_char` so quiet hours arrive as the `HH:MM` the decision reads, not `HH:MM:SS`. */
-const SELECT_ACCOUNT_SETTINGS = `
+/**
+ * `to_char` so quiet hours arrive as the `HH:MM` the decision reads, not `HH:MM:SS`.
+ * Exported with its decoder for the digest store, which reads the same settings under a
+ * `FOR SHARE` lock (`pg-alert-digest-store.ts`).
+ */
+export const SELECT_ACCOUNT_SETTINGS = `
 SELECT
   timezone,
   to_char(quiet_hours_start, 'HH24:MI') AS quiet_hours_start,
@@ -119,16 +123,7 @@ export function createPgWatchZoneStore(db: PgWatchZoneQueryable): WatchZoneStore
     async loadAccountAlertSettings(accountId): Promise<AccountAlertSettings | null> {
       const result = await db.query(SELECT_ACCOUNT_SETTINGS, [accountId]);
       const [row] = result.rows;
-      if (row === undefined) return null;
-      return {
-        timezone: string(field(row, 'timezone'), 'timezone'),
-        quietHoursStart: string(field(row, 'quiet_hours_start'), 'quiet_hours_start'),
-        quietHoursEnd: string(field(row, 'quiet_hours_end'), 'quiet_hours_end'),
-        newFireOverridesQuietHours: boolean(
-          field(row, 'new_fire_overrides_quiet_hours'),
-          'new_fire_overrides_quiet_hours',
-        ),
-      };
+      return row === undefined ? null : decodeAccountAlertSettings(row);
     },
 
     async insert(zone): Promise<void> {
@@ -153,6 +148,19 @@ export function createPgWatchZoneStore(db: PgWatchZoneQueryable): WatchZoneStore
       const result = await db.query(SOFT_DELETE, [accountId, zoneId, atIso]);
       return (result.rowCount ?? 0) > 0;
     },
+  };
+}
+
+/** One `accounts` row as {@link SELECT_ACCOUNT_SETTINGS} selects it. */
+export function decodeAccountAlertSettings(row: unknown): AccountAlertSettings {
+  return {
+    timezone: string(field(row, 'timezone'), 'timezone'),
+    quietHoursStart: string(field(row, 'quiet_hours_start'), 'quiet_hours_start'),
+    quietHoursEnd: string(field(row, 'quiet_hours_end'), 'quiet_hours_end'),
+    newFireOverridesQuietHours: boolean(
+      field(row, 'new_fire_overrides_quiet_hours'),
+      'new_fire_overrides_quiet_hours',
+    ),
   };
 }
 
