@@ -1,0 +1,23 @@
+{
+  "id": "S4",
+  "title": "Industrial static source",
+  "asserts": "every detection of a mapped thermal power plant (two nights, both VIIRS platforms) is one event labelled static_source with the §3.6 hard override (score 0, Unverified), so it is invalidated and never public; a real fire 3 km east on the same nights stays an unlabelled event",
+  "required": "pre-merge",
+  "owner": "WP2",
+  "engine": "identity",
+  "clockStart": "2026-08-10T00:00:00Z",
+  "mode": "live",
+  "allowRevive": false,
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1",
+    "static_source_policy": "static_source_policy_v2",
+    "static_source_mask": "osm-fixture-s4"
+  },
+  "inputs": ["poll-01.json", "poll-02.json"],
+  "observations": "observations.json",
+  "expected": "expected.json"
+}

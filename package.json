@@ -19,12 +19,15 @@
     "test:budgets": "pnpm --filter \"@fire-watch/web...\" run build && vitest run --project budgets",
     "test:timing": "pnpm --filter @fire-watch/web build && vitest run --project timing",
     "test:watch": "vitest --project unit",
+    "dev:live": "pnpm --filter @fire-watch/server build && node server/dist/app/dev-live-cli.js",
     "boundaries": "depcruise --config .dependency-cruiser.cjs packages server web",
     "audit": "pnpm audit --audit-level=high",
     "deploy-gate": "tsc --build infra/deploy-gate && node infra/deploy-gate/dist/cli.js",
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run format && pnpm run boundaries && pnpm run test",
     "loadtest": "tsc --build loadtest && node loadtest/dist/src/adapters/cli.js",
     "tiles": "tsc --build infra/tiles && node infra/tiles/dist/cli.js",
+    "geodata": "tsc --build infra/geodata && node infra/geodata/dist/cli.js",
+    "geodata:static-sources": "tsc --build infra/geodata && node infra/geodata/dist/static-sources-cli.js",
     "status": "tsc --build infra/status && node infra/status/dist/cli.js"
   },
   "devDependencies": {

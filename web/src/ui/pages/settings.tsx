@@ -13,6 +13,7 @@ import type { ThemePreference } from '../logic/theme.js';
 import { setThemePreference, themePreference } from '../theme.js';
 import { authClient, authSession, noteSession, refreshSession } from '../auth.js';
 import { useApp } from '../context.js';
+import { newSignalSound, setNewSignalSound } from '../new-signals.js';
 
 /**
  * The account section (TASKS I1): the signed-in indicator and sign-out, or the way to
@@ -115,6 +116,22 @@ export function SettingsPage() {
             <span>{option.label}</span>
           </label>
         ))}
+      </fieldset>
+      {/* The new-signal sound (TASKS F): off by default. Switching it on is the user
+          gesture that lets the browser play it later. */}
+      <fieldset class="settings-group settings-new-signals">
+        <legend>{messages.newSignals.soundTitle}</legend>
+        <label class="settings-option">
+          <input
+            type="checkbox"
+            checked={newSignalSound.value}
+            onChange={(event) => {
+              setNewSignalSound(event.currentTarget.checked);
+            }}
+          />
+          <span>{messages.newSignals.soundLabel}</span>
+        </label>
+        <p>{messages.newSignals.soundNote}</p>
       </fieldset>
       {/* The alert-settings disclaimer layer (07 §5.5.4, 09 §3.4 — TASKS I5). There are no
           alert settings yet, so it stands alone and says so; when the I-track adds them,

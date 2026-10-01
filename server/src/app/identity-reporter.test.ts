@@ -28,6 +28,8 @@ const report = (limitReached: boolean): IdentityCycleReport => ({
     curatedSkipped: 0,
     transitions: 1,
     missing: 0,
+    staticSourcesSwept: 0,
+    staticSourcesLimitReached: false,
   },
 });
 

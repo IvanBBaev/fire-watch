@@ -70,11 +70,18 @@ import type {
   PendingBatch,
   StoredCarry,
   StoredTickEvent,
+  TickTransaction,
 } from '../ports/clustering-store.js';
 import type { PassPredictor } from '../ports/pass-predictor.js';
 import { reignitionCandidateQuery } from '../registry/reignition-plan.js';
 import { FRESH_CARRY, tickLifecycle, type LifecycleCarry } from '../replay/lifecycle-tick.js';
-import { eventScores, scoringDetectionKeys } from './event-scores.js';
+import type { StaticSourceEvaluator } from '../static-sources/static-source-policy.js';
+import {
+  eventScores,
+  LIVE_SCORE_CONTEXT,
+  scoreWithVerdict,
+  scoringDetectionKeys,
+} from './event-scores.js';
 import {
   involvedPublicIds,
   membersFromStored,
@@ -107,7 +114,21 @@ export interface IdentityCycleDeps {
    * behind rather than idle.
    */
   readonly maxBatchesPerCycle: number;
+  /**
+   * The static hot-source verdicts (TASKS F16: the §3.6 mask override and the §6.2
+   * day-only quarantine). Omitted: nothing is evaluated, nothing is stamped and the sweep
+   * does not run — the pre-F16 behaviour, and what every test not about the mask wants.
+   */
+  readonly staticSources?: StaticSourceEvaluator;
 }
+
+/**
+ * How many events one tick's static-source sweep re-evaluates at most. A mask refresh (or
+ * the first deploy after 021) makes every live event stale at once; a few hundred per
+ * tick keeps the run lock short and converges within a handful of polls, and the report
+ * says when it was cut short.
+ */
+export const STATIC_SOURCE_SWEEP_LIMIT = 500;
 
 /** Summed {@link BatchStats} over the cycle's batches. */
 export type CycleBatchStats = BatchStats;
@@ -135,6 +156,13 @@ export interface IdentityCycleReport {
     readonly transitions: number;
     /** Transitions whose event was not live any more when written (`applyTransition` → null). */
     readonly missing: number;
+    /**
+     * The static-source sweep before the lifecycle step: events re-evaluated because their
+     * stored verdict names another mask or policy version, and whether the per-tick limit
+     * cut it short. Zero when no evaluator is wired.
+     */
+    readonly staticSourcesSwept: number;
+    readonly staticSourcesLimitReached: boolean;
   };
 }
 
@@ -245,7 +273,13 @@ async function applyOneBatch(
     const scoringRows = await tx.loadScoringDetections(
       scoringDetectionKeys(result, writes.aggregates),
     );
-    const scores = eventScores(result, writes.aggregates, scoringRows);
+    const scores = eventScores(
+      result,
+      writes.aggregates,
+      scoringRows,
+      LIVE_SCORE_CONTEXT,
+      deps.staticSources,
+    );
     await tx.applyBatch({ batch, result, writes, scores });
     return { stats: result.stats, reignitionLinks: writes.reignitionLinks.length };
   });
@@ -262,8 +296,13 @@ async function tickOnce(
     // tick is then empty and stamped at the previous instant, which is where the carry is.
     const atMs = Math.max(deps.clock.now(), previous ?? Number.NEGATIVE_INFINITY);
     const sinceMs = tickWindowStart(atMs, previous);
+    const activeSince = atMs - activeWindowMs(params);
 
-    const loaded = await tx.loadTickEvents(atMs - activeWindowMs(params));
+    // Before the lifecycle step, so an event the sweep invalidates is not ticked and one
+    // it releases is ticked in the same transaction.
+    const sweep = await staticSourceSweep(tx, deps.staticSources, activeSince);
+
+    const loaded = await tx.loadTickEvents(activeSince);
     const events = loaded.filter((event) => !isCuratedLifecycleState(event.status));
 
     const outcome = tickLifecycle(
@@ -320,8 +359,41 @@ async function tickOnce(
       curatedSkipped: loaded.length - events.length,
       transitions,
       missing,
+      staticSourcesSwept: sweep.swept,
+      staticSourcesLimitReached: sweep.limitReached,
     };
   });
+}
+
+/**
+ * "Rescore on mask change" (TASKS F16). A verdict is a function of the member set, the
+ * mask version and the policy version; a batch rescore only fires on a member change, so a
+ * new mask (a deploy with a refreshed asset) or a new policy version would otherwise leave
+ * every quiet event judged by the old ones. The store keeps both versions with each
+ * verdict (021), which makes "judged by something else" a query; each stale event is
+ * rescored with {@link scoreWithVerdict} — the batch path's own function — so the sweep
+ * cannot disagree with a rescore about what a verdict does.
+ */
+async function staticSourceSweep(
+  tx: TickTransaction,
+  evaluator: StaticSourceEvaluator | undefined,
+  activeSince: EpochMs,
+): Promise<{ readonly swept: number; readonly limitReached: boolean }> {
+  if (evaluator === undefined || evaluator.policyVersion === null) {
+    return { swept: 0, limitReached: false };
+  }
+  const stale = await tx.loadStaticSourceStale({
+    maskVersion: evaluator.maskVersion,
+    policyVersion: evaluator.policyVersion,
+    activeSince,
+    limit: STATIC_SOURCE_SWEEP_LIMIT,
+  });
+  await tx.applyStaticSourceVerdicts(
+    stale.map((event) =>
+      scoreWithVerdict(event.publicId, event.rows, LIVE_SCORE_CONTEXT, evaluator),
+    ),
+  );
+  return { swept: stale.length, limitReached: stale.length >= STATIC_SOURCE_SWEEP_LIMIT };
 }
 
 /** `since` for a tick at `atMs`: see "The tick window" in the module docblock. */

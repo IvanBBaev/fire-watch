@@ -1,0 +1,11 @@
+{
+  "staticSources": {
+    "format": "fire-watch/static-sources@1",
+    "version": "osm-fixture-s4",
+    "licence": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "scale": 10000,
+    "kinds": ["solar", "thermal_power", "industrial", "flare"],
+    "sources": [[1, 259000, 421500]]
+  }
+}

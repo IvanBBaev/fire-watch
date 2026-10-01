@@ -1,0 +1,99 @@
+/*
+ * The event panel's timeline, FRP, sensors and "where" sections.
+ *
+ * No red (red belongs to fire on the map, 07-product-ux P8), no motion, 16px text floor,
+ * 44px targets, and every row wraps so the panel reflows at 320px and at 200% zoom.
+ */
+
+.event-section h2 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.125rem;
+}
+
+.event-section p {
+  margin: 0.375rem 0;
+}
+
+.event-timeline {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.event-timeline dt {
+  color: var(--color-text-muted);
+}
+
+.event-timeline dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.event-id-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.event-id-line code,
+.event-section code {
+  /* Browsers shrink monospace to 13px by default; the text floor is 16px. */
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.copy-status:empty {
+  display: none;
+}
+
+.event-note {
+  color: var(--color-text-muted);
+}
+
+.frp-sparkline {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.5rem 0;
+  color: var(--color-text);
+}
+
+.frp-sparkline path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.frp-sparkline circle {
+  fill: currentcolor;
+}
+
+.sensor-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.sensor-list li {
+  margin: 0.25rem 0;
+}
+
+.external-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+}
+
+@media (max-width: 30rem) {
+  .event-timeline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .event-timeline dd {
+    margin-bottom: 0.5rem;
+  }
+}

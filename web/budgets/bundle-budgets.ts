@@ -82,6 +82,19 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
 ];
 
+/**
+ * Data files the app fetches by URL (`?url` imports) only on a reader's action — the
+ * region filter's oblast polygons and the place-search gazetteer (TASKS F). Vite gives
+ * each a manifest record that no chunk imports. They are not JavaScript and are not on
+ * the first-render or map path, so they are charged to no budget; listed by name, and
+ * only non-script files, so neither a stray chunk nor a new data file slips through.
+ */
+export const ON_DEMAND_DATA: readonly RegExp[] = [
+  /^src\/assets\/geodata\/(oblasts|settlements)\.json$/,
+  // F16: the static hot-source mask, fetched on event detail or with its Layers toggle.
+  /^src\/assets\/geodata\/static-sources\.json$/,
+];
+
 /** Where the HTML entry lives in the manifest, and where the manifest lives in dist. */
 export const HTML_ENTRY_KEY = 'index.html';
 export const MANIFEST_PATH = '.vite/manifest.json';
@@ -299,7 +312,12 @@ export function checkBuild(build: BuildDescription): BudgetReport {
     ...unclassifiedRoots.map((root) => staticClosure(manifest, root, [])),
   );
   for (const key of keys) {
-    if (!reachable.has(key)) {
+    const record = manifest[key];
+    const onDemandData =
+      record !== undefined &&
+      !SCRIPT_FILE.test(record.file) &&
+      ON_DEMAND_DATA.some((rule) => rule.test(record.src ?? key));
+    if (!reachable.has(key) && !onDemandData) {
       errors.push(`chunk "${manifest[key]?.file ?? key}" (${key}) is reachable from no budget`);
     }
   }

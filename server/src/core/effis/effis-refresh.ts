@@ -29,6 +29,7 @@ import { POLLING_BBOX } from '../config/polling-bbox.js';
 import {
   EFFIS_LAYERS,
   effisLayerQuery,
+  effisUtcDate,
   type EffisLayerId,
   type EffisLayerSpec,
   type EffisLayersValues,
@@ -194,7 +195,15 @@ async function refreshLayer(
   layersConfig: VersionedConfig<EffisLayersValues>,
   bboxConfig: VersionedConfig<BoundingBox>,
 ): Promise<EffisLayerResult> {
-  const query = effisLayerQuery(spec, layersConfig.values, bboxConfig.values);
+  // A daily layer is asked for the refresh's own UTC date; that date is what the payload
+  // is valid for, and the sidecar says so (`valid_for`) so the proxy can tell the reader.
+  const validFor = spec.time === 'daily' ? effisUtcDate(deps.clock.now()) : null;
+  const query = effisLayerQuery(
+    spec,
+    layersConfig.values,
+    bboxConfig.values,
+    validFor ?? undefined,
+  );
   const staleAvailable = await currentExists(deps.payloads, spec);
 
   let fetched: EffisLayerFetch;
@@ -249,6 +258,7 @@ async function refreshLayer(
       sanity,
       sha256,
       availableAt,
+      validFor,
       layersConfig,
       bboxConfig,
     });
@@ -333,6 +343,8 @@ interface MetaInput {
   readonly sanity: SanityCheck;
   readonly sha256: string;
   readonly availableAt: EpochMs;
+  /** The UTC date a daily layer was asked for; `null` for a "latest" layer. */
+  readonly validFor: string | null;
   readonly layersConfig: VersionedConfig<EffisLayersValues>;
   readonly bboxConfig: VersionedConfig<BoundingBox>;
 }
@@ -358,6 +370,7 @@ function effisPayloadMeta(input: MetaInput): string {
     sanity_reason: input.sanity.reason,
     raster: input.sanity.raster,
     available_at: isoFromEpochMs(input.availableAt),
+    valid_for: input.validFor,
     effis_layers_version: input.layersConfig.version,
     effis_layers_digest: input.layersConfig.digest,
     polling_bbox_version: input.bboxConfig.version,

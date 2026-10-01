@@ -9,6 +9,17 @@
  *   GET /api/v1/stream           T0 (ADR-003), only with `stream` deps.
  *   GET /api/v1/client-config    fleet control (ADR-003 A1.1), only with `clientConfig` deps.
  *   GET /overlays/effis/:file    EFFIS overlays (TASKS G4), only with `effisOverlay` deps.
+ *   GET /api/v1/events/:publicId/detections
+ *                                one event's member detections, only with `eventDetections`
+ *                                deps. Its own per-IP limit, not the probe limiter.
+ *   GET /overlays/wind/latest.json
+ *                                the F14 wind grid, only with `windOverlay` deps. Its own
+ *                                per-IP limit, not the probe limiter.
+ *   GET /api/v1/passes/:cell     F15 predicted satellite passes over one grid cell, only
+ *                                with `passes` deps. Edge-cached per cell and bucket.
+ *   GET /overlays/lightning/recent.json
+ *                                the F18 lightning flashes of the last six hours, only with
+ *                                `lightningOverlay` deps. Its own per-IP limit.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -54,7 +65,28 @@ import {
   registerEffisOverlayRoute,
   type EffisOverlayRouteDeps,
 } from './effis-overlay-route.js';
+import {
+  EVENT_DETECTIONS_PATH,
+  registerEventDetectionsRoute,
+  type EventDetectionsRouteDeps,
+} from './event-detections-route.js';
+import {
+  LIGHTNING_OVERLAY_PATH,
+  registerLightningOverlayRoute,
+  type LightningOverlayRouteDeps,
+} from './lightning-overlay-route.js';
+import {
+  PASSES_PATH,
+  PASS_SWATHS_PATH,
+  registerPassesRoute,
+  type PassesRouteDeps,
+} from './passes-route.js';
 import { sendProblem, type CodedProblemSpec } from './problem.js';
+import {
+  WIND_OVERLAY_PATH,
+  registerWindOverlayRoute,
+  type WindOverlayRouteDeps,
+} from './wind-overlay-route.js';
 import { SNAPSHOT_PATH, registerSnapshotRoute, type SnapshotRouteDeps } from './snapshot-route.js';
 import { STREAM_PATH, registerStreamRoute, type StreamRouteDeps } from './stream-route.js';
 
@@ -148,6 +180,26 @@ export interface HealthServerDeps {
    * dir. Edge-cached, so the hook exempts them like the other read paths.
    */
   readonly effisOverlay?: EffisOverlayRouteDeps | undefined;
+  /**
+   * One event's member detections, when this process serves them. Edge-cached per event,
+   * with its own — harder — per-IP limit, so the hook exempts it from the probe limiter.
+   */
+  readonly eventDetections?: EventDetectionsRouteDeps | undefined;
+  /**
+   * The F14 wind grid, when this box holds the refresh state dir. Edge-cached, with its
+   * own per-IP limit, so the hook exempts it from the probe limiter.
+   */
+  readonly windOverlay?: WindOverlayRouteDeps | undefined;
+  /**
+   * F15 satellite passes, when this box holds the refresh state dir. Edge-cached per grid
+   * cell and ten-minute bucket, so the hook exempts it like the other read paths.
+   */
+  readonly passes?: PassesRouteDeps | undefined;
+  /**
+   * F18 lightning, when this box holds the refresh state dir. Edge-cached, with its own
+   * per-IP limit, so the hook exempts it from the probe limiter.
+   */
+  readonly lightningOverlay?: LightningOverlayRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -200,7 +252,12 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === SNAPSHOT_PATH ||
       matched === STREAM_PATH ||
       matched === CLIENT_CONFIG_PATH ||
-      matched === EFFIS_OVERLAY_PATH
+      matched === EFFIS_OVERLAY_PATH ||
+      matched === EVENT_DETECTIONS_PATH ||
+      matched === WIND_OVERLAY_PATH ||
+      matched === PASSES_PATH ||
+      matched === PASS_SWATHS_PATH ||
+      matched === LIGHTNING_OVERLAY_PATH
     ) {
       done();
       return;
@@ -316,6 +373,26 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
   }
   if (deps.clientConfig !== undefined) registerClientConfigRoute(app, deps.clientConfig);
   if (deps.effisOverlay !== undefined) registerEffisOverlayRoute(app, deps.effisOverlay);
+  // Keyed on the same edge-owned header as the probe limiter, for the stream's reason.
+  if (deps.eventDetections !== undefined) {
+    registerEventDetectionsRoute(app, {
+      ...deps.eventDetections,
+      clientIpHeader: deps.eventDetections.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.windOverlay !== undefined) {
+    registerWindOverlayRoute(app, {
+      ...deps.windOverlay,
+      clientIpHeader: deps.windOverlay.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.passes !== undefined) registerPassesRoute(app, deps.passes);
+  if (deps.lightningOverlay !== undefined) {
+    registerLightningOverlayRoute(app, {
+      ...deps.lightningOverlay,
+      clientIpHeader: deps.lightningOverlay.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
 
   return app;
 }

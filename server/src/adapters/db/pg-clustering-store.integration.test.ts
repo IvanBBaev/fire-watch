@@ -14,6 +14,11 @@ import { execFile, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import {
+  STATIC_SOURCE_FORMAT,
+  STATIC_SOURCE_KINDS,
+  parseStaticSourceMask,
+} from '@fire-watch/contracts';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -25,6 +30,11 @@ import { staticPassPredictor } from '../../core/lifecycle/static-pass-predictor.
 import { VirtualClock } from '../../core/ports/clock.js';
 import type { ScoringDetection } from '../../core/scoring/features.js';
 import { scoreEvent } from '../../core/scoring/score.js';
+import {
+  STATIC_SOURCE_POLICY,
+  staticSourceEvaluator,
+  type StaticSourceEvaluator,
+} from '../../core/static-sources/static-source-policy.js';
 import { createPgClusteringStore, type PgClusteringPool } from './pg-clustering-store.js';
 
 const execFileAsync = promisify(execFile);
@@ -101,7 +111,7 @@ describe.skipIf(!hasDocker)('the clustering store', () => {
     }
   }
 
-  function cycle(at: string) {
+  function cycle(at: string, staticSources?: StaticSourceEvaluator) {
     const store = createPgClusteringStore(pool satisfies PgClusteringPool, CLUSTERING_PARAMS);
     return runIdentityCycle({
       store,
@@ -109,7 +119,42 @@ describe.skipIf(!hasDocker)('the clustering store', () => {
       config: CLUSTERING_PARAMS,
       predictor: staticPassPredictor(),
       maxBatchesPerCycle: 10,
+      ...(staticSources === undefined ? {} : { staticSources }),
     });
+  }
+
+  /** Flare nodes at (lon, 41.86) — the latitude `insertBatch` writes. */
+  function flares(version: string, lons: readonly number[]): StaticSourceEvaluator {
+    const flare = STATIC_SOURCE_KINDS.indexOf('flare');
+    const mask = parseStaticSourceMask({
+      format: STATIC_SOURCE_FORMAT,
+      version,
+      licence: 'ODbL-1.0',
+      attribution: '© OpenStreetMap contributors',
+      scale: 10_000,
+      kinds: [...STATIC_SOURCE_KINDS],
+      sources: lons.map((lon) => [flare, Math.round(lon * 10_000), 418_600]),
+    });
+    return staticSourceEvaluator(mask, STATIC_SOURCE_POLICY, CLUSTERING_PARAMS.values.metric);
+  }
+
+  async function verdictRows() {
+    const rows = await pool.query<{
+      merged: boolean;
+      score: number;
+      invalidated: boolean;
+      invalidated_reason: string | null;
+      static_source_verdict: string | null;
+      static_source_mask_version: string | null;
+      static_source_policy_version: string | null;
+      seq: string;
+    }>(
+      `SELECT merged_into IS NOT NULL AS merged, score, invalidated, invalidated_reason,
+              static_source_verdict, static_source_mask_version,
+              static_source_policy_version, seq::text
+         FROM fire_events ORDER BY created_at, id`,
+    );
+    return rows.rows;
   }
 
   beforeAll(async () => {
@@ -237,6 +282,73 @@ describe.skipIf(!hasDocker)('the clustering store', () => {
     expect(expected.score).toBeGreaterThan(0);
     // The absorbed seed was minted a tombstone in the same batch: never scored.
     expect(tombstone).toMatchObject({ merged: true, score: 0, score_params_version: null });
+  });
+
+  it('sweeps a quiet event onto a new mask (021): override, idempotent, released by a fix', async () => {
+    const [before] = await verdictRows();
+    expect(before?.static_source_verdict).toBeNull();
+    const formula = before?.score;
+
+    // Every member of the survivor sits on a flare: the §3.6 override.
+    const onFlares = flares('mask-a', [26.13, 26.1, 26.115]);
+    const first = await cycle('2026-08-05T16:00:00Z', onFlares);
+    expect(first.tick).toMatchObject({ staticSourcesSwept: 1, staticSourcesLimitReached: false });
+    const [survivor, tombstone] = await verdictRows();
+    expect(survivor).toMatchObject({
+      score: 0,
+      invalidated: true,
+      invalidated_reason: 'static_source',
+      static_source_verdict: 'static_source',
+      static_source_mask_version: 'mask-a',
+      static_source_policy_version: STATIC_SOURCE_POLICY.version,
+    });
+    // 004's trigger saw `invalidated` and `score` move: clients get one change.
+    expect(Number(survivor?.seq)).toBeGreaterThan(Number(before?.seq));
+    // A tombstone is never judged.
+    expect(tombstone).toMatchObject({ merged: true, static_source_verdict: null });
+
+    const again = await cycle('2026-08-05T16:10:00Z', onFlares);
+    expect(again.tick.staticSourcesSwept).toBe(0);
+    expect((await verdictRows())[0]?.seq).toBe(survivor?.seq);
+
+    // The snapshot's and the tick's `NOT invalidated` now hide it.
+    const hidden = await cycle('2026-08-05T16:20:00Z', onFlares);
+    expect(hidden.tick.events).toBe(0);
+
+    // A corrected mask drops the flares: the sweep restores the formula's score.
+    const fixed = await cycle('2026-08-05T16:30:00Z', flares('mask-b', [27]));
+    expect(fixed.tick.staticSourcesSwept).toBe(1);
+    expect((await verdictRows())[0]).toMatchObject({
+      score: formula,
+      invalidated: false,
+      invalidated_reason: null,
+      static_source_verdict: 'clear',
+      static_source_mask_version: 'mask-b',
+    });
+  });
+
+  it('never rewrites a curation invalidation, and never sweeps it', async () => {
+    await pool.query(
+      `UPDATE fire_events SET invalidated = true, invalidated_reason = 'curated_not_fire'
+        WHERE merged_into IS NULL`,
+    );
+    const report = await cycle('2026-08-05T16:40:00Z', flares('mask-c', [26.1]));
+    expect(report.tick.staticSourcesSwept).toBe(0);
+    expect((await verdictRows())[0]).toMatchObject({
+      invalidated: true,
+      invalidated_reason: 'curated_not_fire',
+      static_source_mask_version: 'mask-b',
+    });
+    await pool.query(
+      `UPDATE fire_events SET invalidated = false, invalidated_reason = NULL
+        WHERE merged_into IS NULL`,
+    );
+  });
+
+  it('rejects a verdict outside the four (021 CHECK)', async () => {
+    await expect(
+      pool.query("UPDATE fire_events SET static_source_verdict = 'maybe'"),
+    ).rejects.toThrow(/fire_events_static_source_verdict_check/);
   });
 
   it('skips a batch another writer already ledgered', async () => {

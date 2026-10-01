@@ -72,6 +72,7 @@ const EVENT: ActiveEventRow = {
   lastDetectionAt: epochMsFromIso('2026-09-23T11:40:00Z'),
   detectionCount: 7,
   nearestPlace: null,
+  sourceIds: null,
 };
 
 const reader: SnapshotReader = {
@@ -183,7 +184,10 @@ const CONTEXTS = {
   'layer:terrain': { reachable: false, why: NOT_IN_A_PAYLOAD },
   'layer:landsat': { reachable: false, why: NOT_IN_A_PAYLOAD },
   'imagery:sentinel-unmodified': { reachable: false, why: NOT_IN_A_PAYLOAD },
-  'derived:ecmwf': { reachable: false, why: NOT_IN_A_PAYLOAD },
+  'derived:ecmwf': {
+    reachable: false,
+    why: 'the snapshot carries no wind; the wind route embeds all five ECMWF components itself (wind-overlay-route.test.ts)',
+  },
   'toggle:esri': { reachable: false, why: 'the imagery toggle is a client choice' },
   never: { reachable: false, why: 'the registry never owes these' },
 } as const satisfies Record<CreditCondition, Context>;

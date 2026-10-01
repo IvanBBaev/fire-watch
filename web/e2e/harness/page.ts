@@ -54,6 +54,13 @@ export interface InstrumentedPageOptions {
   /** Install the clock-offset hook, so `setClockOffset` can move the page's time. */
   readonly warpClock?: boolean;
   /**
+   * With `warpClock`: the offset the page's clock starts at, from its first script on —
+   * negative to put the page in the past. For a scenario pinned to a committed fixture's
+   * moment (a prediction computed for a fixed time), so it asserts the same thing on any
+   * day the suite runs; the origin is given the same `Date.now() + offset` clock.
+   */
+  readonly initialClockOffsetMs?: number;
+  /**
    * Exact URLs the page asks for that are served from somewhere else instead, e.g. the
    * third-party basemap style replaced by a local stand-in (`stand-in-basemap.ts`). The
    * substitute's origin must also be in `extraOrigins`; a rewritten request is not
@@ -148,18 +155,22 @@ export async function openInstrumentedPage(
   }
 
   if (options.warpClock === true) {
-    await page.evaluateOnNewDocument((offsetKey: string) => {
-      const holder = window as unknown as Record<string, unknown>;
-      holder[offsetKey] = 0;
-      const offset = (): number => {
-        const value = holder[offsetKey];
-        return typeof value === 'number' ? value : 0;
-      };
-      const nativeDateNow = Date.now.bind(Date);
-      const nativePerformanceNow = performance.now.bind(performance);
-      Date.now = () => nativeDateNow() + offset();
-      performance.now = () => nativePerformanceNow() + offset();
-    }, CLOCK_OFFSET_KEY);
+    await page.evaluateOnNewDocument(
+      (offsetKey: string, initialOffset: number) => {
+        const holder = window as unknown as Record<string, unknown>;
+        holder[offsetKey] = initialOffset;
+        const offset = (): number => {
+          const value = holder[offsetKey];
+          return typeof value === 'number' ? value : 0;
+        };
+        const nativeDateNow = Date.now.bind(Date);
+        const nativePerformanceNow = performance.now.bind(performance);
+        Date.now = () => nativeDateNow() + offset();
+        performance.now = () => nativePerformanceNow() + offset();
+      },
+      CLOCK_OFFSET_KEY,
+      options.initialClockOffsetMs ?? 0,
+    );
   }
 
   await page.evaluateOnNewDocument((entries: readonly (readonly [string, string])[]) => {

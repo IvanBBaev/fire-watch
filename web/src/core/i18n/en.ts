@@ -121,7 +121,6 @@ const messages: Messages = {
     }
   },
   observedShort: (time, age) => `Observed: ${time} (${age})`,
-  firstObserved: (dateTime) => `First observed: ${dateTime}`,
   eventNotFound: 'This event could not be found. Check the link, or go back to the map.',
   backToMap: 'Back to map',
   copyLink: 'Copy link',
@@ -138,11 +137,53 @@ const messages: Messages = {
     label: 'Time window',
     // Short on purpose: four of these sit side by side in the panel, and the group label
     // above them is what says these are hours of look-back.
-    option: { '6h': '6 h', '24h': '24 h', '48h': '48 h', all: 'All' },
+    option: {
+      '1h': '1 h',
+      '3h': '3 h',
+      '6h': '6 h',
+      '12h': '12 h',
+      '24h': '24 h',
+      '48h': '48 h',
+      all: 'All',
+    },
     olderHidden: (count) =>
       count === 1 ? '1 older fire hidden' : `${formatNumber(count, 'en')} older fires hidden`,
     showOlder: 'Show older',
     emptyInWindow: 'No satellite detections in this time window. Widen it to see older ones.',
+    emptyShortWindow:
+      'No new satellite detections in this time window. Satellites pass only a few times a day, so a short window is often empty.',
+  },
+
+  filters: {
+    label: 'Filters',
+    sourceLabel: 'Sensor',
+    sourceAll: (count) => `All sensors (${formatNumber(count, 'en')})`,
+    sourceOption: (name, count) => `${name} (${formatNumber(count, 'en')})`,
+    family: { v: 'VIIRS', m: 'MODIS', s: 'Sentinel-3 SLSTR', g: 'Meteosat SEVIRI/FCI' },
+    sourceUnreported: (count) =>
+      count === 1
+        ? 'For 1 fire the feed does not say which sensor saw it; it is shown under every sensor.'
+        : `For ${formatNumber(count, 'en')} fires the feed does not say which sensor saw them; they are shown under every sensor.`,
+    regionLabel: 'Region',
+    regionAll: 'All regions',
+    regionLoading: 'Loading region borders…',
+    regionFailed: 'Region borders could not be loaded, so fires from all regions are shown.',
+    hiddenByFilters: (count) =>
+      count === 1
+        ? '1 fire hidden by filters'
+        : `${formatNumber(count, 'en')} fires hidden by filters`,
+    clear: 'Clear filters',
+    emptyFiltered: 'No satellite detections match these filters.',
+  },
+
+  search: {
+    label: 'Find a place',
+    placeholder: 'Town, village or coordinates',
+    loading: 'Loading places…',
+    failed: 'Places could not be loaded. Coordinates still work.',
+    noResults: 'No matching place',
+    goToCoordinates: (coordinates) => `Go to ${coordinates}`,
+    resultCount: (count) => (count === 1 ? '1 result' : `${formatNumber(count, 'en')} results`),
   },
 
   listInView: {
@@ -167,6 +208,89 @@ const messages: Messages = {
     coverageNote:
       'Coverage: Bulgaria plus a 100 km cross-border band. Neighbouring fires are shown because fires cross borders.',
     imagery: 'Satellite imagery',
+  },
+
+  layers: {
+    toggle: 'Layers',
+    panelLabel: 'Map layers',
+    basemapTitle: 'Base map',
+    basemapMap: 'Map',
+    overlaysTitle: 'Context layers',
+    fwi: 'Fire danger (weather index)',
+    fwiNote:
+      "EFFIS Fire Weather Index, ~8 km grid: how favourable today's weather is for fire. Not a forecast of where fires will start.",
+    fwiLegendTitle: 'Danger level',
+    fwiClasses: ['Low', 'Moderate', 'High', 'Very high', 'Extreme', 'Very extreme'],
+    fwiValidFor: (date) => `For ${date}`,
+    fwiNotToday: "Not today's index.",
+    ba: 'Burnt areas (last 7 days)',
+    baNote:
+      'EFFIS burnt-area polygons mapped from satellite imagery. A new burnt area appears days after the fire.',
+    copyDated: (time) => `Copy dated ${time}`,
+    suspect: 'This copy failed our quality check and may be blank or incomplete.',
+    loading: 'Loading…',
+    unavailable: 'Not available right now.',
+    wind: 'Wind (10 m above ground)',
+    windNote:
+      'ECMWF forecast wind, ~50 km grid. Arrows point where the wind blows. Context only: not a prediction of how any fire will behave.',
+    windLegendTitle: 'Wind speed (m/s)',
+    windClasses: ['Under 2', '2 to 5', '5 to 8', '8 to 11', '11 and above'],
+    windValidFor: (time, run) => `For ${time} (ECMWF run ${run})`,
+    staticSources: 'Known heat sources',
+    staticSourcesNote:
+      'Solar parks, power plants, gas flares and heavy industry mapped in OpenStreetMap. Satellites can see their heat as a hotspot.',
+    swaths: 'Satellite swaths (predicted)',
+    swathsNote:
+      'Where each fire-detecting satellite looked in the last 6 hours and should look in the next 12, predicted from its orbit. A swath is a chance to detect a fire, not a promise.',
+    swathsNext: 'Next passes (outline)',
+    swathsRecent: 'Recent passes (shaded)',
+    swathsPassAt: (platform, time) => `${platform} at ${time}`,
+    lightning: 'Lightning (last 6 hours)',
+    lightningNote:
+      'Flashes seen from space by the Meteosat Lightning Imager, placed to within about 5 km. Context only: a flash near a fire does not mean lightning started it.',
+    lightningLegendTitle: 'Flash age',
+    lightningClasses: ['Under 15 minutes', '15 minutes to 1 hour', '1 to 6 hours'],
+    lightningAsOf: (time) => `Flashes recorded up to ${time}`,
+    lightningNone: 'No flashes recorded over the area in the last 6 hours.',
+  },
+
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  passes: {
+    title: 'Satellite passes',
+    note: 'Predicted times when the fire-detecting satellites pass over this area, computed from their orbits. A pass is a chance to detect a fire, not a promise: cloud, smoke or a small fire can hide it.',
+    forMapCentre: 'Area: the map centre',
+    forEvent: 'Area: the selected event',
+    outsideArea: 'Pass times cover only the area we poll. Move the map inside it to see them.',
+    predicted: 'Predicted',
+    computedFor: (time) => `Predicted from orbital elements, computed for ${time}.`,
+    expired: 'This prediction is older than its window. Later passes are not loaded yet.',
+    lastPass: 'Last pass',
+    nextPass: 'Next predicted pass',
+    none: 'None in the window',
+    inTime: (age) => {
+      switch (age.unit) {
+        case 'now':
+          return 'about now';
+        case 'minutes':
+          return `in ${String(age.minutes)} min`;
+        case 'hours':
+          return age.minutes === 0
+            ? `in ${String(age.hours)} h`
+            : `in ${String(age.hours)} h ${String(age.minutes)} min`;
+        case 'days':
+          return age.days === 1 ? 'in 1 day' : `in ${formatNumber(age.days, 'en')} days`;
+      }
+    },
+    day: 'daytime',
+    night: 'night-time',
+    elementsStale: 'Orbital elements are more than three days old; these times are less certain.',
+    elementsMissing: 'No current orbital elements for this satellite, so no prediction.',
+    cloudClear: 'mostly clear',
+    cloudPartly: 'partly cloudy',
+    cloudCloudy: 'cloudy',
+    cloudForecast: (level, pct) => `cloud forecast: ${level}, ${pct}%`,
+    cloudCaveat:
+      'Cloud is an ECMWF forecast for each pass time, not an observation. A fire under cloud may be missed.',
   },
 
   // Capability → limitation → action (07-product-ux P7/P13).
@@ -329,6 +453,85 @@ const messages: Messages = {
     signedIn: 'You are signed in on this device.',
     signOut: 'Sign out',
     signedOut: 'You are signed out on this device.',
+  },
+
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  newSignals: {
+    regionLabel: 'New since you last looked',
+    count: (count) =>
+      count === 1
+        ? '1 fire new or with new detections'
+        : `${formatNumber(count, 'en')} fires new or with new detections`,
+    latest: (age) => `Latest detection: ${age}`,
+    showNewest: 'Show newest',
+    markAllSeen: 'Mark all seen',
+    soundTitle: 'Sound cue',
+    soundLabel: 'Play a short sound when new satellite detections arrive while this page is open',
+    soundNote:
+      'A quiet cue, not an alarm. Satellite data can arrive hours after a pass, and your browser may keep the sound muted until you tap or click on the page.',
+  },
+
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  eventDetail: {
+    eventIdLabel: 'Event ID',
+    copied: 'Copied.',
+    copyFailed: 'Could not copy. Select the text and copy it instead.',
+    timelineTitle: 'Satellite timeline',
+    firstDetected: 'First detected',
+    lastDetected: 'Last detected',
+    detectionsLabel: 'Detections',
+    lastSensorLabel: 'Last seen by',
+    frpTitle: 'Fire radiative power (FRP)',
+    frpLatest: (mw, sensor, time) => `Latest pass: ${mw} MW (${sensor}, ${time})`,
+    frpPeak: (mw, sensor, time) => `Highest pass: ${mw} MW (${sensor}, ${time})`,
+    frpChartLabel: (passes, min, max) =>
+      passes === 1
+        ? `FRP chart: 1 satellite pass, ${max} MW`
+        : `FRP chart: ${formatNumber(passes, 'en')} satellite passes, oldest to newest, from ${min} to ${max} MW`,
+    frpNote:
+      'FRP is the heat that satellite pixels measured, in megawatts, summed over one pass. It is not comparable across sensors: a coarser pixel reads the same fire differently, so a difference between sensors is not a change in the fire.',
+    frpUnavailable: 'The detections we hold for this event carry no FRP values.',
+    sensorsTitle: 'Contributing sensors',
+    orbit: { polar: 'polar orbit', geostationary: 'geostationary' },
+    sensorPixel: (size) => `${size} pixel`,
+    metres: (value) => `${value} m`,
+    kilometres: (value) => `${value} km`,
+    detailUnavailable: 'Per-detection detail is not available for this event.',
+    whereTitle: 'Where',
+    approxCentreLabel: 'Approximate centre of the detections',
+    copyCoordinates: 'Copy coordinates',
+    openStreetMap: 'View the area on OpenStreetMap (opens in a new tab)',
+    showDistance: 'Show distance from my location',
+    locating: 'Finding your location…',
+    locationDenied: 'Location permission denied, so no distance is shown.',
+    locationUnavailable: 'Your location could not be determined.',
+    distance: (km, direction) => `About ${km} km ${direction} of your location`,
+    nearby: 'Less than 1 km from your location',
+    compass: {
+      N: 'north',
+      NE: 'north-east',
+      E: 'east',
+      SE: 'south-east',
+      S: 'south',
+      SW: 'south-west',
+      W: 'west',
+      NW: 'north-west',
+    },
+    orientationNote: 'For orientation only, not directions. Your location stays on this device.',
+    staticSourceSolar: 'Near a known solar park — this hotspot may not be a fire.',
+    staticSourceIndustrial: 'Near a known industrial heat source — this hotspot may not be a fire.',
+    staticSourceDetectionsSolar: (near, total) =>
+      near === total
+        ? total === 1
+          ? 'Its only detection is near a known solar park — this hotspot may not be a fire.'
+          : `All ${formatNumber(total, 'en')} detections are near a known solar park — this hotspot may not be a fire.`
+        : `${formatNumber(near, 'en')} of ${formatNumber(total, 'en')} detections ${near === 1 ? 'is' : 'are'} near a known solar park — ${near === 1 ? 'it' : 'they'} may not be a fire.`,
+    staticSourceDetectionsIndustrial: (near, total) =>
+      near === total
+        ? total === 1
+          ? 'Its only detection is near a known industrial heat source — this hotspot may not be a fire.'
+          : `All ${formatNumber(total, 'en')} detections are near a known industrial heat source — this hotspot may not be a fire.`
+        : `${formatNumber(near, 'en')} of ${formatNumber(total, 'en')} detections ${near === 1 ? 'is' : 'are'} near a known industrial heat source — ${near === 1 ? 'it' : 'they'} may not be a fire.`,
   },
 };
 

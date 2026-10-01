@@ -10,7 +10,8 @@
         "observed_at": "2026-08-05T00:58:00Z",
         "source_id": "firms:viirs:snpp",
         "scan_km": 0.4,
-        "track_km": 0.4
+        "track_km": 0.4,
+        "frp_mw": 8.4
       }
     },
     {
@@ -21,7 +22,8 @@
         "observed_at": "2026-08-05T00:58:00Z",
         "source_id": "firms:viirs:snpp",
         "scan_km": 0.4,
-        "track_km": 0.4
+        "track_km": 0.4,
+        "frp_mw": 4.2
       }
     },
     {
@@ -32,7 +34,8 @@
         "observed_at": "2026-08-05T01:49:00Z",
         "source_id": "firms:viirs:noaa20",
         "scan_km": 0.49,
-        "track_km": 0.44
+        "track_km": 0.44,
+        "frp_mw": 8.8
       }
     },
     {
@@ -43,7 +46,8 @@
         "observed_at": "2026-08-05T01:49:00Z",
         "source_id": "firms:viirs:noaa20",
         "scan_km": 0.49,
-        "track_km": 0.44
+        "track_km": 0.44,
+        "frp_mw": 12
       }
     },
     {
@@ -52,7 +56,8 @@
       "properties": {
         "uid": "det-w3r7e-005",
         "observed_at": "2026-08-06T01:31:00Z",
-        "source_id": "firms:viirs:noaa21"
+        "source_id": "firms:viirs:noaa21",
+        "frp_mw": 5.6
       }
     },
     {
@@ -63,7 +68,8 @@
         "observed_at": "2026-08-06T10:22:00Z",
         "source_id": "lsasaf:seviri:frp-pixel",
         "scan_km": 4.8,
-        "track_km": 6.2
+        "track_km": 6.2,
+        "frp_mw": 76.8
       }
     }
   ]

@@ -15,6 +15,12 @@ import type { Clock } from '../../core/ports.js';
 export interface CreditSessionState {
   /** The Esri imagery layer is drawn (`imageryOn` in `ui/imagery.ts`, TASKS G6). */
   readonly imageryOn?: boolean;
+  /** An EFFIS overlay is chosen in the Layers panel (`effisChosen` in `ui/layers.ts`, G4). */
+  readonly effisOn?: boolean;
+  /** The F14 wind layer is chosen (`windChosen` in `ui/layers.ts`). */
+  readonly windOn?: boolean;
+  /** F17 forecast cloud is shown in the satellite-pass section (`passesCloudOn`). */
+  readonly cloudOn?: boolean;
 }
 
 /**
@@ -49,6 +55,11 @@ export function activeCreditConditions(
   // Imagery is offered and chosen at runtime, so the reader's toggle — not the config —
   // is what makes the Esri credit owed (ADR-001 A1.4).
   if (session.imageryOn === true) conditions.push('toggle:esri');
+  // The same for the EFFIS overlays: off by default, owed from the moment one is chosen.
+  if (session.effisOn === true) conditions.push('layer:effis');
+  // And the wind layer: all five ECMWF components, owed while it is chosen (F14).
+  // The F17 per-pass cloud forecast is ECMWF-derived too: the same five, never twice.
+  if (session.windOn === true || session.cloudOn === true) conditions.push('derived:ecmwf');
   return conditions;
 }
 

@@ -11,9 +11,10 @@
  * (`RegistryWrites.aggregates`: seeds, attaches, merge survivors). Scoring those, in the
  * same transaction as their aggregates, is therefore the whole of §3.4 — no lifecycle tick
  * ever has to rescore anything, and a score is never out of step with the members it
- * describes. The day a context input is armed (FWI changes daily; a mask or land-cover
- * layer can be re-versioned) that stops being true, and a rescore on context change will be
- * needed; it is the context's arrival, not this module, that has to add it.
+ * describes. The one context input that *is* armed — the static hot-source mask — can be
+ * re-versioned without the members changing, so a mask or policy change is caught by the
+ * tick's sweep instead (`staticSourceSweep` in `identity-cycle.ts`, keyed on the versions
+ * stored with each verdict). FWI and land cover will need the same when they are armed.
  *
  * A merge tombstone is not rescored: it is a redirect with no members of its own, and
  * `scoreEvent` refuses an empty list for the same reason the replay reports its bucket as
@@ -30,18 +31,28 @@
 
 import { orderMembers } from '../clustering/aggregates.js';
 import type { Cluster, ClusterBatchResult } from '../clustering/types.js';
-import type { EventScore, ScoringDetectionKey } from '../ports/clustering-store.js';
+import type {
+  EventScore,
+  ScoringDetectionKey,
+  StaticSourceStamp,
+} from '../ports/clustering-store.js';
 import type { SurvivorUpdate } from '../registry/merge-plan.js';
 import type { ScoringDetection } from '../scoring/features.js';
 import { scoreEvent, type ScoreContext } from '../scoring/score.js';
+import {
+  NO_STATIC_SOURCE_EVALUATOR,
+  invalidationOf,
+  type StaticSourceEvaluator,
+} from '../static-sources/static-source-policy.js';
 
 /**
- * The score context the live pipeline can honestly supply today — the same three absences
- * as the replay's `REPLAY_SCORE_CONTEXT`, for the same reasons, so the live bucket and the
- * replayed bucket of the same member set are the same bucket.
+ * The score context the live pipeline can honestly supply without its data sources — the
+ * same three absences as the replay's `REPLAY_SCORE_CONTEXT`, for the same reasons.
  *
- *   - No static hot-source mask is loaded (D9 / DATASETS), so no mask hits: the §3.6 hard
- *     override cannot fire live yet. `false` rather than "unknown" is the scorer's contract.
+ *   - `staticSourceMaskHit: false` is the default only: {@link eventScores} replaces it per
+ *     event from the static-source verdict (TASKS F16, `static_source_policy_v2`). A replay
+ *     that pins the policy and ships the mask does the same, so the live and replayed
+ *     bucket of the same member set agree.
  *   - Nothing looks EFFIS FWI up: `null` scores `x_fwi` as 0, withholding credit.
  *   - Nothing classifies land cover (D10): `null` scores `x_agri` as 0, withholding a
  *     *penalty* — an agricultural burn scores higher than it will once D10 lands. This is
@@ -99,15 +110,54 @@ export function scoringDetectionKeys(
 }
 
 /**
+ * One event's score and static-source verdict from its canonical-order rows. Shared by the
+ * batch rescore and the tick's mask sweep, so the two can never disagree about what a
+ * verdict does to a score.
+ *
+ * `static_source` sets the §3.6 mask flag (score 0, invalidated: the spec's "status
+ * invalidated"). `suspected_static_source` keeps the formula's score and invalidates (§6.2:
+ * no alert, not public). Neither is sticky: the store releases either when a later
+ * verdict is anything else; only curation's invalidations survive a rescore.
+ */
+export function scoreWithVerdict(
+  publicId: string,
+  rows: readonly ScoringDetection[],
+  context: ScoreContext = LIVE_SCORE_CONTEXT,
+  evaluator: StaticSourceEvaluator = NO_STATIC_SOURCE_EVALUATOR,
+): EventScore {
+  const verdict = evaluator.evaluate(rows);
+  // §3.6: a stated hit in the context stands; the mask can only add one, per event.
+  const scored = scoreEvent(rows, {
+    ...context,
+    staticSourceMaskHit: context.staticSourceMaskHit || verdict === 'static_source',
+  });
+  const invalidatedReason = scored.invalidated ? 'static_source' : invalidationOf(verdict);
+  const staticSource: StaticSourceStamp | null =
+    evaluator.policyVersion === null
+      ? null
+      : { verdict, maskVersion: evaluator.maskVersion, policyVersion: evaluator.policyVersion };
+  return {
+    publicId,
+    score: scored.score,
+    invalidated: invalidatedReason !== null,
+    invalidatedReason,
+    paramsVersion: scored.paramsVersion,
+    staticSource,
+  };
+}
+
+/**
  * The score of every event whose aggregates this batch rewrites, from the detections the
  * store read back for {@link scoringDetectionKeys}. Members are fed to the scorer in
- * canonical order (`orderMembers`), which is the order the replay feeds them in.
+ * canonical order (`orderMembers`), which is the order the replay feeds them in; the
+ * verdict is order-free anyway. See {@link scoreWithVerdict} for what a verdict does.
  */
 export function eventScores(
   result: ClusterBatchResult,
   aggregates: readonly SurvivorUpdate[],
   detections: readonly ScoringDetection[],
   context: ScoreContext = LIVE_SCORE_CONTEXT,
+  evaluator: StaticSourceEvaluator = NO_STATIC_SOURCE_EVALUATOR,
 ): readonly EventScore[] {
   const byUid = new Map(detections.map((detection) => [detection.detectionUid, detection]));
   return clustersOf(result, aggregates).map((cluster) => {
@@ -122,12 +172,6 @@ export function eventScores(
       }
       return row;
     });
-    const scored = scoreEvent(rows, context);
-    return {
-      publicId: cluster.publicId,
-      score: scored.score,
-      invalidated: scored.invalidated,
-      paramsVersion: scored.paramsVersion,
-    };
+    return scoreWithVerdict(cluster.publicId, rows, context, evaluator);
   });
 }

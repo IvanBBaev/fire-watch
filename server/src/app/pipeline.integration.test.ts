@@ -368,6 +368,31 @@ describe.skipIf(!hasDocker)('the worker pipeline, ingest to snapshot, against Po
     firstSeq = doc.max_seq;
   });
 
+  it('serves each event the sources its live-run members came from (F12)', async () => {
+    // The snapshot reads `fire_events.source_mix` rather than joining the detections, so
+    // this pins the two to each other after a real attach: whatever the clustering store
+    // keeps in the mix must be exactly the distinct sources of the live run's members.
+    const { rows } = await db.query<{ public_id: string; sources: string[] }>(
+      `SELECT e.public_id, array_agg(DISTINCT d.source ORDER BY d.source) AS sources
+         FROM fire_events e
+         JOIN event_detections ed ON ed.fire_event_id = e.id
+         JOIN clustering_runs r ON r.id = ed.clustering_run_id AND r.kind = 'live'
+         JOIN detections d ON d.acq_ts = ed.acq_ts AND d.detection_uid = ed.detection_uid
+        WHERE e.merged_into IS NULL
+        GROUP BY e.public_id`,
+    );
+    const joined = new Map(rows.map((row) => [row.public_id, row.sources]));
+    const doc = await snapshot();
+    expect(doc.features.length).toBeGreaterThan(0);
+    for (const feature of doc.features) {
+      const expected = [...(joined.get(feature.id) ?? [])].sort((a, b) =>
+        a < b ? -1 : a > b ? 1 : 0,
+      );
+      expect(feature.properties.source_ids, feature.id).toEqual(expected);
+      for (const id of expected) expect(id).toMatch(/^firms:viirs:/);
+    }
+  });
+
   it('persists the v0 score on every live event the identity cycle wrote', async () => {
     const { rows } = await db.query<{
       public_id: string;

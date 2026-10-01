@@ -1,0 +1,593 @@
+{
+  "schema_version": 1,
+  "cell": "42.25_25.25",
+  "point": {
+    "lat": 42.25,
+    "lon": 25.25
+  },
+  "computed_for": "2026-09-30T13:10:00Z",
+  "window": {
+    "from": "2026-09-30T01:10:00Z",
+    "to": "2026-10-01T13:10:00Z"
+  },
+  "predicted": true,
+  "elements_provider": "celestrak",
+  "cloud": {
+    "kind": "forecast",
+    "provider": "ecmwf-open-data",
+    "model": "ifs",
+    "param": "tcc",
+    "at": "culmination",
+    "method": "linear_in_time",
+    "runs": ["2026-09-30T00:00:00Z"],
+    "available_at": "2026-09-30T08:10:00Z",
+    "cloud_cover_version": "cloud_cover_v1"
+  },
+  "platforms": [
+    {
+      "id": "noaa20",
+      "source": "firms:viirs:noaa20",
+      "instrument": "viirs",
+      "swath_km": 3060,
+      "elements": "current",
+      "elements_epoch": "2026-09-30T03:59:35Z",
+      "elements_age_hours": 9.2,
+      "passes": [
+        {
+          "aos": "2026-09-30T01:07:03Z",
+          "culmination": "2026-09-30T01:14:21Z",
+          "los": "2026-09-30T01:21:37Z",
+          "max_elevation_deg": 32.5,
+          "cross_track_km": 1028,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T02:49:28Z",
+          "culmination": "2026-09-30T02:52:57Z",
+          "los": "2026-09-30T02:56:25Z",
+          "max_elevation_deg": 3.1,
+          "cross_track_km": 2774,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T09:13:30Z",
+          "culmination": "2026-09-30T09:18:48Z",
+          "los": "2026-09-30T09:24:07Z",
+          "max_elevation_deg": 8.7,
+          "cross_track_km": 2259,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 85
+        },
+        {
+          "aos": "2026-09-30T10:50:17Z",
+          "culmination": "2026-09-30T10:57:55Z",
+          "los": "2026-09-30T11:05:36Z",
+          "max_elevation_deg": 60.8,
+          "cross_track_km": 404,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": 79
+        },
+        {
+          "aos": "2026-09-30T12:31:51Z",
+          "culmination": "2026-09-30T12:38:31Z",
+          "los": "2026-09-30T12:45:16Z",
+          "max_elevation_deg": 17.8,
+          "cross_track_km": 1646,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T23:08:11Z",
+          "culmination": "2026-09-30T23:15:18Z",
+          "los": "2026-09-30T23:22:19Z",
+          "max_elevation_deg": 23.4,
+          "cross_track_km": 1371,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T00:48:08Z",
+          "culmination": "2026-10-01T00:55:42Z",
+          "los": "2026-10-01T01:03:14Z",
+          "max_elevation_deg": 46.6,
+          "cross_track_km": 665,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T02:29:56Z",
+          "culmination": "2026-10-01T02:34:36Z",
+          "los": "2026-10-01T02:39:16Z",
+          "max_elevation_deg": 6.2,
+          "cross_track_km": 2477,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T08:56:04Z",
+          "culmination": "2026-10-01T09:00:26Z",
+          "los": "2026-10-01T09:04:47Z",
+          "max_elevation_deg": 5.2,
+          "cross_track_km": 2567,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T10:31:47Z",
+          "culmination": "2026-10-01T10:39:14Z",
+          "los": "2026-10-01T10:46:44Z",
+          "max_elevation_deg": 41.7,
+          "cross_track_km": 773,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T12:12:25Z",
+          "culmination": "2026-10-01T12:19:34Z",
+          "los": "2026-10-01T12:26:47Z",
+          "max_elevation_deg": 26.1,
+          "cross_track_km": 1255,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        }
+      ]
+    },
+    {
+      "id": "snpp",
+      "source": "firms:viirs:snpp",
+      "instrument": "viirs",
+      "swath_km": 3060,
+      "elements": "current",
+      "elements_epoch": "2026-09-30T05:21:18Z",
+      "elements_age_hours": 7.8,
+      "passes": [
+        {
+          "aos": "2026-09-30T02:29:02Z",
+          "culmination": "2026-09-30T02:34:04Z",
+          "los": "2026-09-30T02:39:06Z",
+          "max_elevation_deg": 7.5,
+          "cross_track_km": 2358,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T08:56:00Z",
+          "culmination": "2026-09-30T08:59:54Z",
+          "los": "2026-09-30T09:03:48Z",
+          "max_elevation_deg": 4,
+          "cross_track_km": 2678,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 86
+        },
+        {
+          "aos": "2026-09-30T10:31:15Z",
+          "culmination": "2026-09-30T10:38:36Z",
+          "los": "2026-09-30T10:45:59Z",
+          "max_elevation_deg": 36.4,
+          "cross_track_km": 911,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": 80
+        },
+        {
+          "aos": "2026-09-30T12:11:33Z",
+          "culmination": "2026-09-30T12:18:49Z",
+          "los": "2026-09-30T12:26:10Z",
+          "max_elevation_deg": 30,
+          "cross_track_km": 1107,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T22:49:14Z",
+          "culmination": "2026-09-30T22:55:32Z",
+          "los": "2026-09-30T23:01:46Z",
+          "max_elevation_deg": 13.4,
+          "cross_track_km": 1914,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T00:28:34Z",
+          "culmination": "2026-10-01T00:36:20Z",
+          "los": "2026-10-01T00:44:02Z",
+          "max_elevation_deg": 78.5,
+          "cross_track_km": 149,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T02:09:48Z",
+          "culmination": "2026-10-01T02:15:38Z",
+          "los": "2026-10-01T02:21:28Z",
+          "max_elevation_deg": 11.6,
+          "cross_track_km": 2039,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T08:39:20Z",
+          "culmination": "2026-10-01T08:41:36Z",
+          "los": "2026-10-01T08:43:51Z",
+          "max_elevation_deg": 1.2,
+          "cross_track_km": 2962,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T10:12:58Z",
+          "culmination": "2026-10-01T10:19:59Z",
+          "los": "2026-10-01T10:27:02Z",
+          "max_elevation_deg": 25.8,
+          "cross_track_km": 1268,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T11:52:23Z",
+          "culmination": "2026-10-01T11:59:56Z",
+          "los": "2026-10-01T12:07:33Z",
+          "max_elevation_deg": 44,
+          "cross_track_km": 719,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        }
+      ]
+    },
+    {
+      "id": "noaa21",
+      "source": "firms:viirs:noaa21",
+      "instrument": "viirs",
+      "swath_km": 3060,
+      "elements": "current",
+      "elements_epoch": "2026-09-30T03:02:52Z",
+      "elements_age_hours": 10.1,
+      "passes": [
+        {
+          "aos": "2026-09-30T01:51:52Z",
+          "culmination": "2026-09-30T01:57:53Z",
+          "los": "2026-09-30T02:03:53Z",
+          "max_elevation_deg": 12.8,
+          "cross_track_km": 1956,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T08:22:28Z",
+          "culmination": "2026-09-30T08:23:53Z",
+          "los": "2026-09-30T08:25:18Z",
+          "max_elevation_deg": 0.5,
+          "cross_track_km": 3047,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 87
+        },
+        {
+          "aos": "2026-09-30T09:55:16Z",
+          "culmination": "2026-09-30T10:02:11Z",
+          "los": "2026-09-30T10:09:07Z",
+          "max_elevation_deg": 23.4,
+          "cross_track_km": 1373,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": 82
+        },
+        {
+          "aos": "2026-09-30T11:34:26Z",
+          "culmination": "2026-09-30T11:42:03Z",
+          "los": "2026-09-30T11:49:44Z",
+          "max_elevation_deg": 49.5,
+          "cross_track_km": 604,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": 77
+        },
+        {
+          "aos": "2026-09-30T13:19:25Z",
+          "culmination": "2026-09-30T13:23:27Z",
+          "los": "2026-09-30T13:27:30Z",
+          "max_elevation_deg": 3.9,
+          "cross_track_km": 2685,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T22:13:25Z",
+          "culmination": "2026-09-30T22:18:31Z",
+          "los": "2026-09-30T22:23:34Z",
+          "max_elevation_deg": 6.9,
+          "cross_track_km": 2407,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T23:51:56Z",
+          "culmination": "2026-09-30T23:59:41Z",
+          "los": "2026-10-01T00:07:23Z",
+          "max_elevation_deg": 65.6,
+          "cross_track_km": 330,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T01:32:46Z",
+          "culmination": "2026-10-01T01:39:22Z",
+          "los": "2026-10-01T01:45:56Z",
+          "max_elevation_deg": 18.3,
+          "cross_track_km": 1620,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T09:37:11Z",
+          "culmination": "2026-10-01T09:43:37Z",
+          "los": "2026-10-01T09:50:04Z",
+          "max_elevation_deg": 16.6,
+          "cross_track_km": 1718,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T11:15:30Z",
+          "culmination": "2026-10-01T11:23:12Z",
+          "los": "2026-10-01T11:30:59Z",
+          "max_elevation_deg": 73.2,
+          "cross_track_km": 220,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T12:58:56Z",
+          "culmination": "2026-10-01T13:04:18Z",
+          "los": "2026-10-01T13:09:43Z",
+          "max_elevation_deg": 8.3,
+          "cross_track_km": 2295,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        }
+      ]
+    },
+    {
+      "id": "s3a",
+      "source": "eumetsat:slstr:frp",
+      "instrument": "slstr",
+      "swath_km": 1420,
+      "elements": "current",
+      "elements_epoch": "2026-09-30T04:49:24Z",
+      "elements_age_hours": 8.3,
+      "passes": [
+        {
+          "aos": "2026-09-30T07:03:38Z",
+          "culmination": "2026-09-30T07:09:24Z",
+          "los": "2026-09-30T07:15:07Z",
+          "max_elevation_deg": 10.5,
+          "cross_track_km": 2082,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 91
+        },
+        {
+          "aos": "2026-09-30T08:42:12Z",
+          "culmination": "2026-09-30T08:49:51Z",
+          "los": "2026-09-30T08:57:25Z",
+          "max_elevation_deg": 88.2,
+          "cross_track_km": 22,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": 86
+        },
+        {
+          "aos": "2026-09-30T10:22:49Z",
+          "culmination": "2026-09-30T10:28:49Z",
+          "los": "2026-09-30T10:34:47Z",
+          "max_elevation_deg": 13.3,
+          "cross_track_km": 1885,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 81
+        },
+        {
+          "aos": "2026-09-30T18:24:07Z",
+          "culmination": "2026-09-30T18:30:43Z",
+          "los": "2026-09-30T18:37:19Z",
+          "max_elevation_deg": 19.9,
+          "cross_track_km": 1507,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T20:02:28Z",
+          "culmination": "2026-09-30T20:09:59Z",
+          "los": "2026-09-30T20:17:34Z",
+          "max_elevation_deg": 57.4,
+          "cross_track_km": 448,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T21:46:17Z",
+          "culmination": "2026-09-30T21:50:46Z",
+          "los": "2026-09-30T21:55:16Z",
+          "max_elevation_deg": 5.2,
+          "cross_track_km": 2516,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T06:39:00Z",
+          "culmination": "2026-10-01T06:43:06Z",
+          "los": "2026-10-01T06:47:10Z",
+          "max_elevation_deg": 4.2,
+          "cross_track_km": 2618,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T08:16:24Z",
+          "culmination": "2026-10-01T08:23:57Z",
+          "los": "2026-10-01T08:31:26Z",
+          "max_elevation_deg": 51.6,
+          "cross_track_km": 549,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T09:56:34Z",
+          "culmination": "2026-10-01T10:03:18Z",
+          "los": "2026-10-01T10:10:00Z",
+          "max_elevation_deg": 21.7,
+          "cross_track_km": 1416,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        }
+      ]
+    },
+    {
+      "id": "s3b",
+      "source": "eumetsat:slstr:frp",
+      "instrument": "slstr",
+      "swath_km": 1420,
+      "elements": "current",
+      "elements_epoch": "2026-09-30T04:10:41Z",
+      "elements_age_hours": 9,
+      "passes": [
+        {
+          "aos": "2026-09-30T06:27:51Z",
+          "culmination": "2026-09-30T06:30:27Z",
+          "los": "2026-09-30T06:33:03Z",
+          "max_elevation_deg": 1.5,
+          "cross_track_km": 2886,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 93
+        },
+        {
+          "aos": "2026-09-30T08:04:06Z",
+          "culmination": "2026-09-30T08:11:32Z",
+          "los": "2026-09-30T08:18:53Z",
+          "max_elevation_deg": 39.2,
+          "cross_track_km": 816,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 88
+        },
+        {
+          "aos": "2026-09-30T09:44:03Z",
+          "culmination": "2026-09-30T09:51:04Z",
+          "los": "2026-09-30T09:58:03Z",
+          "max_elevation_deg": 27.6,
+          "cross_track_km": 1173,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 83
+        },
+        {
+          "aos": "2026-09-30T11:26:34Z",
+          "culmination": "2026-09-30T11:29:05Z",
+          "los": "2026-09-30T11:31:36Z",
+          "max_elevation_deg": 1.6,
+          "cross_track_km": 2886,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": 78
+        },
+        {
+          "aos": "2026-09-30T17:47:47Z",
+          "culmination": "2026-09-30T17:53:05Z",
+          "los": "2026-09-30T17:58:23Z",
+          "max_elevation_deg": 9,
+          "cross_track_km": 2196,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T19:24:15Z",
+          "culmination": "2026-09-30T19:31:46Z",
+          "los": "2026-09-30T19:39:20Z",
+          "max_elevation_deg": 64.6,
+          "cross_track_km": 336,
+          "in_swath": true,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-09-30T21:05:32Z",
+          "culmination": "2026-09-30T21:11:57Z",
+          "los": "2026-09-30T21:18:26Z",
+          "max_elevation_deg": 16.1,
+          "cross_track_km": 1709,
+          "in_swath": false,
+          "daylight": "night",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T07:38:31Z",
+          "culmination": "2026-10-01T07:45:29Z",
+          "los": "2026-10-01T07:52:23Z",
+          "max_elevation_deg": 23.1,
+          "cross_track_km": 1351,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T09:17:59Z",
+          "culmination": "2026-10-01T09:25:24Z",
+          "los": "2026-10-01T09:32:47Z",
+          "max_elevation_deg": 45.3,
+          "cross_track_km": 675,
+          "in_swath": true,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        },
+        {
+          "aos": "2026-10-01T10:59:22Z",
+          "culmination": "2026-10-01T11:03:49Z",
+          "los": "2026-10-01T11:08:17Z",
+          "max_elevation_deg": 5.7,
+          "cross_track_km": 2482,
+          "in_swath": false,
+          "daylight": "day",
+          "cloud_forecast_pct": null
+        }
+      ]
+    }
+  ]
+}

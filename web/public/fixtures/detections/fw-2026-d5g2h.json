@@ -10,7 +10,8 @@
         "observed_at": "2026-08-09T00:52:00Z",
         "source_id": "firms:viirs:snpp",
         "scan_km": 0.46,
-        "track_km": 0.43
+        "track_km": 0.43,
+        "frp_mw": 8.4
       }
     },
     {
@@ -21,7 +22,8 @@
         "observed_at": "2026-08-09T00:52:00Z",
         "source_id": "firms:viirs:snpp",
         "scan_km": 0.47,
-        "track_km": 0.43
+        "track_km": 0.43,
+        "frp_mw": 4.2
       }
     },
     {
@@ -32,7 +34,8 @@
         "observed_at": "2026-08-09T01:43:00Z",
         "source_id": "firms:viirs:noaa20",
         "scan_km": 0.71,
-        "track_km": 0.52
+        "track_km": 0.52,
+        "frp_mw": 8.8
       }
     },
     {
@@ -43,7 +46,8 @@
         "observed_at": "2026-08-09T04:12:00Z",
         "source_id": "lsasaf:seviri:frp-pixel",
         "scan_km": 4.8,
-        "track_km": 6.2
+        "track_km": 6.2,
+        "frp_mw": 96
       }
     }
   ]

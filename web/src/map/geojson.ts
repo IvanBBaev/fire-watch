@@ -15,7 +15,7 @@ import type { LifecycleState, ScoreBucket } from '@fire-watch/contracts';
 import type { LinearRing } from '../core/geo/footprint.js';
 import { footprintRing, resolveFootprintKm } from '../core/geo/footprint.js';
 import { isWithinCutoff } from '../core/time/age-filter.js';
-import type { Detection, StoreState } from '../core/types.js';
+import type { Detection, FireEvent, StoreState } from '../core/types.js';
 
 export interface FireEventFeature {
   type: 'Feature';
@@ -103,6 +103,8 @@ export interface FireEventsFilter {
    * the reader is currently looking at — the map must not be blank where it is.
    */
   readonly keepId: string | null;
+  /** The reader's source/region filter; absent or `null` keeps every event. */
+  readonly predicate?: ((event: FireEvent) => boolean) | null;
 }
 
 const NO_FILTER: FireEventsFilter = { cutoffMs: null, keepId: null };
@@ -123,6 +125,7 @@ export function buildFireEventsCollection(
   for (const event of state.events.values()) {
     if (event.status === 'archived') continue;
     if (event.id !== filter.keepId && !isWithinCutoff(event, filter.cutoffMs)) continue;
+    if (event.id !== filter.keepId && filter.predicate?.(event) === false) continue;
     features.push({
       type: 'Feature',
       id: event.id,

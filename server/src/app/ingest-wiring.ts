@@ -18,7 +18,9 @@ import { createPgDetectionStore } from '../adapters/db/pg-detection-store.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgQuarantineStore } from '../adapters/db/pg-quarantine-store.js';
 import { createFirmsHttpClient } from '../adapters/firms/firms-http-client.js';
+import { createFirmsKeylessClient } from '../adapters/firms/firms-keyless-client.js';
 import type { IngestCycleDeps } from '../core/ingest/ingest-cycle.js';
+import type { FirmsAreaClient } from '../core/ports/firms-client.js';
 import type { ServerConfig } from './config.js';
 
 export interface IngestWiring {
@@ -36,11 +38,7 @@ export function wireIngest(config: ServerConfig): IngestWiring {
 
   return {
     deps: {
-      client: createFirmsHttpClient({
-        mapKey: config.firmsMapKey,
-        baseUrl: config.firmsBaseUrl,
-        clock: systemClock,
-      }),
+      client: wireFirmsClient(config),
       detectionUid,
       store: createPgDetectionStore(pool),
       // The same pool, deliberately: the bookkeeping is not a second system, and giving it
@@ -51,4 +49,24 @@ export function wireIngest(config: ServerConfig): IngestWiring {
     },
     close: () => pool.end(),
   };
+}
+
+/**
+ * The FIRMS adapter the config asked for. Both implement the same port, so nothing after
+ * this line knows — or needs to know — whether the rows came through the keyed Area API
+ * or through NASA's public regional files clipped to the same bbox.
+ */
+export function wireFirmsClient(config: ServerConfig): FirmsAreaClient {
+  if (config.firmsMode === 'keyless') {
+    return createFirmsKeylessClient({ baseUrl: config.firmsKeylessBaseUrl, clock: systemClock });
+  }
+  if (config.firmsMapKey === null) {
+    // loadConfig refuses this combination; reaching it means a hand-built config.
+    throw new Error('FIRMS area mode needs FIRMS_MAP_KEY');
+  }
+  return createFirmsHttpClient({
+    mapKey: config.firmsMapKey,
+    baseUrl: config.firmsBaseUrl,
+    clock: systemClock,
+  });
 }

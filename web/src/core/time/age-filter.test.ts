@@ -20,8 +20,11 @@ function observedHoursAgo(hours: number): { readonly lastObservedAt: string } {
 
 describe('the offered windows', () => {
   it('runs narrowest first and ends unbounded', () => {
-    expect([...AGE_WINDOW_IDS]).toEqual(['6h', '24h', '48h', 'all']);
+    expect([...AGE_WINDOW_IDS]).toEqual(['1h', '3h', '6h', '12h', '24h', '48h', 'all']);
+    expect(ageWindowHours('1h')).toBe(1);
+    expect(ageWindowHours('3h')).toBe(3);
     expect(ageWindowHours('6h')).toBe(6);
+    expect(ageWindowHours('12h')).toBe(12);
     expect(ageWindowHours('24h')).toBe(24);
     expect(ageWindowHours('48h')).toBe(48);
     expect(ageWindowHours('all')).toBeNull();
@@ -32,11 +35,11 @@ describe('the offered windows', () => {
     expect(ageWindowHours(DEFAULT_AGE_WINDOW)).toBe(24);
   });
 
-  it('offers nothing shorter than the revisit rate can fill', () => {
-    const shortest = Math.min(
-      ...AGE_WINDOW_IDS.map((id) => ageWindowHours(id) ?? Number.POSITIVE_INFINITY),
+  it('offers nothing wider than the 48 h the feed actually carries, bar the unbounded one', () => {
+    const bounded = AGE_WINDOW_IDS.map((id) => ageWindowHours(id)).filter(
+      (hours): hours is number => hours !== null,
     );
-    expect(shortest).toBeGreaterThanOrEqual(6);
+    expect(Math.max(...bounded)).toBe(48);
   });
 
   it('pins the storage key — changing it silently forgets everyone’s choice', () => {
@@ -128,7 +131,7 @@ describe('parseAgeWindow', () => {
   it('rejects absent, empty and unknown values', () => {
     expect(parseAgeWindow(null)).toBeNull();
     expect(parseAgeWindow('')).toBeNull();
-    expect(parseAgeWindow('12h')).toBeNull();
+    expect(parseAgeWindow('7d')).toBeNull();
     expect(parseAgeWindow('ALL')).toBeNull();
     expect(parseAgeWindow('toString')).toBeNull();
   });

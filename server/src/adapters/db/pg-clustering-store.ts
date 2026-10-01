@@ -69,6 +69,8 @@ import type {
   PendingBatch,
   PendingBatchQuery,
   ScoringDetectionKey,
+  StaticSourceStaleEvent,
+  StaticSourceStaleQuery,
   StoredCarry,
   StoredCluster,
   StoredMember,
@@ -339,10 +341,50 @@ UPDATE fire_events e
 const AGGREGATE_UNNEST = `
 unnest($2::text[], $3::timestamptz[], $4::timestamptz[], $5::integer[], $6::text[],
        $7::double precision[], $8::double precision[], $9::text[], $10::real[], $11::boolean[],
-       $12::real[], $13::text[], $14::boolean[])
+       $12::real[], $13::text[], $14::boolean[], $15::text[], $16::text[], $17::text[],
+       $18::text[])
   AS a(public_id, started_at, last_detection_at, detection_count, source_mix,
        lat, lon, hull, hull_diameter_km, needs_review,
-       score, score_params_version, score_invalidated)
+       score, score_params_version, score_invalidated, score_invalidated_reason,
+       static_source_verdict, static_source_mask_version, static_source_policy_version)
+`.trim();
+
+/**
+ * An invalidation no verdict owns — anything curation wrote (or a NULL reason) — over the
+ * event row `e`. Only these are sticky.
+ */
+const STICKY_INVALIDATION = `
+e.invalidated AND (e.invalidated_reason IS NULL
+                   OR e.invalidated_reason NOT IN ('static_source', 'suspected_static_source'))
+`.trim();
+
+/**
+ * The `SET` items a static-source verdict writes, over a source row `a` with
+ * `score_invalidated`, `score_invalidated_reason` and the three stamp columns (021).
+ *
+ * The two static-source reasons are owned by the verdict: every rescore rewrites them, so
+ * the batch that adds a detection off the source releases a §3.6 override (under §5.2.2
+ * that detection would have made an event of its own — a real fire next to a flare is
+ * never hidden), the night detection that breaks the §6.2 rule ("zero night detections
+ * *ever*") releases the quarantine, and a mask refresh that drops a wrongly mapped source
+ * releases every event it decided. Anything else — curation — is
+ * {@link STICKY_INVALIDATION}: no rescore clears it, because un-invalidating is a curation
+ * decision. A stamp of all NULLs (no evaluator wired) is written as such.
+ */
+const STATIC_SOURCE_INVALIDATION = `
+invalidated = CASE
+  WHEN ${STICKY_INVALIDATION} THEN true
+  ELSE a.score_invalidated
+END,
+invalidated_reason = CASE
+  WHEN ${STICKY_INVALIDATION} THEN e.invalidated_reason
+  WHEN a.score_invalidated THEN a.score_invalidated_reason
+  WHEN e.invalidated THEN NULL
+  ELSE e.invalidated_reason
+END,
+static_source_verdict = a.static_source_verdict,
+static_source_mask_version = a.static_source_mask_version,
+static_source_policy_version = a.static_source_policy_version
 `.trim();
 
 /**
@@ -360,8 +402,9 @@ unnest($2::text[], $3::timestamptz[], $4::timestamptz[], $5::integer[], $6::text
  * enough to print back (shortest round-trip output, PG ≥ 12) as the same double, so an
  * unchanged score rewritten is an unchanged column and draws no bump.
  *
- * `invalidated` is only ever set here, by the §3.6 static-source override, and never
- * cleared: un-invalidating is a curation decision, not a rescore's.
+ * `invalidated` is only ever set here (and by the tick's static-source sweep, with the
+ * same rule — {@link STATIC_SOURCE_INVALIDATION}): see there for which invalidation a
+ * rescore may clear and which it may not.
  */
 const UPDATE_EVENT_AGGREGATES = `
 UPDATE fire_events e
@@ -377,12 +420,7 @@ UPDATE fire_events e
        sum_frp_mw = frp.sum_frp_mw,
        score = a.score,
        score_params_version = a.score_params_version,
-       invalidated = e.invalidated OR a.score_invalidated,
-       invalidated_reason = CASE
-         WHEN e.invalidated THEN e.invalidated_reason
-         WHEN a.score_invalidated THEN 'static_source_mask'
-         ELSE e.invalidated_reason
-       END,
+       ${STATIC_SOURCE_INVALIDATION},
        updated_at = now()
   FROM ${AGGREGATE_UNNEST}
   CROSS JOIN LATERAL (
@@ -440,6 +478,56 @@ SELECT e.public_id, e.status, e.display_tier, e.inactive_since, e.miss_evidence,
 `.trim();
 
 /**
+ * The tick's static-source sweep (TASKS F16, "rescore on mask change"): live events of the
+ * run whose stored verdict was taken against a different mask or policy version than the
+ * one loaded — or none (NULL after 021) — with their scoring rows. Same horizon as the
+ * tick (archived events older than `activeSince` have nothing left to show or hide).
+ * Curation's sticky invalidations are left out: no verdict could change them. Bounded per tick by
+ * `$5`, oldest-id first, so a first deploy after 021 converges over a few ticks instead of
+ * holding the run lock over the whole registry.
+ */
+const SELECT_STATIC_SOURCE_STALE = `
+WITH stale AS (
+  SELECT e.id, e.public_id
+    FROM clusters c
+    JOIN fire_events e ON e.id = c.fire_event_id
+   WHERE c.clustering_run_id = $1
+     AND e.merged_into IS NULL
+     AND NOT (${STICKY_INVALIDATION})
+     AND (e.status <> 'archived' OR e.last_detection_at >= $2)
+     AND (e.static_source_mask_version IS DISTINCT FROM $3
+          OR e.static_source_policy_version IS DISTINCT FROM $4)
+   ORDER BY e.public_id COLLATE "C"
+   LIMIT $5
+)
+SELECT s.public_id, d.detection_uid, d.source, d.acq_ts, d.lat::text AS lat,
+       d.lon::text AS lon, d.confidence, d.day_night, d.frp_mw, d.scan_km, d.track_km
+  FROM stale s
+  JOIN event_detections ed ON ed.clustering_run_id = $1 AND ed.fire_event_id = s.id
+  JOIN detections d ON d.acq_ts = ed.acq_ts AND d.detection_uid = ed.detection_uid
+ ORDER BY s.public_id COLLATE "C", d.acq_ts, d.detection_uid COLLATE "C"
+`.trim();
+
+/**
+ * The sweep's write: the verdict, and the score it implies (0 under the override, the
+ * formula's otherwise — the members did not change, so for any other verdict this is the
+ * score already stored). Invalidation follows {@link STATIC_SOURCE_INVALIDATION}.
+ */
+const UPDATE_STATIC_SOURCE_VERDICTS = `
+UPDATE fire_events e
+   SET score = a.score,
+       score_params_version = a.score_params_version,
+       ${STATIC_SOURCE_INVALIDATION},
+       updated_at = now()
+  FROM unnest($1::text[], $2::real[], $3::text[], $4::boolean[], $5::text[], $6::text[],
+              $7::text[], $8::text[])
+         AS a(public_id, score, score_params_version, score_invalidated,
+              score_invalidated_reason, static_source_verdict, static_source_mask_version,
+              static_source_policy_version)
+ WHERE e.public_id = a.public_id AND e.merged_into IS NULL
+`.trim();
+
+/**
  * The carry. None of these columns is in 004's trigger list, so writing them every tick
  * moves no `seq` and invalidates no client cache; `updated_at` is left alone for the same
  * reason — it is the timestamp of the last change anyone could see.
@@ -487,6 +575,8 @@ export const PG_CLUSTERING_SQL = Object.freeze({
   updateClusterAggregates: UPDATE_CLUSTER_AGGREGATES,
   insertLedgerEntry: INSERT_LEDGER_ENTRY,
   selectTickEvents: SELECT_TICK_EVENTS,
+  selectStaticSourceStale: SELECT_STATIC_SOURCE_STALE,
+  updateStaticSourceVerdicts: UPDATE_STATIC_SOURCE_VERDICTS,
   updateCarries: UPDATE_CARRIES,
   updateTickedAt: UPDATE_TICKED_AT,
 });
@@ -935,6 +1025,45 @@ function tickTransaction(
       );
     },
 
+    async loadStaticSourceStale(
+      query: StaticSourceStaleQuery,
+    ): Promise<readonly StaticSourceStaleEvent[]> {
+      const { rows } = await client.query<Row>(SELECT_STATIC_SOURCE_STALE, [
+        run.id,
+        isoFromEpochMs(query.activeSince),
+        query.maskVersion,
+        query.policyVersion,
+        query.limit,
+      ]);
+      const events: { publicId: string; rows: ScoringDetection[] }[] = [];
+      for (const row of rows) {
+        const publicId = string(field(row, 'public_id'), 'public_id');
+        let current = events.at(-1);
+        if (current?.publicId !== publicId) {
+          current = { publicId, rows: [] };
+          events.push(current);
+        }
+        current.rows.push(decodeScoringDetection(row));
+      }
+      return events;
+    },
+
+    async applyStaticSourceVerdicts(scores: readonly EventScore[]): Promise<void> {
+      if (scores.length === 0) return;
+      await expectCount(
+        client,
+        UPDATE_STATIC_SOURCE_VERDICTS,
+        [
+          scores.map((s) => s.publicId),
+          scores.map((s) => s.score),
+          scores.map((s) => s.paramsVersion),
+          ...verdictArrays(scores),
+        ],
+        scores.length,
+        'static-source verdict',
+      );
+    },
+
     async markTicked(atMs: EpochMs): Promise<void> {
       await client.query(UPDATE_TICKED_AT, [run.id, isoFromEpochMs(atMs)]);
     },
@@ -995,7 +1124,21 @@ export function aggregateArrays(
     updates.map((u) => u.needsReview),
     scores.map((s) => s.score),
     scores.map((s) => s.paramsVersion),
+    ...verdictArrays(scores),
+  ];
+}
+
+/**
+ * The invalidation and stamp columns of {@link STATIC_SOURCE_INVALIDATION}, in its source
+ * row's order: `score_invalidated`, its reason, verdict, mask version, policy version.
+ */
+export function verdictArrays(scores: readonly EventScore[]): readonly unknown[][] {
+  return [
     scores.map((s) => s.invalidated),
+    scores.map((s) => s.invalidatedReason),
+    scores.map((s) => s.staticSource?.verdict ?? null),
+    scores.map((s) => s.staticSource?.maskVersion ?? null),
+    scores.map((s) => s.staticSource?.policyVersion ?? null),
   ];
 }
 

@@ -74,4 +74,22 @@ describe('createFsPayloadStore', () => {
     await expect(store.exists('..')).rejects.toThrow(/escapes the payload root/);
     expect(existsSync(join(root, '..', 'outside.bin'))).toBe(false);
   });
+  it('reads back what it wrote, with the hash of the bytes it returns', async () => {
+    const store = createFsPayloadStore(freshRoot());
+    const bytes = new Uint8Array([0x47, 0x52, 0x49, 0x42, 0x00, 0x02]);
+    const written = await store.writePayload('weather/ecmwf/x/10u.grib2', bytes);
+    await store.writeText('weather/ecmwf/x/10u.meta.json', '{"a":"é"}\n');
+
+    const read = await store.readPayload('weather/ecmwf/x/10u.grib2');
+    expect(read?.bytes).toEqual(bytes);
+    expect(read?.sha256).toBe(written.sha256);
+    expect(await store.readText('weather/ecmwf/x/10u.meta.json')).toBe('{"a":"é"}\n');
+  });
+
+  it('reads a missing file as null, and still refuses an escaping path', async () => {
+    const store = createFsPayloadStore(freshRoot());
+    expect(await store.readPayload('weather/none.grib2')).toBeNull();
+    expect(await store.readText('weather/none.json')).toBeNull();
+    await expect(store.readText('../etc/passwd')).rejects.toThrow(/escapes the payload root/);
+  });
 });

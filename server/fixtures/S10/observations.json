@@ -1,0 +1,31 @@
+{
+  "staticSources": {
+    "format": "fire-watch/static-sources@1",
+    "version": "osm-fixture-s10",
+    "licence": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "scale": 10000,
+    "kinds": ["solar", "thermal_power", "industrial", "flare"],
+    "sources": [[2, 275000, 425000]]
+  },
+  "zones": [
+    {
+      "zoneId": "zone-farm",
+      "accountId": "acct-01",
+      "createdAtIso": "2026-08-01T00:00:00Z",
+      "minScore": 0.45,
+      "timezone": "Europe/Sofia",
+      "quietHoursStart": "22:00",
+      "quietHoursEnd": "07:00",
+      "newFireOverridesQuietHours": false,
+      "distanceKm": 1.5
+    }
+  ],
+  "scores": [
+    {
+      "detectionUid": "d216246fdf226c178f11b798d6846a5940b712611bde43b9954ff9bd77e5ebdb",
+      "fromIso": "2026-08-12T11:30:00Z",
+      "score": 0.62
+    }
+  ]
+}

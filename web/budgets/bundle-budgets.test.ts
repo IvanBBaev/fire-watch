@@ -180,6 +180,24 @@ describe('checkBuild — classification', () => {
     ]);
   });
 
+  it('charges the named on-demand geodata to no budget, and only that', () => {
+    const manifest: Manifest = {
+      ...MANIFEST,
+      'src/assets/geodata/oblasts.json': {
+        file: 'assets/oblasts.json',
+        src: 'src/assets/geodata/oblasts.json',
+      },
+      'src/assets/other.json': { file: 'assets/other.json', src: 'src/assets/other.json' },
+    };
+    const report = checkBuild(
+      build({ manifest, sizes: { 'assets/oblasts.json': 8_000, 'assets/other.json': 1_000 } }),
+    );
+    expect(report.errors).toStrictEqual([
+      'chunk "assets/other.json" (src/assets/other.json) is reachable from no budget',
+    ]);
+    expect(bytes(report)['entry']).toBe(30_000 + 4_000);
+  });
+
   it('fails when the map root is missing, so the map budget cannot measure nothing', () => {
     const { 'src/map/index.ts': _map, ...manifest } = MANIFEST;
     expect(checkBuild(build({ manifest })).errors).toStrictEqual([

@@ -29,7 +29,13 @@
         "place_name_bg": "Харманли",
         "place_name_en": "Harmanli",
         "area_ha": 320,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": [
+          "eumetsat:slstr:frp",
+          "firms:viirs:noaa20",
+          "firms:viirs:snpp",
+          "lsasaf:seviri:frp-pixel"
+        ]
       }
     },
     {
@@ -48,7 +54,8 @@
         "place_name_bg": "Малко Търново",
         "place_name_en": "Malko Tarnovo",
         "area_ha": 85,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["eumetsat:slstr:frp", "firms:viirs:noaa21", "lsasaf:fci:frp-pixel"]
       }
     },
     {
@@ -67,7 +74,8 @@
         "place_name_bg": "Кресна",
         "place_name_en": "Kresna",
         "area_ha": null,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["eumetsat:slstr:frp"]
       }
     },
     {
@@ -86,7 +94,8 @@
         "place_name_bg": "Тополовград",
         "place_name_en": "Topolovgrad",
         "area_ha": 140,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["firms:viirs:noaa20", "firms:viirs:snpp", "lsasaf:seviri:frp-pixel"]
       }
     },
     {
@@ -105,7 +114,8 @@
         "place_name_bg": "Сливен",
         "place_name_en": "Sliven",
         "area_ha": 24,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["firms:viirs:noaa20", "firms:viirs:snpp"]
       }
     },
     {
@@ -124,7 +134,13 @@
         "place_name_bg": "Свиленград",
         "place_name_en": "Svilengrad",
         "area_ha": 410,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": [
+          "firms:viirs:noaa20",
+          "firms:viirs:noaa21",
+          "firms:viirs:snpp",
+          "lsasaf:seviri:frp-pixel"
+        ]
       }
     },
     {
@@ -143,7 +159,8 @@
         "place_name_bg": "Сандански",
         "place_name_en": "Sandanski",
         "area_ha": 1280,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["firms:viirs:noaa20", "firms:viirs:snpp"]
       }
     },
     {
@@ -162,7 +179,8 @@
         "place_name_bg": "Изворово",
         "place_name_en": "Izvorovo",
         "area_ha": null,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["firms:viirs:noaa21"]
       }
     },
     {
@@ -181,7 +199,13 @@
         "place_name_bg": "Александруполис",
         "place_name_en": "Alexandroupoli",
         "area_ha": 260,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": [
+          "eumetsat:slstr:frp",
+          "firms:viirs:noaa20",
+          "firms:viirs:snpp",
+          "lsasaf:seviri:frp-pixel"
+        ]
       }
     },
     {
@@ -200,7 +224,8 @@
         "place_name_bg": "Къркларели",
         "place_name_en": "Kırklareli",
         "area_ha": 70,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["firms:viirs:noaa21", "lsasaf:fci:frp-pixel"]
       }
     },
     {
@@ -219,7 +244,8 @@
         "place_name_bg": "Заечар",
         "place_name_en": "Zaječar",
         "area_ha": 190,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["eumetsat:slstr:frp", "firms:viirs:noaa20", "firms:viirs:snpp"]
       }
     },
     {
@@ -238,7 +264,8 @@
         "place_name_bg": "Кавадарци",
         "place_name_en": "Kavadarci",
         "area_ha": null,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["eumetsat:slstr:frp"]
       }
     },
     {
@@ -257,7 +284,8 @@
         "place_name_bg": "Калафат",
         "place_name_en": "Calafat",
         "area_ha": 55,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": ["firms:viirs:snpp", "lsasaf:seviri:frp-pixel"]
       }
     },
     {
@@ -276,7 +304,13 @@
         "place_name_bg": "Корча",
         "place_name_en": "Korçë",
         "area_ha": 340,
-        "next_pass_window": null
+        "next_pass_window": null,
+        "source_ids": [
+          "firms:viirs:noaa20",
+          "firms:viirs:noaa21",
+          "firms:viirs:snpp",
+          "lsasaf:fci:frp-pixel"
+        ]
       }
     }
   ]

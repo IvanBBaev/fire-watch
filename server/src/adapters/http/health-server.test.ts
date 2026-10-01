@@ -1,10 +1,15 @@
 import type { FreshnessReport, FreshnessRowId } from '@fire-watch/contracts';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { FreshnessObservation } from '../../core/health/freshness.js';
 import { VirtualClock } from '../../core/ports/clock.js';
 import type { DatabaseProbe, FreshnessReader } from '../../core/ports/freshness-reader.js';
 import { createHealthServer, type HealthServerDeps } from './health-server.js';
+import { WIND_OVERLAY_PATH } from './wind-overlay-route.js';
+import { LIGHTNING_OVERLAY_PATH } from './lightning-overlay-route.js';
 
 const NOW = '2026-08-02T12:00:00Z';
 const MINUTE = 60_000;
@@ -447,5 +452,55 @@ describe('the in-flight cap', () => {
     deferring = false;
     const after = await app.inject({ method: 'GET', url: '/api/health/freshness' });
     expect(after.statusCode).toBe(200);
+  });
+});
+
+describe('the wind overlay read path (F14)', () => {
+  it('is served only when wired, and is exempt from the probe limiter', async () => {
+    const unwired = await server().inject({ method: 'GET', url: WIND_OVERLAY_PATH });
+    expect(unwired.statusCode).toBe(404);
+
+    const stateDir = mkdtempSync(join(tmpdir(), 'fire-watch-wind-health-'));
+    try {
+      const app = server({
+        rateLimit: { limit: 1, windowMs: 60_000 },
+        windOverlay: { stateDir, clock: new VirtualClock(NOW) },
+      });
+      const statuses: number[] = [];
+      for (let i = 0; i < 3; i += 1) {
+        statuses.push((await app.inject({ method: 'GET', url: WIND_OVERLAY_PATH })).statusCode);
+      }
+      // Nothing derived yet: the route's own 503, never the probe limiter's 429.
+      expect(statuses).toEqual([503, 503, 503]);
+      await app.close();
+    } finally {
+      rmSync(stateDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the lightning overlay read path (F18)', () => {
+  it('is served only when wired, and is exempt from the probe limiter', async () => {
+    const unwired = await server().inject({ method: 'GET', url: LIGHTNING_OVERLAY_PATH });
+    expect(unwired.statusCode).toBe(404);
+
+    const stateDir = mkdtempSync(join(tmpdir(), 'fire-watch-lightning-health-'));
+    try {
+      const app = server({
+        rateLimit: { limit: 1, windowMs: 60_000 },
+        lightningOverlay: { stateDir, clock: new VirtualClock(NOW) },
+      });
+      const statuses: number[] = [];
+      for (let i = 0; i < 3; i += 1) {
+        statuses.push(
+          (await app.inject({ method: 'GET', url: LIGHTNING_OVERLAY_PATH })).statusCode,
+        );
+      }
+      // No credentials, no document: the route's own 503, never the probe limiter's 429.
+      expect(statuses).toEqual([503, 503, 503]);
+      await app.close();
+    } finally {
+      rmSync(stateDir, { recursive: true, force: true });
+    }
   });
 });

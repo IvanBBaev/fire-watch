@@ -19,6 +19,12 @@
  * that invalidates them should fail here loudly rather than quietly stop testing merges.
  */
 
+import {
+  STATIC_SOURCE_FORMAT,
+  STATIC_SOURCE_KINDS,
+  parseStaticSourceMask,
+  type StaticSourceMask,
+} from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { CLUSTERING_PARAMS } from '../clustering/clustering-params.js';
@@ -58,6 +64,7 @@ interface DetectionSpec {
   readonly acq: string;
   readonly lat?: string;
   readonly lon: string;
+  readonly dayNight?: 'D' | 'N';
 }
 
 interface BatchSpec {
@@ -105,7 +112,7 @@ function makeFixture(spec: FixtureSpec, observations: ObservationContext): Repla
             lonCanonical: detection.lon,
             confidence: 'nominal',
             frpMw: 12.5,
-            dayNight: 'N',
+            dayNight: detection.dayNight ?? 'N',
           })),
         },
         batch.name,
@@ -468,6 +475,7 @@ describe('the lifecycle tick', () => {
       declarations: [],
       zones: [],
       scores: [],
+      staticSources: null,
     };
 
     const spans = replay(
@@ -540,6 +548,7 @@ describe('the lifecycle tick', () => {
         outages: [],
         zones: [],
         scores: [],
+        staticSources: null,
         declarations: [
           {
             detectionUid: uid(1),
@@ -587,5 +596,100 @@ describe('a re-delivered detection', () => {
       { name: 'poll-01.json', detections: 1 },
       { name: 'poll-02.json', detections: 1 },
     ]);
+  });
+});
+
+describe('the static-source verdict (TASKS F16, D7)', () => {
+  /** One flare node at (lon, 41.86): 0.005 deg of longitude is 0.415 km, inside 500 m. */
+  function flareMask(version: string, lon: number): StaticSourceMask {
+    return parseStaticSourceMask({
+      format: STATIC_SOURCE_FORMAT,
+      version,
+      licence: 'ODbL-1.0',
+      attribution: '© OpenStreetMap contributors',
+      scale: 10_000,
+      kinds: [...STATIC_SOURCE_KINDS],
+      sources: [[STATIC_SOURCE_KINDS.indexOf('flare'), Math.round(lon * 10_000), 418_600]],
+    });
+  }
+
+  const withMask = (mask: StaticSourceMask | null): ObservationContext => ({
+    ...EMPTY_OBSERVATIONS,
+    staticSources: mask,
+  });
+
+  const PINNED_MASK = Object.freeze({
+    ...PINNED,
+    static_source_policy: 'static_source_policy_v2',
+    static_source_mask: 'mask-a',
+  });
+
+  const onFlare: FixtureSpec = {
+    clockStart: '2026-08-02T00:00:00Z',
+    configVersions: PINNED_MASK,
+    batches: [
+      {
+        name: 'poll-01.json',
+        availableAt: '2026-08-02T01:00:00Z',
+        detections: [
+          { n: 1, acq: '2026-08-02T00:30:00Z', lon: '26.13000' },
+          { n: 2, acq: '2026-08-02T00:31:00Z', lon: '26.13500' },
+        ],
+      },
+    ],
+  };
+
+  it('labels an event wholly on an override source static_source, with the §3.6 score', () => {
+    const report = replay(onFlare, undefined, withMask(flareMask('mask-a', 26.13)));
+    const [event] = report.events;
+    expect(event?.labels).toEqual(['static_source']);
+    expect(event?.bucket).toBe('unverified');
+  });
+
+  it('leaves an event off the mask unlabelled under the same pins', () => {
+    const report = replay(onFlare, undefined, withMask(flareMask('mask-a', 27)));
+    expect(report.events[0]?.labels).toEqual([]);
+  });
+
+  it('refuses a mask whose version is not the pinned one, and a pin with no mask', () => {
+    expect(() => replay(onFlare, undefined, withMask(flareMask('mask-b', 26.13)))).toThrow(
+      /static_source_mask=mask-a but the replay runs mask-b/,
+    );
+    expect(() => replay(onFlare, undefined, withMask(null))).toThrow(/ADR-002 D7/);
+    expect(() =>
+      replay(
+        { ...onFlare, configVersions: PINNED },
+        undefined,
+        withMask(flareMask('mask-a', 26.13)),
+      ),
+    ).toThrow(/does not pin "static_source_policy"/);
+  });
+
+  it('quarantines a day-only repeat with no mask at all once the policy is pinned (S10)', () => {
+    const report = replay(
+      {
+        clockStart: '2026-08-02T00:00:00Z',
+        configVersions: { ...PINNED, static_source_policy: 'static_source_policy_v2' },
+        batches: [
+          {
+            name: 'poll-01.json',
+            availableAt: '2026-08-02T12:00:00Z',
+            detections: [
+              { n: 1, acq: '2026-08-02T11:00:00Z', lon: '26.13000', dayNight: 'D' },
+              { n: 2, acq: '2026-08-02T11:01:00Z', lon: '26.13200', dayNight: 'D' },
+            ],
+          },
+          {
+            name: 'poll-02.json',
+            availableAt: '2026-08-03T12:00:00Z',
+            detections: [{ n: 3, acq: '2026-08-03T10:50:00Z', lon: '26.13100', dayNight: 'D' }],
+          },
+        ],
+      },
+      undefined,
+      withMask(null),
+    );
+    expect(report.events).toHaveLength(1);
+    expect(report.events[0]?.labels).toEqual(['suspected_static_source']);
   });
 });

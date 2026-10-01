@@ -109,6 +109,15 @@ snapshot refetch before trusting any transport. Poll interval jittered 30–60 s
   with `replaceState`.
 - Event payloads carry `seq`, `status` (ADR-002 lifecycle names), `generated_at`, and
   the score bucket — the client never computes lifecycle or confidence locally.
+- *Additive, 2026-09-30 (TASKS F12):* each event feature also carries `source_ids` —
+  the registry ids of the sources whose detections make up the event, deduplicated and
+  sorted by code unit, or `null` when none are recorded (never `[]`). It is read from
+  `fire_events.source_mix` in the same statement as the rest of the row, so it shares the
+  row's `seq`; a stream frame carries the whole set as of that `seq` and replaces, never
+  appends. Ids are not filtered against the registry on either side: the registry is
+  append-only, so the client keeps an id it does not know and its source filter treats an
+  event it cannot place in any family as *unreported* (fail-open). `schema_version` stays
+  `2` — see A1.3.
 
 ## Consequences
 
@@ -213,6 +222,11 @@ evolvable API contract, and their paths are load-bearing inside cache rules:
 `/snapshot.json` and its R2 twin, `/healthz`, `/readyz`. The snapshot object versions
 its shape **in the body** (`schema_version`) so a CDN object never needs path
 negotiation. Field-naming convention is owned by `packages/contracts`, not by this ADR.
+Adding a property that old parsers can ignore does **not** bump `schema_version` (the
+v2 web parser reads named properties and ignores the rest); removing, renaming or
+retyping one does. The accepted cost of an additive field: a body cached under the same
+`"v2-<max_seq>"` ETag before the deploy lacks it until `seq` next moves, and clients must
+read its absence as "not reported".
 
 **Errors: RFC 7807 `application/problem+json`, one handler.**
 

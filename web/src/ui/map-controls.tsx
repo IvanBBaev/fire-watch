@@ -1,5 +1,6 @@
 /**
- * The two camera controls: back to the default frame, and to wherever the user is.
+ * The two camera controls — back to the default frame, and to wherever the user is — and
+ * the Layers disclosure (`layers-panel.tsx`).
  *
  * They sit over the map rather than in the header because they act on the map and nothing
  * else. Both are plain buttons with visible labels — a compass glyph would need a tooltip
@@ -16,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { resolveLocateOutcome } from '../core/geo/locate.js';
 import type { MapCamera } from '../core/geo/viewport.js';
 import { useApp } from './context.js';
-import { ImageryToggle } from './imagery-toggle.js';
+import { LayersPanel, LayersToggle } from './layers-panel.js';
 import { HOME_CAMERA, shouldOfferLocation } from './map-camera.js';
 
 export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) => void }) {
@@ -82,9 +83,11 @@ export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) =
         >
           {messages.mapControls.locate}
         </button>
-        {/* Present only while the server offers imagery (ADR-001 A2.3). */}
-        <ImageryToggle />
+        {/* Third on purpose: Home and Locate keep their positions. The basemap choice
+            (imagery, ADR-001 A2.3) lives inside the panel (TASKS G4). */}
+        <LayersToggle />
       </div>
+      <LayersPanel />
       {/* Always rendered so a screen reader announces into an existing region. */}
       <p class="map-controls-status" role="status" aria-live="polite">
         {status}

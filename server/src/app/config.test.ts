@@ -40,7 +40,7 @@ describe('loadConfig', () => {
     // One restart per missing variable, in the dark, is the failure mode this avoids.
     const error = (): unknown => {
       try {
-        loadConfig({});
+        loadConfig({ FIRE_WATCH_FIRMS_MODE: 'area' });
       } catch (thrown: unknown) {
         return thrown;
       }
@@ -61,6 +61,53 @@ describe('loadConfig', () => {
 
   it('trims a value, because env files acquire trailing whitespace', () => {
     expect(loadConfig(env({ FIRMS_MAP_KEY: ` ${MAP_KEY}\n` })).firmsMapKey).toBe(MAP_KEY);
+  });
+
+  it('uses the Area API when a key is present and keyless files when it is not', () => {
+    expect(loadConfig(env()).firmsMode).toBe('area');
+    const keyless = loadConfig({ DATABASE_URL });
+    expect(keyless.firmsMode).toBe('keyless');
+    expect(keyless.firmsMapKey).toBeNull();
+    expect(keyless.firmsKeylessBaseUrl).toBe(
+      'https://firms.modaps.eosdis.nasa.gov/data/active_fire',
+    );
+  });
+
+  it('lets FIRE_WATCH_FIRMS_MODE override the default either way', () => {
+    expect(loadConfig(env({ FIRE_WATCH_FIRMS_MODE: 'keyless' })).firmsMode).toBe('keyless');
+    expect(loadConfig(env({ FIRE_WATCH_FIRMS_MODE: ' Keyless ' })).firmsMapKey).toBeNull();
+    expect(() => loadConfig({ DATABASE_URL, FIRE_WATCH_FIRMS_MODE: 'area' })).toThrow(
+      /FIRMS_MAP_KEY/,
+    );
+  });
+
+  it('refuses an unknown FIRMS mode by name', () => {
+    expect(() => loadConfig(env({ FIRE_WATCH_FIRMS_MODE: 'scrape' }))).toThrow(
+      /FIRE_WATCH_FIRMS_MODE must be area or keyless/,
+    );
+  });
+
+  it('never silently degrades a blank key to keyless', () => {
+    expect(() => loadConfig({ DATABASE_URL, FIRMS_MAP_KEY: '' })).toThrow(/FIRMS_MAP_KEY/);
+  });
+
+  it('validates the keyless base URL override', () => {
+    expect(
+      loadConfig({ DATABASE_URL, FIRE_WATCH_FIRMS_KEYLESS_BASE_URL: 'http://127.0.0.1:9/af' })
+        .firmsKeylessBaseUrl,
+    ).toBe('http://127.0.0.1:9/af');
+    expect(() =>
+      loadConfig({ DATABASE_URL, FIRE_WATCH_FIRMS_KEYLESS_BASE_URL: 'ftp://example.org' }),
+    ).toThrow(/FIRE_WATCH_FIRMS_KEYLESS_BASE_URL/);
+  });
+
+  it('logs the mode and the endpoint in use, and no key it does not have', () => {
+    const described = describeConfig(loadConfig({ DATABASE_URL }));
+    expect(described['firms_mode']).toBe('keyless');
+    expect(described['firms_map_key']).toBe('<not configured>');
+    expect(described['firms_base_url']).toBe(
+      'https://firms.modaps.eosdis.nasa.gov/data/active_fire',
+    );
   });
 
   it('talks to FIRMS unless it is pointed at a stub', () => {

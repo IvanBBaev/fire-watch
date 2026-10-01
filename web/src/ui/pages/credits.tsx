@@ -7,12 +7,21 @@
 import { creditsFor, renderCredit } from '@fire-watch/contracts';
 import { activeCreditConditions, creditRenderContext } from '../logic/credits.js';
 import { useApp } from '../context.js';
+import { effisChosen, windChosen } from '../layers.js';
+import { passesCloudOn } from '../pass-cloud.js';
 
 export function CreditsPage() {
   const { messages, clock, config } = useApp();
 
   const renderContext = creditRenderContext(clock, messages);
-  const credits = creditsFor('credits-page', activeCreditConditions(config));
+  const credits = creditsFor(
+    'credits-page',
+    activeCreditConditions(config, {
+      effisOn: effisChosen.value,
+      windOn: windChosen.value,
+      cloudOn: passesCloudOn.value,
+    }),
+  );
 
   return (
     <article class="page credits-page">

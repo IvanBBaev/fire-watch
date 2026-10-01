@@ -9,13 +9,15 @@ import './styles.css';
 
 import { h, render } from 'preact';
 
+import { createBrowserAudioCue } from './adapters/audio-cue.js';
 import { createBrowserGeolocator } from './adapters/browser-geolocation.js';
 import { createEventSourceStreamSource } from './adapters/event-source.js';
 import { createBrowserPageLifecycle } from './adapters/page-lifecycle.js';
+import { createBrowserPageVisibility } from './adapters/page-visibility.js';
 import { createMulberry32, entropySeed } from './adapters/seeded-rng.js';
 import { createSystemClock } from './adapters/system-clock.js';
 import { createAuthClient, takeSignInToken } from './core/auth/sign-in.js';
-import { DEFAULT_CONFIG } from './core/config.js';
+import { DEFAULT_CONFIG, readDataSource, withDataSource } from './core/config.js';
 import {
   createFeedCoordinator,
   createPollingFeed,
@@ -30,6 +32,7 @@ import { createFireEventStore } from './core/store/index.js';
 import { App } from './ui/app.js';
 import { holdSignInToken, setAuthClient } from './ui/auth.js';
 import { setImageryHandles } from './ui/imagery.js';
+import { newSignalSound, startNewSignals } from './ui/new-signals.js';
 import { initTheme } from './ui/theme.js';
 
 async function boot(): Promise<void> {
@@ -52,7 +55,14 @@ async function boot(): Promise<void> {
   // Fleet control (ADR-003 D1): a tiny cached document that may switch the stream on or
   // stretch the poll interval; unreachable ⇒ the build-time defaults (A1.2).
   const [config, messages] = await Promise.all([
-    fetchClientConfig((input, init) => fetch(input, init), DEFAULT_CONFIG),
+    fetchClientConfig(
+      (input, init) => fetch(input, init),
+      // `pnpm dev:live` builds with VITE_FIRE_WATCH_DATA=live; everything else reads fixtures.
+      withDataSource(
+        DEFAULT_CONFIG,
+        readDataSource(import.meta.env['VITE_FIRE_WATCH_DATA'] as string | undefined),
+      ),
+    ),
     loadMessages(locale),
   ]);
 
@@ -77,6 +87,14 @@ async function boot(): Promise<void> {
     lifecycle: createBrowserPageLifecycle(),
   });
   coordinator.start();
+
+  // "New since you last looked" (TASKS F): the seen record, title badge and optional cue.
+  startNewSignals({
+    store,
+    serverNow: serverTime.serverNow,
+    visibility: createBrowserPageVisibility(),
+    audio: createBrowserAudioCue(() => newSignalSound.peek()),
+  });
 
   // Imagery handles (ADR-001 A2.3): the same document, re-read on every wake and reconnect
   // so a quota trip reaches open tabs. Its first read lands on the HTTP cache warmed above.

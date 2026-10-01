@@ -366,6 +366,18 @@ export interface FireEvents {
   source_registry_version: string;
   split_from: Int8 | null;
   started_at: Timestamp;
+  /**
+   * Static-source mask asset version the verdict was taken against (D7); NULL with a verdict = no mask loaded.
+   */
+  static_source_mask_version: string | null;
+  /**
+   * static_source_policy version the verdict was taken under (D7).
+   */
+  static_source_policy_version: string | null;
+  /**
+   * Latest static hot-source verdict (TASKS F16, static-source-policy.ts); NULL = never evaluated. Bookkeeping: never bumps seq.
+   */
+  static_source_verdict: string | null;
   status: string;
   status_changed_at: Timestamp;
   status_reason: string | null;

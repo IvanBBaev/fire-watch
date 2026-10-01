@@ -114,7 +114,10 @@ export const PRODUCT_PLACEHOLDER = '[Product]';
 export const CREDITS: readonly Credit[] = [
   {
     id: 'osm',
-    source: 'OpenStreetMap (basemap, place names)',
+    // Also pays for the static hot-source mask (TASKS F16), an ODbL derived database of
+    // OSM: the same string and link, owed always, because the scorer uses the mask whether
+    // or not the reader draws it (docs/licenses/openstreetmap-static-sources.md).
+    source: 'OpenStreetMap (basemap, place names, static hot-source mask)',
     text: '© OpenStreetMap contributors',
     href: 'https://www.openstreetmap.org/copyright',
     surfaces: ['map-corner', 'credits-page', 'api'],
@@ -464,6 +467,47 @@ export const CREDITS: readonly Credit[] = [
     pluginInjected: true,
     verified: true,
     authority: 'Esri Master Agreement + ArcGIS attribution docs',
+  },
+  {
+    id: 'geonames',
+    source: 'GeoNames gazetteer (place search, built by infra/geodata)',
+    // CC BY 4.0 requires appropriate credit and a licence link but prescribes no sentence;
+    // this is our chosen form, as for EFFIS. The derivation sentence below indicates changes.
+    text: 'Place names: GeoNames (geonames.org), CC BY 4.0',
+    verbatim: 'GeoNames',
+    href: 'https://www.geonames.org/',
+    surfaces: ['credits-page'],
+    condition: 'always',
+    required: true,
+    verified: true,
+    authority: 'GeoNames export readme + CC BY 4.0 §3(a) — our chosen form',
+  },
+  {
+    id: 'natural-earth',
+    source: 'Natural Earth admin-1 (oblast boundaries for the region filter)',
+    // Public domain: no credit is owed; Natural Earth asks for this line and we give it.
+    text: 'Made with Natural Earth.',
+    href: 'https://www.naturalearthdata.com/',
+    surfaces: ['credits-page'],
+    condition: 'always',
+    required: false,
+    verified: true,
+    authority: 'naturalearthdata.com terms of use — requested, not required',
+  },
+  {
+    id: 'celestrak',
+    source: 'CelesTrak GP orbital elements (satellite-pass predictions, TASKS F15)',
+    // CelesTrak asks to be cited when its data is used publicly and prescribes no sentence;
+    // the wording is ours. We publish predicted pass times computed from the elements,
+    // never the elements themselves.
+    text: 'Orbital elements: CelesTrak (celestrak.org)',
+    verbatim: 'CelesTrak',
+    href: 'https://celestrak.org/',
+    surfaces: ['credits-page'],
+    condition: 'always',
+    required: false,
+    verified: true,
+    authority: 'CelesTrak GP data documentation — citation requested; our chosen form',
   },
   {
     id: 'derivation',

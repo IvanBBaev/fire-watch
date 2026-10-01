@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 // No Preact plugin needed: Vite picks up `jsx`/`jsxImportSource` from tsconfig.
-// The dev proxy forwards the freshness route to the locally running probe API.
+// The dev proxy forwards the API routes and the live snapshot to the local API.
 export default defineConfig({
   optimizeDeps: {
     // Dev: the dep optimizer rewrites maplibre's worker URL to a .vite/deps
@@ -23,6 +23,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:8080',
+      // The live read path (`pnpm dev:live`); fixture builds never request it.
+      '/snapshot.json': 'http://127.0.0.1:8080',
+      // The EFFIS overlay proxy (TASKS G4); the browser never talks to EFFIS itself.
+      '/overlays': 'http://127.0.0.1:8080',
     },
   },
   build: {

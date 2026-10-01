@@ -55,10 +55,18 @@ export const MONITORED_SOURCE_IDS = [
  *   A19 is open (ECMWF Open Data vs Open-Meteo, DATA-SOURCES §D2/§D3): the budget is a
  *   property of the *role* the feed plays, and it must not have to be renamed when the
  *   provider behind it is settled.
+ * - `celestrak:elements` — the SGP4 orbital elements behind the satellite-pass predictions
+ *   (TASKS F15, DATA-SOURCES §F15). Display only, so it never pages; the row exists so a
+ *   halted or starved element refresh is visible before the predictions go stale.
  */
 export type MonitoredSourceId = (typeof MONITORED_SOURCE_IDS)[number];
 
-export const UNREGISTERED_FEED_IDS = ['eumetsat:clm', 'effis:layers', 'weather:context'] as const;
+export const UNREGISTERED_FEED_IDS = [
+  'eumetsat:clm',
+  'effis:layers',
+  'weather:context',
+  'celestrak:elements',
+] as const;
 
 /** Everything with a freshness budget that is fetched from outside, in reporting order. */
 export const MONITORED_FEED_IDS = [...MONITORED_SOURCE_IDS, ...UNREGISTERED_FEED_IDS] as const;

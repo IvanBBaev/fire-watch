@@ -121,6 +121,7 @@ describe('the shipped table', () => {
       'eumetsat:clm': { pages: true, criticalSeconds: 5_400 },
       'effis:layers': { pages: true, criticalSeconds: 180_000 },
       'weather:context': { pages: false, criticalSeconds: 86_400 },
+      'celestrak:elements': { pages: false, criticalSeconds: 259_200 },
       'snapshot-push': { pages: true, criticalSeconds: 900 },
       'nightly-backup': { pages: false, criticalSeconds: 180_000 },
       'wal-archive': { pages: false, criticalSeconds: 3_600 },

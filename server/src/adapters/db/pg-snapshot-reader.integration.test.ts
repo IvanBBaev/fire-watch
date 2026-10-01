@@ -69,6 +69,7 @@ describe.skipIf(!hasDocker)('the snapshot read path', () => {
       lon?: number;
       lat?: number;
       score?: number;
+      sourceMix?: Record<string, number>;
     } = {},
   ): Promise<void> {
     const status = overrides.status ?? 'active';
@@ -81,10 +82,10 @@ describe.skipIf(!hasDocker)('the snapshot read path', () => {
       `INSERT INTO fire_events (
          public_id, status, status_changed_at, started_at, last_detection_at, centroid,
          score, detection_count, nearest_place, config_version, source_registry_version,
-         display_tier, inactive_since
+         display_tier, inactive_since, source_mix
        ) VALUES ($1, $2, $3, $3, $3, ST_SetSRID(ST_MakePoint($4, $5), 4326),
                  $6, 3, '{"name_bg":"Карлово","name_en":"Karlovo","lat":42.64,"lon":24.8}',
-                 'clustering_params_v1', $7, $8, $9)`,
+                 'clustering_params_v1', $7, $8, $9, coalesce($10::jsonb, '{}'::jsonb))`,
       [
         publicId,
         status,
@@ -95,6 +96,7 @@ describe.skipIf(!hasDocker)('the snapshot read path', () => {
         SOURCE_REGISTRY_VERSION,
         displayTier,
         onMap ? null : new Date(T0),
+        overrides.sourceMix === undefined ? null : JSON.stringify(overrides.sourceMix),
       ],
     );
   }
@@ -190,6 +192,43 @@ describe.skipIf(!hasDocker)('the snapshot read path', () => {
       await insertEvent('fw-2026-aaaaa');
       const { maxSeq } = await reader.readActiveSet(0);
       expect(await reader.readActiveSet(maxSeq)).toEqual({ maxSeq, events: [] });
+    });
+  });
+
+  describe('per-event sources (F12)', () => {
+    it('serves the sources with a positive count in the mix, sorted, and an empty mix as null', async () => {
+      await insertEvent('fw-2026-aaaaa', {
+        sourceMix: { 'lsasaf:seviri:frp-pixel': 1, 'firms:viirs:snpp': 4, 'firms:modis': 0 },
+      });
+      await insertEvent('fw-2026-bbbbb');
+
+      const read = await reader.readActiveSet(0);
+      const doc = buildSnapshot({ read, sources: [], generatedAtMs: T0, afterSeq: 0 });
+      expect(doc.features.map((feature) => [feature.id, feature.properties.source_ids])).toEqual([
+        ['fw-2026-aaaaa', ['firms:viirs:snpp', 'lsasaf:seviri:frp-pixel']],
+        ['fw-2026-bbbbb', null],
+      ]);
+    });
+
+    it('moves the ETag when a new sensor joins, so a cached body cannot hide it', async () => {
+      await insertEvent('fw-2026-aaaaa', { sourceMix: { 'firms:viirs:snpp': 2 } });
+      const { maxSeq: before } = await reader.readActiveSet(0);
+
+      // A raw write on purpose: migration 004's trigger has to catch it whether or not the
+      // writer remembered seq, as the clustering store's attach does.
+      await db.query(
+        `UPDATE fire_events
+            SET source_mix = source_mix || '{"lsasaf:fci:frp-pixel": 1}'::jsonb
+          WHERE public_id = 'fw-2026-aaaaa'`,
+      );
+
+      const delta = await reader.readActiveSet(before);
+      expect(delta.maxSeq).toBeGreaterThan(before);
+      expect(snapshotEtag(delta.maxSeq)).not.toBe(snapshotEtag(before));
+      // The reader leaves order to the builder (jsonb orders keys by length first).
+      expect(delta.events.map((event) => [...(event.sourceIds ?? [])].sort())).toEqual([
+        ['firms:viirs:snpp', 'lsasaf:fci:frp-pixel'],
+      ]);
     });
   });
 

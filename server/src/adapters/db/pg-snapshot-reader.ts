@@ -56,7 +56,7 @@ WITH bound AS (
 members AS (
   SELECT public_id, seq, status, score,
          ST_X(centroid) AS lon, ST_Y(centroid) AS lat,
-         started_at, last_detection_at, detection_count, nearest_place
+         started_at, last_detection_at, detection_count, nearest_place, source_mix
   FROM fire_events
   WHERE display_tier = 'map' AND merged_into IS NULL AND NOT invalidated
     AND seq > $1::bigint
@@ -64,7 +64,7 @@ members AS (
 SELECT bound.max_seq,
        members.public_id, members.seq::text AS seq, members.status, members.score,
        members.lon, members.lat, members.started_at, members.last_detection_at,
-       members.detection_count, members.nearest_place
+       members.detection_count, members.nearest_place, members.source_mix
 FROM bound LEFT JOIN members ON true
 ORDER BY members.seq
 `.trim();

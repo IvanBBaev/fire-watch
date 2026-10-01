@@ -1,3 +1,4 @@
+import { STATIC_SOURCE_FORMAT, STATIC_SOURCE_KINDS } from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -415,6 +416,34 @@ describe('parseObservationContext', () => {
         new RegExp(`"${key}" must be an array`),
       );
     }
+  });
+
+  it('reads no static-source mask as null and an inline one in the asset format', () => {
+    expect(parseObservationContext({}, 'observations.json').staticSources).toBeNull();
+    expect(EMPTY_OBSERVATIONS.staticSources).toBeNull();
+
+    const parsed = parseObservationContext(
+      {
+        staticSources: {
+          format: STATIC_SOURCE_FORMAT,
+          version: 'fixture-mask-a',
+          licence: 'ODbL-1.0',
+          attribution: '© OpenStreetMap contributors',
+          scale: 10_000,
+          kinds: [...STATIC_SOURCE_KINDS],
+          sources: [[STATIC_SOURCE_KINDS.indexOf('flare'), 261_300, 418_600]],
+        },
+      },
+      'observations.json',
+    );
+    expect(parsed.staticSources?.version).toBe('fixture-mask-a');
+    expect(parsed.staticSources?.sources).toHaveLength(1);
+  });
+
+  it('rejects a malformed mask with the fixture file named, not half-loaded', () => {
+    expect(() =>
+      parseObservationContext({ staticSources: { format: 'nope' } }, 'S10/observations.json'),
+    ).toThrow(/S10\/observations\.json.*staticSources: static-sources asset: format/);
   });
 
   it('points at the entry that is wrong', () => {
@@ -863,6 +892,7 @@ describe('EMPTY_OBSERVATIONS', () => {
       declarations: [],
       zones: [],
       scores: [],
+      staticSources: null,
     });
     expect(Object.isFrozen(EMPTY_OBSERVATIONS)).toBe(true);
     expect(Object.isFrozen(EMPTY_OBSERVATIONS.cloudCover)).toBe(true);

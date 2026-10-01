@@ -286,6 +286,15 @@ const KNOWN_FINDINGS: readonly string[] = [
   'cvd fire-dot circle-color #7d93ab~#8b9198 protanopia=7.2 deuteranopia=7.9 tritanopia=9.2',
   'cvd fire-hull fill-color #7d93ab~#8b9198 protanopia=7.2 deuteranopia=7.9 tritanopia=9.2',
   'cvd fire-hull fill-outline-color #7d93ab~#8b9198 protanopia=7.2 deuteranopia=7.9 tritanopia=9.2',
+
+  // 4. Hue, the FWI legend (TASKS G4). The Layers panel's legend swatches repeat EFFIS's
+  //    own palette for `mf010.fwi` — "very high" (#d97010) and "extreme" (#ad060e) sit in
+  //    the reserved band. They are panel chrome, not map layers; the raster they describe is
+  //    EFFIS's PNG, drawn beneath every fire layer at partial opacity. A recoloured legend
+  //    would describe a raster we do not draw, so the choice is recolour-the-raster (not
+  //    possible — it is the provider's image) or keep and record.
+  'literal web/src/ui/layers.ts #ad060e',
+  'literal web/src/ui/layers.ts #d97010',
 ];
 
 describe('CI-14 — fire owns red, and survives CVD', () => {

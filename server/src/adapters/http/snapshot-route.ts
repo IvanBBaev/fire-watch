@@ -171,7 +171,7 @@ function badCursor(detail: string): ProblemError {
  * any member does; `*` matches whatever exists. The header is text the sender wrote, so
  * it is parsed and compared, never echoed.
  */
-function matchesIfNoneMatch(header: string | string[] | undefined, etag: string): boolean {
+export function matchesIfNoneMatch(header: string | string[] | undefined, etag: string): boolean {
   if (header === undefined) return false;
   const raw = Array.isArray(header) ? header.join(',') : header;
   const opaque = etag.replace(/^W\//, '');

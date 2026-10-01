@@ -215,6 +215,11 @@ describe('effis overlay route — headers and refusals', () => {
     expect(response.headers['x-content-type-options']).toBe('nosniff');
     expect(response.headers['age']).toBeUndefined();
     expect(response.headers['etag']).toBeUndefined();
+    // The daily FWI layer says which day it is for; the "latest" BA layer does not.
+    expect(response.headers['x-fire-watch-overlay-valid-for']).toBe('2026-08-13');
+    expect(response.headers['access-control-expose-headers']).toContain(
+      'x-fire-watch-overlay-valid-for',
+    );
     const everyHeader = JSON.stringify(response.headers);
     expect(everyHeader).not.toContain('effis-upstream');
     expect(everyHeader).not.toContain('secret-path');
@@ -224,6 +229,7 @@ describe('effis overlay route — headers and refusals', () => {
     expect(json.statusCode).toBe(200);
     expect(json.headers['content-type']).toMatch(/^application\/json/);
     expect(json.body).toBe(EMPTY_BURNT_AREAS);
+    expect(json.headers['x-fire-watch-overlay-valid-for']).toBeUndefined();
     await app.close();
   });
 

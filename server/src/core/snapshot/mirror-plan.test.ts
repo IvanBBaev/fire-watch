@@ -28,6 +28,7 @@ function document(afterSeq = 0) {
           lastDetectionAt: epochMsFromIso('2026-07-14T09:40:00Z'),
           detectionCount: 7,
           nearestPlace: null,
+          sourceIds: null,
         },
       ],
     },

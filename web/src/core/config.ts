@@ -53,6 +53,28 @@ export interface ClientConfig {
    * build time; `null` means no static tier is deployed and T2 polls the origin instead.
    */
   readonly staticSnapshotUrl: string | null;
+  /**
+   * The F14 wind forecast step: a committed fixture by default, the API's route in live
+   * mode. Optional so older literal configs still type-check (absent = the API's route).
+   */
+  readonly windOverlayUrl?: string;
+  /**
+   * The F15 satellite swaths over the polled box: a committed fixture by default, the
+   * API's route in live mode. Optional so older literal configs still type-check (absent =
+   * the API's route).
+   */
+  readonly passSwathsUrl?: string;
+  /**
+   * The F18 recent lightning flashes: a committed fixture by default, the API's route in
+   * live mode. Optional so older literal configs still type-check (absent = the API's route).
+   */
+  readonly lightningOverlayUrl?: string;
+  /**
+   * The F15 satellite-pass document for one grid cell: `{cell}` is replaced with the cell id.
+   * The default is one committed fixture (no `{cell}`, so every cell reads the same file);
+   * live mode is the API's route. Optional so older literal configs still type-check.
+   */
+  readonly passesUrlTemplate?: string;
 }
 
 export const DEFAULT_CONFIG: ClientConfig = {
@@ -69,6 +91,10 @@ export const DEFAULT_CONFIG: ClientConfig = {
   sseReofferHysteresisMs: 30 * 60_000,
   staticFlipStaleMs: 5 * 60_000,
   staticSnapshotUrl: null,
+  windOverlayUrl: '/fixtures/wind/latest.json',
+  passSwathsUrl: '/fixtures/passes/swaths.json',
+  lightningOverlayUrl: '/fixtures/lightning/recent.json',
+  passesUrlTemplate: '/fixtures/passes/sample.json',
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
     dark: 'https://tiles.openfreemap.org/styles/dark',
@@ -92,3 +118,44 @@ export const DEFAULT_CONFIG: ClientConfig = {
  * The coverage *promise* is unchanged and narrower — see `mapControls.coverageNote`.
  */
 export const DEFAULT_VIEW = { zoom: 5.8, lat: 42.4, lon: 25.4 } as const;
+
+/**
+ * Where the client reads events from: `fixtures` (the default, and what tests, e2e and
+ * CI-7 run against) or `live`, the local API's `/snapshot.json` (`pnpm dev:live`).
+ */
+export type DataSource = 'fixtures' | 'live';
+
+/**
+ * The build's data source from a raw env value (`VITE_FIRE_WATCH_DATA`). Anything but an
+ * explicit `live` is the fixtures, so a typo can never point CI at a server.
+ */
+export function readDataSource(raw: string | undefined): DataSource {
+  return raw?.trim().toLowerCase() === 'live' ? 'live' : 'fixtures';
+}
+
+/**
+ * The API's per-event detections route (`server/src/adapters/http/event-detections-route.ts`),
+ * the same GeoJSON shape as the fixture files. Proxied under `/api` in dev.
+ */
+export const LIVE_DETECTIONS_URL_TEMPLATE = '/api/v1/events/{id}/detections';
+
+/** The API's satellite-pass route (`server/src/adapters/http/passes-route.ts`). */
+export const LIVE_PASSES_URL_TEMPLATE = '/api/v1/passes/{cell}';
+
+/**
+ * `config` pointed at the chosen data source. Live reads the API's snapshot and its
+ * per-event detections route (both proxied in dev); the fixture template must never
+ * survive into live mode, where it would show another event's pixels.
+ */
+export function withDataSource(config: ClientConfig, source: DataSource): ClientConfig {
+  if (source === 'fixtures') return config;
+  return {
+    ...config,
+    snapshotUrl: '/snapshot.json',
+    detectionsUrlTemplate: LIVE_DETECTIONS_URL_TEMPLATE,
+    windOverlayUrl: '/overlays/wind/latest.json',
+    passSwathsUrl: '/overlays/passes/swaths.json',
+    lightningOverlayUrl: '/overlays/lightning/recent.json',
+    passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
+  };
+}

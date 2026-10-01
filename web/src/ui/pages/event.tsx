@@ -7,9 +7,10 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 
-import { formatDateTimeSofia } from '../../core/i18n/format.js';
 import { resolveEvent } from '../../core/store/index.js';
 import { FreshnessChip, pickBanner } from '../status/index.js';
+import { EventDetails, EventIdentity } from '../event/event-details.js';
+import { useDetectionSummary } from '../event/use-detection-summary.js';
 import { eventPath, redirectTargetFor } from '../logic/event-resolution.js';
 import { lifecycleLine } from '../logic/lifecycle-line.js';
 import { placeName } from '../logic/place.js';
@@ -22,7 +23,7 @@ import { useNow } from '../use-now.js';
 import { useStoreState } from '../use-store.js';
 
 export function EventPage() {
-  const { store, serverNow, messages, locale } = useApp();
+  const { store, serverNow, messages, locale, config } = useApp();
   const state = useStoreState(store);
   const nowMs = useNow(serverNow);
   const { route } = useLocation();
@@ -61,6 +62,12 @@ export function EventPage() {
   }, [metaKey]);
 
   const [sharing, setSharing] = useState(false);
+  // Only for a resolved event, keyed on its canonical id: before the snapshot arrives the
+  // requested id may be a merged tombstone, which has no detections file of its own.
+  const detail = useDetectionSummary(
+    event == null ? null : config.detectionsUrlTemplate,
+    event?.id ?? requestedId,
+  );
 
   if (event == null) {
     return (
@@ -74,12 +81,6 @@ export function EventPage() {
       </article>
     );
   }
-
-  const copyLink = (): void => {
-    void navigator.clipboard.writeText(window.location.href).catch(() => {
-      // Clipboard unavailable (permissions, insecure context) — the URL bar remains.
-    });
-  };
 
   // The card is built at the moment of the click, from server time: its "made at" stamp is
   // the instant the image left the app, and a stale banner up at that instant goes with it.
@@ -134,17 +135,14 @@ export function EventPage() {
       <p class="lifecycle-line key-fact">{lifecycleLine(event, messages, locale, nowMs)}</p>
       <div class="event-facts">
         {event.areaHa !== null && <p class="key-fact">{messages.areaBothUnits(event.areaHa)}</p>}
-        <p>{messages.detectionCount(event.detectionCount)}</p>
-        <p>{messages.firstObserved(formatDateTimeSofia(event.firstObservedAt, locale))}</p>
       </div>
+      <EventIdentity eventId={event.id} />
+      <EventDetails event={event} nowMs={nowMs} detail={detail} />
       <div class="safety-block">
         <p class="safety-line key-fact">{messages.safetyNoTravel}</p>
         <p class="emergency-line key-fact">{messages.emergencyLine}</p>
       </div>
       <p class="share-actions">
-        <button type="button" class="button-secondary" onClick={copyLink}>
-          {messages.copyLink}
-        </button>{' '}
         <button
           type="button"
           class="button-secondary share-card-button"

@@ -10,7 +10,7 @@
  * tile URL (a rotated key) replaces them. Falling back is therefore nothing more than the
  * basemap style underneath becoming visible again — no error tile, no message (A2.3).
  *
- * The layer goes directly beneath the lowest fire layer, so fire data stays the loudest
+ * The layer goes directly beneath the lowest EFFIS overlay or fire layer, so fire data stays the loudest
  * thing on the map (the fire-owns-red rule) and the imagery covers the basemap's own
  * layers, labels included. Whether labels should instead sit over the imagery is an open
  * founder decision; covering them is the simpler, reversible default.
@@ -20,11 +20,11 @@
  * than being retyped here.
  */
 
-import type { AddLayerObject, SourceSpecification } from 'maplibre-gl';
-
 import { CREDITS } from '@fire-watch/contracts';
 
+import { EFFIS_OVERLAY_LAYER_IDS } from './effis-overlays.js';
 import { FIRE_LAYER_IDS } from './layer-registry.js';
+import type { LayerHost } from './layer-host.js';
 
 export const IMAGERY_SOURCE_ID = 'imagery-esri';
 export const IMAGERY_LAYER_ID = 'imagery-esri';
@@ -32,14 +32,7 @@ export const IMAGERY_LAYER_ID = 'imagery-esri';
 export const IMAGERY_TILE_SIZE = 256;
 
 /** The slice of `maplibregl.Map` this module drives, so node tests need no DOM. */
-export interface ImageryLayerHost {
-  getSource(id: string): unknown;
-  addSource(id: string, source: SourceSpecification): unknown;
-  removeSource(id: string): unknown;
-  getLayer(id: string): unknown;
-  addLayer(layer: AddLayerObject, beforeId?: string): unknown;
-  removeLayer(id: string): unknown;
-}
+export type ImageryLayerHost = LayerHost;
 
 const ESRI_ATTRIBUTION = ((): string => {
   const credit = CREDITS.find((entry) => entry.id === 'esri-world-imagery');
@@ -75,7 +68,10 @@ export function applyImageryLayer(host: ImageryLayerHost, tilesUrl: string | nul
     });
   }
   if (host.getLayer(IMAGERY_LAYER_ID) === undefined) {
-    const lowestFire = FIRE_LAYER_IDS.find((id) => host.getLayer(id) !== undefined);
-    host.addLayer({ id: IMAGERY_LAYER_ID, type: 'raster', source: IMAGERY_SOURCE_ID }, lowestFire);
+    // Beneath the EFFIS context overlays too: imagery is a basemap choice, not context.
+    const lowest = [...EFFIS_OVERLAY_LAYER_IDS, ...FIRE_LAYER_IDS].find(
+      (id) => host.getLayer(id) !== undefined,
+    );
+    host.addLayer({ id: IMAGERY_LAYER_ID, type: 'raster', source: IMAGERY_SOURCE_ID }, lowest);
   }
 }

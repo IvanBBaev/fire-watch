@@ -63,6 +63,7 @@ import { DIGEST_PARAMS, type DigestParams } from '../config/digest-params.js';
 import type { VersionedConfig } from '../config/versioned-config.js';
 import { epochMsFromIso, isoFromEpochMs, type EpochMs } from '../ports/clock.js';
 import { foldAlertStates, isNotified, type AlertStateRow } from '../registry/alert-state.js';
+import { STATIC_SOURCE_INVALIDATION_REASONS } from '../static-sources/static-source-policy.js';
 import type { FixtureScore, FixtureZone } from './fixture-format.js';
 import { createIdentityEngine, requirePin } from './identity-engine.js';
 import type { ReplayContext, ReplayDetection, ReplayEngine, ReplayEvent } from './runner.js';
@@ -388,13 +389,18 @@ function migrateParentStates(
   return new Set([...parentsOf.values()].flat());
 }
 
+/** The labels the identity engine writes for an invalidated event. */
+const INVALIDATING_LABELS: ReadonlySet<string> = new Set(STATIC_SOURCE_INVALIDATION_REASONS);
+
 /**
  * The event as the gate is allowed to see it, or `null` when the fixture said nothing that
  * would let the gate run at all.
  *
- * `invalidated` and `quarantined` are `false` rather than declarable: no code sets either
- * yet (the masks are D10, the anomaly breaker is A1.5), and a fixture that could declare
- * them would be asserting a suppression nothing in the repo performs. `burnedAreaHa` is
+ * `invalidated` is read off the event's labels, which only the identity engine's
+ * static-source verdict writes (TASKS F16): both of its reasons invalidate the event live, so
+ * both suppress here. It is never declarable — a fixture that could declare it would be
+ * asserting a suppression nothing in the repo performs. `quarantined` stays `false`: that
+ * flag is A1.5's anomaly breaker, which is not the §6.2 quarantine and has no code yet. `burnedAreaHa` is
  * `null` for the same reason — no perimeter is computed, so rung 2 cannot hold.
  */
 function toAlertableEvent(
@@ -439,7 +445,7 @@ function toAlertableEvent(
     detectionCount: members.length,
     nightHighConfidenceCount,
     geoOnly,
-    invalidated: false,
+    invalidated: event.labels.some((label) => INVALIDATING_LABELS.has(label)),
     quarantined: false,
     status: toLifecycleState(event.status),
     statusBefore: statusBefore.get(event.publicId) ?? null,

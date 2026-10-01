@@ -46,6 +46,10 @@ import type { AliasLinks } from '../registry/alias-registry.js';
 import type { MergePlan, SurvivorUpdate } from '../registry/merge-plan.js';
 import type { ReignitionLink } from '../registry/reignition-plan.js';
 import type { ScoringDetection } from '../scoring/features.js';
+import type {
+  StaticSourceInvalidationReason,
+  StaticSourceVerdict,
+} from '../static-sources/static-source-policy.js';
 import type { EpochMs } from './clock.js';
 import type { EventStatusStore } from './event-status-store.js';
 import type { ReignitionReader } from './reignition-reader.js';
@@ -172,10 +176,29 @@ export interface EventScore {
   readonly publicId: string;
   /** σ(z) quantised to `scoreQuantum`, or 0 when an override fired. In [0,1]. */
   readonly score: number;
-  /** Set only by the §3.6 static-source override (D6); a rescore never clears it. */
+  /**
+   * Set only by the static-source rules (`static-source-policy.ts`): the §3.6 override
+   * (`static_source`, D6) or the §6.2 quarantine (`suspected_static_source`). Both are
+   * released by the rescore whose verdict no longer says so; curation's are sticky.
+   */
   readonly invalidated: boolean;
+  /** Why, when `invalidated`; `null` otherwise. */
+  readonly invalidatedReason: StaticSourceInvalidationReason | null;
   /** `score_params` version that produced `score` (`fire_events.score_params_version`). */
   readonly paramsVersion: string;
+  /** The verdict and the versions it was taken against (D7); `null` when none was wired. */
+  readonly staticSource: StaticSourceStamp | null;
+}
+
+/**
+ * One static-source verdict as stored next to an event (migration 021): the mask and
+ * policy versions make it replayable, and the tick's sweep re-evaluates every live event
+ * whose stamp names a different mask or policy than the one loaded.
+ */
+export interface StaticSourceStamp {
+  readonly verdict: StaticSourceVerdict;
+  readonly maskVersion: string | null;
+  readonly policyVersion: string;
 }
 
 /** One batch, clustered and planned: the whole of what {@link BatchTransaction.applyBatch} writes. */
@@ -315,8 +338,34 @@ export interface TickTransaction {
   /** The one statement that moves an event between lifecycle states, on this transaction. */
   readonly events: EventStatusStore;
   saveCarries(carries: readonly StoredCarry[]): Promise<void>;
+  /**
+   * Live events of the run whose stored static-source stamp names a different mask or
+   * policy version than `query` (or none), with their scoring rows in canonical member
+   * order, at most `limit` events. Sticky invalidations (anything but the §6.2
+   * quarantine) are not returned: no verdict could change them.
+   */
+  loadStaticSourceStale(query: StaticSourceStaleQuery): Promise<readonly StaticSourceStaleEvent[]>;
+  /**
+   * Writes re-evaluated verdicts with the scores they imply, under the same invalidation
+   * rule as a batch rescore (`EventScore.invalidated`). Every named event must be live.
+   */
+  applyStaticSourceVerdicts(scores: readonly EventScore[]): Promise<void>;
   /** Records `atMs` as the run's `lifecycle_ticked_at`. */
   markTicked(atMs: EpochMs): Promise<void>;
+}
+
+export interface StaticSourceStaleQuery {
+  readonly maskVersion: string | null;
+  readonly policyVersion: string;
+  /** The tick's horizon: archived events last detected before it are not swept. */
+  readonly activeSince: EpochMs;
+  readonly limit: number;
+}
+
+/** One event the sweep re-evaluates: its members' scoring rows, canonical order. */
+export interface StaticSourceStaleEvent {
+  readonly publicId: string;
+  readonly rows: readonly ScoringDetection[];
 }
 
 export interface PendingBatchQuery {

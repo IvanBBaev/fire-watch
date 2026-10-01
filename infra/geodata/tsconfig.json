@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // The Track F geodata build (oblast polygons, settlement gazetteer) is an operator-run
+    // Node program: it never ships in the web bundle (only its JSON output does) and imports
+    // nothing but Node built-ins, so it is its own project, like `infra/tiles`. It emits
+    // JavaScript because `pnpm run geodata` executes it.
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist"]
+}

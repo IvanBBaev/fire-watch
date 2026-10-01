@@ -49,7 +49,7 @@ import { runIngestCycle } from '../core/ingest/ingest-cycle.js';
 import { runWeeklyQaReport } from '../core/qa/weekly-report-job.js';
 import { noopHeartbeat, type Heartbeat } from '../core/ports/heartbeat.js';
 import { runRepeatedly, type JobStats } from '../core/scheduler/repeating-job.js';
-import { runWeatherRefresh } from '../core/weather/weather-refresh.js';
+import { runWeatherJob } from '../core/weather/cloud-cover.js';
 import { reportAlertDigestCycle, reportAlertDigestDisabled } from './alert-digest-reporter.js';
 import { wireAlertDigest } from './alert-digest-wiring.js';
 import {
@@ -92,6 +92,8 @@ import {
 import { QA_REPORT_INTERVAL_MS, reportQaWeekly, wireQaReport } from './qa-report-wiring.js';
 import { describeR2MirrorConfig, loadR2MirrorConfig } from './r2-mirror-config.js';
 import { startR2MirrorLoops, wireR2Mirror } from './r2-mirror-wiring.js';
+import { startPassesLoops, wirePassesRefresh } from './passes-wiring.js';
+import { startLightningLoops, wireLightningRefresh } from './lightning-wiring.js';
 import { MONITOR_INTERVAL_MS, reportMonitorCycle, wireMonitors } from './monitor-wiring.js';
 import { reportEffisRefresh, reportWeatherRefresh } from './refresh-reporter.js';
 import {
@@ -385,7 +387,8 @@ async function main(): Promise<number> {
             clock: systemClock,
             sleeper: systemSleeper,
             signal: controller.signal,
-            run: () => runWeatherRefresh(refresh.weatherDeps),
+            // F17: also records the `tcc` steps `cloud_cover_v1` asks for and derives the cloud.
+            run: () => runWeatherJob(refresh.weatherDeps, refresh.windDeps),
             report: observeLoop(
               metrics,
               'weather',
@@ -396,6 +399,38 @@ async function main(): Promise<number> {
             ),
           }),
         ],
+      );
+    }
+
+    // F15: the pass route reads what this writes, and is registered on the same condition.
+    if (config.stateDir !== null) {
+      loops.push(
+        ...startPassesLoops(
+          wirePassesRefresh(config.stateDir, systemClock),
+          {
+            clock: systemClock,
+            sleeper: systemSleeper,
+            writeLine,
+            observe: loopObserver(metrics, onMetricsError),
+          },
+          controller.signal,
+        ),
+      );
+    }
+
+    // F18: only with EUMETSAT credentials; loadConfig refuses them without a state dir.
+    if (config.lightning !== null && config.stateDir !== null) {
+      loops.push(
+        ...startLightningLoops(
+          wireLightningRefresh(config.lightning, config.stateDir, systemClock),
+          {
+            clock: systemClock,
+            sleeper: systemSleeper,
+            writeLine,
+            observe: loopObserver(metrics, onMetricsError),
+          },
+          controller.signal,
+        ),
       );
     }
 

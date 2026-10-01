@@ -94,8 +94,10 @@ secret. Values reach the process from the VM env file (`OPERATIONS.md` §8).
 | Variable | Required | Default | Notes |
 |---|---|---|---|
 | `DATABASE_URL` | yes | — | The same variable dbmate reads, on purpose |
-| `FIRMS_MAP_KEY` | yes | — | Never logged; only its length is |
+| `FIRMS_MAP_KEY` | in `area` mode | — | Never logged; only its length is |
+| `FIRE_WATCH_FIRMS_MODE` | no | `area` if `FIRMS_MAP_KEY` is set, else `keyless` | `keyless` reads NASA's public regional files, clipped to the bbox (`docs/DATA-SOURCES.md` §A1.2) |
 | `FIRMS_BASE_URL` | no | the NASA Area API | Point a drill or smoke test at a stub |
+| `FIRE_WATCH_FIRMS_KEYLESS_BASE_URL` | no | NASA's `data/active_fire` | The same, for `keyless` mode |
 | `FIRE_WATCH_DB_ROLE` | no | `fire_watch_app` | Assumed in the connection startup packet |
 | `FIRE_WATCH_POLL_INTERVAL_MS` | no | `600000` | Bounded to 1 min … 1 h |
 | `FIRE_WATCH_HEARTBEAT_URL` | no | — | healthchecks.io ping base for the dead-man's switch. The whole value is a secret and is never logged or echoed; absent on a developer box, where no check should page |
@@ -152,6 +154,35 @@ the instant the stream is at its cap, or after five minutes of event-loop lag p9
 three. On the flip to `poll` every open stream is sent one `degrade` frame (`reason`
 `capacity` or `load`) and closed, and `/api/v1/stream` answers `503` + `Retry-After: 60`
 until the stream is offered again; clients are never told any of this in words.
+
+And `GET /api/v1/events/:publicId/detections`: one event's live-run member detections as
+the GeoJSON the web detection layer and detail panel parse (`uid`, `observed_at`,
+`source_id`, `confidence`, and `scan_km`/`track_km`/`frp_mw` when stored), oldest first,
+bounded to the newest 1,000 with `truncated: true` past that, plus `attribution`. A merge
+tombstone answers `200` with `merged_into` naming the final survivor and no features
+(ADR-002 I1); only an id no event ever had is a `404`. ETag from the event's `seq`, the
+snapshot's `Cache-Control`, CORS `*`, query parameters refused (`400`), and a per-IP limit
+of 120 requests a minute (`429` + `Retry-After`, code `rate_limited`) because every event id
+is its own cache key (ADR-003). It does not pay the probe rate limiter.
+
+## Running the whole stack on live data
+
+`pnpm dev:live` builds the server and brings up, on a developer machine, a local PostGIS
+container (`fire-watch-dev-pg`, on `127.0.0.1:55433`), the migrations, the worker, the
+API and the Vite dev server — reading real FIRMS detections without a MAP_KEY
+(`FIRE_WATCH_FIRMS_MODE=keyless`, polled every 5 minutes). The web build gets
+`VITE_FIRE_WATCH_DATA=live`, so it reads `/snapshot.json` from the API through the dev
+proxy instead of the fixtures, and each event's detection detail from
+`/api/v1/events/{id}/detections`. Open `http://localhost:5173`; the first ingest
+cycle runs as the worker starts, and clustering turns its detections into events.
+
+Docker defaults to the colima `fwtest` profile socket when it exists (see the next
+section); `DOCKER_HOST`, `FIRE_WATCH_PG_IMAGE` (default `imresamu/postgis:16-3.4`),
+`FIRE_WATCH_DEV_PG_PORT`, `FIRE_WATCH_FIRMS_MODE` and `FIRE_WATCH_POLL_INTERVAL_MS`
+override. Ctrl-C stops everything, and stops the container only if this run started it;
+the container is kept so the archive survives restarts — `docker rm fire-watch-dev-pg`
+resets it. Fixtures remain the default everywhere else: unit tests, e2e and CI never set
+`VITE_FIRE_WATCH_DATA`.
 
 ## Running the integration suite
 

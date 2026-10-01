@@ -25,6 +25,7 @@ import { createFsPayloadStore } from '../adapters/storage/fs-payload-store.js';
 import { createEcmwfHttpClient } from '../adapters/weather/ecmwf-http-client.js';
 import type { EffisRefreshDeps } from '../core/effis/effis-refresh.js';
 import type { WeatherRefreshDeps } from '../core/weather/weather-refresh.js';
+import type { WindDerivationDeps } from '../core/weather/wind-overlay.js';
 import type { ServerConfig } from './config.js';
 
 export const EFFIS_REFRESH_INTERVAL_MS = 6 * 3_600_000;
@@ -34,6 +35,8 @@ export const WEATHER_REFRESH_INTERVAL_MS = 3_600_000;
 export interface RefreshWiring {
   readonly effisDeps: EffisRefreshDeps;
   readonly weatherDeps: WeatherRefreshDeps;
+  /** F14: the wind grid is derived from the fields the weather loop just recorded. */
+  readonly windDeps: WindDerivationDeps;
 }
 
 /** `null` exactly when the deployment has no state dir — the worker logs why and runs without. */
@@ -57,5 +60,6 @@ export function wireRefreshJobs(config: ServerConfig): RefreshWiring | null {
       feedStatus,
       clock: systemClock,
     },
+    windDeps: { reader: payloads, payloads },
   };
 }

@@ -9,9 +9,17 @@
  * boundary ever sees wire JSON.
  */
 
-import type { FreshnessReport, LifecycleState, ScoreBucket } from '@fire-watch/contracts';
+import type {
+  FreshnessReport,
+  LifecycleState,
+  ScoreBucket,
+  StaticSourceMask,
+} from '@fire-watch/contracts';
 
 import type { MapCamera, MapViewport } from './geo/viewport.js';
+import type { LightningDraw } from './lightning.js';
+import type { PassSwathsDraw } from './pass-swaths.js';
+import type { WindOverlayBody } from './wind.js';
 
 export type Locale = 'bg' | 'en';
 
@@ -47,6 +55,16 @@ export interface FireEvent {
   readonly areaHa: number | null;
   /** Next expected observation window; `null` renders `freshness_chip_unknown` (§3b). */
   readonly nextPassWindow: { readonly start: string; readonly end: string } | null;
+  /**
+   * Ids (`@fire-watch/contracts` source registry) of the sources whose detections make up
+   * the event, when the feed reports them — the additive `source_ids` feature property
+   * (F12; the server derives it from `fire_events.source_mix`, sorted, and serves `null`
+   * when nothing is recorded). Absent means *not reported*, never "no source": the filter
+   * fails open on it (`core/filter/event-filter.ts`). Ids are kept verbatim, including ones
+   * this build does not know — the registry is append-only, so an unknown id is a newer
+   * server, not a defect.
+   */
+  readonly sourceIds?: readonly string[];
 }
 
 /**
@@ -277,10 +295,49 @@ export interface MapController {
    */
   setAgeCutoff(cutoffMs: number | null): void;
   /**
+   * Hide events the predicate rejects — the reader's source and region filters, applied
+   * on top of the age cutoff; `null` removes it. Same rules as `setAgeCutoff`: the selected
+   * event stays drawn, and it is a display filter only.
+   */
+  setEventFilter(predicate: ((event: FireEvent) => boolean) | null): void;
+  /**
    * Show the Esri World Imagery raster from this tile URL (key included), or none for
    * `null` (ADR-001 A1.3/A2.3). Removing it is the whole fallback: the basemap underneath
    * shows again, with no error tile and no message.
    */
   setImagery(tilesUrl: string | null): void;
+  /**
+   * Draw exactly these EFFIS context overlays (TASKS G4), beneath the fire layers. The
+   * shell fetches the server's proxy copies; the map never talks to EFFIS (ADR-001 A1.2).
+   */
+  setEffisOverlays(overlays: EffisOverlayDraw): void;
+  /**
+   * Draw the F14 wind arrows for this forecast step, beneath the fire layers, or none for
+   * `null`. The shell fetches `/overlays/wind/latest.json`; the map never talks to ECMWF.
+   */
+  setWindOverlay(wind: WindOverlayBody | null): void;
+  /**
+   * Draw the F16 static hot-source mask (solar parks, power plants, flares, industry),
+   * beneath the fire layers, or none for `null` (`map/static-sources-layer.ts`).
+   */
+  setStaticSources(mask: StaticSourceMask | null): void;
+  /**
+   * Draw the F15 satellite swaths (recent filled, next outlined), beneath the fire layers,
+   * or none for `null` (`map/pass-swaths-layer.ts`). The shell fetches
+   * `/overlays/passes/swaths.json` and decides recent/next against its clock.
+   */
+  setPassSwaths(draw: PassSwathsDraw | null): void;
+  /** F18: recent lightning flashes by age, or `null` to draw none. */
+  setLightning(draw: LightningDraw | null): void;
   destroy(): void;
+}
+
+/** The EFFIS context overlays the shell wants drawn (`map/effis-overlays.ts`). */
+export interface EffisOverlayDraw {
+  /** An object URL of the proxy's FWI PNG; `null` draws no FWI. */
+  readonly fwiImageUrl: string | null;
+  /** The proxy's burnt-area GeoJSON FeatureCollection; `null` draws none. */
+  readonly burntAreas: object | null;
+  /** The EFFIS credit, rendered from the contracts registry (`layer:effis`). */
+  readonly attribution: string;
 }

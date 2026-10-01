@@ -64,7 +64,7 @@ NOAA-21 rows no SP product will ever contain.
 
 | Field                                                       | Value                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What decides what is recorded (identity)                    | `source_registry_v1` (which products are polled) · `polling_bbox_v1` `91e946a7` · `weather_context_v1` `5f0fb76e` (`10u`, `10v`, `2t`, `2d`, `tp`, `tcc` at overpass, ECMWF Open Data) · `effis_layers_v1` `e1f02b2c` (`ecmwf007.fwi`, `EFFIS:BurntAreas7Days`) · `ingest_anomaly_v1` `8227a5c2` (what is quarantined instead of stored). A bump to any of these opens DS-2.1 dated with the bump. |
+| What decides what is recorded (identity)                    | `source_registry_v1` (which products are polled) · `polling_bbox_v1` `91e946a7` · `weather_context_v1` `5f0fb76e` (`10u`, `10v`, `2t`, `2d`, `tp`, `tcc` at overpass, ECMWF Open Data) · `effis_layers_v2` `023fa090` (`mf010.fwi` at the refresh's UTC date, `modis.ba.poly.week`) · `ingest_anomaly_v1` `8227a5c2` (what is quarantined instead of stored). A bump to any of these opens DS-2.1 dated with the bump. |
 | Not identity                                                | `pass_table_v0`, `freshness_budgets_v1`, `clustering_params_v1`, `alert_gating_v1`, `lifecycle_params_v1` — processing and observability, cited by results and replays, not by the record.                                                                                                                                                                                                                                       |
 | Sources · tier                                              | every `SOURCE_REGISTRY` source the poller is configured for, `product_tier = nrt`; NOAA-21 VIIRS included                                                                                                                                                                                                                                                                                                                         |
 | First recorded day                                          | — (no host; TASKS C1 open)                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -77,16 +77,17 @@ NOAA-21 rows no SP product will ever contain.
 **History**
 
 - 2026-09-03 — entry opened (review 23 E1, E5). No row recorded yet.
+- 2026-09-28 — `effis_layers_v1` → `v2`: the v1 names are not routed by the live mapserver (`LayerNotDefined` / 502), so v1 never produced a servable copy. No row had been recorded under v1, so the bump opens no DS-2.1.
 
 ### DS-3 — EFFIS burnt-area labels, 2020–2025
 
 The label set D7 fits against (GATES §2: "labeled against EFFIS burnt area"; TASKS D7). Not
-the live `EFFIS:BurntAreas7Days` layer DS-2 records, but the season archive of Rapid Damage
+the live `modis.ba.poly.week` layer DS-2 records, but the season archive of Rapid Damage
 Assessment perimeters (DATA-SOURCES §D1: ≥30 ha via MODIS, smaller via Sentinel-2 since 2018).
 
 | Field                    | Value                                                                                                                                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Plan                     | none in code. No adapter fetches historical perimeters; `effis_layers_v1` covers the live layers only.                                                                                                                   |
+| Plan                     | none in code. No adapter fetches historical perimeters; `effis_layers_v2` covers the live layers only.                                                                                                                   |
 | Identity (to be pinned)  | EFFIS product and version, request extent (`polling_bbox_v1`), fetch date, file sha256 — a plan under `defineConfig` like DS-1's, so the labels a fit cites are as reproducible as the detections it scores against them. |
 | Fetched                  | —                                                                                                                                                                                                                        |
 | Consumers                | none yet. Expected: D7 fit report; L-13.                                                                                                                                                                                 |
@@ -112,3 +113,27 @@ touch-once guarantee and is re-fitted on the first full post-2025 season.
 **History**
 
 - 2026-09-03 — entry opened (review 23 E1). No machinery exists; scheduled with D7's spec.
+
+### DS-5 — OpenStreetMap static hot-source mask, osm-2026-09-30
+
+The mask 11 §3.6 scores against and the web caveats and draws (TASKS F16): solar parks,
+thermal power plants, heavy-industry sites and flares in Bulgaria and the served box. A
+cited input, not a fitted one — but a replay that scores events cites it, because the same
+detections score differently under a different mask.
+
+| Field                   | Value                                                                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan                    | `pnpm run geodata:static-sources` — `infra/geodata/static-sources.ts` (pure transform, `OVERPASS_QUERY`, simplification tolerance 3 × 1e-4°) + `static-sources-cli.ts` (fetch, cache in `data/geodata-cache/`, write)                                 |
+| Identity                | format `fire-watch/static-sources@1` · version `osm-2026-09-30` · OSM base `2026-09-30T13:19:30Z` · query sha256 `77b4ed0a…b0c6b7` · Overpass response sha256 `bce9a353…4afba` · asset sha256 `c50a9a78…83ef18`                                       |
+| Area                    | bbox W20 S39 E31 N46 (the served box, which contains Bulgaria)                                                                                                                                                                                       |
+| Contents                | 6366 sources: solar 6154, thermal_power 172, industrial 33, flare 7; dropped open ways 0, unclosed multipolygon outers 0. Inner rings are dropped (a hole in a site counts as the site). No OSM element ids.                                           |
+| Asset                   | `web/src/assets/geodata/static-sources.json` — 238,695 B raw, 84,503 B gzip -9                                                                                                                                                                       |
+| Licence                 | ODbL 1.0, derivative database (`docs/licenses/openstreetmap-static-sources.md`)                                                                                                                                                                      |
+| Consumers               | `static_source_policy_v2` (server identity cycle: §3.6 override + §6.2 day-only quarantine, from boot; override `FIRE_WATCH_STATIC_SOURCES`) · replay fixtures S4/S10 (inline mask in `observations.staticSources`, version pinned as `static_source_mask`) · web event-detail and per-detection caveat (`static_source_caveat_v1`, 1 km) · Layers-panel mask layer (`ov=static`) |
+| Refresh                 | quarterly proposed (owner pending — founder call). A refresh is a new version string and a new DS-5.n line; it takes a worker restart to load, after which the identity cycle re-evaluates every live event whose recorded mask or policy version differs (500 per tick) and releases or applies the verdict — rescoring on a mask change is automatic. |
+| Retention floor         | every version recorded in `fire_events.static_source_mask_version` (migration 021, per event decision; ADR-002 D7) — replay of a decision needs that exact version. Git keeps them all. |
+
+**History**
+
+- 2026-09-30 — entry opened with `osm-2026-09-30` (TASKS F16).
+- 2026-10-01 — consumer moved to `static_source_policy_v2`; mask version recorded per event (migration 021); mask refresh triggers re-evaluation of live events.

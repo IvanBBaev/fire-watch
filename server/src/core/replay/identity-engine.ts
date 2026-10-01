@@ -32,9 +32,12 @@
  * `bucket` is answered here as of D12: every reported event carries the bucket
  * `scoreEvent` gives it, and the fixtures were re-authored against those answers rather
  * than against a guess — which is what the previous version of this paragraph promised
- * would happen the day the scorer landed. `labels` is still `[]`: S3's and S4's label
- * rules need the land cover and the static-source mask D10 owes, and inventing a plausible
- * constant for them would let a fixture assert an outcome that no function decides.
+ * would happen the day the scorer landed. `labels` carries the static hot-source
+ * invalidation (`static_source`, `suspected_static_source`) as of TASKS F16, decided by the
+ * same `static-source-policy.ts` evaluator the live tick uses — but only for a fixture that
+ * pins `static_source_policy` (and, with a mask, `static_source_mask`). A fixture that pins
+ * neither is replayed with no evaluator and keeps `labels: []`, so every fixture authored
+ * before F16 asserts exactly what it did; S3's land-cover label still has no function.
  *
  * Three things about the score in replay are worth stating, because each is a limit of the
  * *format* rather than of the scorer, and each one silently withholds evidence:
@@ -47,11 +50,13 @@
  *     withholds credit and is safe; for `x_agri` it withholds a *penalty*, so a replayed
  *     score is an over-estimate for anything over cropland. That is precisely why S3 stays
  *     blocked on D10 in `register.ts` even though the score now exists.
- *   - **`staticSourceMaskHit` is `false`, not "unknown".** No mask data exists, so no mask
- *     can hit; the override cannot fire in replay, which is why S4 stays blocked too.
+ *   - **`staticSourceMaskHit` comes from the fixture's own mask.** The context constant is
+ *     `false`; a fixture that states `staticSources` in its observations (inline, in the
+ *     asset format, pinned by version — D7's "the same mask") gets the §3.6 override from
+ *     the verdict, exactly as `scoreWithVerdict` applies it live.
  *
- * When D10 lands, these three become fixture-stated observations on the precedent cloud
- * cover already set, and S3/S4 are authored against a real answer for the first time.
+ * When D10 lands, the first two become fixture-stated observations on the precedent cloud
+ * cover already set, and S3 is authored against a real answer for the first time.
  */
 
 import { SOURCE_REGISTRY_VERSION, assertSourceId } from '@fire-watch/contracts';
@@ -74,7 +79,18 @@ import { buildReignitionPlan } from '../registry/reignition-plan.js';
 import type { ScoringDetection } from '../scoring/features.js';
 import { SCORE_PARAMS } from '../scoring/score-params.js';
 import { scoreEvent, type ScoreContext } from '../scoring/score.js';
-import type { FixtureDeclaration } from './fixture-format.js';
+import {
+  NO_STATIC_SOURCE_EVALUATOR,
+  STATIC_SOURCE_POLICY,
+  invalidationOf,
+  staticSourceEvaluator,
+  type StaticSourceEvaluator,
+} from '../static-sources/static-source-policy.js';
+import {
+  STATIC_SOURCE_MASK_PIN,
+  type FixtureDeclaration,
+  type ObservationContext,
+} from './fixture-format.js';
 import { tickLifecycle, type LifecycleCarry, type TickEventInput } from './lifecycle-tick.js';
 import type { ReplayContext, ReplayDetection, ReplayEngine, ReplayEvent } from './runner.js';
 
@@ -107,6 +123,11 @@ export function createIdentityEngine(
 ): ReplayEngine {
   assertPinnedVersions(context.configVersions, config);
   const params = config.values;
+  const staticSources = replayStaticSources(
+    context.configVersions,
+    context.observations.staticSources,
+    config,
+  );
 
   let state = emptyState();
   let aliases: AliasLinks = NO_ALIASES;
@@ -158,7 +179,7 @@ export function createIdentityEngine(
    * a bug rather than skipped, since a silently short member list would score the event on
    * less evidence than it has and quietly move the bucket down.
    */
-  function bucketFor(cluster: Cluster): string {
+  function judge(cluster: Cluster): { readonly bucket: string; readonly labels: string[] } {
     const detections = orderMembers(cluster.members).map((member) => {
       const row = rowByUid.get(member.detectionUid);
       if (row === undefined) {
@@ -169,7 +190,15 @@ export function createIdentityEngine(
       }
       return toScoringDetection(row);
     });
-    return scoreEvent(detections, REPLAY_SCORE_CONTEXT).bucket;
+    // The live rule (`scoreWithVerdict`): the verdict can add the §3.6 hit, never remove
+    // one, and an invalidation reason is the event's one label.
+    const verdict = staticSources.evaluate(detections);
+    const scored = scoreEvent(detections, {
+      ...REPLAY_SCORE_CONTEXT,
+      staticSourceMaskHit: REPLAY_SCORE_CONTEXT.staticSourceMaskHit || verdict === 'static_source',
+    });
+    const reason = scored.invalidated ? 'static_source' : invalidationOf(verdict);
+    return { bucket: scored.bucket, labels: reason === null ? [] : [reason] };
   }
 
   return {
@@ -248,15 +277,16 @@ export function createIdentityEngine(
         // batch cannot produce. Reported rather than defaulted, so a wiring mistake shows
         // up as a missing status instead of a plausible one.
         const decision = decisions.get(cluster.publicId);
+        const judged = judge(cluster);
         events.push({
           publicId: cluster.publicId,
           status: decision?.state ?? null,
           displayTier: decision?.displayTier ?? null,
-          bucket: bucketFor(cluster),
+          bucket: judged.bucket,
           detectionUids: cluster.members.map((member) => member.detectionUid),
           mergedInto: null,
           relation: relations.get(cluster.publicId) ?? null,
-          labels: [],
+          labels: judged.labels,
         });
       }
 
@@ -293,9 +323,9 @@ export function createIdentityEngine(
  * the fixture-stated version later is a change to one named thing.
  */
 const REPLAY_SCORE_CONTEXT: ScoreContext = Object.freeze({
-  // No mask data exists, so no mask hits. `false` rather than a nullable "unknown" is the
-  // scorer's own contract: an override that can be skipped by passing null is not an
-  // override. It means the §3.6 hard override cannot fire in replay, which is S4's blocker.
+  // The context states no hit; a fixture's pinned mask adds one per event through the
+  // verdict (`judge`). `false` rather than a nullable "unknown" is the scorer's own
+  // contract: an override that can be skipped by passing null is not an override.
   staticSourceMaskHit: false,
   // Nothing looked EFFIS FWI up. `null` scores x7 as 0, withholding credit — the safe way
   // to be wrong.
@@ -397,6 +427,31 @@ function assertPinnedVersions(
       `fixture pins sources=${sources} but the replay runs ${SOURCE_REGISTRY_VERSION}`,
     );
   }
+}
+
+/**
+ * The evaluator a fixture asked for, or none. Opt-in by pinning, for the reason the engine
+ * header gives; once opted in, both versions are checked like every other pin, and a pinned
+ * mask with no mask stated (or the reverse) throws rather than replaying against another.
+ */
+function replayStaticSources(
+  pinned: Readonly<Record<string, string>>,
+  mask: ObservationContext['staticSources'],
+  config: ClusteringConfig,
+): StaticSourceEvaluator {
+  const maskPin = pinned[STATIC_SOURCE_MASK_PIN];
+  if (pinned[STATIC_SOURCE_POLICY.name] === undefined && maskPin === undefined && mask === null) {
+    return NO_STATIC_SOURCE_EVALUATOR;
+  }
+  requirePin(pinned, STATIC_SOURCE_POLICY.name, STATIC_SOURCE_POLICY.version);
+  if (mask !== null) requirePin(pinned, STATIC_SOURCE_MASK_PIN, mask.version);
+  else if (maskPin !== undefined) {
+    throw new Error(
+      `fixture pins ${STATIC_SOURCE_MASK_PIN}=${maskPin} but its observations state no ` +
+        'staticSources; a replay cannot load "the same mask" from nothing (ADR-002 D7)',
+    );
+  }
+  return staticSourceEvaluator(mask, STATIC_SOURCE_POLICY, config.values.metric);
 }
 
 /** Exported for the alert engine, which pins one more config than this one consults. */

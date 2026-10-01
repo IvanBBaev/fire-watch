@@ -14,6 +14,13 @@
  * with the byte extent it was cut from, its hash, `available_at`, and the config
  * version it was recorded under. The `weather:context` feed row is recorded on every
  * cycle, success or not — the freshness page's data must survive the failure it reports.
+ *
+ * **Extra fields.** A derived product may need a field at steps the frozen
+ * `weather_context_v1` does not keep (F17: `tcc` every 3 h to 39 h, `cloud_cover_v1`).
+ * `extraFields` names them and the config they are recorded under; the same refresh
+ * fetches each extra step's index and records only those params, under the same
+ * `weather:context` row, with the extra config's version beside the context's in the
+ * sidecar. `weather_context_v1`'s values — and so its digest — never change for it.
  */
 
 import { canonicalJson } from '../determinism/canonical-json.js';
@@ -41,6 +48,15 @@ export interface WeatherRefreshDeps {
   readonly feedStatus: FeedStatusStore;
   readonly clock: Clock;
   readonly contextConfig?: VersionedConfig<WeatherContextValues>;
+  /** Fields recorded beyond the context's (see the module note); none by default. */
+  readonly extraFields?: ExtraFieldSet;
+}
+
+/** Params recorded at extra steps, and the versioned config that asked for them. */
+export interface ExtraFieldSet {
+  readonly params: readonly string[];
+  readonly steps: readonly number[];
+  readonly config: { readonly version: string; readonly digest: string };
 }
 
 export type WeatherFieldOutcome =
@@ -101,7 +117,16 @@ export async function runWeatherRefresh(deps: WeatherRefreshDeps): Promise<Weath
 
   const steps: WeatherStepResult[] = [];
   for (const step of values.steps) {
-    steps.push(await refreshStep(cycle, step, deps, config));
+    steps.push(await refreshStep(cycle, step, deps, config, values.params, null));
+  }
+  const extra = deps.extraFields;
+  if (extra !== undefined) {
+    // A step the context already records already carries every context param; only steps
+    // it does not record are fetched for the extra params.
+    for (const step of extra.steps) {
+      if (values.steps.includes(step)) continue;
+      steps.push(await refreshStep(cycle, step, deps, config, extra.params, extra.config));
+    }
   }
 
   const attemptAt = deps.clock.now();
@@ -135,8 +160,10 @@ async function refreshStep(
   step: number,
   deps: WeatherRefreshDeps,
   config: VersionedConfig<WeatherContextValues>,
+  params: readonly string[],
+  extraConfig: ExtraFieldSet['config'] | null,
 ): Promise<WeatherStepResult> {
-  const values = config.values;
+  const values = { ...config.values, params };
 
   let index;
   try {
@@ -167,7 +194,7 @@ async function refreshStep(
   }
 
   for (const entry of selection.entries) {
-    fields.push(await recordField(cycle, step, entry, deps, config));
+    fields.push(await recordField(cycle, step, entry, deps, config, extraConfig));
   }
 
   return { step, indexFetched: true, fields, error: null };
@@ -179,6 +206,7 @@ async function recordField(
   entry: EcmwfIndexEntry,
   deps: WeatherRefreshDeps,
   config: VersionedConfig<WeatherContextValues>,
+  extraConfig: ExtraFieldSet['config'] | null,
 ): Promise<WeatherFieldResult> {
   const path = weatherFieldPath(cycle, step, entry.param);
 
@@ -244,6 +272,9 @@ async function recordField(
         available_at: isoFromEpochMs(availableAt),
         weather_context_version: config.version,
         weather_context_digest: config.digest,
+        ...(extraConfig === null
+          ? {}
+          : { extra_config_version: extraConfig.version, extra_config_digest: extraConfig.digest }),
       })}\n`,
     );
     return { param: entry.param, step, outcome: 'stored', bytes: written.bytes, error: null };

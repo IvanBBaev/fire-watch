@@ -12,14 +12,17 @@
  * fire went away".
  */
 
+import { countFamilies, partitionEvents } from '../core/filter/event-filter.js';
 import { partitionByViewport } from '../core/geo/in-view.js';
 import { sortedEvents } from '../core/store/index.js';
 import { formatObservedStampSofia, relativeAgeFrom } from '../core/i18n/format.js';
-import { AGE_WINDOW_IDS, ageCutoffMs, partitionByAge } from '../core/time/age-filter.js';
+import { ageCutoffMs, ageWindowHours } from '../core/time/age-filter.js';
 import type { FireEvent } from '../core/types.js';
 import { eventPath } from './logic/event-resolution.js';
 import { placeName } from './logic/place.js';
 import { ageWindow, setAgeWindow } from './age-window.js';
+import { FilterBar } from './filter-bar.js';
+import { clearScopeFilters, regionFilter, regionIndex, sourceFamily } from './filters.js';
 import { useApp } from './context.js';
 import { mapViewport } from './map-camera.js';
 import { useNow } from './use-now.js';
@@ -47,32 +50,6 @@ function EventRow({ event, nowMs }: { readonly event: FireEvent; readonly nowMs:
   );
 }
 
-/**
- * The window picker. `aria-pressed` rather than a radio group: these are filter toggles on
- * one list, and the group label carries what the bare hour counts mean.
- */
-function AgeWindowPicker() {
-  const { messages } = useApp();
-  const current = ageWindow.value;
-  return (
-    <div class="age-window" role="group" aria-label={messages.ageWindow.label}>
-      {AGE_WINDOW_IDS.map((id) => (
-        <button
-          key={id}
-          type="button"
-          class={`age-window-option${id === current ? ' selected' : ''}`}
-          aria-pressed={id === current}
-          onClick={() => {
-            setAgeWindow(id);
-          }}
-        >
-          {messages.ageWindow.option[id]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function EventList({
   inViewOnly,
   onToggleInViewOnly,
@@ -87,6 +64,9 @@ export function EventList({
   // that waits for a slow map is a list that failed at its one job.
   const viewport = mapViewport.value;
   const windowId = ageWindow.value;
+  const family = sourceFamily.value;
+  const oblast = regionFilter.value;
+  const regionAt = regionIndex.value?.regionAt ?? null;
 
   if (state.lastSnapshotAt === null) {
     return <p class="list-placeholder">{messages.loading}</p>;
@@ -96,23 +76,32 @@ export function EventList({
   // Time first, then space: the window is a statement about the world, the frame is a
   // statement about the screen, and "3 outside the view" should count only fires the
   // reader has actually asked to see.
-  const byAge = partitionByAge(all, ageCutoffMs(nowMs, windowId));
+  // Source and region narrow the same set the window does, and the map obeys the same
+  // rule (`map-pane.tsx`); what each one hides is counted separately below.
+  const cutoffMs = ageCutoffMs(nowMs, windowId);
+  const filtered = partitionEvents(all, { cutoffMs, family, oblast }, regionAt);
+  const counts = countFamilies(all, { cutoffMs, oblast }, regionAt);
   const scoped =
-    inViewOnly && viewport !== null ? partitionByViewport(byAge.recent, viewport) : null;
-  const events = scoped?.inView ?? byAge.recent;
+    inViewOnly && viewport !== null ? partitionByViewport(filtered.visible, viewport) : null;
+  const events = scoped?.inView ?? filtered.visible;
+  const hours = ageWindowHours(windowId);
   const outsideCount = scoped?.outsideCount ?? 0;
 
   return (
     <div class="event-list-wrap">
-      <AgeWindowPicker />
+      <FilterBar counts={counts} />
       {all.length === 0 ? (
         // GLOSSARY §3b empty_state: "no satellite detections", never "no fires".
         <p class="list-placeholder">{messages.status.emptyState}</p>
       ) : events.length === 0 ? (
         <p class="list-placeholder">
-          {byAge.recent.length === 0
-            ? messages.ageWindow.emptyInWindow
-            : messages.listInView.emptyInView}
+          {filtered.visible.length > 0
+            ? messages.listInView.emptyInView
+            : filtered.olderCount === 0 && filtered.filteredCount > 0
+              ? messages.filters.emptyFiltered
+              : hours !== null && hours <= 3
+                ? messages.ageWindow.emptyShortWindow
+                : messages.ageWindow.emptyInWindow}
         </p>
       ) : (
         <ul class="event-list">
@@ -121,9 +110,9 @@ export function EventList({
           ))}
         </ul>
       )}
-      {byAge.olderCount > 0 && (
+      {filtered.olderCount > 0 && (
         <p class="list-scope-note">
-          <span>{messages.ageWindow.olderHidden(byAge.olderCount)}</span>
+          <span>{messages.ageWindow.olderHidden(filtered.olderCount)}</span>
           <button
             type="button"
             class="link-button"
@@ -132,6 +121,14 @@ export function EventList({
             }}
           >
             {messages.ageWindow.showOlder}
+          </button>
+        </p>
+      )}
+      {filtered.filteredCount > 0 && (
+        <p class="list-scope-note">
+          <span>{messages.filters.hiddenByFilters(filtered.filteredCount)}</span>
+          <button type="button" class="link-button" onClick={clearScopeFilters}>
+            {messages.filters.clear}
           </button>
         </p>
       )}

@@ -146,7 +146,9 @@ function scoresFor(writes: RegistryWrites, score = 0.512345): readonly EventScor
     publicId: a.publicId,
     score,
     invalidated: false,
+    invalidatedReason: null,
     paramsVersion: 'score_params_v0',
+    staticSource: null,
   }));
 }
 
@@ -544,22 +546,37 @@ describe('the D6 score write', () => {
     );
     await store(fake.pool).withBatch(RUN, BATCH, (tx) => tx.applyBatch(write));
     const update = fake.queries.find((q) => q.text === SQL.updateEventAggregates);
-    expect(update?.values).toHaveLength(14);
+    expect(update?.values).toHaveLength(18);
     expect(update?.values.slice(1, 2)).toEqual([[survivor.publicId]]);
-    expect(update?.values.slice(11)).toEqual([[0.512345], ['score_params_v0'], [false]]);
+    expect(update?.values.slice(11)).toEqual([
+      [0.512345],
+      ['score_params_v0'],
+      [false],
+      [null],
+      [null],
+      [null],
+      [null],
+    ]);
     // The cluster statement reads the same arrays; it ignores the score columns.
     const cluster = fake.queries.find((q) => q.text === SQL.updateClusterAggregates);
     expect(cluster?.values).toEqual(update?.values);
   });
 
-  it('writes the score in the aggregate UPDATE and never clears invalidated', () => {
-    const text = SQL.updateEventAggregates;
-    expect(text).toContain('score = a.score');
-    expect(text).toContain('score_params_version = a.score_params_version');
-    expect(text).toContain('invalidated = e.invalidated OR a.score_invalidated');
-    expect(text).toContain("WHEN a.score_invalidated THEN 'static_source_mask'");
+  it('writes the score and the verdict, and never clears a curation invalidation', () => {
+    for (const text of [SQL.updateEventAggregates, SQL.updateStaticSourceVerdicts]) {
+      expect(text).toContain('score = a.score');
+      expect(text).toContain('score_params_version = a.score_params_version');
+      // Only the two static-source reasons are the verdict's to rewrite (021).
+      expect(text).toContain(
+        "e.invalidated_reason NOT IN ('static_source', 'suspected_static_source')",
+      );
+      expect(text).toContain('WHEN a.score_invalidated THEN a.score_invalidated_reason');
+      expect(text).toContain('static_source_mask_version = a.static_source_mask_version');
+      expect(text).not.toContain("'static_source_mask'");
+    }
     // Never an explicit seq: 004's trigger draws the one bump for the member change.
-    expect(text).not.toMatch(/\bseq\b/);
+    expect(SQL.updateEventAggregates).not.toMatch(/\bseq\b/);
+    expect(SQL.updateStaticSourceVerdicts).not.toMatch(/\bseq\b/);
     expect(SQL.updateClusterAggregates).not.toContain('score =');
   });
 
@@ -673,7 +690,7 @@ describe('hullWkt and aggregateArrays', () => {
     const [survivor] = mergingWrite().writes.aggregates;
     if (survivor === undefined) throw new Error('no aggregate');
     const arrays = aggregateArrays([survivor], scoresFor(mergingWrite().writes), 0.001);
-    expect(arrays).toHaveLength(13);
+    expect(arrays).toHaveLength(17);
     expect(arrays[8]).toEqual([survivor.hullDiameterQuanta * 0.001]);
     expect(arrays[5]).toEqual([Number(survivor.centroidLatCanonical)]);
   });
@@ -802,6 +819,95 @@ describe('withTick', () => {
         ]),
       ),
     ).rejects.toThrow(/lifecycle carry/);
+  });
+
+  it('loads stale verdicts grouped per event, with the versions as parameters', async () => {
+    const scoring = (publicId: string, n: number) => ({
+      public_id: publicId,
+      detection_uid: uid(n),
+      source: SOURCE,
+      acq_ts: new Date('2026-08-05T12:06:00Z'),
+      lat: '41.86000',
+      lon: '26.10000',
+      confidence: 'nominal',
+      day_night: 'D',
+      frp_mw: 3.5,
+      scan_km: null,
+      track_km: null,
+    });
+    const fake = fakePool((text) => {
+      if (text === SQL.lockRun) return { rows: [{ lifecycle_ticked_at: null }] };
+      if (text === SQL.selectStaticSourceStale) {
+        return { rows: [scoring('a', 1), scoring('a', 2), scoring('b', 3)] };
+      }
+      return undefined;
+    });
+    const stale = await store(fake.pool).withTick(RUN, (tx) =>
+      tx.loadStaticSourceStale({
+        maskVersion: null,
+        policyVersion: 'static_source_policy_v2',
+        activeSince: epochMsFromIso(T1),
+        limit: 500,
+      }),
+    );
+    expect(stale.map((e) => [e.publicId, e.rows.map((r) => r.detectionUid)])).toEqual([
+      ['a', [uid(1), uid(2)]],
+      ['b', [uid(3)]],
+    ]);
+    expect(stale[0]?.rows[0]).toMatchObject({ dayNight: 'D', frpMw: 3.5 });
+    expect(fake.queries.find((q) => q.text === SQL.selectStaticSourceStale)?.values).toEqual([
+      7,
+      T1,
+      null,
+      'static_source_policy_v2',
+      500,
+    ]);
+  });
+
+  it('writes verdicts as parallel arrays and fails on a vanished row', async () => {
+    const verdict: EventScore = {
+      publicId: 'a',
+      score: 0,
+      invalidated: true,
+      invalidatedReason: 'static_source',
+      paramsVersion: 'score_params_v0',
+      staticSource: {
+        verdict: 'static_source',
+        maskVersion: 'osm-2026-09',
+        policyVersion: 'static_source_policy_v2',
+      },
+    };
+    const ok = fakePool((text) => {
+      if (text === SQL.lockRun) return { rows: [{ lifecycle_ticked_at: null }] };
+      if (text === SQL.updateStaticSourceVerdicts) return { rowCount: 1 };
+      return undefined;
+    });
+    await store(ok.pool).withTick(RUN, async (tx) => {
+      await tx.applyStaticSourceVerdicts([]);
+      await tx.applyStaticSourceVerdicts([verdict]);
+    });
+    const writes = ok.queries.filter((q) => q.text === SQL.updateStaticSourceVerdicts);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.values).toEqual([
+      ['a'],
+      [0],
+      ['score_params_v0'],
+      [true],
+      ['static_source'],
+      ['static_source'],
+      ['osm-2026-09'],
+      ['static_source_policy_v2'],
+    ]);
+
+    const gone = fakePool((text) => {
+      if (text === SQL.lockRun) return { rows: [{ lifecycle_ticked_at: null }] };
+      if (text === SQL.updateStaticSourceVerdicts) return { rowCount: 0 };
+      return undefined;
+    });
+    await expect(
+      store(gone.pool).withTick(RUN, (tx) => tx.applyStaticSourceVerdicts([verdict])),
+    ).rejects.toThrow(/static-source verdict/);
+    expect(gone.texts().at(-1)).toBe('ROLLBACK');
   });
 
   it('fails when the run row is missing', async () => {

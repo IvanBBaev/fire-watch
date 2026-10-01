@@ -24,6 +24,7 @@ function row(overrides: Partial<ActiveEventRow> = {}): ActiveEventRow {
     lastDetectionAt: epochMsFromIso('2026-07-14T09:40:00Z'),
     detectionCount: 7,
     nearestPlace: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
+    sourceIds: ['firms:viirs:noaa20', 'firms:viirs:snpp'],
     ...overrides,
   };
 }
@@ -73,9 +74,43 @@ describe('buildSnapshot', () => {
           place_name_en: 'Karlovo',
           area_ha: null,
           next_pass_window: null,
+          source_ids: ['firms:viirs:noaa20', 'firms:viirs:snpp'],
         },
       },
     ]);
+  });
+
+  it('serves source ids deduplicated and in code-unit order, whatever the reader gave', () => {
+    const doc = buildSnapshot({
+      read: read([
+        row({ sourceIds: ['lsasaf:seviri:frp-pixel', 'firms:viirs:snpp', 'firms:viirs:snpp'] }),
+        row({
+          publicId: 'b',
+          seq: 1041,
+          sourceIds: ['firms:viirs:snpp', 'lsasaf:seviri:frp-pixel'],
+        }),
+      ]),
+      sources: [],
+      generatedAtMs: GENERATED_AT,
+      afterSeq: 0,
+    });
+    const ids = doc.features.map((f) => f.properties.source_ids);
+    expect(ids[0]).toEqual(['firms:viirs:snpp', 'lsasaf:seviri:frp-pixel']);
+    // Same set, different reader order: the same bytes on the wire.
+    expect(JSON.stringify(ids[1])).toBe(JSON.stringify(ids[0]));
+  });
+
+  it('serves an unrecorded or empty source set as null, never as an empty list', () => {
+    // `[]` would read as "no sensor saw this"; `null` is "not reported", which the web's
+    // source filter fails open on.
+    const doc = buildSnapshot({
+      read: read([row({ sourceIds: null }), row({ publicId: 'b', seq: 1041, sourceIds: [] })]),
+      sources: [],
+      generatedAtMs: GENERATED_AT,
+      afterSeq: 0,
+    });
+    expect(doc.features.map((f) => f.properties.source_ids)).toEqual([null, null]);
+    expect(doc.features.every((f) => 'source_ids' in f.properties)).toBe(true);
   });
 
   it('carries the public id once as the store key and never emits a uuid (schema v2)', () => {

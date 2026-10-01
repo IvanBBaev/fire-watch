@@ -41,6 +41,15 @@
  * that the map corner carries it exactly while imagery is drawn, read off the raster
  * source's `attribution` the controller adds (which MapLibre's control displays).
  *
+ * **EFFIS overlays (TASKS G4).** `layer:effis` is reached the same way — the reader's
+ * choice in the Layers panel (`effis-on`), not configuration. The credits page reads that
+ * choice from `ui/layers.ts`, so its probe sets it; the map corner draws both overlays and
+ * `drawnConditions` recognises them by their `effis-` source ids.
+ *
+ * **Wind (TASKS F14).** `derived:ecmwf` likewise (`wind-on`): the five ECMWF credits are
+ * owed on the credits page only, and the map corner's drawn set recognises the arrows by
+ * their source id.
+ *
  * **What this does not see.** Styling: a credit that is present but hidden, clipped or
  * collapsed (the corner control is `compact`) passes. Credits MapLibre takes from the
  * external basemap style's own `attribution` fields.
@@ -69,13 +78,20 @@ import { DEFAULT_CONFIG } from '../core/config.js';
 import bg from '../core/i18n/bg.js';
 import en from '../core/i18n/en.js';
 import type { Messages } from '../core/i18n/messages.js';
+import type { LightningDraw } from '../core/lightning.js';
+import type { PassSwathsDraw } from '../core/pass-swaths.js';
 import type { Clock } from '../core/ports.js';
 import type { FireEventStore, Locale, OutdoorBasemapConfig, ThemeName } from '../core/types.js';
+import type { WindOverlayBody } from '../core/wind.js';
 import { createMapController } from '../map/map-controller.js';
+import { WIND_SOURCE_ID } from '../map/wind-layer.js';
 import { AppContext } from './context.js';
 import type { AppServices } from './context.js';
 import type { CreditSessionState } from './logic/credits.js';
 import { activeCreditConditions, mapCornerAttribution } from './logic/credits.js';
+import { effisCreditText, setOverlays } from './layers.js';
+import { eumetsatCreditText } from './lightning.js';
+import { celestrakCredit } from './passes.js';
 import { AboutPage } from './pages/about.js';
 import { CreditsPage } from './pages/credits.js';
 
@@ -117,6 +133,10 @@ vi.mock('maplibre-gl', () => ({
     removeLayer(id: string): void {
       recorded.layers.delete(id);
     }
+    hasImage(): boolean {
+      return true;
+    }
+    addImage(): void {}
   },
   AttributionControl: class {
     constructor(readonly options: { readonly customAttribution?: string | string[] }) {}
@@ -126,6 +146,30 @@ vi.mock('maplibre-gl', () => ({
 }));
 
 const NOW = Date.UTC(2026, 8, 23, 12);
+
+/** A one-cell wind body: what reaches the controller decides the credit, not the data. */
+const WIND_BODY: WindOverlayBody = {
+  schema_version: 1,
+  provider: 'ecmwf-open-data',
+  model: 'ifs',
+  run_at: '2026-09-23T00:00:00Z',
+  step_hours: 12,
+  valid_at: '2026-09-23T12:00:00Z',
+  available_at: '2026-09-23T07:40:00Z',
+  grid: {
+    west: 25,
+    south: 42,
+    east: 25,
+    north: 42,
+    resolution_deg: 0.5,
+    cols: 1,
+    rows: 1,
+    order: 'north_to_south_west_to_east',
+  },
+  speed_ms: [4],
+  direction_from_deg: [300],
+  wind_overlay_version: 'wind_overlay_v1',
+};
 const CATALOGS = { bg, en } as const satisfies Record<Locale, Messages>;
 const LOCALES = Object.keys(CATALOGS) as Locale[];
 
@@ -213,6 +257,16 @@ async function renderPage(
   return readHtml(html);
 }
 
+/**
+ * The swath draw the map pane would hand the controller (TASKS F15), or `null`. Set only by
+ * the dedicated CelesTrak case: the credit is not a registry map-corner row, so the walked
+ * combinations never draw swaths.
+ */
+let swathsDraw: PassSwathsDraw | null = null;
+
+/** The same for the lightning flashes (TASKS F18): set only by the dedicated EUMETSAT case. */
+let lightningDraw: LightningDraw | null = null;
+
 function probeMapCorner(
   config: ClientConfig,
   locale: Locale,
@@ -238,6 +292,21 @@ function probeMapCorner(
   });
   // What the map pane does with the `imageryTilesUrl` signal when the reader toggles.
   if (session.imageryOn === true) controller.setImagery(IMAGERY_TILES_URL);
+  // And what it does with `effisOverlayPayload` once an EFFIS overlay is chosen and loaded
+  // (TASKS G4): both overlays drawn, the burnt-area source carrying the EFFIS credit.
+  if (session.effisOn === true) {
+    controller.setEffisOverlays({
+      fwiImageUrl: 'blob:attribution-presence',
+      burntAreas: { type: 'FeatureCollection', features: [] },
+      attribution: effisCreditText(clock, CATALOGS[locale]),
+    });
+  }
+  // And `windOverlayPayload` once the wind layer is chosen and loaded (TASKS F14).
+  if (session.windOn === true) controller.setWindOverlay(WIND_BODY);
+  // And the predicted swaths (TASKS F15), when the dedicated case below draws them.
+  if (swathsDraw !== null) controller.setPassSwaths(swathsDraw);
+  // And the lightning flashes (TASKS F18), when the dedicated case below draws them.
+  if (lightningDraw !== null) controller.setLightning(lightningDraw);
   // Only what reached the map counts: a control built and never added credits no one.
   const lines = recorded.controls.flatMap((control) => {
     const custom = (control as { options?: { customAttribution?: string | string[] } }).options
@@ -283,15 +352,29 @@ function drawnConditions(): readonly CreditCondition[] {
     if (type === 'vector') drawn.add('basemap:protomaps');
     if (type === 'raster-dem') drawn.add('layer:terrain');
   }
-  for (const source of recorded.sources.values()) {
-    if ((source as { readonly type?: unknown }).type === 'raster') drawn.add('toggle:esri');
+  for (const [id, source] of recorded.sources) {
+    if (id.startsWith('effis-')) drawn.add('layer:effis');
+    else if (id === WIND_SOURCE_ID) drawn.add('derived:ecmwf');
+    else if ((source as { readonly type?: unknown }).type === 'raster') drawn.add('toggle:esri');
   }
   return [...drawn].sort();
 }
 
 const PROBES = {
   'map-corner': probeMapCorner,
-  'credits-page': (config, locale) => renderPage(CreditsPage, config, locale),
+  // The page reads the Layers panel's choice (`effisChosen`), not the session, so the probe
+  // makes the choice the session describes — and clears it, so no other probe inherits it.
+  'credits-page': async (config, locale, session) => {
+    setOverlays([
+      ...(session.effisOn === true ? (['fwi'] as const) : []),
+      ...(session.windOn === true ? (['wind'] as const) : []),
+    ]);
+    try {
+      return await renderPage(CreditsPage, config, locale);
+    } finally {
+      setOverlays([]);
+    }
+  },
   about: (config, locale) => renderPage(AboutPage, config, locale),
 } as const satisfies Record<CreditSurfacesOf<'web'>, Probe>;
 
@@ -343,6 +426,10 @@ const BASEMAPS = {
 const IMAGERY = {
   'imagery-off': {},
   'imagery-on': { imageryOn: true },
+  // An EFFIS overlay chosen in the Layers panel (TASKS G4) — a reader choice like imagery.
+  'effis-on': { effisOn: true },
+  // The wind context layer chosen in the Layers panel (TASKS F14).
+  'wind-on': { windOn: true },
 } as const satisfies Record<string, CreditSessionState>;
 
 type BasemapKey = keyof typeof BASEMAPS;
@@ -386,13 +473,15 @@ const CONTEXTS = {
   'basemap:openfreemap': { reachable: true, via: 'openfreemap/imagery-off' },
   'basemap:protomaps': { reachable: true, via: 'outdoor/imagery-off' },
   'layer:gibs': { reachable: false, why: NO_SHIPPED_LAYER },
-  'layer:effis': { reachable: false, why: NO_SHIPPED_LAYER },
+  // Reached by the reader choosing an EFFIS overlay in the Layers panel (TASKS G4).
+  'layer:effis': { reachable: true, via: 'neutral-url/effis-on' },
   'layer:gwis': { reachable: false, why: NO_SHIPPED_LAYER },
   // The outdoor style's Terrarium hillshade, drawn when a DEM mirror is configured (G3).
   'layer:terrain': { reachable: true, via: 'outdoor+terrain/imagery-off' },
   'layer:landsat': { reachable: false, why: NO_SHIPPED_LAYER },
   'imagery:sentinel-unmodified': { reachable: false, why: NO_SHIPPED_LAYER },
-  'derived:ecmwf': { reachable: false, why: 'no ECMWF-derived product ships yet' },
+  // Reached by the reader choosing the wind layer in the Layers panel (TASKS F14).
+  'derived:ecmwf': { reachable: true, via: 'neutral-url/wind-on' },
   // Reached by the reader's toggle while the server offers imagery (TASKS G6).
   'toggle:esri': { reachable: true, via: 'neutral-url/imagery-on' },
   never: { reachable: false, why: 'the registry never owes these' },
@@ -429,8 +518,12 @@ const KNOWN_FINDINGS = [
     [
       'openfreemap/imagery-off',
       'openfreemap/imagery-on',
+      'openfreemap/effis-on',
+      'openfreemap/wind-on',
       'outdoor-fallback/imagery-off',
       'outdoor-fallback/imagery-on',
+      'outdoor-fallback/effis-on',
+      'outdoor-fallback/wind-on',
     ],
     'map-corner',
     'openfreemap text',
@@ -438,7 +531,12 @@ const KNOWN_FINDINGS = [
   // The corner says "Terrain: Tilezen/Mapzen"; the registry's `terrarium-short` is
   // "Terrain: Mapzen/Tilezen & sources". Red the moment the hillshade is drawn (G3).
   ...inEach(
-    ['outdoor+terrain/imagery-off', 'outdoor+terrain/imagery-on'],
+    [
+      'outdoor+terrain/imagery-off',
+      'outdoor+terrain/imagery-on',
+      'outdoor+terrain/effis-on',
+      'outdoor+terrain/wind-on',
+    ],
     'map-corner',
     'terrarium-short text',
   ),
@@ -543,6 +641,60 @@ describe('CI-13 — attribution presence on the web surfaces', () => {
           const rendered = await probeMapCorner(entry.config, locale, entry.session, theme);
           expect(rendered.text.includes(text), `${entry.key} ${theme}`).toBe(on);
         }
+      }
+    },
+  );
+
+  // The CelesTrak credit is a credits-page row; the swath layer adds it to the map corner on
+  // its source while swaths are drawn (TASKS F15). This is that check.
+  it.each(LOCALES)(
+    'the map corner carries the CelesTrak credit exactly while swaths are drawn (%s)',
+    async (locale) => {
+      const credit = celestrakCredit(clock, CATALOGS[locale]);
+      expect(credit?.text).toContain('CelesTrak');
+      const text = credit?.text ?? '';
+      const off = await probeMapCorner(DEFAULT_CONFIG, locale, {});
+      expect(off.text.includes(text)).toBe(false);
+      swathsDraw = {
+        collection: { type: 'FeatureCollection', features: [] },
+        attribution: text,
+      };
+      try {
+        const on = await probeMapCorner(DEFAULT_CONFIG, locale, {});
+        expect(on.text).toContain(text);
+      } finally {
+        swathsDraw = null;
+      }
+    },
+  );
+
+  // The EUMETSAT credit is a credits-page row; the lightning layer adds it to the map corner
+  // on its source while flashes are drawn (TASKS F18). This is that check.
+  it.each(LOCALES)(
+    'the map corner carries the EUMETSAT credit exactly while flashes are drawn (%s)',
+    async (locale) => {
+      const text = eumetsatCreditText(clock, CATALOGS[locale]);
+      expect(text).toContain('EUMETSAT');
+      const off = await probeMapCorner(DEFAULT_CONFIG, locale, {});
+      expect(off.text.includes(text)).toBe(false);
+      lightningDraw = {
+        collection: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [25, 42] },
+              properties: { ageClass: 0 },
+            },
+          ],
+        },
+        attribution: text,
+      };
+      try {
+        const on = await probeMapCorner(DEFAULT_CONFIG, locale, {});
+        expect(on.text).toContain(text);
+      } finally {
+        lightningDraw = null;
       }
     },
   );

@@ -293,6 +293,54 @@ describe('runWeatherRefresh', () => {
     expect(h.feedStatus.attempts[0]?.succeeded).toBe(false);
   });
 
+  it('records extra params only at the extra steps the context does not keep', async () => {
+    const h = harness();
+    const { client, rangeCalls } = fakeClient({ index: (step) => indexOk(fullIndex(step)) });
+    const extra = {
+      params: ['2t'],
+      steps: [0, 3, 6, 9],
+      config: { version: 'cloud_cover_v1', digest: 'abcd1234' },
+    };
+
+    const report = await runWeatherRefresh({ ...h.deps(client), extraFields: extra });
+
+    // Steps 0 and 6 are the context's own (both params); 3 and 9 are fetched for 2t only.
+    expect(report.steps.map((step) => step.step)).toEqual([0, 6, 3, 9]);
+    expect(report.steps[2]?.fields.map((field) => field.param)).toEqual(['2t']);
+    expect(rangeCalls).toHaveLength(6);
+    expect(h.payloads.payloads.has('weather/ecmwf/20260813/06z/3h/2t.grib2')).toBe(true);
+    expect(h.payloads.payloads.has('weather/ecmwf/20260813/06z/3h/10u.grib2')).toBe(false);
+
+    const extraMeta = JSON.parse(
+      h.payloads.texts.get('weather/ecmwf/20260813/06z/9h/2t.meta.json') ?? '',
+    ) as Record<string, unknown>;
+    expect(extraMeta['weather_context_version']).toBe('weather_context_v1');
+    expect(extraMeta['extra_config_version']).toBe('cloud_cover_v1');
+    expect(extraMeta['extra_config_digest']).toBe('abcd1234');
+    // A context step's sidecar is byte-for-byte what it was before extra fields existed.
+    const contextMeta = JSON.parse(
+      h.payloads.texts.get('weather/ecmwf/20260813/06z/6h/2t.meta.json') ?? '',
+    ) as Record<string, unknown>;
+    expect(contextMeta['extra_config_version']).toBeUndefined();
+    expect(h.feedStatus.attempts).toEqual([
+      expect.objectContaining({ row: 'weather:context', succeeded: true }),
+    ]);
+  });
+
+  it('degrades the one feed row when an extra step is missing', async () => {
+    const h = harness();
+    const { client } = fakeClient({
+      index: (step) => (step === 9 ? indexDown('404 for step 9') : indexOk(fullIndex(step))),
+    });
+    const report = await runWeatherRefresh({
+      ...h.deps(client),
+      extraFields: { params: ['2t'], steps: [9], config: { version: 'x_v1', digest: '0' } },
+    });
+    expect(report.steps.at(-1)).toEqual(expect.objectContaining({ step: 9, indexFetched: false }));
+    expect(h.feedStatus.attempts[0]?.succeeded).toBe(false);
+    expect(weatherRefreshFailed(report)).toBe(false);
+  });
+
   it('treats an unwritable feed status store as a failed refresh', async () => {
     const h = harness();
     h.feedStatus.throws = true;

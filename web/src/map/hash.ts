@@ -18,6 +18,7 @@ import {
   isPlausibleCamera,
 } from '../core/geo/camera.js';
 import type { MapCamera } from '../core/geo/viewport.js';
+import { withFragmentMembers } from '../core/url-fragment.js';
 
 export type MapViewState = MapCamera;
 
@@ -55,4 +56,19 @@ export function parseMapHash(hash: string): MapViewState | null {
 
   const camera = { zoom, lat, lon };
   return isPlausibleCamera(camera) ? camera : null;
+}
+
+/**
+ * `hash` with its `map=` member replaced by `view`, every other member (filters, a
+ * sign-in token, anything a newer build wrote) kept in place. The map writes the camera
+ * after every gesture; writing `formatMapHash` alone would erase the rest of the fragment.
+ */
+export function withMapHash(hash: string, view: MapViewState): string {
+  return withFragmentMembers(hash, mapHashMembers(view));
+}
+
+/** The `map=` member `view` spells, as a members record (`{ map: 'z/lat/lon' }`). */
+export function mapHashMembers(view: MapViewState): Record<string, string> {
+  const member = formatMapHash(view).slice(1 + CAMERA_HASH_MEMBER_PREFIX.length);
+  return { [CAMERA_HASH_MEMBER_PREFIX.slice(0, -1)]: member };
 }

@@ -18,6 +18,10 @@ import { NO_ALIASES } from '../registry/alias-registry.js';
 import type { ScoringDetection } from '../scoring/features.js';
 import { scoreEvent } from '../scoring/score.js';
 import { SCORE_PARAMS } from '../scoring/score-params.js';
+import type {
+  StaticSourceEvaluator,
+  StaticSourceVerdict,
+} from '../static-sources/static-source-policy.js';
 import { eventScores, LIVE_SCORE_CONTEXT, scoringDetectionKeys } from './event-scores.js';
 import { planRegistryWrites } from './identity-batch.js';
 
@@ -139,7 +143,9 @@ describe('eventScores', () => {
       publicId: survivor.publicId,
       score: expected.score,
       invalidated: false,
+      invalidatedReason: null,
       paramsVersion: SCORE_PARAMS.version,
+      staticSource: null,
     });
     // Deterministic: a second evaluation over a shuffled answer is the same value.
     expect(eventScores(second, aggregates, [...rows].reverse())).toEqual([scored]);
@@ -164,6 +170,68 @@ describe('eventScores', () => {
       staticSourceMaskHit: true,
     });
     expect(masked.every((s) => s.invalidated)).toBe(true);
+  });
+
+  it('asks the static-source evaluator per event, over that event’s own rows', () => {
+    const aggregates = aggregatesOf(second, T2);
+    const rows = rowsFor(scoringDetectionKeys(second, aggregates));
+    const asked: string[][] = [];
+    const evaluator = (verdict: StaticSourceVerdict): StaticSourceEvaluator => ({
+      maskVersion: 'mask-1',
+      policyVersion: 'static_source_policy_v2',
+      evaluate: (members) => {
+        asked.push(members.map((m) => m.detectionUid));
+        return verdict;
+      },
+    });
+    const scores = eventScores(
+      second,
+      aggregates,
+      rows,
+      LIVE_SCORE_CONTEXT,
+      evaluator('static_source'),
+    );
+    expect(asked).toHaveLength(aggregates.length);
+    for (const s of scores) {
+      expect(s).toMatchObject({
+        score: 0,
+        invalidated: true,
+        invalidatedReason: 'static_source',
+        staticSource: {
+          verdict: 'static_source',
+          maskVersion: 'mask-1',
+          policyVersion: 'static_source_policy_v2',
+        },
+      });
+    }
+    // An evaluator that says "clear" cannot undo a hit the context already states.
+    const stated = eventScores(
+      second,
+      aggregates,
+      rows,
+      { ...LIVE_SCORE_CONTEXT, staticSourceMaskHit: true },
+      evaluator('clear'),
+    );
+    expect(stated.every((s) => s.invalidated && s.invalidatedReason === 'static_source')).toBe(
+      true,
+    );
+  });
+
+  it('quarantines a suspect without zeroing its score', () => {
+    const aggregates = aggregatesOf(second, T2);
+    const rows = rowsFor(scoringDetectionKeys(second, aggregates));
+    const plain = eventScores(second, aggregates, rows);
+    const suspect = eventScores(second, aggregates, rows, LIVE_SCORE_CONTEXT, {
+      maskVersion: null,
+      policyVersion: 'static_source_policy_v2',
+      evaluate: () => 'suspected_static_source',
+    });
+    expect(suspect.map((s) => s.score)).toEqual(plain.map((s) => s.score));
+    expect(
+      suspect.every((s) => s.invalidated && s.invalidatedReason === 'suspected_static_source'),
+    ).toBe(true);
+    // No evaluator wired: no stamp, and nothing invalidated.
+    expect(plain.every((s) => s.staticSource === null && s.invalidatedReason === null)).toBe(true);
   });
 
   it('refuses to score an event on fewer rows than it holds', () => {

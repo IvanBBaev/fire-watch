@@ -23,8 +23,13 @@ import { isAbsolute } from 'node:path';
 
 import { EFFIS_BASE_URL } from '../adapters/effis/effis-http-client.js';
 import { FIRMS_BASE_URL } from '../adapters/firms/firms-http-client.js';
+import { FIRMS_KEYLESS_BASE_URL } from '../adapters/firms/firms-keyless-client.js';
 import { assertPingBaseUrl } from '../adapters/monitoring/healthchecks-heartbeat.js';
 import { ECMWF_BASE_URL } from '../adapters/weather/ecmwf-http-client.js';
+import {
+  EUMETSAT_API_BASE_URL,
+  type EumetsatCredentials,
+} from '../adapters/lightning/eumetsat-datastore-client.js';
 import {
   ARCGIS_FREE_TIER_TILES_PER_PERIOD,
   type ImageryMeterConfig,
@@ -32,16 +37,30 @@ import {
 
 export type Environment = Readonly<Record<string, string | undefined>>;
 
+export type FirmsMode = 'area' | 'keyless';
+
 export interface ServerConfig {
   /** `postgres://…`. Carries the password, so it is never logged, only passed. */
   readonly databaseUrl: string;
-  /** The FIRMS Area API key. Travels as a URL path segment — see the client adapter. */
-  readonly firmsMapKey: string;
+  /**
+   * Which FIRMS adapter the ingest cycle polls through (`FIRE_WATCH_FIRMS_MODE`).
+   * `area` is the keyed Area API; `keyless` reads NASA's public regional NRT files and
+   * clips them to the polling bbox. Unset, it is `area` when `FIRMS_MAP_KEY` is set at all
+   * and `keyless` otherwise — so a developer machine without a key still ingests real data.
+   */
+  readonly firmsMode: FirmsMode;
+  /**
+   * The FIRMS Area API key. Travels as a URL path segment — see the client adapter.
+   * Required in `area` mode; `null` in `keyless` mode, which has no key to hold.
+   */
+  readonly firmsMapKey: string | null;
   /**
    * Where the Area API lives. Overridable so a drill or a smoke test can point the same
    * binary at a stub; production leaves it unset, and the logged config says which it was.
    */
   readonly firmsBaseUrl: string;
+  /** Where the keyless regional files live (`FIRE_WATCH_FIRMS_KEYLESS_BASE_URL`). */
+  readonly firmsKeylessBaseUrl: string;
   /**
    * The role the connection assumes after connecting. `fire_watch_app` is NOLOGIN and
    * holds only INSERT on the archive, so assuming it is what makes append-only a property
@@ -121,6 +140,13 @@ export interface ServerConfig {
    */
   readonly staticSnapshotUrl: string | null;
   /**
+   * The static hot-source mask the scorer's §3.6 override reads (TASKS F16,
+   * `FIRE_WATCH_STATIC_SOURCES`), or `null` for the copy in the repo
+   * (`web/src/assets/geodata/static-sources.json`), which is the one the web draws. A
+   * deployment that moves the file points here; a missing or malformed file fails boot.
+   */
+  readonly staticSourcesPath: string | null;
+  /**
    * The imagery tripwire's inputs (ADR-001 A1.3/A2.3, TASKS G6):
    *
    *   FIRE_WATCH_ARCGIS_API_KEY            the ArcGIS Location Platform client key
@@ -158,7 +184,30 @@ export interface ServerConfig {
    * or with an SES region outside the EU — is refused at start-up, by name.
    */
   readonly auth: AuthConfig;
+  /**
+   * The F18 lightning context layer (DATA-SOURCES §F18): the EUMETSAT Data Store
+   * credentials the worker fetches MTG LI LFL products with.
+   *
+   *   EUMETSAT_CONSUMER_KEY        the API key pair's key (EUMETSAT API key page)
+   *   EUMETSAT_CONSUMER_SECRET     its secret
+   *   FIRE_WATCH_EUMETSAT_BASE_URL overridable for a smoke stub; production leaves it unset
+   *
+   * `null` when neither is set: the layer does not exist, the route answers 503, and
+   * nothing is fetched. The two come together or not at all, and credentials without
+   * {@link stateDir} are refused at start-up (the job has nowhere to keep the six hours).
+   * The pair is a credential and is never logged.
+   */
+  readonly lightning: LightningConfig | null;
 }
+
+export interface LightningConfig {
+  readonly credentials: EumetsatCredentials;
+  readonly baseUrl: string;
+}
+
+export const EUMETSAT_CONSUMER_KEY_ENV = 'EUMETSAT_CONSUMER_KEY';
+export const EUMETSAT_CONSUMER_SECRET_ENV = 'EUMETSAT_CONSUMER_SECRET';
+const EUMETSAT_VARIABLES = [EUMETSAT_CONSUMER_KEY_ENV, EUMETSAT_CONSUMER_SECRET_ENV] as const;
 
 /** Sign-in is off, or on with everything its mailer and routes need. */
 export type AuthConfig =
@@ -250,7 +299,8 @@ export function loadConfig(env: Environment, applicationName = 'fire-watch'): Se
   };
 
   const databaseUrl = required('DATABASE_URL');
-  const firmsMapKey = required('FIRMS_MAP_KEY');
+  const firmsMode = readFirmsMode(env['FIRE_WATCH_FIRMS_MODE'], env['FIRMS_MAP_KEY']);
+  const firmsMapKey = firmsMode === 'area' ? required('FIRMS_MAP_KEY') : null;
 
   if (missing.length > 0) {
     throw new ConfigError(
@@ -272,8 +322,14 @@ export function loadConfig(env: Environment, applicationName = 'fire-watch'): Se
 
   return {
     databaseUrl,
+    firmsMode,
     firmsMapKey,
     firmsBaseUrl: readBaseUrl(env['FIRMS_BASE_URL']?.trim()),
+    firmsKeylessBaseUrl: readHttpBaseUrl(
+      env['FIRE_WATCH_FIRMS_KEYLESS_BASE_URL']?.trim(),
+      'FIRE_WATCH_FIRMS_KEYLESS_BASE_URL',
+      FIRMS_KEYLESS_BASE_URL,
+    ),
     databaseRole: readRole(env['FIRE_WATCH_DB_ROLE']?.trim()),
     applicationName,
     pollIntervalMs: readPollInterval(env['FIRE_WATCH_POLL_INTERVAL_MS']?.trim()),
@@ -301,11 +357,35 @@ export function loadConfig(env: Environment, applicationName = 'fire-watch'): Se
     sseEnabled: readFlag(env['FIRE_WATCH_SSE_ENABLED']?.trim(), 'FIRE_WATCH_SSE_ENABLED', true),
     clientPollIntervalMs: readClientPollInterval(env['FIRE_WATCH_CLIENT_POLL_INTERVAL_MS']?.trim()),
     staticSnapshotUrl: readStaticSnapshotUrl(env['FIRE_WATCH_STATIC_SNAPSHOT_URL']?.trim()),
+    staticSourcesPath: env['FIRE_WATCH_STATIC_SOURCES']?.trim() || null,
     imagery: {
       handles: readImageryHandles(env),
       ceilingTiles: readImageryCeiling(env[ARCGIS_TILE_CEILING_ENV]?.trim()),
     },
     auth: readAuth(env),
+    lightning: readLightning(env),
+  };
+}
+
+function readLightning(env: Environment): LightningConfig | null {
+  const group = readGroup(env, EUMETSAT_VARIABLES);
+  if (group === null) return null;
+  if ((env['FIRE_WATCH_STATE_DIR']?.trim() ?? '') === '') {
+    throw new ConfigError(
+      `${EUMETSAT_CONSUMER_KEY_ENV} is set but FIRE_WATCH_STATE_DIR is not; ` +
+        'the lightning job keeps its six hours of products there.',
+    );
+  }
+  return {
+    credentials: {
+      consumerKey: group[EUMETSAT_CONSUMER_KEY_ENV],
+      consumerSecret: group[EUMETSAT_CONSUMER_SECRET_ENV],
+    },
+    baseUrl: readHttpBaseUrl(
+      env['FIRE_WATCH_EUMETSAT_BASE_URL']?.trim(),
+      'FIRE_WATCH_EUMETSAT_BASE_URL',
+      EUMETSAT_API_BASE_URL,
+    ),
   };
 }
 
@@ -687,6 +767,20 @@ export function readBaseUrl(raw: string | undefined): string {
   return readHttpBaseUrl(raw, 'FIRMS_BASE_URL', FIRMS_BASE_URL);
 }
 
+/**
+ * `area` or `keyless`, case-insensitively. Unset (or blank) defers to the key: a
+ * `FIRMS_MAP_KEY` that is *present* — even blank, which `required` then reports — means
+ * the operator meant the Area API, so a mistyped key never silently degrades to keyless.
+ */
+function readFirmsMode(raw: string | undefined, mapKey: string | undefined): FirmsMode {
+  const mode = raw?.trim().toLowerCase();
+  if (mode === undefined || mode === '') return mapKey === undefined ? 'keyless' : 'area';
+  if (mode === 'area' || mode === 'keyless') return mode;
+  throw new ConfigError(
+    `FIRE_WATCH_FIRMS_MODE must be area or keyless, got ${JSON.stringify(raw)}`,
+  );
+}
+
 /** The same rule for every overridable endpoint, always naming the variable at fault. */
 function readHttpBaseUrl(raw: string | undefined, name: string, fallback: string): string {
   if (raw === undefined || raw === '') return fallback;
@@ -755,8 +849,13 @@ export function describeConfig(config: ServerConfig): Record<string, string> {
     application_name: config.applicationName,
     database: redactUrl(config.databaseUrl),
     database_role: config.databaseRole,
-    firms_map_key: `<${String(config.firmsMapKey.length)} characters>`,
-    firms_base_url: config.firmsBaseUrl,
+    firms_mode: config.firmsMode,
+    firms_map_key:
+      config.firmsMapKey === null
+        ? '<not configured>'
+        : `<${String(config.firmsMapKey.length)} characters>`,
+    firms_base_url:
+      config.firmsMode === 'keyless' ? config.firmsKeylessBaseUrl : config.firmsBaseUrl,
     poll_interval_ms: String(config.pollIntervalMs),
     api_listen: `${config.apiHost}:${String(config.apiPort)}`,
     // The header *name* is configuration worth logging; the addresses it will carry are not.
@@ -785,6 +884,7 @@ export function describeConfig(config: ServerConfig): Record<string, string> {
     sse_enabled: String(config.sseEnabled),
     client_poll_interval_ms: String(config.clientPollIntervalMs),
     static_snapshot_url: config.staticSnapshotUrl ?? '<not configured>',
+    static_sources: config.staticSourcesPath ?? '<repo copy>',
     // Whether a key is set, never the key; the template is not secret (the key travels
     // separately) and is what "why are the imagery tiles broken" needs answered.
     imagery_key: config.imagery.handles === null ? '<not configured>' : '<configured>',
@@ -800,6 +900,9 @@ export function describeConfig(config: ServerConfig): Record<string, string> {
     auth_allowed_origins: config.auth.enabled
       ? config.auth.allowedOrigins.join(',')
       : '<not enabled>',
+    // Whether, never which: the key pair is a credential. The base URL is an open endpoint.
+    lightning:
+      config.lightning === null ? '<not configured>' : `<configured, ${config.lightning.baseUrl}>`,
   };
 }
 

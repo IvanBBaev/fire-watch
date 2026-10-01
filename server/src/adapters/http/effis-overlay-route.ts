@@ -42,6 +42,7 @@ import { isAbsolute, resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
 import {
+  EFFIS_DATE_RE,
   EFFIS_LAYERS,
   type EffisLayerSpec,
   type EffisLayersValues,
@@ -122,12 +123,15 @@ export function registerEffisOverlayRoute(app: FastifyInstance, deps: EffisOverl
         reply.header('last-modified', new Date(copy.availableAtMs).toUTCString());
         reply.header('x-fire-watch-overlay-state', copy.state);
         reply.header('x-fire-watch-overlay-available-at', copy.availableAt);
+        // A daily layer's own date (the `TIME` it was asked for): what the data is *for*,
+        // as opposed to when we fetched it. Absent for a "latest" layer.
+        if (copy.validFor !== null) reply.header('x-fire-watch-overlay-valid-for', copy.validFor);
         reply.header(
           'access-control-expose-headers',
-          'last-modified, x-fire-watch-overlay-state, x-fire-watch-overlay-available-at',
+          'last-modified, x-fire-watch-overlay-state, x-fire-watch-overlay-available-at, x-fire-watch-overlay-valid-for',
         );
         reply.header('x-content-type-options', 'nosniff');
-        return reply.type(spec.requestFormat).send(copy.body);
+        return reply.type(spec.servedMediaType).send(copy.body);
       },
     });
     done();
@@ -139,6 +143,7 @@ interface ServableCopy {
   readonly body: Buffer;
   readonly availableAt: string;
   readonly availableAtMs: number;
+  readonly validFor: string | null;
 }
 
 /** The good copy if there is one, else the A2.2 pass-through, else a 503. */
@@ -188,7 +193,13 @@ async function readVerified(
       lastProblem = new Error(`${state} ${spec.id}: payload does not match its sidecar sha256`);
       continue;
     }
-    return { state, body, availableAt: sidecar.availableAt, availableAtMs: sidecar.availableAtMs };
+    return {
+      state,
+      body,
+      availableAt: sidecar.availableAt,
+      availableAtMs: sidecar.availableAtMs,
+      validFor: sidecar.validFor,
+    };
   }
   throw new ProblemError(
     {
@@ -205,9 +216,10 @@ interface Sidecar {
   readonly sha256: string;
   readonly availableAt: string;
   readonly availableAtMs: number;
+  readonly validFor: string | null;
 }
 
-/** Only the three members the route relies on are read; anything off is a string reason. */
+/** Only the members the route relies on are read; anything off is a string reason. */
 function parseSidecar(
   raw: Buffer,
   spec: EffisLayerSpec,
@@ -235,7 +247,12 @@ function parseSidecar(
   if (typeof availableAt !== 'string' || !Number.isFinite(availableAtMs)) {
     return 'sidecar available_at is malformed';
   }
-  return { sha256, availableAt, availableAtMs };
+  // Optional: sidecars written before `effis_layers_v2` carry no `valid_for`.
+  const validFor = record['valid_for'] ?? null;
+  if (validFor !== null && (typeof validFor !== 'string' || !EFFIS_DATE_RE.test(validFor))) {
+    return 'sidecar valid_for is malformed';
+  }
+  return { sha256, availableAt, availableAtMs, validFor };
 }
 
 async function readOptional(path: string): Promise<Buffer | null> {

@@ -161,7 +161,32 @@ export function parseFeature(value: unknown, path: string): FireEvent {
     placeNameEn: requireString(properties, 'place_name_en', p),
     areaHa: requireNumberOrNull(properties, 'area_ha', p),
     nextPassWindow: parseNextPassWindow(properties, p),
+    ...parseSourceIds(properties, p),
   };
+}
+
+/**
+ * `source_ids` is additive and optional (Track F): absent or `null` leaves the field off
+ * the event, so a feed that does not report it parses exactly as before. When present it
+ * must be an array of strings — a malformed one is a wire defect like any other. The
+ * strings themselves are *not* checked against the source registry: it is append-only, so
+ * an id this bundle does not know means the server is newer, and rejecting the whole
+ * snapshot for it would blank the map over a filter nicety. Unknown ids pass through and
+ * the filter treats an event it cannot place in any family as unreported.
+ */
+function parseSourceIds(
+  properties: WireRecord,
+  path: string,
+): { readonly sourceIds?: readonly string[] } {
+  const raw = properties['source_ids'];
+  if (raw === undefined || raw === null) return {};
+  if (!Array.isArray(raw)) fail(`${path}.source_ids`, 'array of source id strings', raw);
+  const ids: string[] = [];
+  for (const id of raw as readonly unknown[]) {
+    if (typeof id !== 'string') fail(`${path}.source_ids`, 'array of source id strings', raw);
+    ids.push(id);
+  }
+  return { sourceIds: ids };
 }
 
 function parseSourceRow(value: unknown, path: string): SnapshotSourceRow {

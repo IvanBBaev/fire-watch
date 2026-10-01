@@ -42,6 +42,9 @@ describe('wireRefreshJobs', () => {
     // one `feed-status/` directory, and splitting the stores would strand half the rows.
     expect(wiring?.effisDeps.payloads).toBe(wiring?.weatherDeps.payloads);
     expect(wiring?.effisDeps.feedStatus).toBe(wiring?.weatherDeps.feedStatus);
+    // The wind derivation reads exactly the store the weather loop writes (F14).
+    expect(wiring?.windDeps.reader).toBe(wiring?.weatherDeps.payloads);
+    expect(wiring?.windDeps.payloads).toBe(wiring?.weatherDeps.payloads);
   });
 
   it('keeps the cadences inside the C5 budgets', () => {

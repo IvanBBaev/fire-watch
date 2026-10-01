@@ -12,12 +12,18 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 
+import type { PayloadRead, PayloadReader } from '../../core/ports/payload-reader.js';
 import type { PayloadStore, PayloadWriteResult } from '../../core/ports/payload-store.js';
 
-export function createFsPayloadStore(rootDir: string): PayloadStore {
+/**
+ * Also the {@link PayloadReader}: reads go through the same escape check, and a missing
+ * file is `null` rather than an error, because "not recorded yet" is a normal state for
+ * the wind derivation (TASKS F14), not a failure.
+ */
+export function createFsPayloadStore(rootDir: string): PayloadStore & PayloadReader {
   if (!isAbsolute(rootDir)) {
     throw new RangeError(`payload root must be an absolute path, got ${JSON.stringify(rootDir)}`);
   }
@@ -65,7 +71,30 @@ export function createFsPayloadStore(rootDir: string): PayloadStore {
     async writeText(relativePath: string, text: string): Promise<PayloadWriteResult> {
       return writeAtomically(abs(relativePath), Buffer.from(text, 'utf8'));
     },
+
+    async readPayload(relativePath: string): Promise<PayloadRead | null> {
+      const contents = await readOrNull(abs(relativePath));
+      if (contents === null) return null;
+      return {
+        bytes: new Uint8Array(contents.buffer, contents.byteOffset, contents.byteLength),
+        sha256: createHash('sha256').update(contents).digest('hex'),
+      };
+    },
+
+    async readText(relativePath: string): Promise<string | null> {
+      const contents = await readOrNull(abs(relativePath));
+      return contents === null ? null : contents.toString('utf8');
+    },
   };
+}
+
+async function readOrNull(target: string): Promise<Buffer | null> {
+  try {
+    return await readFile(target);
+  } catch (error) {
+    if (isEnoent(error)) return null;
+    throw error;
+  }
 }
 
 function isEnoent(error: unknown): boolean {

@@ -96,6 +96,7 @@ const ROWS: readonly ActiveEventRow[] = [101, 102, 103].map((seq, i) => ({
   lastDetectionAt: Date.parse('2026-09-24T09:00:00Z'),
   detectionCount: 3,
   nearestPlace: null,
+  sourceIds: ['firms:viirs:snpp'],
 }));
 
 const fixtureReader: SnapshotReader = {

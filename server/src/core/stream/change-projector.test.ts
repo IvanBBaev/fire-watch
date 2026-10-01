@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { isActiveMember, projectChanges, seedKnown } from './change-projector.js';
+import { eventFeature } from '../snapshot/snapshot-builder.js';
 import { T0, activeRow, changeRow } from './test-rows.js';
 
 const KNOWN = seedKnown({
@@ -31,6 +32,21 @@ describe('projectChanges', () => {
     const out = projectChanges(KNOWN, [changeRow({ publicId: 'a', seq: 1041 })], T0);
     expect(out.frames[0]).toMatchObject({ id: 1041, event: 'event.updated' });
     expect(out.frames[0]?.data.previous_status).toBeUndefined();
+  });
+
+  it('carries a newly contributing sensor as the whole source set, not a delta (F12)', () => {
+    // The client replaces the feature wholesale, so the frame must hold the full set as of
+    // this seq; it must also be byte-identical to what /snapshot.json serves for that row.
+    const sourceIds = ['lsasaf:seviri:frp-pixel', 'firms:viirs:snpp', 'firms:viirs:noaa20'];
+    const out = projectChanges(KNOWN, [changeRow({ publicId: 'a', seq: 1041, sourceIds })], T0);
+    expect(out.frames[0]).toMatchObject({ event: 'event.updated' });
+    expect(out.frames[0]?.data.feature?.properties.source_ids).toEqual([
+      'firms:viirs:noaa20',
+      'firms:viirs:snpp',
+      'lsasaf:seviri:frp-pixel',
+    ]);
+    const served = eventFeature(activeRow({ publicId: 'a', seq: 1041, sourceIds }), null);
+    expect(JSON.stringify(out.frames[0]?.data.feature)).toBe(JSON.stringify(served));
   });
 
   it('reports a status change with the status the stream last told the client', () => {

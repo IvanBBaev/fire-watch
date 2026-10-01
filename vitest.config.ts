@@ -50,6 +50,8 @@ export default defineConfig({
             'infra/deploy-gate/**/*.test.ts',
             // G1/G2: the tile and glyph build planning core, on tiny in-test fixtures.
             'infra/tiles/**/*.test.ts',
+            // Track F: the oblast/gazetteer asset transforms, on tiny in-test fixtures.
+            'infra/geodata/**/*.test.ts',
             // K2: the L-3 load-test model, report, and a tiny in-process smoke run.
             'loadtest/src/**/*.test.ts',
             // J5: the status-page model/renderer, the email-auth evaluator and the

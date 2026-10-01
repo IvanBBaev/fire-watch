@@ -120,7 +120,8 @@ we were.
 }
 ```
 
-All five arrays are optional and default to empty. An unknown top-level key is refused
+All five arrays are optional and default to empty; `staticSources` (below) is optional and
+defaults to `null`. An unknown top-level key is refused
 rather than ignored, unlike in the manifest: every field the manifest reads is required,
 so a typo there fails loudly on what it displaced, whereas a typo'd `"clouds"` here would
 read as "no cloud at all" and leave the fixture green while asserting the opposite of what
@@ -147,6 +148,28 @@ rather than outcomes it decides:
   instead of being handed a default: an event that alerts because the harness invented 0.8
   for it would assert the harness, not the gate. For the same reason a stated score never
   appears in `expected.json` — `bucket` stays `null` throughout.
+
+`staticSources` is the static hot-source mask the identity cycle judged against — a
+`fire-watch/static-sources@1` document inline, the same shape as
+`web/src/assets/geodata/static-sources.json`, trimmed to the sources the scenario needs
+(TASKS F16; review 11 §3.6 and §6.2 item 2). It is opt-in by pin, because ADR-002 D7 says a
+replay must load *the same mask version* the decision was taken under:
+
+- A fixture that pins neither `static_source_policy` nor `static_source_mask` and states no
+  mask is judged by no static-source rule at all, so every fixture authored before F16 keeps
+  `labels: []`.
+- Pinning `static_source_policy` (e.g. `static_source_policy_v2`) turns the verdict on: the
+  §3.6 override (`static_source`, score 0, bucket `unverified`) and the §6.2 day-only repeat
+  quarantine (`suspected_static_source`, which runs even with no mask). The verdict's reason
+  becomes the event's label, and the `alert` engine suppresses such an event as
+  `invalidated`.
+- A stated mask must be pinned by its asset `version` under `static_source_mask` (the one
+  pin that takes an asset version such as `osm-2026-09-30` rather than a `name_vN`), and a
+  `static_source_mask` pin with no mask is refused: a replay cannot load the same mask from
+  nothing.
+
+S4 (a thermal plant, two nights) and S10 (a day-only solar-farm onset with no mask hit) are
+the two fixtures that pin it.
 
 Three things a fixture author gets wrong first:
 
@@ -229,6 +252,12 @@ self-consistent, which is not a claim worth a gate.
 | `S13` | `fw-2026-ewnpa` | 0.95 | 0 | 0 | 1 | 0 | 0.85698 | 0 | +0.838492 | 0.698147 | **Likely** |
 | `S16` | `fw-2026-yhrxz` | 0.95 | 0.33333 | 0 | 1 | 0 | 0.8109 | 0 | +1.148785 | 0.759289 | **Confirmed** |
 
+S4 and S10 (TASKS F16) are deliberately absent from this table. S4's plant event is scored
+by the §3.6 hard override — score 0, bucket `unverified`, no logistic involved — and its
+control fire and S10's quarantined farm assert a label and an alert outcome, not a bucket;
+their buckets are recorded as the engine computed them and were **not** derived by hand
+first, so they are regression pins, not independent checks.
+
 Four features are **structurally zero in every row**, and each absence has a direction:
 
 - `x_fwi` — the fixture format states no fire-weather index, so no event is credited for
@@ -288,11 +317,13 @@ which is exactly why it leaves `detection_uid`s alone).
 |---|---|
 | `S1` | Slavyanka border-crossing — four VIIRS pixels chain across the BG/GR ridge into one event, and the border pixel re-delivered by the second country download does not seed a second one. Adjacent hops are 1.139 km (inside `eps`), the ends 3.342 km apart: the event exists *only* because of single-link chaining. |
 | `S2` | Sakar/Harmanli merge — two fronts 2.159 km apart become two events, then a bridging pixel 1.080 km from each proves they were one fire. The older event survives; the absorbed public id stays alive as a tombstone pointing at it (invariants I1, I3). |
+| `S4` | Industrial static source — a mapped thermal power plant (`osm-fixture-s4`, one point, inline in `observations.staticSources`) fires on two nights on both VIIRS platforms: one event, labelled `static_source`, scored 0 by the §3.6 hard override (bucket `unverified`), so it is invalidated and never public. "Never becomes an event" is read as "never becomes a public event": identity stays mask-independent (ADR-002 D2), so the row exists and carries the verdict. A real fire 3 km east on the same nights stays an unlabelled event. |
 | `S5` | Single-detection noise — one uncorroborated low-confidence MODIS pixel. Both halves are asserted now: one event and no alert, and a score of 0.103090 that leaves it **Unverified**. The pixel is daytime and low-confidence, so it also takes the −0.8 glint penalty; it is the only row in the set that does. |
 | `S6` | Megafire cooling + reignition — a 180 MW fire cools for a day and a half under broken cloud. E reaches 3.5: past the ordinary closing bar, short of the large-event one, so the event weakens rather than closing. The detection that returns 60 h later is past `T_LINK`, so it seeds a second event carrying a `possible_reignition` relation back to the first. |
 | `S7` | Cloudy gap — two days of unbroken 90 % cloud accrue no miss evidence at all, and a third day at 60 % accrues half weight. E reaches 2.25: enough to weaken, never enough to close. |
 | `S8` | Transient source outage — the three VIIRS feeds are out for 44 h and their overpasses weigh nothing while they are. SLSTR alone only weakens the event; the first poll after recovery closes it, and the fixture ends inside the 48 h map window that close opened. |
 | `S9` | UTC/DST ingest boundary — a Strandzha fire burning across the 25 October EEST→EET fold. The two overpasses that read **03:30 local** are an hour apart in UTC (00:30Z and 01:30Z) and stay in that order; the pixel re-delivered after the fold does not seed a second event. Eight pixels chained at ≤ 0.923 km hops over a 6.365 km span. |
+| `S10` | Solar-farm onset (day-only repeats) — an unmapped farm (the mask holds only an unrelated site, so no §3.6 hit) seen only by day, one pixel on day 1 and two on day 2 within one site, is quarantined as `suspected_static_source` on the third detection (`static_source_policy_v2`: 3 detections, 2 days, 750 m). The watching zone gets `insufficient_persistence`, then `invalidated` — never a send. Without the policy pinned the same polls defer a `new_fire` and put the farm in the 09:00 digest, so the quarantine is what keeps it silent. |
 | `S11` | Source retired mid-replay — the only feed that ever saw this fire is MODIS, retired the morning after. The surviving VIIRS and SLSTR overpasses still weigh misses, so the event closes on schedule and ages out of the map window instead of sitting active on a feed that no longer flies. |
 | `S12` | Re-detection within `T_LINK` after `officially_extinguished` — the fire service declares the fire out and a satellite sees it again 35 h later. The same event returns to `active` carrying both detections, rather than a second event being minted as a new fire. |
 | `S13` | Zone created over an active event — the first evaluation of a freshly drawn zone seeds every fire already burning under it, silently: two events at 05:20Z for the near zone, three at 07:20Z for the one drawn two hours later, zero messages between them. The next fire the near zone sees alerts normally, while the two it seeded stay quiet for want of a ladder step — until the poll's 09:00 digest, which folds all three of the near zone's events, the new fire included, into one row apiece under the shared window-start subkey `2026-08-20T06:00:00Z`, rendered from `zone-svilengrad` because it is the nearer of the account's two zones. Seeding is per zone, so a fire twenty minutes old is still pre-existing to a zone drawn after it. |

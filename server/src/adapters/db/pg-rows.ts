@@ -27,7 +27,29 @@ export function decodeEvent(row: unknown, publicId: string): ActiveEventRow {
     lastDetectionAt: epochMs(field(row, 'last_detection_at'), 'last_detection_at'),
     detectionCount: number(field(row, 'detection_count'), 'detection_count'),
     nearestPlace: nearestPlace(field(row, 'nearest_place')),
+    sourceIds: sourceIdsFromMix(field(row, 'source_mix')),
   };
+}
+
+/**
+ * `source_mix` (`jsonb`, detections per source id) as the event's contributing source
+ * ids: the keys with a positive count. Order is left to the snapshot builder, which owns
+ * the wire bytes and canonicalises them (`canonicalSourceIds`). An empty or
+ * malformed mix is `null` — "not recorded" — rather than a thrown error: one event without
+ * a source list is an honest gap the client counts as unreported, an empty map is an
+ * outage (the same trade as {@link nearestPlace}).
+ *
+ * Keys are passed through verbatim, not checked against the contracts registry: the
+ * column is written from `detections.source`, which the `sources` table constrains, and
+ * the web parser tolerates an id it does not know (an append-only registry must not make
+ * an older bundle reject a newer server).
+ */
+export function sourceIdsFromMix(value: unknown): readonly string[] | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const ids = Object.entries(value as Record<string, unknown>)
+    .filter(([, count]) => typeof count === 'number' && count > 0)
+    .map(([id]) => id);
+  return ids.length === 0 ? null : ids;
 }
 
 /**

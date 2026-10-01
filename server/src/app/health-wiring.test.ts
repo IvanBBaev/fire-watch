@@ -70,6 +70,7 @@ describe('expectedRows', () => {
       ...liveFirmsSources(),
       'effis:layers',
       'weather:context',
+      'celestrak:elements',
       'effis-refresh',
     ]);
   });

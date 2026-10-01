@@ -24,8 +24,11 @@
  * with a plausible constant; that was enforced upstream, by `ReplayEvent.bucket` being
  * `null` for as long as nothing computed it. D12 then computed it: S5's expected bucket was
  * derived by hand from review 11 §3.5 (z = −2.163355, score = 0.103090, Unverified) and only
- * then compared with the engine, and this flag came down in that order — fixture first. S3
- * and S4 keep theirs, because the inputs their assertions turn on are still defaults.
+ * then compared with the engine, and this flag came down in that order — fixture first. F16
+ * did the same for S4 and S10: the static hot-source verdict became a pinned, replayable
+ * input (`observations.staticSources` + the `static_source_policy` / `static_source_mask`
+ * pins), both fixtures were authored against it, and only then did the flags come down. S3
+ * keeps its flag, because the land-cover input its assertion turns on is still a default.
  *
  * `provenBy` is the third state, and it exists for exactly one kind of row: a scenario the
  * register owns but a golden fixture cannot express. S15 asserts that a cursor-only client
@@ -65,12 +68,10 @@ export interface RegisterEntry {
   readonly provenBy: string | null;
 }
 
-const SCORE_INPUTS =
-  'D12 landed the ADR-002 D6 score and every replayed event now carries a bucket, but the ' +
-  'two inputs these scenarios turn on — the static hot-source mask hit and the ' +
-  'arable-majority feature — have no field in the replay fixture format, so the identity ' +
-  'engine supplies `false` and `null`; the assertion would be met by a default, not a decision';
-const MASKS = 'D10 — no land-cover or static-hot-source mask data, so no event carries a label';
+const LAND_COVER =
+  'D10 — no land-cover mask data, so no event carries `likely_agri_burn`, and the ' +
+  'arable-majority score input has no field in the replay fixture format (the identity ' +
+  'engine supplies `null`); the assertion would be met by a default, not a decision';
 
 /**
  * GATES §1.1, in register order. The ids are the fixture directory names, which is what
@@ -101,7 +102,7 @@ export const FIXTURE_REGISTER: readonly RegisterEntry[] = Object.freeze([
     asserts: 'labeled likely_agri_burn, never Confirmed, no alert',
     required: 'pre-merge',
     owner: 'WP2',
-    blockedBy: `${MASKS}; ${SCORE_INPUTS}`,
+    blockedBy: LAND_COVER,
     provenBy: null,
   },
   {
@@ -110,7 +111,7 @@ export const FIXTURE_REGISTER: readonly RegisterEntry[] = Object.freeze([
     asserts: 'never becomes an event (hard override, score 0)',
     required: 'pre-merge',
     owner: 'WP2',
-    blockedBy: `${MASKS}; ${SCORE_INPUTS}`,
+    blockedBy: null,
     provenBy: null,
   },
   {
@@ -164,7 +165,7 @@ export const FIXTURE_REGISTER: readonly RegisterEntry[] = Object.freeze([
     asserts: 'quarantined after >= 3 day-only repeat detections; no alert ever',
     required: 'pre-season',
     owner: 'WP2',
-    blockedBy: 'D10 — the day-only repeat quarantine rule has no implementation',
+    blockedBy: null,
     provenBy: null,
   },
   {

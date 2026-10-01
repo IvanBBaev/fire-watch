@@ -22,15 +22,26 @@ const MS_PER_HOUR = 3_600_000;
  * The offered windows, narrowest first. They are chosen against the satellite revisit
  * rate and the display window, not round numbers for their own sake:
  *
+ * - **1 h / 3 h** — "did anything new come in since I last looked?". With four-ish polar
+ *   passes a day plus the geostationary FRP products these are often empty, so their empty
+ *   state says "no new detection in the last hour", never "no fires" (the copy is keyed on
+ *   the window, see `ageWindow.emptyInWindow`).
  * - **6 h** — roughly the last two or three polar passes: "what is burning now".
+ * - **12 h** — one half of the day/night cycle: the last night's or the last day's passes.
  * - **24 h** — a full day/night cycle, so a fire seen only on a night pass still shows.
  * - **48 h** — the whole map display window (ADR-002 A1.3); past it the server archives.
  * - **all** — no time bound at all, including anything resident beyond the window.
  *
- * Nothing shorter than 6 h is offered: with a ~4-passes-a-day sensor, a "last hour" view
- * would be empty most of the time and would read as "no fires" rather than "no new pass".
+ * **Nothing longer than 48 h (no "7 days")**: the snapshot and the stream only carry what
+ * is inside the 48 h display window (`mapWindowHours`), so a 7-day option would silently
+ * show exactly what 48 h shows while promising a week. Offering it honestly needs a server
+ * history read first; until then "all" is the widest window and means "everything this
+ * client holds".
+ *
+ * The ids are wire-stable: they are stored (`fw.age-window`) and written into the URL
+ * fragment (`t=`), so an id may be added but never renamed.
  */
-export const AGE_WINDOW_IDS = ['6h', '24h', '48h', 'all'] as const;
+export const AGE_WINDOW_IDS = ['1h', '3h', '6h', '12h', '24h', '48h', 'all'] as const;
 
 export type AgeWindowId = (typeof AGE_WINDOW_IDS)[number];
 
@@ -45,7 +56,10 @@ export const AGE_WINDOW_STORAGE_KEY = 'fw.age-window';
 
 /** Hours of look-back per window; `null` is "no bound", not "zero hours". */
 const WINDOW_HOURS: Readonly<Record<AgeWindowId, number | null>> = {
+  '1h': 1,
+  '3h': 3,
   '6h': 6,
+  '12h': 12,
   '24h': 24,
   '48h': 48,
   all: null,

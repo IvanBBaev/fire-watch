@@ -26,6 +26,12 @@
  *
  * ## What it does not wire
  *
+ * The static hot-source mask (TASKS F16) is read from disk once, at wiring time; a new
+ * mask takes a restart (the mask is a repo asset shipped with a deploy — there is no hot
+ * reload). After that restart the tick's static-source sweep re-judges every live event
+ * whose stored verdict names another mask or policy version, so no event stays judged by
+ * the old one.
+ *
  * The pass predictor is the static pass table, the only one there is; its null-cloud
  * evidence and the unarmed declarations are core-side facts the cycle report already
  * reflects (no transitions from an empty cloud field), not something this module can
@@ -36,9 +42,14 @@
 import { systemClock } from '../adapters/clock/system-clock.js';
 import { createPgClusteringStore } from '../adapters/db/pg-clustering-store.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
+import { loadStaticSourceMask } from '../adapters/geodata/static-source-mask-file.js';
 import { CLUSTERING_PARAMS } from '../core/clustering/clustering-params.js';
 import type { IdentityCycleDeps } from '../core/identity/identity-cycle.js';
 import { staticPassPredictor } from '../core/lifecycle/static-pass-predictor.js';
+import {
+  STATIC_SOURCE_POLICY,
+  staticSourceEvaluator,
+} from '../core/static-sources/static-source-policy.js';
 import type { ServerConfig } from './config.js';
 
 export const IDENTITY_CYCLE_INTERVAL_MS = 60_000;
@@ -55,6 +66,8 @@ export interface IdentityWiring {
 }
 
 export function wireIdentity(config: ServerConfig): IdentityWiring {
+  // Read before the pool exists: a missing mask fails boot without a connection to close.
+  const mask = loadStaticSourceMask(config.staticSourcesPath);
   const pool = createPgPool({
     databaseUrl: config.databaseUrl,
     role: config.databaseRole,
@@ -69,6 +82,12 @@ export function wireIdentity(config: ServerConfig): IdentityWiring {
       config: CLUSTERING_PARAMS,
       predictor: staticPassPredictor(),
       maxBatchesPerCycle: IDENTITY_MAX_BATCHES_PER_CYCLE,
+      // §3.6 override and §6.2 quarantine (TASKS F16), stamped with both versions (D7).
+      staticSources: staticSourceEvaluator(
+        mask,
+        STATIC_SOURCE_POLICY,
+        CLUSTERING_PARAMS.values.metric,
+      ),
     },
     close: () => pool.end(),
   };

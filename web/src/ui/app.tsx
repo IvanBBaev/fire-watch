@@ -13,7 +13,7 @@
  */
 
 import type { AnyComponent } from 'preact';
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks';
 import { LocationProvider, Route, Router, lazy, useLocation } from 'preact-iso';
 
 import type { ClientConfig } from '../core/config.js';
@@ -41,6 +41,8 @@ const SignInContinuePage = lazy(() =>
 import type { AppServices } from './context.js';
 import { AppContext } from './context.js';
 import { MapPane } from './map-pane.js';
+import { NewSignalsCounter } from './new-signals-counter.js';
+import { liveFragmentState, repairAppFragment } from './url-state.js';
 import { useNow } from './use-now.js';
 import { useStoreState } from './use-store.js';
 
@@ -85,9 +87,17 @@ function Shell({ services }: { readonly services: AppServices }) {
   const { store, serverNow, messages, locale } = services;
   const state = useStoreState(store);
   const nowMs = useNow(serverNow);
-  const { path } = useLocation();
+  const { path, url } = useLocation();
   const withMap = isMapRoute(path);
   const selectedId = selectedEventIdFrom(path);
+
+  // A link or route() pushes a URL with no fragment; put back the camera, filters and
+  // overlays the reader is still looking at (`url-state.ts`). Layout effect, so the address
+  // bar is whole before anything can copy it. `url` also changes on Back, where the
+  // repair only fills gaps and the returned-to entry's own members win.
+  useLayoutEffect(() => {
+    if (withMap) repairAppFragment(location, history, liveFragmentState());
+  }, [url, withMap]);
   const [panelOpen, setPanelOpen] = useState(false);
 
   // Narrow screens keep the panel as a peeking sheet so the map stays the main surface;
@@ -108,6 +118,9 @@ function Shell({ services }: { readonly services: AppServices }) {
           <NavLink href="/about" label={messages.nav.about} />
           <NavLink href="/credits" label={messages.nav.credits} />
         </nav>
+        {/* Beside a map the counter lives in the panel instead: appearing in the header
+            would grow it, shrink the map frame and silently re-scope the in-view list. */}
+        {!withMap && <NewSignalsCounter />}
       </header>
       {/* The one degraded-state slot — two simultaneous banners is a regression. */}
       <BannerSlot state={state} serverNowMs={nowMs} messages={messages} locale={locale} />
@@ -130,6 +143,7 @@ function Shell({ services }: { readonly services: AppServices }) {
               {messages.nav.list}
             </button>
           )}
+          {withMap && <NewSignalsCounter />}
           <div class="side-panel-body">
             <Router>
               {/* Table order is match order: preact-iso takes the first route that matches. */}

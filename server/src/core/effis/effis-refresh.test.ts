@@ -204,14 +204,17 @@ describe('runEffisRefresh', () => {
     expect(meta).toBeDefined();
     const parsed = JSON.parse(meta ?? '') as Record<string, unknown>;
     expect(parsed['feed']).toBe('effis:layers');
-    expect(parsed['layer_name']).toBe('ecmwf007.fwi');
+    expect(parsed['layer_name']).toBe('mf010.fwi');
     expect(parsed['sanity']).toBe('good');
     expect(parsed['sanity_rule']).toBeNull();
     expect(parsed['received_status']).toBe(200);
     expect(parsed['raster']).toMatchObject({ width: 1100, height: 700, uniform: false });
     expect(parsed['sha256']).toBe(fakeSha(goodPng()));
     expect(parsed['available_at']).toBe('2026-08-13T10:15:00Z');
-    expect(parsed['effis_layers_version']).toBe('effis_layers_v1');
+    expect(parsed['effis_layers_version']).toBe('effis_layers_v2');
+    // A daily layer is asked for the refresh's own UTC date, and the sidecar says so.
+    expect(parsed['valid_for']).toBe('2026-08-13');
+    expect((parsed['query'] as Record<string, string>)['TIME']).toBe('2026-08-13');
     expect(parsed['polling_bbox_version']).toBe('polling_bbox_v1');
     // The recorded query is the query on the wire, axis order and all.
     expect((parsed['query'] as Record<string, string>)['BBOX']).toBe('39,20,46,31');
@@ -385,8 +388,8 @@ describe('runEffisRefresh', () => {
     const report = await runEffisRefresh(
       h.deps(
         clientAnswering({
-          [FWI.layerName]: () => failure('EFFIS returned 503 for ecmwf007.fwi: down'),
-          [BA.layerName]: () => failure('EFFIS request failed for EFFIS:BurntAreas7Days: timeout'),
+          [FWI.layerName]: () => failure('EFFIS returned 503 for mf010.fwi: down'),
+          [BA.layerName]: () => failure('EFFIS request failed for modis.ba.poly.week: timeout'),
         }),
       ),
     );

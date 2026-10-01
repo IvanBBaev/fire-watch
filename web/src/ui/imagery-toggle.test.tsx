@@ -1,6 +1,7 @@
 /**
- * G6 done-when, web half: the toggle exists only while client-config carries an `imagery`
- * block, and a withdrawn block both removes the toggle and drops the layer back to the
+ * G6 done-when, web half: the basemap choice (a radio pair in the Layers panel since G4)
+ * exists only while client-config carries an `imagery` block, and a withdrawn block both
+ * removes the choice and drops the layer back to the
  * basemap. Rendered through the real component and the real document reader — the
  * "config says so" below is a client-config body, not a flag poked into the signals.
  */
@@ -17,7 +18,7 @@ import type { FireEventStore } from '../core/types.js';
 import { AppContext } from './context.js';
 import type { AppServices } from './context.js';
 import { imageryTilesUrl, setImageryHandles, toggleImagery } from './imagery.js';
-import { ImageryToggle } from './imagery-toggle.js';
+import { BasemapChoice } from './imagery-toggle.js';
 
 const TEMPLATE = 'https://tiles.example.test/imagery/tile/{z}/{y}/{x}';
 const OFFERED = {
@@ -46,7 +47,7 @@ function services(messages: Messages): AppServices {
 async function renderToggle(messages: Messages = en): Promise<string> {
   const { html } = await prerender(
     <AppContext.Provider value={services(messages)}>
-      <ImageryToggle />
+      <BasemapChoice />
     </AppContext.Provider>,
   );
   // preact-iso appends its hydration data; only the component's own markup matters here.
@@ -62,14 +63,20 @@ afterEach(() => {
   setImageryHandles(null);
 });
 
-describe('ImageryToggle', () => {
+/** Whether the named radio is the checked one. */
+const checked = (html: string, value: 'map' | 'imagery'): boolean =>
+  new RegExp(`<input[^>]*value="${value}"[^>]*checked`).test(html) ||
+  new RegExp(`<input[^>]*checked[^>]*value="${value}"`).test(html);
+
+describe('BasemapChoice', () => {
   it('is rendered only while client-config offers imagery', async () => {
     expect(await renderToggle()).toBe('');
 
     receive(OFFERED);
     const offered = await renderToggle();
     expect(offered).toContain('Satellite imagery');
-    expect(offered).toContain('aria-pressed="false"');
+    expect(checked(offered, 'map')).toBe(true);
+    expect(checked(offered, 'imagery')).toBe(false);
 
     // Simulated quota exhaustion: the server drops the block, the toggle disappears.
     receive(TRIPPED);
@@ -80,7 +87,7 @@ describe('ImageryToggle', () => {
     receive(OFFERED);
     toggleImagery();
     expect(imageryTilesUrl.value).toBe(`${TEMPLATE}?token=AAPK-test`);
-    expect(await renderToggle()).toContain('aria-pressed="true"');
+    expect(checked(await renderToggle(), 'imagery')).toBe(true);
 
     receive(TRIPPED);
     expect(imageryTilesUrl.value).toBeNull();
@@ -88,12 +95,17 @@ describe('ImageryToggle', () => {
     // A later re-enable (next quota period, ops override) offers the toggle switched off.
     receive(OFFERED);
     expect(imageryTilesUrl.value).toBeNull();
-    expect(await renderToggle()).toContain('aria-pressed="false"');
+    expect(checked(await renderToggle(), 'map')).toBe(true);
   });
 
-  it('labels the toggle from the catalog in each locale', async () => {
+  it('labels the choice from the catalog in each locale', async () => {
     receive(OFFERED);
-    expect(await renderToggle(en)).toContain('>Satellite imagery</button>');
-    expect(await renderToggle(bg)).toContain('>Сателитни изображения</button>');
+    const english = await renderToggle(en);
+    expect(english).toContain('<legend class="layers-group-title">Base map</legend>');
+    expect(english).toContain('<span>Map</span>');
+    expect(english).toContain('<span>Satellite imagery</span>');
+    const bulgarian = await renderToggle(bg);
+    expect(bulgarian).toContain('<span>Карта</span>');
+    expect(bulgarian).toContain('<span>Сателитни изображения</span>');
   });
 });

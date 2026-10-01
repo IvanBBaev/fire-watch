@@ -99,7 +99,6 @@ export interface Messages {
   readonly relativeAge: (age: RelativeAge) => string;
   /** `time` is a pre-formatted stamp (bare time today, date+time older); `age` is worded. */
   readonly observedShort: (time: string, age: string) => string;
-  readonly firstObserved: (dateTime: string) => string;
   readonly eventNotFound: string;
   readonly backToMap: string;
   readonly copyLink: string;
@@ -132,6 +131,44 @@ export interface Messages {
     readonly showOlder: string;
     /** Shown when the window is empty — "no satellite detections", never "no fires" (§4). */
     readonly emptyInWindow: string;
+    /**
+     * The empty 1 h / 3 h window. Polar orbiters pass a few times a day, so an empty short
+     * window is the normal case between passes and must not read as "nothing is burning".
+     */
+    readonly emptyShortWindow: string;
+  };
+
+  /**
+   * The source and region filters (own voice). Sensor-family names are instrument names,
+   * not translated. Oblast names are a fixed geographic table in `core/filter/oblasts.ts`.
+   */
+  readonly filters: {
+    readonly label: string;
+    readonly sourceLabel: string;
+    readonly sourceAll: (count: number) => string;
+    readonly sourceOption: (name: string, count: number) => string;
+    readonly family: Readonly<Record<'v' | 'm' | 's' | 'g', string>>;
+    /** Events whose feed did not say which sensors saw them; shown under every source. */
+    readonly sourceUnreported: (count: number) => string;
+    readonly regionLabel: string;
+    readonly regionAll: string;
+    readonly regionLoading: string;
+    readonly regionFailed: string;
+    readonly hiddenByFilters: (count: number) => string;
+    readonly clear: string;
+    readonly emptyFiltered: string;
+  };
+
+  /** Place search: settlements (GeoNames) and coordinates. */
+  readonly search: {
+    readonly label: string;
+    readonly placeholder: string;
+    readonly loading: string;
+    readonly failed: string;
+    readonly noResults: string;
+    /** `coordinates` is already formatted, e.g. "42.6977, 23.3219". */
+    readonly goToCoordinates: (coordinates: string) => string;
+    readonly resultCount: (count: number) => string;
   };
 
   /** The list is scoped to what the map shows, so it must say what it is leaving out. */
@@ -153,6 +190,119 @@ export interface Messages {
     readonly coverageNote: string;
     /** The satellite-imagery toggle (TASKS G6); shown only while the server offers imagery. */
     readonly imagery: string;
+  };
+
+  /**
+   * The Layers panel (TASKS G4): the basemap choice and the EFFIS context overlays. Own
+   * voice; every key is implementer copy held in `PENDING_FOUNDER_REVIEW`.
+   */
+  readonly layers: {
+    /** The disclosure button over the map; doubles as its accessible name. */
+    readonly toggle: string;
+    readonly panelLabel: string;
+    readonly basemapTitle: string;
+    /** The plain basemap option; the imagery option reuses `mapControls.imagery`. */
+    readonly basemapMap: string;
+    readonly overlaysTitle: string;
+    readonly fwi: string;
+    /** What FWI is — and is not (GLOSSARY §7: a weather index, never "fire expected here"). */
+    readonly fwiNote: string;
+    readonly fwiLegendTitle: string;
+    /** EFFIS's six danger classes, lowest first — the order of `FWI_CLASSES` in `ui/layers.ts`. */
+    readonly fwiClasses: readonly string[];
+    /** The UTC date the index is for, already formatted. */
+    readonly fwiValidFor: (date: string) => string;
+    /** Shown when the newest copy is for another day than today in Sofia. */
+    readonly fwiNotToday: string;
+    readonly ba: string;
+    readonly baNote: string;
+    /** When EFFIS made the shown copy available, already formatted. */
+    readonly copyDated: (time: string) => string;
+    /** The A2.2 pass-through: a copy our sanity check flagged, shown anyway. */
+    readonly suspect: string;
+    readonly loading: string;
+    readonly unavailable: string;
+    /** F14: ECMWF forecast wind, drawn as arrows. */
+    readonly wind: string;
+    /** What the wind layer is — and is not (context, never a fire-spread prediction). */
+    readonly windNote: string;
+    /** The speed legend's title, with its unit. */
+    readonly windLegendTitle: string;
+    /** The five speed classes, lowest first — the order of `WIND_SPEED_CLASSES` in `core/wind.ts`. */
+    readonly windClasses: readonly string[];
+    /** The hour the arrows are for and the model run, both already formatted. */
+    readonly windValidFor: (time: string, run: string) => string;
+    /** The F16 static hot-source mask toggle (solar parks, power plants, flares, industry). */
+    readonly staticSources: string;
+    /** What the mask is — and why a hotspot on it may not be a fire. */
+    readonly staticSourcesNote: string;
+    /** F15: the predicted satellite swath overlay toggle. */
+    readonly swaths: string;
+    /** What the swaths are — a prediction of where sensors look, never a detection promise. */
+    readonly swathsNote: string;
+    /** Legend row for the outlined swaths: passes still ahead (next ~12 h). */
+    readonly swathsNext: string;
+    /** Legend row for the faintly filled swaths: passes already flown (last 6 h). */
+    readonly swathsRecent: string;
+    /** One listed pass: the platform name and its local mid-pass time, both already formatted. */
+    readonly swathsPassAt: (platform: string, time: string) => string;
+    /** F18: the lightning context layer toggle (EUMETSAT MTG Lightning Imager flashes). */
+    readonly lightning: string;
+    /** What the flashes are — and are not (context, never a claim that lightning lit a fire). */
+    readonly lightningNote: string;
+    /** The age legend's title. */
+    readonly lightningLegendTitle: string;
+    /** The three age classes, newest first — the order of `LIGHTNING_AGE_CLASSES` in `core/lightning.ts`. */
+    readonly lightningClasses: readonly string[];
+    /** The honest "as of": the end of the newest product merged, already formatted. */
+    readonly lightningAsOf: (time: string) => string;
+    /** A current copy with no flash young enough to draw. */
+    readonly lightningNone: string;
+  };
+
+  /**
+   * Satellite passes (TASKS F15), a section of the Layers panel: when the fire-detecting
+   * polar orbiters last passed over the area and when they are next predicted to. Own voice;
+   * every key is implementer copy held in `PENDING_FOUNDER_REVIEW`. Every time is a
+   * prediction and the copy says so — it never promises a pass will happen or that one
+   * will detect anything.
+   */
+  readonly passes: {
+    readonly title: string;
+    /** What a pass is — and is not (a chance to detect, never a promise). */
+    readonly note: string;
+    /** Which area the times are for: the map centre, or the selected event. */
+    readonly forMapCentre: string;
+    readonly forEvent: string;
+    /** The map centre is outside the polled box, where no times are served. */
+    readonly outsideArea: string;
+    /** The label next to every predicted time. */
+    readonly predicted: string;
+    /** The instant the prediction was computed for, already formatted. */
+    readonly computedFor: (time: string) => string;
+    /** The prediction's forward window has run past now. */
+    readonly expired: string;
+    readonly lastPass: string;
+    readonly nextPass: string;
+    /** No in-swath pass in the window on that side of now. */
+    readonly none: string;
+    /** How far ahead a predicted pass is — the future counterpart of `relativeAge`. */
+    readonly inTime: (age: RelativeAge) => string;
+    /** Whether the Sun is up at the area at the pass. */
+    readonly day: string;
+    readonly night: string;
+    /** The satellite's orbital elements are older than three days. */
+    readonly elementsStale: string;
+    /** No orbital elements are held for the satellite. */
+    readonly elementsMissing: string;
+    /** F17: the three levels of forecast cloud at a pass (okta boundaries, `pass-cloud.ts`). */
+    readonly cloudClear: string;
+    readonly cloudPartly: string;
+    readonly cloudCloudy: string;
+    /** F17: one pass's forecast cloud — a level word from above and a whole percent. */
+    readonly cloudForecast: (level: string, pct: number) => string;
+    /** F17: the value is a forecast, and a fire under cloud may go undetected. */
+    readonly cloudCaveat: string;
   };
 
   /** Onboarding — exactly three cards, then the button (07-product-ux P7). */
@@ -271,6 +421,93 @@ export interface Messages {
     readonly signedIn: string;
     readonly signOut: string;
     readonly signedOut: string;
+  };
+  /**
+   * "New since you last looked" (TASKS F): the header counter and its Settings sound
+   * option. A situational-awareness cue about data that has arrived, never an alarm and
+   * never a claim about how current the data is.
+   */
+  readonly newSignals: {
+    /** Accessible name of the counter group. */
+    readonly regionLabel: string;
+    /** Count of fires that are new or have new detections since the viewer last looked. */
+    readonly count: (count: number) => string;
+    /** Age of the newest observation among them; the argument is `relativeAge` output. */
+    readonly latest: (age: string) => string;
+    readonly showNewest: string;
+    readonly markAllSeen: string;
+    readonly soundTitle: string;
+    readonly soundLabel: string;
+    readonly soundNote: string;
+  };
+  /**
+   * The event page's detail sections (TASKS B-wave, rich event panel): the satellite
+   * timeline, fire radiative power, contributing sensors, and where the event is relative
+   * to the reader. Instrument names are proper nouns and never pass through here. All
+   * PENDING FOUNDER REVIEW. Nothing here may read as directions (GLOSSARY §5.2 "No routing,
+   * ever"): distance and bearing are orientation, and the only map link is an area view.
+   */
+  readonly eventDetail: {
+    readonly eventIdLabel: string;
+    /** Polite live-region text after a successful copy. */
+    readonly copied: string;
+    readonly copyFailed: string;
+    readonly timelineTitle: string;
+    readonly firstDetected: string;
+    readonly lastDetected: string;
+    readonly detectionsLabel: string;
+    readonly lastSensorLabel: string;
+    readonly frpTitle: string;
+    /** `mw` is a locale-formatted number, `sensor` an instrument name, `time` a Sofia stamp. */
+    readonly frpLatest: (mw: string, sensor: string, time: string) => string;
+    readonly frpPeak: (mw: string, sensor: string, time: string) => string;
+    /** The sparkline's text alternative; `min`/`max` are locale-formatted MW values. */
+    readonly frpChartLabel: (passes: number, min: string, max: string) => string;
+    /** FRP is not comparable across sensors — mandatory next to any FRP figure. */
+    readonly frpNote: string;
+    readonly frpUnavailable: string;
+    readonly sensorsTitle: string;
+    readonly orbit: { readonly polar: string; readonly geostationary: string };
+    /** `size` is a pre-worded length ({@link Messages.eventDetail.metres} / `kilometres`). */
+    readonly sensorPixel: (size: string) => string;
+    readonly metres: (value: string) => string;
+    readonly kilometres: (value: string) => string;
+    readonly detailUnavailable: string;
+    readonly whereTitle: string;
+    readonly approxCentreLabel: string;
+    readonly copyCoordinates: string;
+    readonly openStreetMap: string;
+    readonly showDistance: string;
+    readonly locating: string;
+    readonly locationDenied: string;
+    readonly locationUnavailable: string;
+    /** `km` is locale-formatted; `direction` is one of {@link Messages.eventDetail.compass}. */
+    readonly distance: (km: string, direction: string) => string;
+    readonly nearby: string;
+    /** The direction *from the reader to the event*, worded to follow a distance. */
+    readonly compass: {
+      readonly N: string;
+      readonly NE: string;
+      readonly E: string;
+      readonly SE: string;
+      readonly S: string;
+      readonly SW: string;
+      readonly W: string;
+      readonly NW: string;
+    };
+    readonly orientationNote: string;
+    /** F16: the event's centre is near a mapped solar park; the event is still shown. */
+    readonly staticSourceSolar: string;
+    /** F16: the same, for a power plant, gas flare or heavy industry. */
+    readonly staticSourceIndustrial: string;
+    /**
+     * F16, per detection: `near` of the event's `total` detections lie near a mapped solar
+     * park (and none near another kind of source). Replaces the centre caveat once the
+     * detections file has loaded.
+     */
+    readonly staticSourceDetectionsSolar: (near: number, total: number) => string;
+    /** F16, per detection: the same, when any of them is near a non-solar source. */
+    readonly staticSourceDetectionsIndustrial: (near: number, total: number) => string;
   };
 }
 

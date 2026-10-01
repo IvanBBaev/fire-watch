@@ -45,6 +45,19 @@ export interface ActiveEventRow {
   readonly lastDetectionAt: EpochMs;
   readonly detectionCount: number;
   readonly nearestPlace: NearestPlace | null;
+  /**
+   * The registry ids of the sources whose detections the event holds (Track F source
+   * filter), in any order — the snapshot builder canonicalises them — the keys of the
+   * stored `source_mix` with a positive count. `null` when the row records no mix at all (the column default,
+   * a hand-written row): "not recorded", which the client must read as unreported rather
+   * than as "no sensor saw this".
+   *
+   * Read from `source_mix`, not re-derived from `event_detections`: the clustering store
+   * writes the mix in the same statement as `detection_count` from the event's live
+   * members (a merge survivor's included), and 004's trigger lists `source_mix`, so a new
+   * sensor on an event is always a `seq` bump — the ETag and the stream see it for free.
+   */
+  readonly sourceIds: readonly string[] | null;
 }
 
 export interface ActiveSetRead {

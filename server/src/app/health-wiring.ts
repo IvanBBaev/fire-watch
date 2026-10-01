@@ -65,11 +65,13 @@ import {
 } from '../adapters/db/pg-freshness-reader.js';
 import { createPgChangeReader } from '../adapters/db/pg-change-reader.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
+import { createPgEventDetectionsReader } from '../adapters/db/pg-event-detections-reader.js';
 import { createPgSnapshotReader } from '../adapters/db/pg-snapshot-reader.js';
 import { createHealthServer } from '../adapters/http/health-server.js';
 import type { ProblemLogEntry } from '../adapters/http/problem.js';
 import { createFsFeedStatusStore } from '../adapters/storage/fs-feed-status-store.js';
 import { createFsImageryMeterStore } from '../adapters/storage/fs-imagery-meter-store.js';
+import { createFsPayloadStore } from '../adapters/storage/fs-payload-store.js';
 import {
   createEventLoopLagSampler,
   type EventLoopLagSampler,
@@ -301,6 +303,13 @@ export function wireHealthServer(
       sources: MONITORED_SOURCE_IDS,
       onProblem,
     },
+    // The snapshot's pool: both are edge-cached public reads with the same statement
+    // timeout, and the route's own in-flight cap keeps it from starving the snapshot.
+    eventDetections: {
+      reader: createPgEventDetectionsReader(snapshotPool),
+      clock: systemClock,
+      onProblem,
+    },
     stream: {
       hub,
       pump,
@@ -328,6 +337,28 @@ export function wireHealthServer(
     },
     // G4: served from the refresh job's state dir, so only on a box that has one.
     ...(config.stateDir === null ? {} : { effisOverlay: { stateDir: config.stateDir, onProblem } }),
+    // F14: the worker's weather job writes the wind document under the same state dir.
+    ...(config.stateDir === null
+      ? {}
+      : { windOverlay: { stateDir: config.stateDir, clock: systemClock, onProblem } }),
+    // F15: the worker's TLE refresh writes the elements under the same state dir.
+    ...(config.stateDir === null
+      ? {}
+      : {
+          passes: {
+            reader: createFsPayloadStore(config.stateDir),
+            clock: systemClock,
+            onProblem,
+            onElementsProblem: (problems: readonly string[]) => {
+              log.note({ passes_elements_unverified: problems });
+            },
+          },
+        }),
+    // F18: the worker's lightning job writes under the same state dir. Registered with the
+    // state dir alone: without EUMETSAT credentials no document exists and it answers 503.
+    ...(config.stateDir === null
+      ? {}
+      : { lightningOverlay: { stateDir: config.stateDir, clock: systemClock, onProblem } }),
   });
 
   // I1–I4, I6: registered only with FIRE_WATCH_AUTH_ENABLED and a complete mailer; the
@@ -508,8 +539,9 @@ export function problemLogRecord(
 
 /**
  * What this deployment is answerable for. Always the live FIRMS sources; the C4 rows —
- * the EFFIS and weather feeds and the EFFIS refresh job — only when this deployment has a
- * state dir, because that is exactly when a worker on this VM records them. Claiming them
+ * the EFFIS, weather and CelesTrak-elements feeds and the EFFIS refresh job — only when this
+ * deployment has a state dir, because that is exactly when a worker on this VM records them
+ * (the TLE loop starts on the same `stateDir !== null` condition in `worker.ts`). Claiming them
  * on a box that runs no refresh would make its health endpoint permanently `warn` on rows
  * nobody runs, which is how a warn state stops meaning anything. Still absent because
  * nothing writes them yet: the cloud mask (C3), the backup jobs (C6), the snapshot push
@@ -524,7 +556,7 @@ export function expectedRows(feedsRecorded: boolean): readonly FreshnessRowId[] 
       isMonitoredFeedId(source) && isMonitoredSourceId(source),
   );
   if (!feedsRecorded) return sources;
-  return [...sources, 'effis:layers', 'weather:context', 'effis-refresh'];
+  return [...sources, 'effis:layers', 'weather:context', 'celestrak:elements', 'effis-refresh'];
 }
 
 /**

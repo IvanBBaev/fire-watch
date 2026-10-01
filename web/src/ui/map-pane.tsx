@@ -9,20 +9,36 @@
  */
 
 import { effect } from '@preact/signals';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 
 import type { MapCamera } from '../core/geo/viewport.js';
+import { scopePredicate } from '../core/filter/event-filter.js';
 import { ageCutoffMs } from '../core/time/age-filter.js';
-import type { MapController } from '../core/types.js';
+import type { EffisOverlayDraw, MapController } from '../core/types.js';
 import { mapCornerAttribution } from './logic/credits.js';
 import { eventPath } from './logic/event-resolution.js';
 import { ageWindow } from './age-window.js';
+import { cameraRequest } from './camera-request.js';
 import { useApp } from './context.js';
 import { MapControls } from './map-controls.js';
 import { initialCamera, publishViewport } from './map-camera.js';
+import { regionFilter, regionIndex, sourceFamily, startFilterUrlSync } from './filters.js';
 import { imageryTilesUrl } from './imagery.js';
+import {
+  browserOverlayLoader,
+  effisCreditText,
+  effisOverlayPayload,
+  OVERLAY_URLS,
+  windOverlayPayload,
+  startOverlaySync,
+} from './layers.js';
+import { startOverlayRevalidation } from './overlay-refresh.js';
+import { useLightningDraw } from './lightning.js';
+import { useSwathDraw } from './pass-swaths.js';
+import { staticSourcesDraw } from './static-sources.js';
 import { appliedTheme } from './theme.js';
+import { startOverlayUrlSync } from './url-state.js';
 import { useNow } from './use-now.js';
 
 export function MapPane({ selectedId }: { readonly selectedId: string | null }) {
@@ -44,6 +60,33 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   const cutoffMs = ageCutoffMs(useNow(serverNow), ageWindow.value);
   const cutoffRef = useRef(cutoffMs);
   cutoffRef.current = cutoffMs;
+  // The source and region filters scope the map exactly as they scope the list. Read here
+  // so a change re-renders the pane; the predicate is rebuilt only when an input moves.
+  const family = sourceFamily.value;
+  const oblast = regionFilter.value;
+  const index = regionIndex.value;
+  const predicate = useMemo(
+    () => scopePredicate({ family, oblast }, index?.regionAt ?? null),
+    [family, oblast, index],
+  );
+  const predicateRef = useRef(predicate);
+  predicateRef.current = predicate;
+  // The EFFIS overlays as the controller takes them: the chosen copies plus the registry's
+  // credit, which rides on the burnt-area source into the map corner (TASKS G4).
+  const effisDraw = (): EffisOverlayDraw => ({
+    ...effisOverlayPayload.value,
+    attribution: effisCreditText(clock, messages),
+  });
+  const effisDrawRef = useRef(effisDraw);
+  effisDrawRef.current = effisDraw;
+  // The F15 swaths, re-decided recent/next once a minute against the server clock.
+  const swathDraw = useSwathDraw();
+  const swathDrawRef = useRef(swathDraw);
+  swathDrawRef.current = swathDraw;
+  // The F18 lightning flashes, re-classed by age once a minute against the server clock.
+  const lightningDraw = useLightningDraw();
+  const lightningDrawRef = useRef(lightningDraw);
+  lightningDrawRef.current = lightningDraw;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -84,7 +127,13 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
         controllerRef.current = controller;
         pendingCameraRef.current = null;
         controller.setAgeCutoff(cutoffRef.current);
+        controller.setEventFilter(predicateRef.current);
         controller.setImagery(imageryTilesUrl.peek());
+        controller.setEffisOverlays(effisDrawRef.current());
+        controller.setWindOverlay(windOverlayPayload.peek());
+        controller.setStaticSources(staticSourcesDraw.peek());
+        controller.setPassSwaths(swathDrawRef.current);
+        controller.setLightning(lightningDrawRef.current);
         // The route may already name an event — a permalink opened cold.
         const selected = selectedIdRef.current;
         if (selected !== null) {
@@ -123,6 +172,16 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
     controllerRef.current?.setAgeCutoff(cutoffMs);
   }, [cutoffMs]);
 
+  useEffect(() => {
+    controllerRef.current?.setEventFilter(predicate);
+  }, [predicate]);
+
+  // Filters live in the URL fragment beside the camera (`t=`, `src=`, `r=`): the pane is
+  // mounted once by the shell, so it owns the sync for the page's lifetime.
+  useEffect(() => startFilterUrlSync(), []);
+  // The overlay choice rides beside them (`ov=`), with the same boot and storage rules.
+  useEffect(() => startOverlayUrlSync(), []);
+
   // Theme changes reach the controller straight from the signal — no re-render needed.
   useEffect(
     () =>
@@ -144,11 +203,76 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
     [],
   );
 
+  // The overlays follow their signals the same way. The pane is mounted once, so it also
+  // owns fetching the chosen copies from the proxy for the page's lifetime.
+  useEffect(
+    () =>
+      effect(() => {
+        const draw = effisDrawRef.current();
+        controllerRef.current?.setEffisOverlays(draw);
+      }),
+    [],
+  );
+  useEffect(
+    () =>
+      effect(() => {
+        const wind = windOverlayPayload.value;
+        controllerRef.current?.setWindOverlay(wind);
+      }),
+    [],
+  );
+  useEffect(
+    () =>
+      effect(() => {
+        const mask = staticSourcesDraw.value;
+        controllerRef.current?.setStaticSources(mask);
+      }),
+    [],
+  );
+  useEffect(() => {
+    controllerRef.current?.setPassSwaths(swathDraw);
+  }, [swathDraw]);
+  useEffect(() => {
+    controllerRef.current?.setLightning(lightningDraw);
+  }, [lightningDraw]);
+  // The fixtures build reads wind, swaths and lightning from committed files; live reads the API's routes.
+  const overlayUrls = {
+    wind: config.windOverlayUrl ?? OVERLAY_URLS.wind,
+    swaths: config.passSwathsUrl ?? OVERLAY_URLS.swaths,
+    lightning: config.lightningOverlayUrl ?? OVERLAY_URLS.lightning,
+  };
+  useEffect(() => startOverlaySync(browserOverlayLoader(clock, overlayUrls)), []);
+  // A daily copy (FWI) is asked for again once its day is over by the server's clock.
+  useEffect(
+    () =>
+      startOverlayRevalidation({
+        serverNow,
+        loader: browserOverlayLoader(clock, overlayUrls),
+        setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+        clearTimeout: (handle) => {
+          window.clearTimeout(handle as number);
+        },
+      }),
+    [],
+  );
+
   const moveCamera = (camera: MapCamera): void => {
     const controller = controllerRef.current;
     if (controller === null) pendingCameraRef.current = camera;
     else controller.flyTo(camera);
   };
+  const moveCameraRef = useRef(moveCamera);
+  moveCameraRef.current = moveCamera;
+
+  // A place chosen in search, from wherever the search box is mounted.
+  useEffect(
+    () =>
+      effect(() => {
+        const request = cameraRequest.value;
+        if (request !== null) moveCameraRef.current(request.camera);
+      }),
+    [],
+  );
 
   return (
     <>

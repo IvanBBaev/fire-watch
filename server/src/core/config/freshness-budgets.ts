@@ -168,6 +168,17 @@ const ROWS: readonly FreshnessBudget[] = [
     pages: false,
   },
 
+  // Orbital elements for the pass predictions (F15) refresh every 12 h. 26 h is two missed
+  // cycles plus slack; 72 h is TLE_STALE_AFTER_MS, the age at which the pass panel starts
+  // labelling the elements stale anyway. Display only: never pages, never 500s.
+  {
+    row: 'celestrak:elements',
+    nominalCadenceSeconds: 12 * HOUR,
+    warnSeconds: 26 * HOUR,
+    criticalSeconds: 72 * HOUR,
+    pages: false,
+  },
+
   // The snapshot push is the only job that 500s, and its warn budget is the one threshold
   // the client also has to know (GLOSSARY §3b trigger 1) — so it is imported, not repeated.
   {

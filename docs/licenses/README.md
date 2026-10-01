@@ -56,14 +56,19 @@ GATE-v2 in 09 §1) and whenever a provider announces a policy change.
 |---|---|---|---|---|
 | [`nasa-firms.md`](./nasa-firms.md) | NASA FIRMS / LANCE — VIIRS + MODIS active fire | `firms:viirs:snpp`, `firms:viirs:noaa20`, `firms:viirs:noaa21`, `firms:modis` | CC0 1.0 + LANCE disclaimer | Adapter landed (C1) |
 | [`effis.md`](./effis.md) | EFFIS — fire danger (FWI) + burnt areas | `effis:layers` | CC BY 4.0 | Adapter landed (C4) |
-| [`ecmwf-open-data.md`](./ecmwf-open-data.md) | ECMWF Open Data — IFS/AIFS forecasts | `weather:context` | CC BY 4.0 + ECMWF Terms of Use (apply in addition) | Adapter landed (C4); terms pinned from primary sources 2026-08-15, `credits.ts` entry still owed |
+| [`ecmwf-open-data.md`](./ecmwf-open-data.md) | ECMWF Open Data — IFS/AIFS forecasts | `weather:context` | CC BY 4.0 + ECMWF Terms of Use (apply in addition) | Adapter landed (C4); terms pinned from primary sources 2026-08-15; five `derived:ecmwf` components in `credits.ts`, first rendered by the F14 wind layer (Layers panel while on, credits page) |
 | [`eumetsat-lsa-saf.md`](./eumetsat-lsa-saf.md) | EUMETSAT LSA SAF FRP-PIXEL; EUMETSAT Data Policy (also governs the CLM sidecar) | `lsasaf:seviri:frp-pixel`, `lsasaf:fci:frp-pixel`, `eumetsat:clm` | CC BY 4.0 (Core Data) | Decoder landed (C3); fetch adapter pending |
 | [`copernicus-sentinel.md`](./copernicus-sentinel.md) | Copernicus Sentinel-3 SLSTR FRP (via EUMETSAT Data Store / CDSE) | `eumetsat:slstr:frp` | EU legal notice (Reg. 377/2014) | Wave 2 — no adapter yet |
 | [`openstreetmap-basemap.md`](./openstreetmap-basemap.md) | OpenStreetMap data; OpenFreeMap / OpenMapTiles tiles | — (basemap, no feed id) | ODbL 1.0 (+ produced-work rules) | Rendered by the web map |
 | [`open-meteo.md`](./open-meteo.md) | Open-Meteo — **fenced to dev use**, not a source of record | — (must not reach a public surface) | CC BY 4.0 data / non-commercial free *service* tier | Fence record, no adapter |
+| [`geonames.md`](./geonames.md) | GeoNames — settlement gazetteer for place search | — (build-time asset) | CC BY 4.0 | Asset built by `infra/geodata` (TASKS F) |
+| [`natural-earth.md`](./natural-earth.md) | Natural Earth admin-1 — oblast polygons for the region filter | — (build-time asset) | Public domain | Asset built by `infra/geodata` (TASKS F) |
+| [`openstreetmap-static-sources.md`](./openstreetmap-static-sources.md) | OpenStreetMap — static hot-source mask (solar parks, thermal plants, refineries/steel works, flares) | — (build-time asset) | ODbL 1.0 (derivative database; share-alike on the asset) | Asset built by `pnpm run geodata:static-sources` (TASKS F16) |
+| [`celestrak.md`](./celestrak.md) | CelesTrak — GP orbital elements for satellite-pass predictions | — (input to derived pass times) | None published (usage policy only; citation requested) | Fetch job + passes route landed (TASKS F15); terms open item |
+| [`eumetsat-mtg-li.md`](./eumetsat-mtg-li.md) | EUMETSAT MTG LI L2 Lightning Flashes (Data Store `EO:EUM:DAT:0691`) | — (context layer, no detection feed) | CC BY 4.0 (Core Data, EUMETSAT Data Policy 25 Nov 2025) | Adapter + decoder + route landed credential-gated (TASKS F18); no account yet, no real product fetched |
 
 Sources listed in `docs/DATA-SOURCES.md` as later waves — GIBS, Copernicus DEM GLO-30,
-Terrarium terrain, ESA WorldCover, CLC+/CORINE, GHSL, GeoNames, CLMS SWI/SSM, GPM IMERG,
+Terrarium terrain, ESA WorldCover, CLC+/CORINE, GHSL, CLMS SWI/SSM, GPM IMERG,
 CAMS, Landsat, Esri World Imagery — have **no file here yet, by design**: they get one in
 the PR that integrates them. `docs/DATA-SOURCES.md` marks several of their attribution
 strings UNVERIFIED for exactly this reason, and they stay out of CI-13's assertion set

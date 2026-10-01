@@ -57,6 +57,28 @@ Confidence normalization: VIIRS `l`/`n`/`h` → `low`/`nominal`/`high`; MODIS nu
 `<30` low, `30–79` nominal, `≥80` high (the FIRMS convention). Keep the raw value; the
 normalized enum exists for UX and alert gating only.
 
+#### A1.2 Keyless regional files (no MAP_KEY)
+
+FIRMS also publishes rolling NRT CSVs per sensor and region that need no key:
+`https://firms.modaps.eosdis.nasa.gov/data/active_fire/<sensor>/csv/<FILE>_Europe_24h.csv`
+(`SUOMI_VIIRS_C2`, `J1_VIIRS_C2`, `J2_VIIRS_C2`; `MODIS_C6_1` for completeness).
+`server/src/adapters/firms/firms-keyless-client.ts` implements the same port as the Area
+API client over them, selected by `FIRE_WATCH_FIRMS_MODE=keyless` (the default when
+`FIRMS_MAP_KEY` is absent). Differences it absorbs or cannot:
+
+- **Area and days.** The file is all of Europe, and despite "24h" it starts at 00:00 UTC
+  of the previous day (~48 h). The adapter clips to the query bbox and to the
+  `day_range` calendar-day window, so the core sees what the Area API would have returned.
+- **Confidence spelling.** VIIRS `confidence` is `low`/`nominal`/`high` in these files;
+  the adapter maps it to `l`/`n`/`h`. Columns are otherwise the Area API's.
+- **Conditional GET.** Responses carry `ETag`/`Last-Modified`, but (observed 2026-09-28)
+  the server ignores `If-None-Match`/`If-Modified-Since` and always answers 200. The
+  adapter sends both anyway and treats an identical `ETag` as unchanged.
+- **Cannot:** backfill (`startDate` is refused), the data-availability check (pitfall 10
+  runs unchecked), and any latency guarantee beyond the file's regeneration cadence.
+  Whether keyless is acceptable in production or stays a developer convenience is an
+  open founder decision; until then production sets `FIRMS_MAP_KEY`.
+
 ### A2. MODIS — archive/backfill only (end of life)
 
 | Fact | Value |
@@ -323,7 +345,7 @@ dish is out of scope — poll the Data Store instead.
 |---|---|
 | Fire danger | FWI + sub-indices (FFMC/DMC/DC/ISI/BUI), 6 danger classes; ~8 km (ECMWF-driven); daily, forecast to ~9–10 days |
 | Burnt areas | RDA perimeters up to 2×/day in season; ≥~30 ha via MODIS, smaller via Sentinel-2 since 2018 (~95% of EU burnt area) |
-| Access | **WMS/WFS, no registration**: `https://maps.effis.emergency.copernicus.eu/effis` (layers e.g. `ecmwf007.fwi`, `EFFIS:BurntAreas7Days`); WFS → Shapefile/SpatiaLite of the live BA database |
+| Access | **WMS/WFS, no registration**: `https://maps.effis.emergency.copernicus.eu/effis` (layers as of 2026-09-28: `mf010.fwi` with a required `TIME=YYYY-MM-DD`; burnt areas `modis.ba.poly.week` over WFS 1.1.0, `OUTPUTFORMAT=geojson` — the older `ecmwf007.fwi` / `EFFIS:BurntAreas7Days` names are no longer routed; `effis_layers_v2`); WFS → Shapefile/SpatiaLite of the live BA database |
 | Licence | CC BY 4.0 (EU reuse policy) — commercial OK; attribution + "Contains modified Copernicus Service information" |
 | Cost | Free |
 
@@ -353,6 +375,32 @@ spread context, own FWI computation, ECMWF total precipitation as the corroborat
 leg for IMERG (§E3), and `tcc` as the licence-clean model-cloud stopgap (§E2). GRIB
 parsing is the price: heavier than a JSON API, but it is founder time paid once, not a
 monthly line item (§D6 records why that trade was taken).
+
+**First reader-facing use: the F14 wind context layer.** The worker decodes the latest
+IFS 10 m `u`/`v` step itself (pure GRIB2 + AEC decoder, no eccodes), resamples it to a
+0.5° grid over the polling bbox (23 × 15 points) and serves speed and direction-from at
+`GET /overlays/wind/latest.json` (ETag, `max-age=600`, 503 once the copy is over 6 h old).
+The web draws one arrow per point, pointing downwind, coloured in five speed classes on a
+teal → violet ramp (no red or orange, CI-14), labelled with the hour it is valid for and
+the model run — both from the body, never from the fetch. While the layer is on, the
+Layers panel prints all five row-22 components together, and the credits page owes them
+(`derived:ecmwf`, CI-13). The layer is context only: it says nothing about how a
+particular fire will behave.
+
+**Second reader-facing use: the F17 cloud forecast at each satellite pass.** The same
+weather job also records IFS `tcc` (total cloud cover, 0–1) for steps 0–39 h every 3 h
+of the latest run, and merges in steps 0 and 3 of the run before (recorded when that
+run was the latest), so a pass just before the new run's first step is still covered. The passes route then attaches, to each predicted
+pass, the forecast cloud fraction at the pass cell's grid point at culmination time
+(`cloud_cover_v1`): **linear in time** between the two recorded steps either side of
+the culmination, at most 6 h apart, rounded to a whole percent, never extrapolated. A
+pass with no bracketing steps gets `null`, not a guess. The document-level `cloud`
+block labels the value as an ECMWF IFS **forecast**, never an observation. The panel
+reads it as mostly clear (≤ 25 %), partly cloudy or cloudy (≥ 75 %), always with the
+percentage. It says once that a fire under cloud may be missed, and it prints the
+row-22 components while the value is shown (`derived:ecmwf`). It is a reader-facing
+hint about whether a pass could see the ground. It does **not** gate the miss-evidence
+accumulator (§E2 still owns that).
 
 ### D3. Open-Meteo — **dev-only convenience layer, not a source of record**
 
@@ -426,7 +474,8 @@ the metric.
 | Licence / cost | EUMETSAT free-data terms, attribution / free |
 
 Fit: "storm passed over cell X → watch for hotspots for 24–72 h" flags feeding the
-score's ignition context. Ground networks rejected: Blitzortung (non-commercial-only
+score's ignition context. First reader-facing use: the F18 lightning context layer (§F18),
+which also verifies the product facts above (10-min ARC products, ~40 s publication lag). Ground networks rejected: Blitzortung (non-commercial-only
 licence — avoid as dependency), ATDnet/EUCLID (closed/paid); MTG LI covers the need.
 
 ### E2. Cloud mask — the "was the sky actually clear?" check
@@ -489,8 +538,9 @@ Balkan terrain — corroborate with ECMWF total precip (§D2).
 | **Terrain** | Copernicus DEM GLO-30 (30 m; CDSE or AWS `copernicus-dem-30m` COGs, no auth) | Free incl. commercial, **mandatory fixed attribution sentence** | Slope/aspect for fire-behaviour context; a few GB for BG+buffer |
 | Hillshade tiles | AWS Terrarium terrain tiles (no auth) | Free; tilezen/joerd attribution | Map display only (already in ADR-001) |
 | **Population** | GHSL GHS-POP/GHS-BUILT (100 m / 1 km) | CC BY 4.0, no registration | "Fire near settlement" sizing |
-| **Settlements** | GeoNames `BG.zip` dump (not the rate-limited API) | CC BY 4.0 | Nearest-place naming |
+| **Settlements** | GeoNames `BG.zip` dump (not the rate-limited API) | CC BY 4.0 | Nearest-place naming; place search ships as a build-time asset (`pnpm run geodata`, attribution row 23) |
 | Place names (alt) | OSM-derived | **ODbL** — share-alike; keep OSM data in a separable store; **never store OSM element IDs inside fire-event records** (09) | Attribution "© OpenStreetMap contributors" |
+| **Static hot-source mask** | OSM via Overpass: `power=plant` solar and thermal, `man_made=flare`, `industrial=` steel / refinery / cement / metallurgy / smelter / foundry sites, BG + the served box | **ODbL** — the asset is a derivative database, published under ODbL with its notice; no OSM ids in it or in event records (`docs/licenses/openstreetmap-static-sources.md`) | 11 §3.6 score override + web caveat and layer (TASKS F16); `pnpm run geodata:static-sources`, register DS-5; attribution row 1 (owed always) |
 
 ---
 
@@ -513,6 +563,147 @@ Balkan terrain — corroborate with ECMWF total precip (§D2).
 | Airbus | Pléiades Neo reactive tasking; "Wildfire Sentinel" product (May 2026) | Thousands of EUR/scene class |
 | ICEYE | SAR Wildfire Insights (insurance/gov) | Enterprise contracts |
 | Satellogic | ~1 m optical, Aleph tasking | Mixed licensing; verify per feed |
+
+### §F15. CelesTrak GP orbital elements — satellite-pass predictions (TASKS F15)
+
+**What for.** The Layers panel's "Satellite passes" section tells a reader when each
+fire-detecting platform (VIIRS on Suomi NPP, NOAA-20, NOAA-21; SLSTR on Sentinel-3A/3B)
+last passed over an area and when it is next **predicted** to. The server propagates
+orbital elements with SGP4 (`satellite.js`, server only — never in the web bundle) and
+serves derived pass times per 0.5° cell at `/api/v1/passes/<cell>`
+(`server/src/core/passes/`, `server/src/adapters/http/passes-route.ts`).
+
+| Field | Value |
+|---|---|
+| Endpoint | `https://celestrak.org/NORAD/elements/gp.php?CATNR=<norad>&FORMAT=JSON` (OMM as JSON), one request per platform |
+| Platforms (NORAD) | Suomi NPP 37849, NOAA-20 43013, NOAA-21 54234, Sentinel-3A 41335, Sentinel-3B 43437 (`pass-platforms.ts`, checked against the returned OMM 2026-09-30) |
+| Upstream cadence | CelesTrak checks for new GP data once every 2 h and says there is no need to ask more often |
+| Our cadence | Every **12 h** (`TLE_REFRESH_INTERVAL_MS`) — 10 requests/day, far inside the policy; LEO elements stay usable for days |
+| Staleness | Elements older than **72 h** at computation time are served as `stale` and the panel says so; a platform with no elements is `missing` and shows no times |
+| Error policy | CelesTrak firewalls a client after 50 HTTP errors (301/403/404) in 2 h, caps bandwidth near 100 MB/day, states that a 403/404 will not change on retry, and asks automated processes to stop and report to a human. We therefore **latch**: any non-200 writes `tle/celestrak/halt.json` (reason, status, platform) and no further request is made — across restarts — until an operator reads it and deletes the file. A transport failure (no HTTP answer) does not latch. Redirects are not followed (`redirect: 'manual'`). |
+| Redistribution | No licence or terms-of-use page was found. We **never republish elements**: only derived pass times, the element epoch and its age leave the server |
+| Privacy | The web asks for the 0.5° cell under the map centre or the selected event — never the reader's location |
+| Attribution | Row 25 below (requested, our wording) |
+| Licence record | `docs/licenses/celestrak.md` |
+
+**Swath overlay (the map half).** `GET /overlays/passes/swaths.json`
+(`core/passes/swaths-document.ts`, served by `passes-route.ts`) is one GeoJSON document for
+the whole polling box: each platform's swath footprint (Polygon), ground track
+(LineString) and label point from **6 h back to 12 h ahead** of the bucket it was computed
+for, from the same stored elements as the per-cell pass times. It carries `predicted: true`,
+`computed_for`, the window and the element epochs; it is content-addressed (`ETag` = sha256
+of the body, `If-None-Match` → 304) and `max-age` runs to the end of the bucket, so a
+revalidation never re-dates it. The web's Layers panel toggle ("Satellite swaths (predicted)",
+`ov=swaths` in the URL) draws it through LayerHost **below every fire layer**: next passes
+outlined, recent passes a faint fill, labelled with platform and local time where the
+basemap style has glyphs, in blue/violet only (outside the red–orange band fire owns,
+CI-14). The web **re-decides** "next" and "recent" against the reader's clock and shows
+"expired" once the window is over, so a cached or stale document never presents a flown
+pass as upcoming. While the layer is on the CelesTrak credit is shown in the panel and, via
+the GeoJSON source attribution, in the map corner (CI-13).
+
+**Freshness.** The TLE refresh records one attempt per cycle on the `celestrak:elements`
+FeedStatus row (succeeds only when every platform's epoch is younger than 72 h; a halt
+records a failure every cycle). The routes never log per request; a changed set of
+stored-copy problems is logged once.
+
+**Fixture.** The fixtures build points the layer at
+`web/public/fixtures/passes/swaths.json` — real `buildSwathsDocument` output from the
+recorded CelesTrak elements for one fixed moment (`computed_for` 2026-09-30T13:10Z),
+never time-shifted. The server test `core/passes/swaths-document.test.ts` pins it with a
+file snapshot, so it cannot drift from the server's shape; regenerate with
+`pnpm exec vitest run --project unit -u server/src/core/passes/swaths-document.test.ts`.
+Because the web re-decides kinds on the reader clock, the fixture honestly shows nothing
+ahead on any later day. The e2e (`web/e2e/pass-swaths.e2e.ts`) therefore pins scenario time
+— page clock and harness origin alike — relative to `computed_for` rather than asserting
+what the calendar day allows, and asserts the "expired" branch on purpose: it is not
+time-bombed.
+
+### §F18. MTG Lightning Imager flashes — lightning as fire context (TASKS F18)
+
+**What for.** Dry lightning is a leading natural ignition cause, and a reader looking at a
+new fire in a remote forest wants to know whether a storm crossed it in the last hours.
+The Layers panel's "Lightning" toggle draws recent flashes by age (< 15 min, < 1 h,
+< 6 h). It is **context, never a cause claim**: a flash near a fire says a storm was
+there, not that it lit the fire (satellite LI geolocation is ~4.5 km; intra-cloud and
+cloud-to-ground flashes are not distinguished).
+
+**Sources compared (2026-10-01).**
+
+| Candidate | What | Access | Licence | Verdict |
+|---|---|---|---|---|
+| **EUMETSAT MTG LI L2 Lightning Flashes (LI-2-LFL)** | Per-flash records from Meteosat-12 (MTG-I1), full disc, total lightning | Data Store collection `EO:EUM:DAT:0691`, free account; 10-min ARC products | **Core Data** (Policy Art. 5.1, "All SEVIRI, FCI, IRS and LI Derived Products") → **CC BY 4.0**, redistribution allowed (Art. 6.1), attribution Art. 6.3 | **Chosen** |
+| EUMETSAT MTG LI L2 Accumulated Flashes (LI-2-AF) | 30-s gridded flash counts (FCI 2 km grid) | Data Store `EO:EUM:DAT:0686` | Core, CC BY 4.0 | Fallback: gridded, heavier to reduce to points; LFL already carries per-flash lat/lon |
+| Blitzortung.org | Community ground network, strokes | Raw data only for station operators | **Non-commercial only**; redistribution to third parties not permitted | Rejected (unchanged from §E1) |
+| NIMH Bulgaria (national service) | — | No public lightning feed found | — | UNVERIFIED; not a candidate until a feed and terms exist |
+| EUCLID / Vaisala GLD360 / ENTLN | Ground networks, CG discrimination | Contract | Commercial, closed | Rejected for season 1 (cost; CG/IC split would be a v2 upgrade) |
+| AERIS / other MTG LI re-publishers | Re-served LI | Varies | Upstream EUMETSAT; no advantage over the source | Not needed |
+
+**Product facts (verified).**
+
+| Field | Value |
+|---|---|
+| Collection | `EO:EUM:DAT:0691`, product type `MTILI2LFL`, platform `MTI1`, coverage `FD` |
+| Granularity | One product per **10-min** window (`date` = `2026-09-30T12:20:09Z/2026-09-30T12:30:09Z`); `updated` (publication) ≈ **40 s** after the window end — read off a live search response on 2026-09-30 |
+| Search | `GET https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO:EUM:DAT:0691&dtstart=…&dtend=…&c=…&si=…` — **public, no token** (verified) |
+| Download | Per-file entry: `…/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/<id>/entry?name=<file>` — the `sip-entries` item with `mediaType: application/x-netcdf` and `CHK-BODY` in its title. **Needs a bearer token** (without one: 404) |
+| Token | `POST https://api.eumetsat.int/token`, `grant_type=client_credentials`, HTTP Basic `consumer_key:consumer_secret` (unauthenticated probe: `401 invalid_client`, confirming the endpoint) |
+| Format | netCDF-4 (HDF5), root group, dimension `flashes`. Variables per *MTG LI L2 Product Format Specification* EUM/MTG/SPE/10/0452 v5C (9 Jul 2021), §A.6: `flash_time` (double, `seconds since 2000-01-01 00:00:00.0`, UTC, time of the first event), `latitude` / `longitude` (short, `scale_factor` 0.00275, `add_offset` 0, `_FillValue` −32767, `degrees_north` / `degrees_east`), `radiance` (ushort, `mW.m-2.sr-1`), `flash_duration` (ushort, `ms`), `flash_footprint` (ushort, pixels), `flash_id`, `number_of_groups`, `number_of_events`, `flash_filter_confidence` |
+| Also in the product | `…CHK-TRAIL…nc` (statistics), `manifest.xml`, quicklook JPEGs — not fetched |
+
+**How we use it (built, credential-gated).**
+
+- `server/src/adapters/lightning/eumetsat-datastore-client.ts` — token (cached until
+  30 s before expiry), search, BODY download; `redirect: 'manual'`, byte caps, no
+  retries inside a cycle. Enabled only when `EUMETSAT_CONSUMER_KEY` and
+  `EUMETSAT_CONSUMER_SECRET` are both set; one without the other refuses to start.
+- `server/src/adapters/sandbox/mtg-li-flash-decoder.ts` — decoded in the same
+  permission-sandboxed h5wasm child process as LSA SAF FRP-PIXEL. The variable names and
+  units above are checked, not assumed: a missing variable or a different `units` string is
+  a typed refusal naming what was found, never a guess. Flashes outside the product's
+  own window (± 2 min) are dropped and counted; more than 10 % outside refuses the
+  product. Only flashes inside `polling_bbox_v1` leave the child.
+- `server/src/core/lightning/` — each product becomes one small decoded record
+  (`lightning/mtg-li/lfl/<YYYYMMDD>/<window end>.json` + canonical-JSON provenance
+  sidecar: product id, md5, raw sha256, counts, `available_at`); the last **6 h** are merged
+  into `overlays/lightning/current.json` (sha256 sidecar). **Raw full-disc bytes are not
+  stored** (~220 kB per product, ~32 MB/day): the product id makes them re-fetchable
+  from the EUMETSAT archive.
+- `GET /overlays/lightning/recent.json` — ETag from the served bytes, `max-age=60`,
+  per-IP limit, no query strings, flashes clipped to the served box; **503 when the
+  newest covered minute is more than 45 min old**, because an empty map from a stopped
+  pipeline would read as "no storms".
+- Cadence every **5 min** (two chances per 10-min product). Search is keyless; the token
+  is asked for only when there is something new to download.
+- Web: the Layers panel toggle `lightning` (`ov=lightning`) fetches the route (the
+  fixtures build reads `web/public/fixtures/lightning/recent.json`, a synthetic six-hour
+  window over Bulgaria) and draws one ringed circle per flash below every fire layer,
+  classed by age against the server-corrected clock (`web/src/core/lightning.ts`): yellow
+  `#facc15` < 15 min, white `#f8fafc` < 1 h, blue `#60a5fa` < 6 h, ring `#1e293b` — no red
+  or orange (CI-14). The panel shows the legend, an "as of" line from `covered_through`
+  (never the fetch time) and the EUMETSAT credit while the layer is on; the map corner
+  carries the same credit on the source while at least one flash is drawn (CI-13).
+
+**Status.** No EUMETSAT account exists yet, so **no real LFL product has been fetched or
+decoded**. The decoder is proven against a synthetic granule built from the §A.6 layout;
+the first real product must be decoded and its variable list compared before the layer is
+turned on in production (TASKS F18 done-when).
+
+**Founder decisions needed.**
+
+1. Create the EUMETSAT Data Store account (EXTERNAL-ACCOUNTS) and provide the consumer
+   key/secret; accept the Data Policy for the account.
+2. Attribution wording and placement: we reuse row 7 (`Contains modified EUMETSAT
+   Meteosat data [YEAR]`), shown in the Layers panel while the layer is on, on `/credits`
+   and in the route's `attribution`; as built, the map corner also carries it while
+   flashes are drawn. Confirm or drop the corner line.
+3. The six new `layers.lightning*` strings (en/bg) are in PENDING_FOUNDER_REVIEW.
+3. Framing: context only — "lightning recorded near here", never "caused by lightning".
+4. Age classes (15 min / 1 h / 6 h) and colours (white / yellow / blue — no red or orange,
+   CI-14).
+5. Whether to keep raw BODY files (32 MB/day) for replay instead of decoded records only.
+
+**Attribution.** Row 7 below; licence record `docs/licenses/eumetsat-mtg-li.md`.
 
 ---
 
@@ -578,13 +769,13 @@ licence text plus its retrieval date into `docs/licenses/` (09 §2.3.5).
 
 | # | Source / layer | Surface | Verbatim string | Authority |
 |---|---|---|---|---|
-| 1 | OpenStreetMap (basemap, place names) | map corner + `/credits`, **render** | `© OpenStreetMap contributors` — hyperlinked to `https://www.openstreetmap.org/copyright`; may collapse behind an "(i)" control only if the licence info stays reachable | OSMF Attribution Guidelines (09 §2.2.F) |
+| 1 | OpenStreetMap (basemap, place names, static hot-source mask — TASKS F16) | map corner + `/credits`, **render** | `© OpenStreetMap contributors` — hyperlinked to `https://www.openstreetmap.org/copyright`; may collapse behind an "(i)" control only if the licence info stays reachable | OSMF Attribution Guidelines (09 §2.2.F) |
 | 2 | OpenFreeMap / OpenMapTiles (beta tiles) | map corner, **render** while used | `OpenFreeMap © OpenMapTiles Data from OpenStreetMap` (the "OpenFreeMap" part is optional; the rest is not) | openfreemap.org (09 §2.2.G) |
 | 3 | Protomaps self-hosted build | map corner, **render** while used | Row 1 remains mandatory (the tileset is an ODbL *produced work*); `Protomaps` credit is requested, not required | Protomaps LICENSE_DATA (09 §2.2.G) |
 | 4 | NASA FIRMS / LANCE — acknowledgement | `/credits` + About, **render** | `We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS), part of NASA's Land, Atmosphere Near real-time Capability for Earth observations (LANCE) and NASA's Earth Science Data and Information System (ESDIS).` | FIRMS official citation (09 §2.2.A) |
 | 5 | NASA LANCE — redistribution disclaimer | `/credits`, linked from alert footers, **render** | `Due to the spatial resolution and other characteristics of these data, their use for tactical decision-making or informing about conditions at a local scale are not advised.` — paired with the "as is" clause: data `are provided "as is" and users bear all responsibility and liability for their use` | LANCE disclaimer, replication requested (09 §2.2.A) |
 | 6 | NASA GIBS / Worldview imagery | `/credits`, **render** while the layer ships | `We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS).` | GIBS citation guidance (verified 8/2026) |
-| 7 | EUMETSAT data (Meteosat/MTG products) | `/credits`, **render** | Policy pattern (Art. 6.3, verbatim): `[Contains modified] EUMETSAT [Meteosat/Metop] [data/product] [Year of publication or distribution]`. Our instantiation: `Contains modified EUMETSAT Meteosat data [YEAR]` | EUMETSAT Data Policy Art. 6.3 (09 §2.2.B) |
+| 7 | EUMETSAT data (Meteosat/MTG products; MTG LI lightning flashes, §F18) | `/credits` + the Layers panel while the lightning layer is on + `/overlays/lightning/recent.json` `attribution`, **render** | Policy pattern (Art. 6.3, verbatim): `[Contains modified] EUMETSAT [Meteosat/Metop] [data/product] [Year of publication or distribution]`. Our instantiation: `Contains modified EUMETSAT Meteosat data [YEAR]` | EUMETSAT Data Policy Art. 6.3 (09 §2.2.B) |
 | 8 | LSA SAF FRP-PIXEL (LSA-502 / LSA-509) | map corner short form + `/credits` long form, **render** | Map corner: `EUMETSAT LSA SAF`. Text/`/credits`: `Data source: EUMETSAT LSA SAF, FRP-PIXEL (LSA-502 / LSA-509)`. Figure form: `EUMETSAT LSA SAF [Product Acronym, Product Identifier]` | LSA SAF data-access pages (09 §2.2.C) |
 | 9 | Copernicus Sentinel data — modified (our normal case) | `/credits`, **render** | `Contains modified Copernicus Sentinel data [YEAR]` | Sentinel Data Legal Notice (09 §2.2.D) |
 | 10 | Copernicus Sentinel data — unmodified renders | `/credits` when applicable | `Copernicus Sentinel data [YEAR]` | Sentinel Data Legal Notice (09 §2.2.D) |
@@ -600,6 +791,9 @@ licence text plus its retrieval date into `docs/licenses/` (09 §2.3.5).
 | 20 | **Derivation sentence** (satisfies CC BY "indicate changes" for every row above, and keeps our output from reading as an official product) | `/credits` + About, **render** | `Fire events shown on this map are derived by [Product] from the sources above (clustering, filtering, enrichment). Errors and omissions are ours, not the data providers'.` | 09 §2.4; ADR-001 A1.4 |
 | 21 | EOX Sentinel-2 cloudless 2018+ | **not rendered — layer not shipped** (dropped, ADR-001 A1.3) | Recorded only so the layer cannot be re-added without the paid contract: `EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data [year])` | EOX licence page (09 §2.2.I) |
 | 22 | **ECMWF Open Data (IFS/AIFS) — *service* form** (our case: we compute from the fields and publish a derived product, we do not republish GRIB) | `/credits`, **render** whenever an ECMWF-derived value is shown; the Terms require the attribution be displayed **prominently**, so it may not sit behind a closed expander | All five components, together: `This service is based on data and products of the European Centre for Medium-Range Weather Forecasts (ECMWF)` + `Source www.ecmwf.int` + `This ECMWF data is published under a Creative Commons Attribution 4.0 International (CC BY 4.0). https://creativecommons.org/licenses/by/4.0/` + `ECMWF does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use.` + an indication that the material has been modified — **mandatory for us** (everything we publish from this feed is resampled or derived), wording **ours** because ECMWF dictates the obligation and not the sentence: `ECMWF data has been modified.` | ECMWF Terms of Use for Open Data Products, `https://apps.ecmwf.int/datasets/licences/general/` (retrieved 2026-08-15; pinned verbatim in `docs/licenses/ecmwf-open-data.md`) |
+| 23 | GeoNames gazetteer (place search, `web/src/assets/geodata/settlements.json`) | `/credits`, **render** | `Place names: GeoNames (geonames.org), CC BY 4.0` — hyperlinked to `https://www.geonames.org/`; **our chosen form** (GeoNames prescribes no sentence); CI-13 asserts `GeoNames` | GeoNames export readme, CC BY 4.0 (retrieved 2026-09-28; `docs/licenses/geonames.md`) |
+| 24 | Natural Earth admin-1 (region filter, `web/src/assets/geodata/oblasts.json`) | `/credits`, render — **requested, not required** (public domain) | `Made with Natural Earth.` | naturalearthdata.com terms of use (retrieved 2026-09-28; `docs/licenses/natural-earth.md`) |
+| 25 | CelesTrak GP orbital elements (satellite-pass predictions, §F15) | `/credits` + the Layers panel's pass section + the swath layer (panel line and map corner, while it is on), render — **requested, not required** (no licence or terms page found; citation asked for) | `Orbital elements: CelesTrak (celestrak.org)` — hyperlinked to `https://celestrak.org/`; **our chosen form** (CelesTrak prescribes no sentence); `credits.ts` id `celestrak` | CelesTrak GP data documentation, `https://celestrak.org/NORAD/documentation/gp-data-formats.php` (retrieved 2026-09-30; `docs/licenses/celestrak.md`) |
 
 Assembled map-corner line (09 §2.4, unchanged in substance; the DEM sentences live on
 `/credits` because they do not fit a map corner):
@@ -612,7 +806,7 @@ Contains modified Copernicus Sentinel data & Service information [YEAR] | Terrai
 **Strings still to be pinned at integration** — CC BY sources whose exact wording is not
 yet verified against the provider, so they are *not* in CI-13's assertion set until the
 adapter lands and `docs/licenses/` is populated: ESA WorldCover, CLC+/CORINE, GHSL
-GHS-POP/GHS-BUILT, GeoNames, CLMS SWI/SSM, GPM IMERG, CAMS. UNVERIFIED — each must be
+GHS-POP/GHS-BUILT, CLMS SWI/SSM, GPM IMERG, CAMS. UNVERIFIED — each must be
 copied verbatim from the provider at integration time and added to this table in the
 same PR as the adapter.
 

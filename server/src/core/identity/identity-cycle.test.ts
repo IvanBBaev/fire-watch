@@ -20,7 +20,14 @@
  * and snapshots itself around a batch so a throwing batch leaves nothing behind.
  */
 
-import { scoreBucket, type LifecycleState, type SourceId } from '@fire-watch/contracts';
+import {
+  STATIC_SOURCE_FORMAT,
+  STATIC_SOURCE_KINDS,
+  parseStaticSourceMask,
+  scoreBucket,
+  type LifecycleState,
+  type SourceId,
+} from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { CLUSTERING_PARAMS } from '../clustering/clustering-params.js';
@@ -34,11 +41,13 @@ import type {
   BatchWrite,
   ClusteringRun,
   ClusteringStore,
+  EventScore,
   PendingBatch,
   PendingBatchQuery,
   StoredCarry,
   StoredCluster,
   StoredMember,
+  StaticSourceStamp,
   StoredTickEvent,
   TickTransaction,
 } from '../ports/clustering-store.js';
@@ -53,7 +62,13 @@ import {
 } from '../replay/fixture-format.js';
 import { identityEngine } from '../replay/identity-engine.js';
 import { runReplay, type ReplayEvent } from '../replay/runner.js';
+import type { ScoringDetection } from '../scoring/features.js';
 import { scoreEvent } from '../scoring/score.js';
+import {
+  STATIC_SOURCE_POLICY,
+  staticSourceEvaluator,
+  type StaticSourceEvaluator,
+} from '../static-sources/static-source-policy.js';
 import { LIVE_SCORE_CONTEXT } from './event-scores.js';
 import { MAX_TICK_WINDOW_MS, runIdentityCycle, tickWindowStart } from './identity-cycle.js';
 
@@ -67,6 +82,8 @@ interface DetectionSpec {
   readonly acq: string;
   readonly lat?: string;
   readonly lon: string;
+  /** Night unless said otherwise — the static-source quarantine reads it. */
+  readonly dayNight?: 'D' | 'N';
 }
 
 interface PollSpec {
@@ -96,7 +113,36 @@ interface FakeEvent {
   /** `null` until the first batch that rewrites this event's aggregates scores it. */
   score: number | null;
   scoreParamsVersion: string | null;
+  invalidated: boolean;
+  invalidatedReason: string | null;
+  staticSource: StaticSourceStamp | null;
   seq: number;
+}
+
+/**
+ * The SQL's `STICKY_INVALIDATION`: curation's invalidations stay, the two static-source
+ * reasons follow the latest verdict.
+ */
+function stickyInvalidation(event: FakeEvent): boolean {
+  return (
+    event.invalidated &&
+    event.invalidatedReason !== 'static_source' &&
+    event.invalidatedReason !== 'suspected_static_source'
+  );
+}
+
+/** The SQL's `STATIC_SOURCE_INVALIDATION` rule, verbatim. */
+function applyVerdict(event: FakeEvent, score: EventScore): void {
+  if (!stickyInvalidation(event)) {
+    if (score.invalidated) {
+      event.invalidated = true;
+      event.invalidatedReason = score.invalidatedReason;
+    } else if (event.invalidated) {
+      event.invalidated = false;
+      event.invalidatedReason = null;
+    }
+  }
+  event.staticSource = score.staticSource;
 }
 
 interface FakeClusterRow {
@@ -111,6 +157,7 @@ interface FakeClusterRow {
 interface FakeRow {
   readonly detection: ClusteringDetection;
   readonly frpMw: number | null;
+  readonly dayNight: 'D' | 'N';
 }
 
 interface FakeState {
@@ -157,6 +204,7 @@ class FakeStore implements ClusteringStore {
     for (const spec of poll.detections) {
       this.state.rows.set(uid(spec.n), {
         frpMw,
+        dayNight: spec.dayNight ?? 'N',
         detection: {
           detectionUid: uid(spec.n),
           source: SOURCE,
@@ -246,6 +294,26 @@ class FakeStore implements ClusteringStore {
     };
   }
 
+  /** Every fake row carries the replay's constants (nominal), and its own day/night flag. */
+  private scoringRow(detectionUid: string): ScoringDetection {
+    const row = this.state.rows.get(detectionUid);
+    if (row === undefined) throw new Error(`no row ${detectionUid}`);
+    const d = row.detection;
+    return {
+      detectionUid: d.detectionUid,
+      source: d.source,
+      acqTsIso: d.acqTsIso,
+      latCanonical: d.latCanonical,
+      lonCanonical: d.lonCanonical,
+      confidence: 'nominal',
+      dayNight: row.dayNight,
+      frpMw: row.frpMw,
+      scanKm: d.scanKm,
+      trackKm: d.trackKm,
+      overOrAdjacentToWater: null,
+    };
+  }
+
   private assigned(): Set<string> {
     const all = new Set<string>();
     for (const event of this.state.events.values()) for (const m of event.members) all.add(m);
@@ -323,27 +391,14 @@ class FakeStore implements ClusteringStore {
       },
       loadScoringDetections: async (keys) => {
         await yieldTurn();
-        // Every fake row carries the replay's constants (nominal, night) so that the live
+        // Every fake row carries the replay's constant confidence (nominal) so that the live
         // bucket and `replayOf`'s bucket of the same member set can be compared.
         return keys.map((key) => {
           const row = s().rows.get(key.detectionUid);
           if (row === undefined || row.detection.acqTsIso !== key.acqTsIso) {
             throw new Error(`no scoring row ${key.detectionUid}`);
           }
-          const d = row.detection;
-          return {
-            detectionUid: d.detectionUid,
-            source: d.source,
-            acqTsIso: d.acqTsIso,
-            latCanonical: d.latCanonical,
-            lonCanonical: d.lonCanonical,
-            confidence: 'nominal' as const,
-            dayNight: 'N' as const,
-            frpMw: row.frpMw,
-            scanKm: d.scanKm,
-            trackKm: d.trackKm,
-            overOrAdjacentToWater: null,
-          };
+          return this.scoringRow(key.detectionUid);
         });
       },
       applyBatch: async (write) => {
@@ -389,6 +444,9 @@ class FakeStore implements ClusteringStore {
         members: new Set(),
         score: null,
         scoreParamsVersion: null,
+        invalidated: false,
+        invalidatedReason: null,
+        staticSource: null,
         seq: ++s.seq,
       });
     }
@@ -445,6 +503,7 @@ class FakeStore implements ClusteringStore {
       expect(score?.publicId).toBe(update.publicId);
       event.score = score?.score ?? null;
       event.scoreParamsVersion = score?.paramsVersion ?? null;
+      if (score !== undefined) applyVerdict(event, score);
       // One bump for members, aggregates and score together — as the SQL trigger does.
       event.seq = ++s.seq;
     }
@@ -461,7 +520,9 @@ class FakeStore implements ClusteringStore {
         await yieldTurn();
         const out: StoredTickEvent[] = [];
         for (const event of s().events.values()) {
-          if (event.mergedInto !== null || event.members.size === 0) continue;
+          if (event.mergedInto !== null || event.members.size === 0 || event.invalidated) {
+            continue;
+          }
           if (
             event.status === 'archived' &&
             epochMsFromIso(event.lastDetectionAtIso) < activeSince
@@ -504,6 +565,48 @@ class FakeStore implements ClusteringStore {
           event.geoWeightSpent = carry.geoWeightSpent;
           event.blindSinceMs = carry.blindSinceMs;
           event.seenDetectionAtMs = carry.seenDetectionAtMs;
+        }
+      },
+      loadStaticSourceStale: async (query) => {
+        await yieldTurn();
+        const stale = [...s().events.values()]
+          .filter(
+            (e) =>
+              e.mergedInto === null &&
+              e.members.size > 0 &&
+              !stickyInvalidation(e) &&
+              (e.status !== 'archived' ||
+                epochMsFromIso(e.lastDetectionAtIso) >= query.activeSince) &&
+              (e.staticSource?.maskVersion !== query.maskVersion ||
+                e.staticSource.policyVersion !== query.policyVersion),
+          )
+          .sort((a, b) => (a.publicId < b.publicId ? -1 : 1))
+          .slice(0, query.limit);
+        return stale.map((e) => ({
+          publicId: e.publicId,
+          rows: [...e.members]
+            .map((m) => this.scoringRow(m))
+            .sort((a, b) =>
+              a.acqTsIso === b.acqTsIso
+                ? a.detectionUid < b.detectionUid
+                  ? -1
+                  : 1
+                : a.acqTsIso < b.acqTsIso
+                  ? -1
+                  : 1,
+            ),
+        }));
+      },
+      applyStaticSourceVerdicts: async (scores) => {
+        await yieldTurn();
+        for (const score of scores) {
+          const event = s().events.get(score.publicId);
+          if (event === undefined) throw new Error(`verdict for unknown ${score.publicId}`);
+          const was = [event.score, event.invalidated];
+          event.score = score.score;
+          event.scoreParamsVersion = score.paramsVersion;
+          applyVerdict(event, score);
+          if (was[0] !== event.score || was[1] !== event.invalidated) event.seq = ++s().seq;
         }
       },
       markTicked: async (atMs) => {
@@ -602,14 +705,34 @@ function replayOf(clockStart: string, polls: readonly PollSpec[]): unknown[] {
     .sort((a, b) => (a.publicId < b.publicId ? -1 : 1));
 }
 
-function deps(store: FakeStore, clock: VirtualClock, maxBatchesPerCycle = 16) {
+function deps(
+  store: FakeStore,
+  clock: VirtualClock,
+  maxBatchesPerCycle = 16,
+  staticSources?: StaticSourceEvaluator,
+) {
   return {
     store,
     clock,
     config: CLUSTERING_PARAMS,
     predictor: staticPassPredictor(),
     maxBatchesPerCycle,
+    ...(staticSources === undefined ? {} : { staticSources }),
   };
+}
+
+/** A mask of one flare node at (`lon`, 41.86) — the fake's default latitude. */
+function flareAt(version: string, lon: number): StaticSourceEvaluator {
+  const mask = parseStaticSourceMask({
+    format: STATIC_SOURCE_FORMAT,
+    version,
+    licence: 'ODbL-1.0',
+    attribution: '© OpenStreetMap contributors',
+    scale: 10_000,
+    kinds: [...STATIC_SOURCE_KINDS],
+    sources: [[STATIC_SOURCE_KINDS.indexOf('flare'), Math.round(lon * 10_000), 418_600]],
+  });
+  return staticSourceEvaluator(mask, STATIC_SOURCE_POLICY, CLUSTERING_PARAMS.values.metric);
 }
 
 /** One cycle per poll, the clock at the poll's instant — how `runReplay` advances. */
@@ -776,6 +899,162 @@ describe('runIdentityCycle — the persisted D6 score', () => {
     expect(store.state.run?.lifecycleTickedAtMs).toBe(epochMsFromIso('2026-08-15T03:00:00Z'));
     // ...and the four attaches really moved the score (more detections, more persistence).
     expect(scores.size).toBeGreaterThan(1);
+  });
+});
+
+describe('runIdentityCycle — the static-source verdict (TASKS F16)', () => {
+  const ON_FLARE: PollSpec = {
+    availableAt: '2026-08-05T03:10:00Z',
+    detections: [
+      { n: 1, acq: '2026-08-05T00:06:00Z', lon: '26.10000' },
+      { n: 2, acq: '2026-08-05T00:06:00Z', lon: '26.10300' },
+    ],
+  };
+
+  function only(store: FakeStore): FakeEvent {
+    const events = [...store.state.events.values()].filter((e) => e.mergedInto === null);
+    expect(events).toHaveLength(1);
+    return events[0] as FakeEvent;
+  }
+
+  it('the tick re-judges a quiet event when the mask changes, both ways', async () => {
+    const store = new FakeStore();
+    const clock = new VirtualClock('2026-08-05T03:00:00Z');
+    store.ingest(ON_FLARE);
+    clock.set(ON_FLARE.availableAt);
+    await runIdentityCycle(deps(store, clock));
+    const event = only(store);
+    const formula = event.score;
+    expect(formula).toBeGreaterThan(0);
+    expect(event.staticSource).toBeNull();
+
+    // A deploy loads a mask with a flare under the event: no new detection, yet the sweep
+    // finds it (its stamp says "never judged") and applies the override.
+    clock.set('2026-08-05T04:00:00Z');
+    const first = await runIdentityCycle(deps(store, clock, 16, flareAt('a', 26.1)));
+    expect(first.tick).toMatchObject({ staticSourcesSwept: 1, staticSourcesLimitReached: false });
+    expect(event).toMatchObject({
+      score: 0,
+      invalidated: true,
+      invalidatedReason: 'static_source',
+      staticSource: {
+        verdict: 'static_source',
+        maskVersion: 'a',
+        policyVersion: STATIC_SOURCE_POLICY.version,
+      },
+    });
+    const seq = event.seq;
+
+    // Same versions: nothing is stale, nothing is written.
+    clock.set('2026-08-05T05:00:00Z');
+    const again = await runIdentityCycle(deps(store, clock, 16, flareAt('a', 26.1)));
+    expect(again.tick.staticSourcesSwept).toBe(0);
+    expect(event.seq).toBe(seq);
+
+    // A corrected mask drops the flare: the next sweep releases the event, formula back.
+    clock.set('2026-08-05T06:00:00Z');
+    const fixed = await runIdentityCycle(deps(store, clock, 16, flareAt('b', 27)));
+    expect(fixed.tick.staticSourcesSwept).toBe(1);
+    expect(event).toMatchObject({
+      score: formula,
+      invalidated: false,
+      invalidatedReason: null,
+      staticSource: { verdict: 'clear', maskVersion: 'b' },
+    });
+    expect(event.seq).toBeGreaterThan(seq);
+  });
+
+  it('a detection off the mask releases the override (a fire next to a flare is shown)', async () => {
+    const store = new FakeStore();
+    const clock = new VirtualClock('2026-08-05T03:00:00Z');
+    const evaluator = flareAt('a', 26.1);
+    store.ingest(ON_FLARE);
+    clock.set(ON_FLARE.availableAt);
+    await runIdentityCycle(deps(store, clock, 16, evaluator));
+    const event = only(store);
+    expect(event.invalidatedReason).toBe('static_source');
+
+    const spread: PollSpec = {
+      availableAt: '2026-08-05T15:10:00Z',
+      detections: [{ n: 3, acq: '2026-08-05T12:06:00Z', lon: '26.11500' }],
+    };
+    store.ingest(spread);
+    clock.set(spread.availableAt);
+    await runIdentityCycle(deps(store, clock, 16, evaluator));
+    // Two members still sit on the flare, so the event keeps the caveat — but is shown.
+    expect(only(store)).toMatchObject({
+      invalidated: false,
+      invalidatedReason: null,
+      staticSource: { verdict: 'annotated' },
+    });
+    expect(only(store).score).toBeGreaterThan(0);
+  });
+
+  it('quarantines a day-only repeat and releases it on the first night detection', async () => {
+    const store = new FakeStore();
+    const clock = new VirtualClock('2026-08-01T00:00:00Z');
+    const evaluator = flareAt('a', 30); // nothing near: the quarantine needs no mask
+    const polls: PollSpec[] = [
+      {
+        availableAt: '2026-08-01T13:00:00Z',
+        detections: [
+          { n: 1, acq: '2026-08-01T10:40:00Z', lon: '26.10000', dayNight: 'D' },
+          { n: 2, acq: '2026-08-01T10:41:00Z', lon: '26.10100', dayNight: 'D' },
+        ],
+      },
+      {
+        availableAt: '2026-08-02T13:00:00Z',
+        detections: [{ n: 3, acq: '2026-08-02T10:40:00Z', lon: '26.10000', dayNight: 'D' }],
+      },
+    ];
+    for (const poll of polls) {
+      store.ingest(poll);
+      clock.set(poll.availableAt);
+      await runIdentityCycle(deps(store, clock, 16, evaluator));
+    }
+    const event = only(store);
+    expect(event.members.size).toBe(3);
+    expect(event).toMatchObject({
+      invalidated: true,
+      invalidatedReason: 'suspected_static_source',
+      staticSource: { verdict: 'suspected_static_source' },
+    });
+    // The quarantine keeps the formula's score (it is a suspicion, not the override).
+    expect(event.score).toBeGreaterThan(0);
+
+    const night: PollSpec = {
+      availableAt: '2026-08-03T03:00:00Z',
+      detections: [{ n: 4, acq: '2026-08-03T00:30:00Z', lon: '26.10000', dayNight: 'N' }],
+    };
+    store.ingest(night);
+    clock.set(night.availableAt);
+    await runIdentityCycle(deps(store, clock, 16, evaluator));
+    expect(only(store)).toMatchObject({
+      invalidated: false,
+      invalidatedReason: null,
+      staticSource: { verdict: 'clear' },
+    });
+  });
+
+  it('never releases curation: a sticky invalidation is neither swept nor rewritten', async () => {
+    const store = new FakeStore();
+    const clock = new VirtualClock('2026-08-05T03:00:00Z');
+    store.ingest(ON_FLARE);
+    clock.set(ON_FLARE.availableAt);
+    await runIdentityCycle(deps(store, clock));
+    const event = only(store);
+    event.invalidated = true;
+    event.invalidatedReason = 'curated_not_fire';
+    clock.set('2026-08-05T04:00:00Z');
+    const report = await runIdentityCycle(deps(store, clock, 16, flareAt('b', 27)));
+    expect(report.tick.staticSourcesSwept).toBe(0);
+    expect(event).toMatchObject({ invalidated: true, invalidatedReason: 'curated_not_fire' });
+  });
+
+  it('with no evaluator wired nothing is swept and no stamp is written', async () => {
+    const store = await live('2026-08-05T03:00:00Z', [ON_FLARE]);
+    expect(only(store).staticSource).toBeNull();
+    expect(only(store).invalidated).toBe(false);
   });
 });
 

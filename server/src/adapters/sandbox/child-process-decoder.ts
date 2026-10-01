@@ -36,7 +36,6 @@ import type {
   DecodeOutcome,
   DecodeResult,
   GranuleDecoder,
-  GranuleRef,
 } from '../../core/ports/granule-decoder.js';
 
 /**
@@ -78,6 +77,24 @@ const MAX_STDERR_TAIL_BYTES = 4 * 1024;
 const MAX_ERROR_CHARS = 500;
 const MAX_NAME_CHARS = 256;
 
+/**
+ * What the wall needs to know about the file it is handed: enough to address it in the
+ * child's environment, nothing more. A fire granule's `GranuleRef` is one; the
+ * lightning decoder (TASKS F18) passes its own, whose `source` is not a detection feed and
+ * whose `slotIso` is the product's `start/end` window. The wall never interprets either.
+ */
+export interface ChildDecoderRef {
+  readonly source: string;
+  readonly kind: string;
+  readonly slotIso: string;
+  readonly name: string;
+}
+
+/** A decoder behind the wall, for whatever ref type its child understands. */
+export interface ChildDecoder<R extends ChildDecoderRef> {
+  decode(ref: R, bytes: Uint8Array): Promise<DecodeResult>;
+}
+
 export interface ChildProcessDecoderOptions {
   /** The executable. Resolved through PATH by the OS, never by a shell. */
   readonly command: string;
@@ -101,13 +118,19 @@ export interface ChildProcessDecoderOptions {
  * exit code is 0 for a payload, {@link DECODER_REFUSED_EXIT} for a refusal, anything else
  * for a death.
  */
-export function createChildProcessDecoder(options: ChildProcessDecoderOptions): GranuleDecoder {
+export function createChildProcessDecoder(options: ChildProcessDecoderOptions): GranuleDecoder;
+export function createChildProcessDecoder<R extends ChildDecoderRef>(
+  options: ChildProcessDecoderOptions,
+): ChildDecoder<R>;
+export function createChildProcessDecoder(
+  options: ChildProcessDecoderOptions,
+): ChildDecoder<ChildDecoderRef> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const killGraceMs = options.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
 
   return {
-    decode(ref: GranuleRef, bytes: Uint8Array): Promise<DecodeResult> {
+    decode(ref: ChildDecoderRef, bytes: Uint8Array): Promise<DecodeResult> {
       return new Promise<DecodeResult>((resolve) => {
         const startedAt = performance.now();
         const stdout: Buffer[] = [];
@@ -269,7 +292,7 @@ export function createChildProcessDecoder(options: ChildProcessDecoderOptions): 
  * absent — which is what makes this safe against a secret nobody has invented yet.
  */
 export function childEnv(
-  ref: GranuleRef,
+  ref: ChildDecoderRef,
   extra: Readonly<Record<string, string>> = {},
 ): Record<string, string> {
   const env: Record<string, string> = {};

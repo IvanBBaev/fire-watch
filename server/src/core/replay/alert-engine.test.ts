@@ -20,6 +20,12 @@
  * in August, so no `defer` below is an accident of the hour someone happened to pick.
  */
 
+import {
+  STATIC_SOURCE_FORMAT,
+  STATIC_SOURCE_KINDS,
+  parseStaticSourceMask,
+  type StaticSourceMask,
+} from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { ALERT_GATING, type AlertGatingParams } from '../config/alert-gating.js';
@@ -72,6 +78,7 @@ interface FixtureSpec {
   readonly batches: readonly BatchSpec[];
   readonly zones: readonly FixtureZone[];
   readonly scores: readonly FixtureScore[];
+  readonly staticSources?: StaticSourceMask;
 }
 
 interface ZoneSpec {
@@ -116,6 +123,7 @@ function makeFixture(spec: FixtureSpec): ReplayFixture {
     declarations: [],
     zones: spec.zones,
     scores: spec.scores,
+    staticSources: spec.staticSources ?? null,
   };
 
   const manifest = parseFixtureManifest(
@@ -616,5 +624,31 @@ describe('a reignition link is a parent chain too', () => {
     expect(
       pushesAt(report, '2026-08-09T10:00:00Z').filter((alert) => alert.publicId === child.publicId),
     ).toHaveLength(1);
+  });
+});
+
+describe('the static-source invalidation (TASKS F16)', () => {
+  it('suppresses an event the identity engine labelled static_source as invalidated', () => {
+    const flareAt = (lonE4: number): StaticSourceMask =>
+      parseStaticSourceMask({
+        format: STATIC_SOURCE_FORMAT,
+        version: 'osm-2026-09-30',
+        licence: 'ODbL-1.0',
+        attribution: '© OpenStreetMap contributors',
+        scale: 10_000,
+        kinds: [...STATIC_SOURCE_KINDS],
+        sources: [[STATIC_SOURCE_KINDS.indexOf('flare'), lonE4, 418_600]],
+      });
+    const pinned = {
+      ...PINNED,
+      static_source_policy: 'static_source_policy_v2',
+      static_source_mask: 'osm-2026-09-30',
+    };
+
+    const clear = replay({ ...oneFire, configVersions: pinned, staticSources: flareAt(270_000) });
+    const onFlare = replay({ ...oneFire, configVersions: pinned, staticSources: flareAt(261_000) });
+    // Same fire, same zone, same score: only the mask moves the reason.
+    expect(clear.alerts.map((a) => a.reason)).toEqual(['pre_existing_event']);
+    expect(onFlare.alerts.map((a) => [a.outcome, a.reason])).toEqual([['suppress', 'invalidated']]);
   });
 });

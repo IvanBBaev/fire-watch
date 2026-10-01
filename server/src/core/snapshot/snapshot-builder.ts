@@ -32,6 +32,13 @@ import type {
  * byte-for-byte duplicate of the public id, kept only because the web store keyed on it.
  * A v1 parser requires `uuid`, so a v1 bundle would reject a v2 body; the bump moves the
  * ETag so no cache can validate a v1 representation against a v2 client or vice versa.
+ *
+ * Not bumped for `properties.source_ids` (2026-09-30, Track F): the member is additive and
+ * every v2 parser ignores properties it does not read, so no deployed bundle rejects the
+ * new body. The one cost is a cache still holding a pre-`source_ids` body under the same
+ * `"v2-<max_seq>"` tag — it revalidates until the next `seq` moves, and meanwhile the web
+ * counts those events as "sources not reported", which is the fail-open it was built for.
+ * A bump would have bought nothing but a cold cache on every tier.
  */
 export const SNAPSHOT_SCHEMA_VERSION = 2;
 
@@ -63,6 +70,14 @@ export interface EventFeaturePropertiesOf<M extends string | null> {
   readonly area_ha: null;
   /** Null until the pass predictor is wired into the read path; renders "unknown". */
   readonly next_pass_window: null;
+  /**
+   * The source-registry ids of the sensors whose detections make up the event, sorted by
+   * code unit and deduplicated (additive in schema v2, Track F source filter). `null` when
+   * the store recorded no mix — "not reported", never "no sensor": the client's source
+   * filter fails open on it. On the stream it is the whole set as of this `seq`, so a
+   * delta that adds a sensor replaces the list rather than appending to it.
+   */
+  readonly source_ids: readonly string[] | null;
 }
 
 export interface EventFeatureOf<M extends string | null> {
@@ -191,6 +206,20 @@ export function eventFeature<M extends string | null>(
       place_name_en: row.nearestPlace?.name_en ?? '',
       area_ha: null,
       next_pass_window: null,
+      source_ids: canonicalSourceIds(row.sourceIds),
     },
   };
+}
+
+/**
+ * The wire form of a row's source ids: deduplicated, sorted by code unit (never by locale,
+ * which would make the bytes depend on the host), and `null` for an empty or unrecorded
+ * set. Done here rather than trusted from the reader because this module owns the bytes:
+ * a snapshot member and a stream delta for the same row must be identical (D3 rule 2),
+ * whatever order an adapter happened to hand the ids over in.
+ */
+export function canonicalSourceIds(ids: readonly string[] | null): readonly string[] | null {
+  if (ids === null) return null;
+  const sorted = [...new Set(ids)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return sorted.length === 0 ? null : sorted;
 }

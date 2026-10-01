@@ -1,0 +1,125 @@
+{
+  "type": "FeatureCollection",
+  "totalResults": 2,
+  "itemsPerPage": 5,
+  "startIndex": 0,
+  "id": "https://api.eumetsat.int/data/search-products/1.0.0/os?pi=EO:EUM:DAT:0691&dtstart=2026-09-30T12%3A00%3A00Z&dtend=2026-09-30T12%3A30%3A00Z&si=0&c=5&",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000",
+      "properties": {
+        "identifier": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000",
+        "parentIdentifier": "EO:EUM:DAT:0691",
+        "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000",
+        "date": "2026-09-30T12:20:09Z/2026-09-30T12:30:09Z",
+        "updated": "2026-09-30T12:30:47.877Z",
+        "productInformation": {
+          "productType": "MTILI2LFL",
+          "size": 222
+        },
+        "extraInformation": {
+          "md5": "041c99be56e84090dfd04b9ade629e3a"
+        },
+        "links": {
+          "sip-entries": [
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000/entry?name=W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--CHK-BODY--ARC-NC4E_C_EUMT_20260930123025_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0001.nc",
+              "mediaType": "application/x-netcdf",
+              "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--CHK-BODY--ARC-NC4E_C_EUMT_20260930123025_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0001.nc"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000/entry?name=W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930123025_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0001.jpg",
+              "mediaType": "image/jpeg",
+              "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930123025_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0001.jpg"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000/entry?name=manifest.xml",
+              "mediaType": "application/xml",
+              "title": "manifest.xml"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000/entry?name=W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--CHK-TRAIL--ARC-NC4E_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0002.nc",
+              "mediaType": "application/x-netcdf",
+              "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--CHK-TRAIL--ARC-NC4E_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0002.nc"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000/entry?name=quicklooks%2FW_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930123025_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0001.png",
+              "mediaType": "image/png",
+              "title": "quicklooks/W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930123025_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0001.png"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930123028_L2PF_OPE_20260930122009_20260930123009_N__O_0075_0000/entry?name=EOPMetadata.xml",
+              "mediaType": "application/xml",
+              "title": "EOPMetadata.xml"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000",
+      "properties": {
+        "identifier": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000",
+        "parentIdentifier": "EO:EUM:DAT:0691",
+        "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000",
+        "date": "2026-09-30T12:10:09Z/2026-09-30T12:20:09Z",
+        "updated": "2026-09-30T12:20:45.765Z",
+        "productInformation": {
+          "productType": "MTILI2LFL",
+          "size": 221
+        },
+        "extraInformation": {
+          "md5": "962dbc3bffb0475e317b2293c5e65bdd"
+        },
+        "links": {
+          "sip-entries": [
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000/entry?name=W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--CHK-TRAIL--ARC-NC4E_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0002.nc",
+              "mediaType": "application/x-netcdf",
+              "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--CHK-TRAIL--ARC-NC4E_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0002.nc"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000/entry?name=W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930122027_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0001.jpg",
+              "mediaType": "image/jpeg",
+              "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930122027_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0001.jpg"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000/entry?name=manifest.xml",
+              "mediaType": "application/xml",
+              "title": "manifest.xml"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000/entry?name=quicklooks%2FW_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930122027_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0001.png",
+              "mediaType": "image/png",
+              "title": "quicklooks/W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--QCK-IMAGE--ARC-PNG_C_EUMT_20260930122027_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0001.png"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000/entry?name=EOPMetadata.xml",
+              "mediaType": "application/xml",
+              "title": "EOPMetadata.xml"
+            },
+            {
+              "type": "Link",
+              "href": "https://api.eumetsat.int/data/download/1.0.0/collections/EO%3AEUM%3ADAT%3A0691/products/W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--x-x--ARC-x_C_EUMT_20260930122029_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0000/entry?name=W_XX-EUMETSAT-Darmstadt%2CIMG%2BSAT%2CMTI1%2BLI-2-LFL--FD--CHK-BODY--ARC-NC4E_C_EUMT_20260930122027_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0001.nc",
+              "mediaType": "application/x-netcdf",
+              "title": "W_XX-EUMETSAT-Darmstadt,IMG+SAT,MTI1+LI-2-LFL--FD--CHK-BODY--ARC-NC4E_C_EUMT_20260930122027_L2PF_OPE_20260930121009_20260930122009_N__O_0074_0001.nc"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

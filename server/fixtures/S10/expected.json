@@ -1,0 +1,61 @@
+{
+  "fixtureId": "S10",
+  "mode": "live",
+  "configVersions": {
+    "clustering_params": "clustering_params_v1",
+    "lifecycle_params": "lifecycle_params_v1",
+    "pass_table": "pass_table_v0",
+    "score_params": "score_params_v0",
+    "sources": "source_registry_v1",
+    "alert_gating": "alert_gating_v1",
+    "digest_params": "digest_params_v1",
+    "static_source_policy": "static_source_policy_v2",
+    "static_source_mask": "osm-fixture-s10"
+  },
+  "batches": [
+    {
+      "name": "poll-01.json",
+      "detections": 1
+    },
+    {
+      "name": "poll-02.json",
+      "detections": 2
+    }
+  ],
+  "events": [
+    {
+      "publicId": "fw-2026-0nzcg",
+      "status": "active",
+      "displayTier": "map",
+      "bucket": "likely",
+      "detectionUids": [
+        "a750c2881765044df9e15226178e4e02784fa453afc2edfd96aad5918478c51a",
+        "d216246fdf226c178f11b798d6846a5940b712611bde43b9954ff9bd77e5ebdb",
+        "f85e036a4c0ecbb8779c5909d4ed7e474c2f9a464e8125c303e9cf4f406c7548"
+      ],
+      "mergedInto": null,
+      "relation": null,
+      "labels": ["suspected_static_source"]
+    }
+  ],
+  "alerts": [
+    {
+      "zoneId": "zone-farm",
+      "publicId": "fw-2026-0nzcg",
+      "outcome": "suppress",
+      "reason": "insufficient_persistence",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-12T11:30:00Z"
+    },
+    {
+      "zoneId": "zone-farm",
+      "publicId": "fw-2026-0nzcg",
+      "outcome": "suppress",
+      "reason": "invalidated",
+      "alertType": null,
+      "alertSubkey": null,
+      "atIso": "2026-08-13T12:10:00Z"
+    }
+  ]
+}

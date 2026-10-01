@@ -8,6 +8,7 @@
     { "path": "./web/budgets" },
     { "path": "./infra/deploy-gate" },
     { "path": "./infra/tiles" },
+    { "path": "./infra/geodata" },
     { "path": "./loadtest" },
     { "path": "./infra/status" }
   ]

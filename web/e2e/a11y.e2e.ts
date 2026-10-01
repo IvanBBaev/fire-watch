@@ -662,11 +662,14 @@ describe.each(LEGS)('CI-18 layout floors — $name', (leg: Leg) => {
  *
  * The bound is a number, not "eventually": a list that is thirty stops down the order is
  * reachable in the same sense that a fire is survivable. This build reaches the first row
- * on stop 15 with WebGL denied — five header links, MapLibre's canvas and its attribution
+ * on stop 16 with WebGL denied — five header links, MapLibre's canvas and its attribution
  * `<summary>` (third-party DOM inside the exempt pane, focusable even with no context),
- * two map controls, the sheet handle and the four age-window buttons. Twenty is that
- * measurement plus headroom for one more control; a surface that pushes the list past it
- * fails, and the failure prints the walk so the regression names itself.
+ * three map controls (home view, my location, layers — the layers panel itself is hidden
+ * until opened, so its options are not stops), the sheet handle, the place search box and
+ * the three filter selects (period, sensor, region). The new-signals group adds no stop
+ * while it is empty, as it is on a first visit. Twenty is that measurement plus headroom
+ * for a few more controls; a surface that pushes the list past it fails, and the failure
+ * prints the walk so the regression names itself.
  */
 describe('CI-18 — the list view is reachable without the map', () => {
   const leg = LEGS[1];

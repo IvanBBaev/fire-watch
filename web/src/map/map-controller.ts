@@ -19,11 +19,17 @@ import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 // never lands in the entry chunk.
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
+import type { StaticSourceMask } from '@fire-watch/contracts';
+
 import { boundsContain } from '../core/geo/viewport.js';
 import type { MapCamera, MapViewport } from '../core/geo/viewport.js';
+import type { LightningDraw } from '../core/lightning.js';
+import type { PassSwathsDraw } from '../core/pass-swaths.js';
+import type { WindOverlayBody } from '../core/wind.js';
 import { isWithinCutoff } from '../core/time/age-filter.js';
 import type {
   Detection,
+  EffisOverlayDraw,
   FireEvent,
   MapController,
   MapControllerDeps,
@@ -41,8 +47,13 @@ import {
   buildFireEventsCollection,
   parseDetectionsGeoJson,
 } from './geojson.js';
-import { formatMapHash, parseMapHash } from './hash.js';
+import { parseMapHash, withMapHash } from './hash.js';
+import { NO_EFFIS_OVERLAYS, applyEffisOverlays } from './effis-overlays.js';
 import { applyImageryLayer } from './imagery-layer.js';
+import { applyWindLayer } from './wind-layer.js';
+import { applyLightningLayer } from './lightning-layer.js';
+import { applyPassSwathsLayer } from './pass-swaths-layer.js';
+import { applyStaticSourcesLayer } from './static-sources-layer.js';
 import {
   FIRE_DETECTIONS_SOURCE_ID,
   FIRE_DETECTION_CELLS_SOURCE_ID,
@@ -126,8 +137,18 @@ export function createMapController(deps: MapControllerDeps): MapController {
   // The reader's time window as an absolute instant. Null until the shell sets one, so a
   // map that renders before the first tick shows everything rather than nothing.
   let ageCutoff: number | null = null;
+  let eventFilter: ((event: FireEvent) => boolean) | null = null;
   // The imagery raster the shell asked for (ADR-001 A2.3); null is the basemap alone.
   let imageryTilesUrl: string | null = null;
+  // The EFFIS context overlays the shell asked for (TASKS G4); none by default.
+  let effisOverlays: EffisOverlayDraw = NO_EFFIS_OVERLAYS;
+  // The F14 wind arrows the shell asked for; none by default.
+  let windOverlay: WindOverlayBody | null = null;
+  // The F16 static hot-source mask the shell asked for; none by default.
+  let staticSources: StaticSourceMask | null = null;
+  // The F15 satellite swaths the shell asked for; none by default.
+  let passSwaths: PassSwathsDraw | null = null;
+  let lightning: LightningDraw | null = null;
 
   const setSourceData = (sourceId: string, data: SourceData): void => {
     const source = map.getSource<GeoJSONSource>(sourceId);
@@ -212,6 +233,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
     for (const event of deps.store.state().events.values()) {
       if (event.status === 'archived') continue;
       if (event.id !== selectedId && !isWithinCutoff(event, ageCutoff)) continue;
+      if (event.id !== selectedId && eventFilter?.(event) === false) continue;
       if (!boundsContain(viewport, event.lon, event.lat)) continue;
       const dLon = event.lon - viewport.lon;
       const dLat = event.lat - viewport.lat;
@@ -307,7 +329,11 @@ export function createMapController(deps: MapControllerDeps): MapController {
     const state = deps.store.state();
     // The event collection is not frame-scoped — it is the held set, narrowed by the age
     // window and by the selection — so it is pushed whether or not a frame can be read.
-    lastFireEvents = buildFireEventsCollection(state, { cutoffMs: ageCutoff, keepId: selectedId });
+    lastFireEvents = buildFireEventsCollection(state, {
+      cutoffMs: ageCutoff,
+      keepId: selectedId,
+      predicate: eventFilter,
+    });
     setSourceData(FIRE_EVENTS_SOURCE_ID, lastFireEvents);
     pushDetections();
     syncDetections();
@@ -350,6 +376,16 @@ export function createMapController(deps: MapControllerDeps): MapController {
     reapplySelectedFeatureState();
     // A style swap drops the imagery raster; put it back if the shell still wants it.
     applyImageryLayer(map, imageryTilesUrl);
+    // And the EFFIS overlays, which sit between the imagery and the fire layers.
+    applyEffisOverlays(map, effisOverlays);
+    // And the satellite swaths, above the EFFIS overlays and below the wind arrows.
+    applyPassSwathsLayer(map, passSwaths);
+    // And the wind arrows, above the EFFIS overlays and below the fire layers.
+    applyWindLayer(map, windOverlay);
+    // And the static hot-source mask, above the EFFIS overlays and below the wind arrows.
+    applyStaticSourcesLayer(map, staticSources);
+    // And the lightning flashes (F18), directly below the fire layers.
+    applyLightningLayer(map, lightning);
   });
 
   map.once('idle', () => {
@@ -409,7 +445,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
     // Same rule as 'load': no frame, no fragment and no viewport handed on. A map that
     // cannot be measured also cannot be panned, so in practice this arm never runs.
     if (viewport !== null) {
-      history.replaceState(history.state, '', formatMapHash(viewport));
+      // Only the `map=` member: the filters' `t=`/`src=`/`r=` share the fragment.
+      history.replaceState(history.state, '', withMapHash(location.hash, viewport));
       deps.onViewportChange(viewport);
     }
     // A pan changes which events are in frame, which changes which detections to hold and
@@ -501,6 +538,12 @@ export function createMapController(deps: MapControllerDeps): MapController {
       throttle.request();
     },
 
+    setEventFilter(predicate: ((event: FireEvent) => boolean) | null): void {
+      if (predicate === eventFilter) return;
+      eventFilter = predicate;
+      throttle.request();
+    },
+
     setImagery(tilesUrl: string | null): void {
       if (tilesUrl === imageryTilesUrl) return;
       imageryTilesUrl = tilesUrl;
@@ -511,6 +554,61 @@ export function createMapController(deps: MapControllerDeps): MapController {
         applyImageryLayer(map, imageryTilesUrl);
       } catch {
         // Style not loaded yet: 'style.load' will apply `imageryTilesUrl`.
+      }
+    },
+
+    setEffisOverlays(overlays: EffisOverlayDraw): void {
+      if (overlays === effisOverlays) return;
+      effisOverlays = overlays;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyEffisOverlays(map, effisOverlays);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
+    setWindOverlay(wind: WindOverlayBody | null): void {
+      if (wind === windOverlay) return;
+      windOverlay = wind;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyWindLayer(map, windOverlay);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
+    setStaticSources(mask: StaticSourceMask | null): void {
+      if (mask === staticSources) return;
+      staticSources = mask;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyStaticSourcesLayer(map, staticSources);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
+    setPassSwaths(draw: PassSwathsDraw | null): void {
+      if (draw === passSwaths) return;
+      passSwaths = draw;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyPassSwathsLayer(map, passSwaths);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
+    setLightning(draw: LightningDraw | null): void {
+      if (draw === lightning) return;
+      lightning = draw;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyLightningLayer(map, lightning);
+      } catch {
+        // Style not loaded yet.
       }
     },
 

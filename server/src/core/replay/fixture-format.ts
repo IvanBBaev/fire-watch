@@ -33,7 +33,9 @@ import {
   CURATED_LIFECYCLE_STATES,
   assertSourceId,
   detectionUidPreimage,
+  parseStaticSourceMask,
   type CuratedLifecycleState,
+  type StaticSourceMask,
 } from '@fire-watch/contracts';
 
 import { CONFIG_VERSION_RE } from '../config/versioned-config.js';
@@ -210,6 +212,14 @@ function requireRelativeFile(value: string, key: string, origin: string): string
   return value;
 }
 
+/**
+ * The pin naming the static hot-source mask a fixture was authored against (TASKS F16, D7).
+ * It is an *asset* version (`osm-2026-09-30`, the OSM snapshot it was cut from), not a
+ * `name_vN` config version, so it is the one pin checked against a looser pattern.
+ */
+export const STATIC_SOURCE_MASK_PIN = 'static_source_mask';
+const ASSET_VERSION_RE = /^[a-z0-9][a-z0-9._-]*$/;
+
 export function parseFixtureManifest(raw: unknown, origin: string): FixtureManifest {
   const record = asRecord(raw, origin);
 
@@ -217,7 +227,8 @@ export function parseFixtureManifest(raw: unknown, origin: string): FixtureManif
   const configVersionsRecord = asRecord(configVersionsRaw, `${origin} configVersions`);
   const configVersions: Record<string, string> = {};
   for (const [name, version] of Object.entries(configVersionsRecord)) {
-    if (typeof version !== 'string' || !CONFIG_VERSION_RE.test(version)) {
+    const pattern = name === STATIC_SOURCE_MASK_PIN ? ASSET_VERSION_RE : CONFIG_VERSION_RE;
+    if (typeof version !== 'string' || !pattern.test(version)) {
       throw new FixtureFormatError(
         origin,
         `configVersions.${name} must look like clustering_params_v1, got ${JSON.stringify(version)}`,
@@ -410,6 +421,14 @@ export interface ObservationContext {
   readonly declarations: readonly FixtureDeclaration[];
   readonly zones: readonly FixtureZone[];
   readonly scores: readonly FixtureScore[];
+  /**
+   * The static hot-source mask this scenario ran against (TASKS F16), inline in the asset's
+   * own `fire-watch/static-sources@1` format, or `null` for "no mask loaded". Stated here
+   * rather than read from `server/assets/` because D7 is "the same mask version": a
+   * fixture that followed the repo's current asset would change meaning on every refresh.
+   * The engine additionally demands the version be pinned as `static_source_mask`.
+   */
+  readonly staticSources: StaticSourceMask | null;
 }
 
 /** What a fixture that names no observations file has. Shared, so it is never rebuilt. */
@@ -419,9 +438,17 @@ export const EMPTY_OBSERVATIONS: ObservationContext = Object.freeze({
   declarations: Object.freeze([]),
   zones: Object.freeze([]),
   scores: Object.freeze([]),
+  staticSources: null,
 });
 
-const OBSERVATION_KEYS = ['cloudCover', 'outages', 'declarations', 'zones', 'scores'] as const;
+const OBSERVATION_KEYS = [
+  'cloudCover',
+  'outages',
+  'declarations',
+  'zones',
+  'scores',
+  'staticSources',
+] as const;
 
 const HOUR_MS = 3_600_000;
 
@@ -480,7 +507,21 @@ export function parseObservationContext(raw: unknown, origin: string): Observati
     ),
     zones: Object.freeze(mapOptionalArray(record, 'zones', origin, parseFixtureZone)),
     scores: Object.freeze(mapOptionalArray(record, 'scores', origin, parseFixtureScore)),
+    staticSources: parseFixtureMask(record['staticSources'], origin),
   });
+}
+
+/** The inline mask, with the asset parser's own error re-attributed to the fixture file. */
+function parseFixtureMask(raw: unknown, origin: string): StaticSourceMask | null {
+  if (raw === undefined) return null;
+  try {
+    return parseStaticSourceMask(raw);
+  } catch (error) {
+    throw new FixtureFormatError(
+      origin,
+      `staticSources: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 /**

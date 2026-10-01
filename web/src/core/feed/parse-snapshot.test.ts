@@ -52,6 +52,12 @@ describe('parseSnapshot', () => {
       placeNameEn: 'Harmanli',
       areaHa: 320,
       nextPassWindow: null,
+      sourceIds: [
+        'eumetsat:slstr:frp',
+        'firms:viirs:noaa20',
+        'firms:viirs:snpp',
+        'lsasaf:seviri:frp-pixel',
+      ],
     });
   });
 

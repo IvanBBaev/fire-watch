@@ -41,6 +41,7 @@ function memberRow(overrides: Record<string, unknown> = {}): Record<string, unkn
     last_detection_at: new Date('2026-07-14T09:40:00Z'),
     detection_count: 7,
     nearest_place: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
+    source_mix: { 'firms:viirs:snpp': 5, 'firms:viirs:noaa20': 2 },
     ...overrides,
   };
 }
@@ -57,6 +58,7 @@ const EMPTY_MARKER = {
   last_detection_at: null,
   detection_count: null,
   nearest_place: null,
+  source_mix: null,
 };
 
 describe('the active-set statement', () => {
@@ -110,8 +112,32 @@ describe('decoding the active set', () => {
         lastDetectionAt: Date.parse('2026-07-14T09:40:00Z'),
         detectionCount: 7,
         nearestPlace: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
+        sourceIds: ['firms:viirs:snpp', 'firms:viirs:noaa20'],
       },
     ]);
+  });
+
+  it('reads the source mix as the sources with a positive count, and no mix as null', async () => {
+    const rows = [
+      memberRow({ source_mix: { 'firms:viirs:noaa21': 3, 'firms:modis': 0 } }),
+      memberRow({ public_id: 'b', seq: '1041', source_mix: {} }),
+      memberRow({ public_id: 'c', seq: '1042', source_mix: null }),
+      memberRow({ public_id: 'd', seq: '1043', source_mix: ['firms:modis'] }),
+      memberRow({ public_id: 'e', seq: '1044', source_mix: { 'firms:modis': 'many' } }),
+    ];
+    const read = await createPgSnapshotReader(fakeDb(rows)).readActiveSet(0);
+    expect(read.events.map((event) => event.sourceIds)).toEqual([
+      ['firms:viirs:noaa21'],
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('reads source_mix in the same statement as the members', () => {
+    // A second statement would let the source list describe a different seq than the row.
+    expect(SELECT_ACTIVE_SET).toMatch(/members\.source_mix/);
   });
 
   it('reads the empty marker as no events with the registry mark intact', async () => {

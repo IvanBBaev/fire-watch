@@ -311,6 +311,217 @@ button {
   text-align: end;
 }
 
+/* The Layers panel (TASKS G4). Hangs under the control row at the controls' own width cap,
+   so at 360 px or 200 % text it is the frame's width minus the gutter, never wider; a tall
+   panel scrolls inside itself rather than pushing the page. */
+.layers-panel {
+  box-sizing: border-box;
+  width: 20rem;
+  max-width: 100%;
+  max-height: min(70vh, 36rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.layers-panel[hidden] {
+  display: none;
+}
+
+.layers-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.layers-group + .layers-group {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.layers-group-title {
+  padding: 0;
+  font-weight: 600;
+}
+
+/* The whole row is the target: 44 px tall, the label text as wide as it needs to wrap. */
+.layers-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--tap-target);
+  cursor: pointer;
+}
+
+.layers-option input {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+}
+
+.layers-note,
+.layers-status,
+.layers-credit {
+  margin: 0 0 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.layers-status:empty {
+  display: none;
+}
+
+.layers-status span {
+  display: block;
+}
+
+.layers-legend-title {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.layers-legend ul {
+  margin: 0 0 0.25rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(8rem, 100%), 1fr));
+  gap: 0.125rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.layers-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* The provider's palette, bordered so the palest class still reads on a light panel. */
+.layers-swatch {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.125rem;
+}
+
+/* F15 swaths: a swatch beside a legend title, and one pass per row (long platform names). */
+.layers-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.layers-legend .layers-pass-list {
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
+
+.layers-credit {
+  margin-top: 0.5rem;
+}
+
+/* F15 satellite passes: the panel's own neutrals and link blue — never fire's red band. */
+.passes {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.passes-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.passes-note,
+.passes-status,
+.passes-target,
+.passes-computed,
+.passes-caveat,
+.passes-credit {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+}
+
+.passes-note,
+.passes-status,
+.passes-caveat,
+.passes-credit {
+  color: var(--color-text-muted);
+}
+
+.passes-credit {
+  margin-top: 0.5rem;
+}
+
+.passes-badge {
+  padding: 0 0.375rem;
+  border: 1px solid var(--color-link);
+  border-radius: 0.25rem;
+  background: var(--color-badge-bg);
+  color: var(--color-badge-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.passes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passes-platform {
+  padding: 0.25rem 0;
+}
+
+.passes-platform + .passes-platform {
+  border-top: 1px solid var(--color-border);
+}
+
+.passes-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.passes-times {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.passes-times dt {
+  color: var(--color-text-muted);
+}
+
+.passes-times dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* F17: forecast cloud per pass — neutral on purpose (CI-14); the word carries the level. */
+.pass-cloud {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.passes-credit + .pass-cloud-credit {
+  margin-top: 0;
+}
+
 /* Narrow: the panel is a bottom sheet over the map, its toggle the peeking handle. */
 .with-map .side-panel {
   position: absolute;
@@ -416,35 +627,114 @@ button {
 
 /* ---------- Event list ---------- */
 
-/* The time window picker: four options on one row where they fit, each still a full tap
-   target; at a large text size they wrap onto a second row rather than shrink below it. */
-.age-window {
+/* The filter bar: place search on its own row, then the three pickers side by side where
+   they fit. Each control is a full tap target; at 360 px and 200 % text they wrap onto
+   rows of their own instead of shrinking below it or scrolling sideways. */
+.filter-bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--color-border);
 }
 
-.age-window-option {
-  flex: 1;
+.filter-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filter-field {
+  display: flex;
+  flex: 1 1 7rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.filter-label {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.filter-select,
+.place-search-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   min-height: var(--tap-target);
-  padding: 0 0.25rem;
+  padding: 0 0.5rem;
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-bg);
-  color: var(--color-text-muted);
-  cursor: pointer;
+  color: var(--color-text);
   font: inherit;
   font-variant-numeric: tabular-nums;
 }
 
-/* Selection is carried by weight and border too — never by colour alone (WCAG 1.4.1). */
-.age-window-option.selected {
-  border-color: var(--color-focus);
+.filter-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.place-search {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.place-search-results {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  max-height: 60vh;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
   background: var(--color-bg-raised);
-  color: var(--color-text);
-  font-weight: 600;
+  list-style: none;
+}
+
+.place-search-results[hidden] {
+  display: none;
+}
+
+.place-search-option {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--tap-target);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+/* The active option is marked by an outline as well as the background — never by colour
+   alone (WCAG 1.4.1). */
+.place-search-option.active,
+.place-search-option:hover {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+  background: var(--color-bg);
+}
+
+.place-search-detail {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.place-search-status {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.place-search-status:empty {
+  display: none;
 }
 
 .event-list {
@@ -599,6 +889,40 @@ button {
 .settings-option input[type='radio'] {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+.settings-option input[type='checkbox'] {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* ---------- New since you last looked ---------- */
+
+/* A cue, not an alarm: neutral colours only (fire owns red, CI-14), no motion. */
+.new-signals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.side-panel > .new-signals:has(.new-signals-show) {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.new-signals-count {
+  margin: 0;
+  font-weight: 600;
+}
+
+.new-signals-count:empty {
+  display: none;
+}
+
+.new-signals-age {
+  color: var(--color-text-muted);
 }
 
 /* ---------- Credits ---------- */
