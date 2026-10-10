@@ -22,6 +22,12 @@
  *   * `/api/v1/stream` — `503` + `Retry-After: 60`, the operator-kill answer; the test
  *     asserts the client never asks.
  *   * `/static/snapshot.json` — the T2 copy (ADR-003 A1.2): the whole set, never a cursor.
+ *   * the built app's own files — `no-cache` with a content `ETag`, `304` on a match: the
+ *     most cautious policy a real static host serves (every one sends a validator). It
+ *     matters for the map: MapLibre's shared module is imported by the page and again by
+ *     its worker, a second realm, and CI-12 charges it once because the worker's request
+ *     is a revalidation, not a second download. Bodies are not compressed, so timing
+ *     here stays pessimistic.
  *
  * Every answer carries a correct `Date` header because the client's server-time tracker
  * (A1.6) reads it on every poll, 304s included, and every staleness verdict is measured
@@ -50,6 +56,7 @@
  * GLOSSARY §3b never fires while the origin is answering.
  */
 
+import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
@@ -335,7 +342,9 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
 
     const file = await staticFile(distRoot, url.pathname);
     if (file !== null) {
-      send(200, { 'content-type': file.type, 'cache-control': 'no-cache' }, file.body);
+      const headers = { 'content-type': file.type, 'cache-control': 'no-cache', etag: file.etag };
+      if (ifNoneMatch !== null && weakMatch(ifNoneMatch, file.etag)) send(304, headers, null);
+      else send(200, headers, file.body);
       return;
     }
     if (extname(url.pathname) === '') {
@@ -390,6 +399,8 @@ function weakMatch(ifNoneMatch: string, etag: string): boolean {
 interface StaticFile {
   readonly type: string;
   readonly body: Buffer;
+  /** Strong validator over the body, so an unchanged file revalidates to a `304`. */
+  readonly etag: string;
 }
 
 /** A file under `distRoot`, or `null`; never anything outside it, whatever the path says. */
@@ -404,5 +415,6 @@ async function staticFile(distRoot: string, pathname: string): Promise<StaticFil
     return null;
   }
   const type = CONTENT_TYPES[extname(absolute)] ?? 'application/octet-stream';
-  return { type, body: await readFile(absolute) };
+  const body = await readFile(absolute);
+  return { type, body, etag: `"${createHash('sha256').update(body).digest('base64url')}"` };
 }

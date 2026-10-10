@@ -18,12 +18,17 @@
  *   file counted once.
  * - **css** — every stylesheet the build emitted, summed. Review 08 plans one file.
  *
- * Web workers are the one kind of script Vite writes without a manifest record: a
- * `?worker&url` import emits the worker bundle as an asset and inlines only its URL.
- * Such a file is charged to the chunk whose code names it — the chunk that will start
- * it — and so to every budget that chunk is in (MapLibre's worker, named by the lazy
- * map chunk, is map bytes: no tile or GeoJSON is parsed until it has loaded). A script
- * no chunk names is still unclassified, and still an error.
+ * Scripts emitted as assets have no manifest record: a worker, whose URL is all a chunk
+ * inlines, and a module a chunk imports as an external file. MapLibre's worker and its
+ * shared module are both (`maplibreSharedModule()` in `vite.config.ts` emits them
+ * verbatim; the lazy map chunk imports the shared module and names the worker, which
+ * imports it too). Such a file is charged to the chunk whose code names it — the chunk
+ * that will start or import it — and so to every budget that chunk is in (MapLibre's
+ * worker is map bytes: no tile or GeoJSON is parsed until it has loaded), once however
+ * many charged scripts name it. Vite's preload list (`__vite__mapDeps`) is not a name
+ * in this sense: it lists what a *lazy* import will fetch, so the entry that preloads
+ * the shared module beside the map chunk is not charged for it — the map chunk, which
+ * imports it, is. A script no chunk names is still unclassified, and still an error.
  *
  * The only thing written down by hand is which *lazy roots* exist and what role each
  * plays (`LAZY_ROLES`). That cannot be read off the graph — nothing in a manifest says
@@ -169,9 +174,17 @@ function baseName(file: string): string {
 }
 
 /**
+ * The preload list Vite prepends to a chunk with lazy imports: one line,
+ * `const __vite__mapDeps=(…m.f=["assets/…",…]…)=>…;`. The files in it are fetched when
+ * one of the chunk's dynamic imports runs, so they belong to that import's budget.
+ */
+const VITE_PRELOAD_LIST = /^const __vite__mapDeps=.*$/m;
+
+/**
  * `files` plus every worker script they name, transitively (a worker may start another).
  * A worker is a script in dist with no manifest record; it is found by its emitted file
- * name appearing in the text of a script that is already charged.
+ * name appearing in the text of a script that is already charged, outside the script's
+ * preload list.
  */
 function withWorkers(
   files: ReadonlySet<string>,
@@ -183,7 +196,7 @@ function withWorkers(
   while (pending.length > 0) {
     const file = pending.pop();
     if (file === undefined) continue;
-    const body = text(file);
+    const body = text(file).replace(VITE_PRELOAD_LIST, '');
     for (const worker of workers) {
       if (!out.has(worker) && body.includes(baseName(worker))) {
         out.add(worker);
@@ -323,7 +336,8 @@ export function checkBuild(build: BuildDescription): BudgetReport {
   }
 
   // --- Measurements --------------------------------------------------------------
-  // Scripts in dist without a manifest record: worker bundles, if a chunk names them.
+  // Scripts in dist without a manifest record: workers and externally imported modules,
+  // if a chunk names them.
   const allChunkFiles = jsFiles(manifest, keys);
   const publicFileSet = new Set(build.publicFiles);
   const workerCandidates = build.distFiles.filter(

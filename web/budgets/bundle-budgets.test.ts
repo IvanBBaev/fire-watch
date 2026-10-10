@@ -214,8 +214,56 @@ describe('checkBuild — classification', () => {
     ]);
   });
 
+  it('charges a module that both a chunk and its worker import once', () => {
+    // MapLibre's published layout: the map chunk imports the shared module and names the
+    // worker, and the worker imports the same shared module file.
+    const shared = 'assets/maplibre-gl-shared-abc.mjs';
+    const worker = 'assets/maplibre-gl-worker-def.mjs';
+    const report = checkBuild(
+      build({
+        extraFiles: [shared, worker],
+        sizes: { [shared]: 130_000, [worker]: 6_000 },
+        texts: {
+          'assets/map.js':
+            'import{a}from"./maplibre-gl-shared-abc.mjs";' +
+            'new URL(`maplibre-gl-worker-def.mjs`,import.meta.url)',
+          [worker]: 'import{a}from"./maplibre-gl-shared-abc.mjs";',
+        },
+      }),
+    );
+    expect(report.errors).toStrictEqual([]);
+    expect(bytes(report)['map']).toBe(250_000 + 130_000 + 6_000);
+    expect(report.measurements.find((m) => m.budget === 'map')?.files).toStrictEqual([
+      'assets/map.js',
+      shared,
+      worker,
+    ]);
+  });
+
+  it('charges a module the entry only preloads to the lazy chunk that imports it', () => {
+    // Vite lists the shared module in the entry's preload list for the map import, so it
+    // is fetched beside the map chunk; it is still map bytes, not entry bytes.
+    const shared = 'assets/maplibre-gl-shared-abc.mjs';
+    const report = checkBuild(
+      build({
+        extraFiles: [shared],
+        sizes: { [shared]: 130_000 },
+        texts: {
+          'assets/index.js':
+            'const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/map.js",' +
+            '"assets/maplibre-gl-shared-abc.mjs"])))=>i.map(i=>d[i]);\n' +
+            'import("./map.js")',
+          'assets/map.js': 'import{a}from"./maplibre-gl-shared-abc.mjs";',
+        },
+      }),
+    );
+    expect(report.errors).toStrictEqual([]);
+    expect(bytes(report)['entry']).toBe(30_000 + 4_000);
+    expect(bytes(report)['map']).toBe(250_000 + 130_000);
+  });
+
   it('charges a worker script to the chunk that names it, and so to its budgets', () => {
-    // `?worker&url` emits the worker with no manifest record; only its URL is in the chunk.
+    // A worker is emitted with no manifest record; only its URL is in the chunk.
     const report = checkBuild(
       build({
         extraFiles: ['assets/maplibre-gl-worker-abc.js', 'assets/maplibre-gl-worker-abc.js.map'],

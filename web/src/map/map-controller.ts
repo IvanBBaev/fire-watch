@@ -12,12 +12,13 @@ import { AttributionControl, Map as MapLibreMap, setWorkerUrl } from 'maplibre-g
 import type { GeoJSONSource, MapLayerMouseEvent } from 'maplibre-gl';
 // MapLibre 6 locates its worker as `new URL('./maplibre-gl-worker.mjs', import.meta.url)`,
 // a sibling of its own module that in turn imports `./maplibre-gl-shared.mjs`. Once Vite
-// bundles maplibre into a hashed chunk neither sibling exists in `dist`, the worker 404s
-// and no tile or GeoJSON is ever parsed — the map never reaches `idle`. `?worker&url`
-// has Vite build the worker as its own self-contained bundle (shared code inlined) and
-// hands back its hashed URL. Imported here, on the lazy map path, so the worker URL
-// never lands in the entry chunk.
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+// bundles maplibre into a hashed chunk that sibling does not exist in `dist`, the worker
+// 404s and no tile or GeoJSON is ever parsed — the map never reaches `idle`. In the
+// production build `maplibreSharedModule()` (vite.config.ts) emits MapLibre's worker
+// and shared module verbatim, one shared copy for both threads, and this resolves to
+// the worker's hashed URL; in dev it is the worker file in `node_modules`. Imported
+// here, on the lazy map path, so the worker URL never lands in the entry chunk.
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 
 import type { StaticSourceMask } from '@fire-watch/contracts';
 

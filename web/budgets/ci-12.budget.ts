@@ -23,14 +23,10 @@ const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
  * the bundle or taken to the founder. Compared exactly, so a new overage and a silent
  * fix both go red — the second so this list is emptied in the change that earns it.
  */
-const KNOWN_OVER_BUDGET: readonly BudgetName[] = [
-  // 2026-09-25, founder decision pending. MapLibre 6's worker was never in `dist` (it
-  // 404ed, so no map ever painted a tile or a fire); shipping it adds ~126 KiB gz to the
-  // lazy map path. Most of that is MapLibre's shared module, which the worker bundle and
-  // the map chunk each carry a copy of. Before the fix the map chunk alone was ~238 KiB.
-  'criticalPath',
-  'map',
-];
+// Empty since 2026-10-10 (TASKS F8): `map` and `criticalPath` were over from 2026-09-25,
+// when the `?worker&url` worker bundle carried a second copy of MapLibre's shared module;
+// MapLibre's own files are now shipped once each (`maplibreSharedModule()`).
+const KNOWN_OVER_BUDGET: readonly BudgetName[] = [];
 
 describe('CI-12 bundle budgets (ADR-005 D3)', () => {
   const report = checkBuild(readBuild(distDir, publicDir));
