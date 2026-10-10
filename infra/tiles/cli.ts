@@ -6,7 +6,8 @@
  *   node infra/tiles/dist/cli.js plan [--tiers <json>] [--source <planet.pmtiles|url>]
  *   node infra/tiles/dist/cli.js explode --out <dir> --manifest <file> [--tiers <json>] <extract.pmtiles>…
  *   node infra/tiles/dist/cli.js glyph-plan --manifest <file>
- *   node infra/tiles/dist/cli.js verify-glyphs --glyphs <dir> --manifest <file>
+ *   node infra/tiles/dist/cli.js glyph-combinations --fonts <flat dir of .ttf/.otf>
+ *   node infra/tiles/dist/cli.js verify-glyphs --glyphs <dir> --manifest <file> [--strict]
  *   node infra/tiles/dist/cli.js upload-plan --tiles <dir> --tiles-version <v> --manifest <file>
  *        --remote <rclone-remote:bucket> [--glyphs <dir> --glyphs-version <v>] [--public-base <https-url>]
  *
@@ -22,7 +23,14 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { explode, type ExplodeManifest, fileSource, mergeManifests } from './explode.js';
-import { codepointLabel, expectedGlyphFiles, planGlyphs, rangeFileName, verifyGlyphs } from './glyph-plan.js';
+import {
+  codepointLabel,
+  expectedGlyphFiles,
+  glyphCombinations,
+  planGlyphs,
+  rangeFileName,
+  verifyGlyphs,
+} from './glyph-plan.js';
 import {
   assertTier,
   clientUrlTemplates,
@@ -166,10 +174,18 @@ function commandGlyphPlan(args: string[]): number {
   return 0;
 }
 
+function commandGlyphCombinations(args: string[]): number {
+  const { values } = parseArgs({ args, options: { fonts: { type: 'string' } }, strict: true });
+  const fontsDir = resolve(required(values.fonts, '--fonts'));
+  const combinations = glyphCombinations(loadLabelContract().fontstacks, readdirSync(fontsDir));
+  process.stdout.write(`${JSON.stringify(combinations, null, 2)}\n`);
+  return 0;
+}
+
 function commandVerifyGlyphs(args: string[]): number {
   const { values } = parseArgs({
     args,
-    options: { glyphs: { type: 'string' }, manifest: { type: 'string' } },
+    options: { glyphs: { type: 'string' }, manifest: { type: 'string' }, strict: { type: 'boolean' } },
     strict: true,
   });
   const glyphsDir = resolve(required(values.glyphs, '--glyphs'));
@@ -179,10 +195,24 @@ function commandVerifyGlyphs(args: string[]): number {
     const path = join(glyphsDir, file);
     return existsSync(path) ? new Uint8Array(readFileSync(path)) : null;
   });
-  for (const finding of findings) process.stderr.write(`verify-glyphs: ${finding.file}: ${finding.problem}\n`);
-  if (findings.length > 0) return 1;
+  const errors = findings.filter((finding) => finding.severity === 'error');
+  const warnings = findings.filter((finding) => finding.severity === 'warning');
+  for (const finding of errors) process.stderr.write(`verify-glyphs: ${finding.file}: ${finding.problem}\n`);
+  // One line per range file and fontstack would repeat each warning per fontstack; group
+  // by range so the log names each uncovered script once, with a count and an example.
+  const byRange = new Map<string, { count: number; first: string }>();
+  for (const finding of warnings) {
+    const range = finding.file.slice(finding.fontstack.length + 1);
+    const entry = byRange.get(range);
+    if (entry === undefined) byRange.set(range, { count: 1, first: finding.problem });
+    else entry.count += 1;
+  }
+  for (const [range, { count, first }] of byRange) {
+    process.stdout.write(`verify-glyphs: WARNING ${range}: ${count} finding(s) across fontstacks, e.g. ${first}\n`);
+  }
+  if (errors.length > 0 || (values.strict === true && warnings.length > 0)) return 1;
   process.stdout.write(
-    `verify-glyphs: ${expectedGlyphFiles(plan).length} range files, every required and observed codepoint has a glyph\n`,
+    `verify-glyphs: ${expectedGlyphFiles(plan).length} range files, every floor letter and every observed codepoint of a supported script has a glyph (${warnings.length} warning(s))\n`,
   );
   return 0;
 }
@@ -277,13 +307,15 @@ async function main(argv: string[]): Promise<number> {
       return commandExplode(rest);
     case 'glyph-plan':
       return commandGlyphPlan(rest);
+    case 'glyph-combinations':
+      return commandGlyphCombinations(rest);
     case 'verify-glyphs':
       return commandVerifyGlyphs(rest);
     case 'upload-plan':
       return commandUploadPlan(rest);
     default:
       throw new UsageError(
-        `unknown command ${JSON.stringify(command ?? '')} — plan | explode | glyph-plan | verify-glyphs | upload-plan`,
+        `unknown command ${JSON.stringify(command ?? '')} — plan | explode | glyph-plan | glyph-combinations | verify-glyphs | upload-plan`,
       );
   }
 }

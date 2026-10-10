@@ -4,8 +4,10 @@ import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 
 import {
+  classifyMissing,
   encodeGlyphPbf,
   expectedGlyphFiles,
+  glyphCombinations,
   type GlyphPlan,
   parseGlyphPbf,
   planGlyphs,
@@ -99,6 +101,53 @@ describe('glyph verification ("no tofu" on bytes)', () => {
     ]);
     const missing = verifyGlyphs(plan, observed, (path) => (path.endsWith('768-1023.pbf') ? null : tree(path)));
     expect(missing.map((f) => f.problem)).toContain('missing range file');
+  });
+
+  it('fails tofu in a supported script but only warns for a script outside the fontstack', () => {
+    // What a real Europe extract carries: Armenian and Arabic names in the Caucasus and
+    // North Africa, a Hangul shop name in Bulgaria, an object-replacement junk character,
+    // and a Greek Extended letter Noto Sans does have.
+    const observed = [
+      { codepoint: 0x0540, firstSeen: 'Armenian' }, // Հ
+      { codepoint: 0x0627, firstSeen: 'Arabic' }, // ا
+      { codepoint: 0xccad, firstSeen: 'Hangul' }, // 청
+      { codepoint: 0xfffc, firstSeen: 'junk' },
+      { codepoint: 0x1f00, firstSeen: 'Greek Extended' }, // ἀ
+      { codepoint: 0x201e, firstSeen: 'punctuation' }, // „
+    ];
+    const plan = planGlyphs(['Noto Sans Regular'], observed);
+    const empty = new Set(observed.map((entry) => entry.codepoint));
+    const findings = verifyGlyphs(plan, observed, fullTree(plan, empty));
+    const bySeverity = (severity: string): string[] =>
+      findings.filter((f) => f.severity === severity).map((f) => f.problem.replace(/^no glyph for /, ''));
+    expect(bySeverity('error')).toEqual([
+      'U+1F00 ἀ (observed in Greek Extended): script the fontstack supports',
+      'U+201E „ (observed in punctuation): script the fontstack supports',
+    ]);
+    expect(bySeverity('warning')).toEqual([
+      'U+0540 Հ (observed in Armenian): script outside the fontstack',
+      'U+0627 ا (observed in Arabic): script outside the fontstack',
+      'U+CCAD 청 (observed in Hangul): script outside the fontstack',
+      'U+FFFC ￼ (observed in junk): non-printing code point in the data',
+    ]);
+  });
+
+  it('classifies an observed floor letter as an error even when it is not a sample', () => {
+    expect(classifyMissing(0x04e9)).toEqual({ severity: 'error', reason: 'inside the A17 floor' }); // ө
+    expect(classifyMissing(0x10d0).severity).toBe('warning'); // ა Georgian
+    expect(classifyMissing(0x4e2d).severity).toBe('warning'); // 中
+  });
+
+  it('maps every fontstack to its font file for build_pbf_glyphs -c', () => {
+    // The official Noto Sans release names its files by stem; the tool names output
+    // directories by stem, the style asks for the family name.
+    const files = ['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf', 'NotoSans-Italic.ttf', 'OFL.txt'];
+    expect(glyphCombinations(contract.fontstacks, files)).toEqual({
+      'Noto Sans Regular': ['NotoSans-Regular'],
+      'Noto Sans Bold': ['NotoSans-Bold'],
+      'Noto Sans Italic': ['NotoSans-Italic'],
+    });
+    expect(() => glyphCombinations(contract.fontstacks, ['NotoSans-Regular.ttf'])).toThrow(/NotoSans-Bold/);
   });
 
   it('parses what it encodes', () => {

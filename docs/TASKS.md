@@ -1783,9 +1783,10 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 - [ ] **G1 — Protomaps build → exploded z/x/y tree on R2.** Spec: ADR-001 A1.1.
   Max z14 Europe/Balkans. **Done when:** app renders from R2 tiles only.
   *2026-10-10 — real extract cut and exploded locally, unticked (done-when needs R2; no bucket, host or credentials). Protomaps build `20261010` (basemap v4.15.2, OSM 2026-10-10T04:00Z), `pmtiles` 1.31.2, reduced tiers `europe` z0–6 + `bg-border` 22.3,40.4,28.7,44.3 z0–14 (~315 MB extracts): 94,802 tiles, 330,139,563 B gzip in the ignored `./tiles/`, per-zoom counts equal to the plan. Fixed: the label scan read `name` beside `name:bg`, demanding glyphs for names `coalesce` never draws (560 → 416 codepoints). Open: tile host/bucket, upload, full tiers (Europe z0–8 + Balkans z0–14).*
-- [ ] **G2 — Glyphs incl. Greek + Latin-Extended.** Spec: ADR-001 A1.1 as amended
+- [x] **G2 — Glyphs incl. Greek + Latin-Extended.** Spec: ADR-001 A1.1 as amended
   by A17. **Done when:** border-area Greek labels render (no tofu) in a visual
   check.
+  *2026-10-10 — done-when met locally (no deployed host). Noto Sans v2.015 Regular/Bold/Italic, `build_pbf_glyphs` 1.5.1 (`-c` combinations, 256 ranges per fontstack); `verify-glyphs` 0 errors on the A17 floor + Greek + Latin-Extended, with per-script severity: scripts outside the fontstack (Arabic, Armenian, Georgian, Tifinagh, Han, Hangul — 240 codepoints) are warnings, errors under `--strict`. Visual check in light and dark at S1 z9–z14 and Thessaloniki z10: Greek with tonos and ς (Νέο Πετρίτσι, Ηράκλεια, Άγιος Βασίλειος, Ξηροπόταμος), Cyrillic, Romanian ș ț, bold and italic all render, every glyph request 200. Founder: `name:bg` first shows Bulgarian exonyms on the Greek side (Сяр, Драма, Солун); fonts for the warned scripts.*
 - [ ] **G3 — Custom outdoor style light/dark + Terrarium hillshade.** Spec:
   ADR-001. Needs: G1.
   *2026-09-24 — G1–G3 tooling built, uncommitted, none ticked. `infra/tiles/`: pure tile

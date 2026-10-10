@@ -4,7 +4,7 @@
 # not run. See infra/tiles/README.md for the runbook and the manual visual check.
 #
 #   infra/tiles/build.sh --source <planet.pmtiles|https URL> --version 20260924 \
-#       --fonts <dir of .ttf/.otf, one subdir per fontstack> \
+#       --fonts <flat dir of .ttf/.otf named by stem, e.g. NotoSans-Regular.ttf> \
 #       --remote r2:fire-watch-tiles --public-base https://tiles.example.org [--apply]
 #
 # Needs: node 22, pnpm install done, `pmtiles` (go-pmtiles) and — for the glyph step —
@@ -76,11 +76,25 @@ LOCAL=1 run "${CLI[@]}" explode --out "$WORK/tree/$VERSION" --manifest "$WORK/ma
 echo "== 4. glyphs"
 LOCAL=1 run "${CLI[@]}" glyph-plan --manifest "$WORK/manifest-$VERSION.json"
 if [[ -n "$FONTS" ]]; then
-  # One subdirectory per fontstack, named exactly as label-contract.json names it
-  # (e.g. "$FONTS/Noto Sans Regular/NotoSans-Regular.ttf"). build_pbf_glyphs writes every
-  # 256-codepoint range the font covers; verify-glyphs then proves the plan's ranges exist
-  # and hold every required and observed letter.
-  LOCAL=1 run "$GLYPH_TOOL" "$FONTS" "$WORK/fonts/$VERSION"
+  # A FLAT directory of font files named by stem (NotoSans-Regular.ttf, ...), as the
+  # official release ships them. build_pbf_glyphs (v1.5.1) does not recurse and names its
+  # output directories after the file stem, so `glyph-combinations` writes the -c file that
+  # maps each label-contract fontstack ("Noto Sans Regular") to its stem. The tool also
+  # writes one directory per stem; only the fontstack directories are moved into
+  # fonts/<version>, so the upload carries exactly what the style requests. It writes all
+  # 256 ranges of the BMP (empty files where the font has no glyphs); verify-glyphs then
+  # proves the plan's ranges hold every floor letter and every observed letter of a
+  # supported script, and warns for scripts outside the font.
+  echo "+ ${CLI[*]} glyph-combinations --fonts $FONTS > $WORK/glyph-combinations-$VERSION.json"
+  "${CLI[@]}" glyph-combinations --fonts "$FONTS" > "$WORK/glyph-combinations-$VERSION.json"
+  LOCAL=1 run rm -rf "$WORK/glyph-build/$VERSION"
+  LOCAL=1 run mkdir -p "$WORK/glyph-build/$VERSION"
+  LOCAL=1 run "$GLYPH_TOOL" -c "$WORK/glyph-combinations-$VERSION.json" "$FONTS" "$WORK/glyph-build/$VERSION"
+  while IFS= read -r stack; do
+    LOCAL=1 run rm -rf "$WORK/fonts/$VERSION/$stack"
+    LOCAL=1 run mv "$WORK/glyph-build/$VERSION/$stack" "$WORK/fonts/$VERSION/$stack"
+  done < <(node -e 'for (const k of Object.keys(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")))) console.log(k)' \
+    "$WORK/glyph-combinations-$VERSION.json")
   LOCAL=1 run "${CLI[@]}" verify-glyphs --glyphs "$WORK/fonts/$VERSION" --manifest "$WORK/manifest-$VERSION.json"
   GLYPH_ARGS=(--glyphs "$WORK/fonts/$VERSION" --glyphs-version "$VERSION")
 else

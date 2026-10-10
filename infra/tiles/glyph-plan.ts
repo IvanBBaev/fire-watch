@@ -6,7 +6,10 @@
  * Extended-A/B, IPA/spacing modifiers + combining marks + **Greek and Coptic
  * (0370–03FF)**, Cyrillic — plus every range an observed label codepoint falls in. The
  * build fails when an observed codepoint has no glyph in the built range: that is the
- * "no tofu" guarantee, checked on bytes rather than on a screenshot.
+ * "no tofu" guarantee, checked on bytes rather than on a screenshot. Only scripts the
+ * fontstack supports are held to it: a real Europe extract carries Arabic, Armenian,
+ * Georgian and Han names that Noto Sans (Latin/Greek/Cyrillic) has no glyphs for, and
+ * those are warnings for a font decision (see `classifyMissing`).
  */
 
 import { readFields, WIRE_LEN, WIRE_VARINT } from './protobuf.js';
@@ -151,12 +154,37 @@ export interface GlyphFinding {
   readonly fontstack: string;
   readonly file: string;
   readonly problem: string;
+  /**
+   * `error` is tofu the build must not ship: a floor letter, or an observed letter of a
+   * script the fontstack supports (Latin, Greek, Cyrillic, their common punctuation and
+   * combining marks). `warning` is an observed letter of a script outside the fontstack
+   * (Arabic, Armenian, Han...) or a non-printing code point (U+FFFC): choosing a font for
+   * those is a product decision, not a build bug, so it is reported and does not fail.
+   */
+  readonly severity: 'error' | 'warning';
+}
+
+/** Scripts the A17 floor promises; tofu in these is a build failure wherever it lands. */
+const SUPPORTED_SCRIPT = /^[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}\p{Script=Common}\p{Script=Inherited}]$/u;
+/** Control, format, private-use, unassigned, and the Specials block (U+FFF0–FFFF). */
+const NON_PRINTING = /^[\p{Cc}\p{Cf}\p{Co}\p{Cn}\u{FFF0}-\u{FFFF}]$/u;
+
+/** Why an observed codepoint without a glyph is, or is not, a build failure. */
+export function classifyMissing(codepoint: number): { severity: 'error' | 'warning'; reason: string } {
+  const char = String.fromCodePoint(codepoint);
+  if (REQUIRED_BLOCKS.some((block) => codepoint >= block.first && codepoint <= block.last)) {
+    return { severity: 'error', reason: 'inside the A17 floor' };
+  }
+  if (NON_PRINTING.test(char)) return { severity: 'warning', reason: 'non-printing code point in the data' };
+  if (SUPPORTED_SCRIPT.test(char)) return { severity: 'error', reason: 'script the fontstack supports' };
+  return { severity: 'warning', reason: 'script outside the fontstack' };
 }
 
 /**
  * Checks a built glyph tree against the plan: every planned file exists and parses, every
- * required sample letter and every observed codepoint has a glyph. `readFile` returns
- * `null` for a missing file. An empty result is the pass.
+ * required sample letter has a glyph, and every observed codepoint has a glyph or is
+ * classified a warning by `classifyMissing`. `readFile` returns `null` for a missing file.
+ * No `error` finding is the pass.
  */
 export function verifyGlyphs(
   plan: GlyphPlan,
@@ -164,37 +192,72 @@ export function verifyGlyphs(
   readFile: (relativePath: string) => Uint8Array | null,
 ): GlyphFinding[] {
   const findings: GlyphFinding[] = [];
-  const mustHave = new Map<number, string>();
+  const mustHave = new Map<number, { why: string; sample: boolean }>();
   for (const block of REQUIRED_BLOCKS) {
-    for (const char of block.samples) mustHave.set(char.codePointAt(0) ?? 0, `${block.name} sample`);
+    for (const char of block.samples) {
+      mustHave.set(char.codePointAt(0) ?? 0, { why: `${block.name} sample`, sample: true });
+    }
   }
   for (const { codepoint, firstSeen } of observed) {
-    if (codepoint <= 0xffff && !mustHave.has(codepoint)) mustHave.set(codepoint, `observed in ${firstSeen}`);
+    if (codepoint <= 0xffff && !mustHave.has(codepoint)) {
+      mustHave.set(codepoint, { why: `observed in ${firstSeen}`, sample: false });
+    }
   }
   for (const fontstack of plan.fontstacks) {
     for (const range of plan.ranges) {
       const file = `${fontstack}/${rangeFileName(range)}`;
       const bytes = readFile(file);
       if (bytes === null) {
-        findings.push({ fontstack, file, problem: 'missing range file' });
+        findings.push({ fontstack, file, problem: 'missing range file', severity: 'error' });
         continue;
       }
       let ids: Set<number>;
       try {
         ids = new Set(parseGlyphPbf(bytes).flatMap((stack) => [...stack.ids]));
       } catch (error) {
-        findings.push({ fontstack, file, problem: `unparseable: ${(error as Error).message}` });
+        findings.push({ fontstack, file, problem: `unparseable: ${(error as Error).message}`, severity: 'error' });
         continue;
       }
-      for (const [codepoint, why] of mustHave) {
+      for (const [codepoint, { why, sample }] of mustHave) {
         if (codepoint < range.start || codepoint > range.end) continue;
-        if (!ids.has(codepoint)) {
-          findings.push({ fontstack, file, problem: `no glyph for ${codepointLabel(codepoint)} (${why})` });
+        if (ids.has(codepoint)) continue;
+        const problem = `no glyph for ${codepointLabel(codepoint)} (${why})`;
+        if (sample) {
+          findings.push({ fontstack, file, problem, severity: 'error' });
+          continue;
         }
+        const { severity, reason } = classifyMissing(codepoint);
+        findings.push({ fontstack, file, problem: `${problem}: ${reason}`, severity });
       }
     }
   }
   return findings;
+}
+
+/**
+ * The `-c` combinations file `build_pbf_glyphs` (sdf_font_tools v1.5) needs to write a
+ * directory per fontstack. The tool scans one flat directory (no recursion) and names each
+ * output directory after the font file's stem (`NotoSans-Regular`), not after the family
+ * the style asks for (`Noto Sans Regular`); a combination maps one name to the other.
+ * Fontstack "Family Words Style" pairs with the file stem "FamilyWords-Style". Throws
+ * when a fontstack has no font file, so a missing weight fails the build, not the map.
+ */
+export function glyphCombinations(
+  fontstacks: readonly string[],
+  fontFiles: readonly string[],
+): Record<string, [string]> {
+  const fontFile = /\.(ttf|otf)$/i;
+  const stems = new Set(fontFiles.filter((file) => fontFile.test(file)).map((file) => file.replace(fontFile, '')));
+  const out: Record<string, [string]> = {};
+  for (const stack of fontstacks) {
+    const words = stack.trim().split(/\s+/);
+    const style = words.pop();
+    if (style === undefined || words.length === 0) throw new RangeError(`fontstack ${JSON.stringify(stack)} has no style`);
+    const stem = `${words.join('')}-${style}`;
+    if (!stems.has(stem)) throw new RangeError(`no font file ${stem}.ttf/.otf for fontstack ${JSON.stringify(stack)}`);
+    out[stack] = [stem];
+  }
+  return out;
 }
 
 /** Encodes a glyph range file — test fixtures only (no bitmaps, ids and metrics only). */
