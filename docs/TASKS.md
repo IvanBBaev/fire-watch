@@ -951,6 +951,52 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   `snapshot-route.s15.property.test.ts` server-side); `replay-cli --gate` fails if that
   file is missing and prints `replay_gate_elsewhere`; `registerProblems` flags a fixture
   that duplicates an elsewhere-proven scenario.*
+  *2026-10-10 — S10 audited against F16's `static_source_policy_v2`; the quarantine half
+  matches, the "no alert ever" half does not, so S10 is not counted as proven and this
+  stays unticked. S10 was authored and its `blockedBy` cleared in the F16 wave
+  (2026-10-01), not here. **What matches:** `dayOnlyRepeat` is 11 §6.2 item 2 nearly
+  verbatim — ≥ 3 day (`D`) detections, ≥ 2 distinct UTC dates, no `N` member, every
+  member within 750 m of every other ("the same ~pixel"). The live worker
+  (`app/identity-wiring.ts` → `scoreWithVerdict`) and the replay (`replay/identity-engine.ts`
+  `judge`) build the same evaluator from the same module, so nothing needs wiring. One
+  reading delta: "zero night detections *ever*" is checked over the event's members, not
+  over the site's history, so a night detection in an earlier event at the same pixels
+  (one more than T_LINK = 48 h back) does not block the quarantine, and repeats more than
+  48 h apart never pool into one event. A farm that glints every sunny day stays one
+  event, so this does not bite S10 itself. By hand from `clustering_params_v1` (lon
+  scale 81.936 − 1.3146·(φ̄ − 42.7) ≈ 82.330 km/°, lat 111.085 km/°): the three members
+  are 79 m (d1–d2), 67 m (d1–d3) and 146 m (d2–d3) apart, which is well inside ε = 1.25 km
+  and the 750 m site. The gap between d1 and d2 is 23.7 h, inside T_LINK, so they form
+  one event, and the inline mask's only source (27.5° E) is ~170 km away, so the
+  §3.6 override plays no part. The engine agrees: one event labelled
+  `suspected_static_source`, bucket `likely`. Varying only d3: at lon 25.39200 (745 m from
+  d2) it is still quarantined; at 25.39150 (786 m) it is released and a `new_fire` is
+  deferred. **What does not match:** GATES S10's "no alert ever" is not a property of the
+  rule. The persistence half of the alert gate is `alert_gating_v1.minDetections = 2`,
+  while the quarantine needs 3, so an unmapped farm passes the gate on its *second*
+  day-only detection, one detection before the quarantine can exist. The checked-in
+  fixture is green only because `poll-02` delivers d2 and d3 together, so the gate first
+  sees the event already quarantined. In-memory counterfactuals over the real fixture:
+  (a) split `poll-02` into d2 at 10:50 and d3 at 12:10, and a `new_fire` is **sent**
+  (`first_alert`) at 10:50 with the daily digest, then `suppress invalidated` at 12:10;
+  (b) one pixel per day over three days (polls at 08-12, 08-13 and 08-14, 11:30), and a
+  `new_fire` is deferred plus a digest is sent on 08-13, before the 08-14 quarantine;
+  (c) the policy unpinned, and a `new_fire` is deferred (`stale_trigger`) plus a digest
+  is sent at 12:10, which matches the manifest's own counterfactual; (d) d3 set to `N`,
+  and the event is released and bucketed `confirmed`. The rule therefore delivers "quarantined after ≥ 3"
+  and does not deliver "no alert ever". For a farm the OSM solar layer maps, the §3.6
+  override covers it from the first pixel. For an unmapped one, the second-detection alert
+  is what the spec's own numbers produce. **Founder decision**, and no code until it is
+  made. The options: (1) hold `new_fire` for an event that so far meets the quarantine's
+  shape short of the count (day-only, one site, no night). This delays real day-only fires
+  by up to a day. (2) Raise the quarantine to fire at 2 (§6.2 says 3). (3) Re-word GATES S10
+  to "no alert after quarantine". (4) Re-block S10 in `register.ts` until one of (1)–(3)
+  lands. Then re-author the fixture with one detection per poll, so the claim cannot rest
+  on batching. Nothing else in S7–S16 carries a `blockedBy` (S13/S14 authored, S15
+  `provenBy`; S3's land-cover block is D5's range), so S10 is the only thing between this
+  item and its tick. CI-2 rerun on the current register: `--gate=pre-season` under
+  `TZ=UTC`/`en_US` and `TZ=Pacific/Kiritimati`/`tr_TR`, byte-identical (45,365 B). Both
+  runs exit 0, and `--gate=suite` and `--gate=pre-merge` also exit 0.*
 - [ ] **D7 — Parameter fit.** Spec: GATES §2; ADR-002 D2. Inputs by register id: DS-1 (detections), DS-3 (labels), DS-4 (eps_geo only) in `docs/data/DATASETS.md`; does not start until DS-1 and DS-3 carry a `--check` date (23 E1). Needs: B8 (backfill),
   D1. Grid search (~600 configs) vs EFFIS BA labels; plateau rule; fitted params
   land as versioned config-as-data. **Done when:** GATES §2 acceptance thresholds
