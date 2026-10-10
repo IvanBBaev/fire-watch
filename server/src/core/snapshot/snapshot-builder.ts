@@ -39,6 +39,10 @@ import type {
  * `"v2-<max_seq>"` tag — it revalidates until the next `seq` moves, and meanwhile the web
  * counts those events as "sources not reported", which is the fail-open it was built for.
  * A bump would have bought nothing but a cold cache on every tier.
+ *
+ * Not bumped for `properties.static_source_verdict` (2026-10-02, TASKS F16) either, for
+ * the same reason (ADR-003 A1.3): additive, and an older body without it reads as "not
+ * reported", which leaves the client on its own bundled-mask caveat.
  */
 export const SNAPSHOT_SCHEMA_VERSION = 2;
 
@@ -78,7 +82,20 @@ export interface EventFeaturePropertiesOf<M extends string | null> {
    * delta that adds a sensor replaces the list rather than appending to it.
    */
   readonly source_ids: readonly string[] | null;
+  /**
+   * The server's static hot-source verdict for the event (TASKS F16, additive in schema v2;
+   * UX 07 §5.3 "known industrial source"): `annotated` — the event sits on a mapped hot
+   * source (solar farm, power plant, flare, industrial site) and the server kept it as a
+   * fire anyway — or `clear`. `null` when the event was never evaluated. The two
+   * invalidating verdicts never reach the wire: they take the event off the map, so a
+   * client sees them as a removal. The server's mask can be newer than the client's
+   * bundled copy (hot reload), so this is the answer the event page's caveat follows.
+   */
+  readonly static_source_verdict: PublicStaticSourceVerdict | null;
 }
+
+/** The verdicts an active member can carry (see `static_source_verdict`). */
+export type PublicStaticSourceVerdict = 'annotated' | 'clear';
 
 export interface EventFeatureOf<M extends string | null> {
   readonly type: 'Feature';
@@ -207,8 +224,21 @@ export function eventFeature<M extends string | null>(
       area_ha: null,
       next_pass_window: null,
       source_ids: canonicalSourceIds(row.sourceIds),
+      static_source_verdict: publicStaticSourceVerdict(row.staticSourceVerdict),
     },
   };
+}
+
+/**
+ * The wire form of a stored verdict: `annotated` and `clear` pass, anything else is
+ * `null`. An active member cannot hold an invalidating verdict (the projection would have
+ * removed it), so the narrowing only ever drops a value that should not exist — and a
+ * claim the server cannot stand behind is "not reported", never a guess.
+ */
+function publicStaticSourceVerdict(
+  verdict: ActiveEventRow['staticSourceVerdict'],
+): PublicStaticSourceVerdict | null {
+  return verdict === 'annotated' || verdict === 'clear' ? verdict : null;
 }
 
 /**

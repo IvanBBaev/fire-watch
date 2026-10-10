@@ -10,6 +10,10 @@
 import { isLifecycleState } from '@fire-watch/contracts';
 
 import type { ActiveEventRow, NearestPlace } from '../../core/ports/snapshot-reader.js';
+import {
+  STATIC_SOURCE_VERDICTS,
+  type StaticSourceVerdict,
+} from '../../core/static-sources/static-source-policy.js';
 
 export function decodeEvent(row: unknown, publicId: string): ActiveEventRow {
   const status = string(field(row, 'status'), 'status');
@@ -28,7 +32,20 @@ export function decodeEvent(row: unknown, publicId: string): ActiveEventRow {
     detectionCount: number(field(row, 'detection_count'), 'detection_count'),
     nearestPlace: nearestPlace(field(row, 'nearest_place')),
     sourceIds: sourceIdsFromMix(field(row, 'source_mix')),
+    staticSourceVerdict: staticSourceVerdict(field(row, 'static_source_verdict')),
   };
+}
+
+/**
+ * `static_source_verdict` (021) as a known verdict, or `null` — "not evaluated". 021's
+ * CHECK constrains the column, so an unknown value means a newer migration than this
+ * build; reading it as unreported is the honest answer, the same trade as
+ * {@link sourceIdsFromMix}.
+ */
+export function staticSourceVerdict(value: unknown): StaticSourceVerdict | null {
+  return typeof value === 'string' && (STATIC_SOURCE_VERDICTS as readonly string[]).includes(value)
+    ? (value as StaticSourceVerdict)
+    : null;
 }
 
 /**

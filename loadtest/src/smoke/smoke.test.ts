@@ -97,6 +97,7 @@ const ROWS: readonly ActiveEventRow[] = [101, 102, 103].map((seq, i) => ({
   detectionCount: 3,
   nearestPlace: null,
   sourceIds: ['firms:viirs:snpp'],
+  staticSourceVerdict: null,
 }));
 
 const fixtureReader: SnapshotReader = {

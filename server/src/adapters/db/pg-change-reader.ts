@@ -27,7 +27,7 @@ changed AS (
   SELECT e.public_id, e.seq, e.status, e.score,
          ST_X(e.centroid) AS lon, ST_Y(e.centroid) AS lat,
          e.started_at, e.last_detection_at, e.detection_count, e.nearest_place, e.source_mix,
-         s.public_id AS merged_into, e.display_tier, e.invalidated
+         s.public_id AS merged_into, e.display_tier, e.invalidated, e.static_source_verdict
   FROM fire_events e
   LEFT JOIN fire_events s ON s.id = e.merged_into
   WHERE e.seq > $1::bigint
@@ -38,7 +38,8 @@ SELECT bound.max_seq,
        changed.public_id, changed.seq::text AS seq, changed.status, changed.score,
        changed.lon, changed.lat, changed.started_at, changed.last_detection_at,
        changed.detection_count, changed.nearest_place, changed.source_mix,
-       changed.merged_into, changed.display_tier, changed.invalidated
+       changed.merged_into, changed.display_tier, changed.invalidated,
+       changed.static_source_verdict
 FROM bound LEFT JOIN changed ON true
 ORDER BY changed.seq
 `.trim();

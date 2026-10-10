@@ -113,6 +113,7 @@ describe('decoding the active set', () => {
         detectionCount: 7,
         nearestPlace: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
         sourceIds: ['firms:viirs:snpp', 'firms:viirs:noaa20'],
+        staticSourceVerdict: null,
       },
     ]);
   });

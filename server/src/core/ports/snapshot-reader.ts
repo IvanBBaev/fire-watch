@@ -17,6 +17,7 @@
 
 import type { LifecycleState } from '@fire-watch/contracts';
 
+import type { StaticSourceVerdict } from '../static-sources/static-source-policy.js';
 import type { EpochMs } from './clock.js';
 
 /**
@@ -58,6 +59,14 @@ export interface ActiveEventRow {
    * sensor on an event is always a `seq` bump — the ETag and the stream see it for free.
    */
   readonly sourceIds: readonly string[] | null;
+  /**
+   * The stored static hot-source verdict (021, TASKS F16), or `null` when the event was
+   * never evaluated (or the column holds a value this build does not know). An active
+   * member is only ever `annotated` or `clear` — the two invalidating verdicts take it off
+   * the map — but the type is the column's. 023 put the column in 004's trigger list, so a
+   * verdict flip a mask hot reload produces is a `seq` bump the ETag and the stream see.
+   */
+  readonly staticSourceVerdict: StaticSourceVerdict | null;
 }
 
 export interface ActiveSetRead {

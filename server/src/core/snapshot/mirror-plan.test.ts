@@ -29,6 +29,7 @@ function document(afterSeq = 0) {
           detectionCount: 7,
           nearestPlace: null,
           sourceIds: null,
+          staticSourceVerdict: null,
         },
       ],
     },

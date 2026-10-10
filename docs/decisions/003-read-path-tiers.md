@@ -118,6 +118,13 @@ snapshot refetch before trusting any transport. Poll interval jittered 30–60 s
   append-only, so the client keeps an id it does not know and its source filter treats an
   event it cannot place in any family as *unreported* (fail-open). `schema_version` stays
   `2` — see A1.3.
+- *Additive, 2026-10-02 (TASKS F16):* each event feature also carries
+  `static_source_verdict` — `annotated` (the event sits on a mapped static hot source and
+  was kept as a fire), `clear`, or `null` (never evaluated, or a value the server will not
+  publish). The two invalidating verdicts never reach the wire: they take the event off
+  the map. Migration 023 put the column in the seq trigger, so a verdict flip (a mask hot
+  reload) moves the ETag; the mask and policy version stamps stay bookkeeping. A client
+  reads an absent field as "not reported". `schema_version` stays `2` — see A1.3.
 
 ## Consequences
 

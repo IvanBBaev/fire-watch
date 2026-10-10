@@ -73,6 +73,7 @@ const EVENT: ActiveEventRow = {
   detectionCount: 7,
   nearestPlace: null,
   sourceIds: null,
+  staticSourceVerdict: null,
 };
 
 const reader: SnapshotReader = {

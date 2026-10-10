@@ -15,7 +15,12 @@
 import type { LifecycleState, ScoreBucket } from '@fire-watch/contracts';
 import { SCORE_BUCKETS, isLifecycleState } from '@fire-watch/contracts';
 
-import type { FireEvent, Snapshot, SnapshotSourceRow } from '../types.js';
+import type {
+  FireEvent,
+  Snapshot,
+  SnapshotSourceRow,
+  StaticSourceVerdictOnWire,
+} from '../types.js';
 
 /** Thrown on any structural defect in the wire body; the poll that got it has failed. */
 export class ParseError extends Error {
@@ -162,6 +167,7 @@ export function parseFeature(value: unknown, path: string): FireEvent {
     areaHa: requireNumberOrNull(properties, 'area_ha', p),
     nextPassWindow: parseNextPassWindow(properties, p),
     ...parseSourceIds(properties, p),
+    ...parseStaticSourceVerdict(properties, p),
   };
 }
 
@@ -187,6 +193,22 @@ function parseSourceIds(
     ids.push(id);
   }
   return { sourceIds: ids };
+}
+
+/**
+ * `static_source_verdict` is additive and optional (F16): absent or `null` leaves the
+ * field off. A string this bundle does not know is a newer server and is dropped the same
+ * way — the caveat then falls back to the bundled mask — while a non-string is a wire
+ * defect.
+ */
+function parseStaticSourceVerdict(
+  properties: WireRecord,
+  path: string,
+): { readonly staticSourceVerdict?: StaticSourceVerdictOnWire } {
+  const raw = properties['static_source_verdict'];
+  if (raw === undefined || raw === null) return {};
+  if (typeof raw !== 'string') fail(`${path}.static_source_verdict`, 'verdict string', raw);
+  return raw === 'annotated' || raw === 'clear' ? { staticSourceVerdict: raw } : {};
 }
 
 function parseSourceRow(value: unknown, path: string): SnapshotSourceRow {

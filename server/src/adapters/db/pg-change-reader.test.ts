@@ -132,6 +132,7 @@ describe('decoding changes', () => {
         detectionCount: 7,
         nearestPlace: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
         sourceIds: ['lsasaf:seviri:frp-pixel', 'firms:viirs:snpp'],
+        staticSourceVerdict: null,
         mergedInto: null,
         displayTier: 'map',
         invalidated: false,

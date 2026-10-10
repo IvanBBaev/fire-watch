@@ -1,8 +1,8 @@
 /**
  * Loads the event's detections file once per event id and reduces it to a
- * {@link DetectionSummary}. A missing template (live data: the server has no per-event
- * detections route yet), a 404, a transport failure and an empty file all answer
- * `unavailable` — the page then says so instead of inventing sensors or FRP.
+ * {@link DetectionSummary}. A missing template, a 404, a transport failure and an
+ * empty file all answer `unavailable` — the page then says so instead of inventing
+ * sensors or FRP.
  */
 
 import { useEffect, useState } from 'preact/hooks';

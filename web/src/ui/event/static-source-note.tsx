@@ -7,8 +7,9 @@
  * known solar park". The centre is only a stand-in — an event whose centre sits between a
  * solar park and a real fire would otherwise be caveated wholesale, or one whose centre
  * falls just outside a park would lose the caveat its pixels on the park deserve. The
- * centre caveat remains the fallback while the file loads and when there is none (live
- * data has no per-event detections route yet).
+ * centre caveat remains the fallback while the file loads and when there is none. Live
+ * data reads the per-event detections route, which holds the 1000 newest detections, so
+ * "N of M" on a truncated event counts over those.
  *
  * A caveat, never a filter: the event, its score and its detections render exactly as
  * before. Nothing renders until the mask has loaded (fetched from our own origin the first

@@ -25,6 +25,7 @@ function row(overrides: Partial<ActiveEventRow> = {}): ActiveEventRow {
     detectionCount: 7,
     nearestPlace: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
     sourceIds: ['firms:viirs:noaa20', 'firms:viirs:snpp'],
+    staticSourceVerdict: 'clear',
     ...overrides,
   };
 }
@@ -75,6 +76,7 @@ describe('buildSnapshot', () => {
           area_ha: null,
           next_pass_window: null,
           source_ids: ['firms:viirs:noaa20', 'firms:viirs:snpp'],
+          static_source_verdict: 'clear',
         },
       },
     ]);
@@ -111,6 +113,36 @@ describe('buildSnapshot', () => {
     });
     expect(doc.features.map((f) => f.properties.source_ids)).toEqual([null, null]);
     expect(doc.features.every((f) => 'source_ids' in f.properties)).toBe(true);
+  });
+
+  it('serves the static-source verdict an active member can carry, and null for the rest', () => {
+    // An invalidating verdict on an active row cannot happen (the projection removes the
+    // event); if a row ever carries one, the wire says "not reported", never the claim.
+    const verdicts = [
+      'annotated',
+      'clear',
+      null,
+      'static_source',
+      'suspected_static_source',
+    ] as const;
+    const doc = buildSnapshot({
+      read: read(
+        verdicts.map((staticSourceVerdict, i) =>
+          row({ publicId: `e${String(i)}`, seq: 1040 + i, staticSourceVerdict }),
+        ),
+      ),
+      sources: [],
+      generatedAtMs: GENERATED_AT,
+      afterSeq: 0,
+    });
+    expect(doc.features.map((f) => f.properties.static_source_verdict)).toEqual([
+      'annotated',
+      'clear',
+      null,
+      null,
+      null,
+    ]);
+    expect(doc.schema_version).toBe(2);
   });
 
   it('carries the public id once as the store key and never emits a uuid (schema v2)', () => {

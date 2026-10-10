@@ -24,6 +24,7 @@ export function activeRow(overrides: Partial<ActiveEventRow> = {}): ActiveEventR
     detectionCount: 7,
     nearestPlace: { name_bg: 'Карлово', name_en: 'Karlovo', lat: 42.64, lon: 24.8 },
     sourceIds: ['firms:viirs:noaa20', 'firms:viirs:snpp'],
+    staticSourceVerdict: 'clear',
     ...overrides,
   };
 }

@@ -65,7 +65,19 @@ export interface FireEvent {
    * server, not a defect.
    */
   readonly sourceIds?: readonly string[];
+  /**
+   * The server's static hot-source verdict (F16) — the additive `static_source_verdict`
+   * feature property: `annotated` when the event sits on a mapped hot source (solar farm,
+   * power plant, industrial site, flare) and was kept as a fire, `clear` when it does not.
+   * Absent means *not reported* (an older server, or an event never evaluated): the event
+   * page then falls back to its own bundled-mask check. The server's mask can be newer than
+   * the bundle's (hot reload), so when present this is the answer the caveat follows.
+   */
+  readonly staticSourceVerdict?: StaticSourceVerdictOnWire;
 }
+
+/** The static-source verdicts the snapshot publishes for an active event. */
+export type StaticSourceVerdictOnWire = 'annotated' | 'clear';
 
 /**
  * One detection at slope zoom — rendered true-size, tapped for pass details.

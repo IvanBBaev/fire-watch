@@ -43,7 +43,6 @@ import { systemSleeper } from '../adapters/scheduler/system-sleeper.js';
 import { runAlertDigestCycle } from '../core/alerts/digest-pass.js';
 import { runAlertEvaluationCycle } from '../core/alerts/evaluation-cycle.js';
 import { runEffisRefresh } from '../core/effis/effis-refresh.js';
-import { runIdentityCycle } from '../core/identity/identity-cycle.js';
 import { recordLagHistograms } from '../core/ingest/lag-recorder.js';
 import { runIngestCycle } from '../core/ingest/ingest-cycle.js';
 import { runWeeklyQaReport } from '../core/qa/weekly-report-job.js';
@@ -148,7 +147,8 @@ async function main(): Promise<number> {
   );
   const wiring = wireIngest(config);
   const refresh = wireRefreshJobs(config);
-  const identity = wireIdentity(config);
+  // Hot-reloads the static-source mask between cycles (F16); reload lines go to stderr.
+  const identity = wireIdentity(config, { note: (record) => log.note(record) });
   const lag = wireLagHistograms(config);
   // H3/D9: both alert loops are disabled with named blockers until cadence, routing (H2/D7)
   // and the zone keyring are all in place; a malformed keyring is still a ConfigError. The
@@ -230,7 +230,7 @@ async function main(): Promise<number> {
           clock: systemClock,
           sleeper: systemSleeper,
           signal: controller.signal,
-          run: () => runIdentityCycle(identity.deps),
+          run: () => identity.runCycle(),
           report: observeLoop(
             metrics,
             'identity',
@@ -422,7 +422,7 @@ async function main(): Promise<number> {
     if (config.lightning !== null && config.stateDir !== null) {
       loops.push(
         ...startLightningLoops(
-          wireLightningRefresh(config.lightning, config.stateDir, systemClock),
+          wireLightningRefresh(config.lightning, config.stateDir, systemClock, config),
           {
             clock: systemClock,
             sleeper: systemSleeper,
