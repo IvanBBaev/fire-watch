@@ -57,6 +57,9 @@ export default defineConfig({
             // J5: the status-page model/renderer, the email-auth evaluator and the
             // defensive-domain generator — pure, no network.
             'infra/status/**/*.test.ts',
+            // B9: provision.sh's gzip+base64 user_data, rendered by the real script in
+            // --dry-run and decoded the way cloud-init's Hetzner datasource does.
+            'infra/user-data/**/*.test.ts',
             // CI-12's timing half: the gate's statistics, its budget data against
             // puppeteer's presets, and the stand-in tile encoder — no browser.
             'web/e2e/timing/**/*.test.ts',

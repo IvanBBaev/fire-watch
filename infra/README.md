@@ -26,8 +26,9 @@ What one run does, in order:
 
 1. **Render** — strips YAML comments from `cloud-init.yaml` (transport-layer
    minification only; block-scalar file content is preserved byte-for-byte and
-   self-checked), substitutes your deploy public key for the placeholder, and
-   enforces the Hetzner `user_data` size cap **before** calling the API.
+   self-checked), substitutes your deploy public key for the placeholder,
+   gzips and base64-encodes the result (see "user_data size"), and enforces the
+   Hetzner `user_data` size cap **before** calling the API.
 2. **Create** — `hcloud server create` with the rendered user_data. Refuses if
    a server with that name already exists (see `--force-new` below).
 3. **Wait** — polls SSH as `deploy` (the only login the box has), then
@@ -75,35 +76,61 @@ HCLOUD_TOKEN=<project-token> infra/provision.sh --verify-only
 - OpenSSH ≥ 7.6 (`StrictHostKeyChecking=accept-new` — trust-on-first-use for a
   brand-new VM; the accepted host key is pinned in `known_hosts` afterwards).
 
-## Known blocker: Hetzner's 32 KiB user_data cap
+## user_data size
 
-The Hetzner Cloud API rejects `user_data` larger than **32,768 bytes**
-("Length must be between 0 and 32768"). As of this writing:
+The Hetzner Cloud API caps `user_data` at **32,768 bytes** ("limited to 32KiB"
+in the API reference; "Length must be between 0 and 32768" from the API).
+`cloud-init.yaml` alone is well over that, so the render compresses it:
 
-| Artifact | Size |
+| Artifact | Size (2026-10-10) |
 | --- | --- |
 | `infra/cloud-init.yaml` raw | 59,806 bytes |
-| Rendered (all YAML comments stripped) | 49,431 bytes (49,462 with a real key substituted) |
+| Comment-stripped, deploy key substituted | 49,449 bytes |
+| **Sent: gzip -9n, then base64 on one line** | **22,184 bytes** (margin 10,584, 32%) |
 | API cap | 32,768 bytes |
 
-`provision.sh` renders for real, measures, and **refuses with exit 2** and the
-exact numbers rather than letting the API fail later. Stripping comments
-*inside* the embedded scripts is off the table — those comments are the on-box
-incident documentation the §9.2 drift rule exists to protect. The two
-sanctioned ways out, neither of which this script may take alone:
+How it reaches the box unchanged:
 
-1. **Slim the contract** — move the large embedded scripts (`fw-backup`,
-   `fw-restore-drill`, `fw-provision`) out of first-boot user_data and into the
-   deploy pipeline's delivery, leaving cloud-init with only what must exist
-   before any deploy (users, SSH, firewall, Docker). Owner: `cloud-init.yaml`
-   / §9.
-2. **Out-of-band fetch** — a `#include` user_data pointing at a short-lived
-   pre-signed URL for the full file. New credential machinery and a new trust
-   surface; a §9-level policy decision, not a provisioning-script default.
+1. `hcloud server create --user-data-from-file` passes the file verbatim, and
+   the API stores it as an opaque string (no compression or encoding of its own).
+2. cloud-init's Hetzner datasource runs `maybe_b64decode` on it — upstream's
+   own comment: Hetzner "does not support binary user-data", so the user "can
+   provide base64 encoded (possibly gzipped) data". It decodes with
+   `validate=True`, so the base64 must be **one line with no newline**; the
+   render guarantees that.
+3. cloud-init's user-data processing gunzips the result ("Content found to be
+   gzip compressed will be uncompressed") and sees the `#cloud-config` document.
 
-Until one of these is decided, a real create run stops at preflight. Every
-other phase (`--dry-run`, `--verify-only`, the wait/deploy/verify logic) is
-unaffected.
+This needs **cloud-init ≥ 20.3** on the image. The Hetzner datasource has the
+base64 step in 20.3 and not in 19.4. Debian 12 ships 22.4.2. On an older image the box
+would receive base64 text it cannot use. The default `--image debian-12` is
+fine; check before choosing another image.
+
+Nothing encoded is committed: `cloud-init.yaml` stays the readable source, and
+the encoding exists only in the render. `provision.sh` decodes its own output
+and byte-compares it before use, prints the size and margin on every run,
+warns below 4,096 bytes of headroom and **refuses with exit 2** over the cap.
+`infra/user-data/render.test.ts` (unit project) runs the real `--dry-run`,
+decodes the way the datasource does, and requires the decoded document — and
+every `write_files` payload, byte for byte — to match the repo file. Write
+`--emit-user-data <path>` to inspect what would be sent.
+
+Validated off-box (2026-10-10): in a `debian:12` container with cloud-init
+22.4.2, `cloudinit.sources.helpers.hetzner.maybe_b64decode` plus
+`UserDataProcessor` turned the rendered file into exactly one
+`text/cloud-config` part, byte-identical to the comment-stripped render, and
+`cloud-init schema -c` reported it valid. A real first boot on Hetzner has not
+been run yet.
+
+Per-file `write_files` `encoding: gz+b64` was measured first and rejected: it
+still came to 33,761 bytes. Each file compresses alone, so the vocabulary the
+scripts share is never reused, and the YAML around them stays uncompressed.
+
+What compression does **not** settle: whether the large on-box scripts
+(`fw-backup`, `fw-restore-drill`, `fw-provision`) belong in first-boot
+user_data at all, or should come with the deploy pipeline instead. That is a
+§9 ownership question for the founder (TASKS 21 E1/Q1). Compression only removes
+the size pressure that forced the question.
 
 ## What "migrations applied" looks like
 
@@ -156,13 +183,18 @@ override with `FW_PGUSER` / `FW_PGDATABASE` if the deploy decides otherwise.
 ## Honest status
 
 **The end-to-end path is untested against a real VM.** No Hetzner account or
-token exists in this development environment, and the user_data size blocker
-above stops a real create run at preflight anyway. What *has* been validated:
+token exists in this development environment. Preflight no longer blocks a
+real create run: the user_data now fits (see "user_data size"). What *has* been
+validated:
 
 - `bash -n` and `shellcheck` clean;
 - a real `--dry-run` execution (renders, measures, prints the full plan);
-- the renderer proven semantically lossless (PyYAML deep-equality of parsed
-  documents, plus the in-script byte-level self-check on block-scalar content).
+- the renderer proven lossless: the in-script byte-level self-checks (block
+  scalars after minification, and the gzip+base64 round trip), and
+  `infra/user-data/render.test.ts`, which compares the decoded document with
+  the repo file;
+- the encoded user_data decoded by cloud-init 22.4.2's own Hetzner code path
+  and passed by `cloud-init schema` (Debian 12 container, not a VM).
 
 Treat the first real provisioning as the test, per §9's own note that no
 production VM has yet been provisioned from this contract.

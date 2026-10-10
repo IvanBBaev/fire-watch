@@ -10,6 +10,7 @@
     { "path": "./infra/tiles" },
     { "path": "./infra/geodata" },
     { "path": "./loadtest" },
-    { "path": "./infra/status" }
+    { "path": "./infra/status" },
+    { "path": "./infra/user-data" }
   ]
 }

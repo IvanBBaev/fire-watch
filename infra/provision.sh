@@ -41,12 +41,14 @@
 #   * restore from backup: --restore-from is a STUB until TASKS C6 — see the
 #     handler below for the two documented blockers (§6.2 rule 2, §6.3).
 #
-# KNOWN BLOCKER (verified 2026-08): the Hetzner Cloud API caps user_data at
-# 32,768 bytes ("Length must be between 0 and 32768"). infra/cloud-init.yaml
-# renders to ~49.4 KiB even with every YAML comment stripped (~58.4 KiB raw),
-# so preflight currently refuses with exit 2. Resolving this is a design
-# decision this script must not take alone; see infra/README.md "Known
-# blocker" for the two documented options and their owners.
+# SIZE: the Hetzner Cloud API caps user_data at 32,768 bytes ("Length must be
+# between 0 and 32768"). infra/cloud-init.yaml is ~58 KiB raw and ~49 KiB with
+# YAML comments stripped, so the render gzips the whole document and sends it
+# as one base64 line, which cloud-init's Hetzner datasource decodes and
+# cloud-init gunzips (cloud-init >= 20.3; Debian 12 ships 22.4.2). The encoded
+# form is generated here at render time, never committed. It fits with a wide
+# margin; preflight still measures it and refuses over the cap.
+# See infra/README.md "user_data size".
 #
 # Exit codes (repo convention — README "Exit codes" and server/src/app/config.ts:
 # misconfiguration names every missing thing at once):
@@ -65,6 +67,10 @@ CLOUD_INIT="${SCRIPT_DIR}/cloud-init.yaml"
 # Hetzner Cloud API hard cap on user_data. Not configurable — the API rejects
 # anything larger with "Length must be between 0 and 32768".
 USER_DATA_CAP=32768
+
+# Below this many bytes of headroom preflight warns (it still proceeds): the
+# contract should not creep back toward the cap one script at a time unnoticed.
+USER_DATA_MARGIN_WARN=4096
 
 # The literal placeholder in cloud-init.yaml's ssh_authorized_keys. The file
 # itself warns: a VM booted with this value has NO way in except the provider
@@ -129,7 +135,11 @@ Options:
   --restore-from <path>  Restore-from-backup stub — exits 64; real
                          implementation is TASKS C6 (OPERATIONS §5, §6.3).
   --dry-run              Print every action without executing anything remote.
-  -h, --help             This text.
+  --emit-user-data <path>
+                         Also write the rendered user_data to <path> (for
+                         `cloud-init schema` or inspection). Contains only the
+                         deploy PUBLIC key — no secret is ever in user_data.
+  -h, --help            This text.
 
 Exit codes: 0 ok; 1 runtime failure; 2 misconfiguration (all problems named
 at once); 64 not-implemented stub.
@@ -156,6 +166,7 @@ VERIFY_ONLY=0
 IP_OVERRIDE=''
 RESTORE_FROM=''
 DRY_RUN=0
+EMIT_USER_DATA=''
 
 need_value() { # flag name must be followed by a value
   [[ $# -ge 2 && "${2#-}" == "$2" ]] || { printf 'provision: ERROR %s requires a value\n' "$1" >&2; exit 2; }
@@ -171,6 +182,7 @@ while [[ $# -gt 0 ]]; do
     --identity)     need_value "$@"; IDENTITY="$2"; shift 2 ;;
     --ip)           need_value "$@"; IP_OVERRIDE="$2"; shift 2 ;;
     --restore-from) need_value "$@"; RESTORE_FROM="$2"; shift 2 ;;
+    --emit-user-data) need_value "$@"; EMIT_USER_DATA="$2"; shift 2 ;;
     --force-new)    FORCE_NEW=1; shift ;;
     --verify-only)  VERIFY_ONLY=1; shift ;;
     --dry-run)      DRY_RUN=1; shift ;;
@@ -311,7 +323,7 @@ if [[ ! -d "$MIGRATIONS_DIR" ]]; then
 fi
 
 # --- Render — cloud-init.yaml -> Hetzner user_data ---------------------------
-# Two transformations, both mechanical, both verified, neither semantic:
+# Three transformations, all mechanical, all verified, none semantic:
 #
 #   1. Strip YAML comments and blank lines OUTSIDE block scalars. Inside a
 #      `content: |` block every line — including "# ..." lines — is file
@@ -322,6 +334,15 @@ fi
 #      infra/cloud-init.yaml in the repo remains the single readable source.
 #   2. Substitute the deploy public key for the placeholder (exactly one
 #      occurrence, or refuse).
+#   3. gzip -9n the whole rendered document and base64 it onto a single line
+#      (no newline anywhere). Hetzner's API takes user_data as an opaque
+#      string; cloud-init's Hetzner datasource base64-decodes it
+#      (util.maybe_b64decode, cloud-init >= 20.3) and cloud-init's user-data
+#      processing gunzips it, so the box sees exactly the document from steps
+#      1-2. The encoding never leaves the render — infra/cloud-init.yaml stays
+#      plain text. The script decodes its own output and byte-compares it, or
+#      aborts; infra/user-data/render.test.ts additionally checks the decoded
+#      document against a real YAML parse of the source file.
 #
 # The state machine and its self-check share one classifier: a line opens a
 # block scalar when it ends in `: |`/`: >` (with optional +/- chomping), the
@@ -377,9 +398,9 @@ BEGIN { in_scalar = 0; scalar_indent = -1 }
 WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/fw-provision.XXXXXX")"
 trap 'rm -rf "$WORKDIR"' EXIT
 chmod 0700 "$WORKDIR"
-RENDERED="${WORKDIR}/user-data.yaml"
+RENDERED="${WORKDIR}/user-data.b64"
 
-RAW_SIZE=0 RENDERED_SIZE=0
+RAW_SIZE=0 MINIFIED_SIZE=0 RENDERED_SIZE=0 MARGIN=0
 if [[ -r "$CLOUD_INIT" ]]; then
   awk "$AWK_MINIFY" "$CLOUD_INIT" >"${WORKDIR}/minified.yaml"
 
@@ -404,25 +425,49 @@ if [[ -r "$CLOUD_INIT" ]]; then
         next
       }
       { print }
-    ' "${WORKDIR}/minified.yaml" >"$RENDERED"
-    if grep -q "$KEY_PLACEHOLDER" "$RENDERED"; then
+    ' "${WORKDIR}/minified.yaml" >"${WORKDIR}/keyed.yaml"
+    if grep -q "$KEY_PLACEHOLDER" "${WORKDIR}/keyed.yaml"; then
       die 'placeholder substitution failed — placeholder still present after render'
     fi
   else
     # Dry-run without a key still renders, so the size verdict below is real;
     # a real create run without a key was already named a problem above.
-    cp "${WORKDIR}/minified.yaml" "$RENDERED"
+    cp "${WORKDIR}/minified.yaml" "${WORKDIR}/keyed.yaml"
   fi
 
+  # Step 3: gzip the whole document and base64 it onto ONE line with no
+  # trailing newline. cloud-init's Hetzner datasource b64-decodes user_data
+  # with validate=True (a newline would make it fall back to the raw string),
+  # then cloud-init's user-data processing gunzips it. The round trip is
+  # checked here before the encoded form is trusted.
+  gzip -9n -c "${WORKDIR}/keyed.yaml" | base64 | tr -d '\n' >"$RENDERED"
+  base64 --decode <"$RENDERED" | gzip -dc >"${WORKDIR}/roundtrip.yaml"
+  cmp -s "${WORKDIR}/keyed.yaml" "${WORKDIR}/roundtrip.yaml" \
+    || die 'gzip+base64 self-check failed: decoded user_data differs from the rendered document — refusing to ship a corrupted host config'
+
   RAW_SIZE="$(wc -c <"$CLOUD_INIT" | tr -d ' ')"
+  MINIFIED_SIZE="$(wc -c <"${WORKDIR}/keyed.yaml" | tr -d ' ')"
   RENDERED_SIZE="$(wc -c <"$RENDERED" | tr -d ' ')"
+  MARGIN=$((USER_DATA_CAP - RENDERED_SIZE))
 
   # The hard gate. This is a fact about the transport, not a policy choice:
   # the API rejects the create call outright, so failing preflight here is
   # strictly more honest than letting hcloud fail with the same number.
-  if [[ "$VERIFY_ONLY" -ne 1 && "$RENDERED_SIZE" -gt "$USER_DATA_CAP" ]]; then
-    problem "user_data: rendered cloud-init is ${RENDERED_SIZE} bytes; Hetzner caps user_data at ${USER_DATA_CAP} bytes (raw file ${RAW_SIZE}). See infra/README.md 'Known blocker' — resolving this is a §9-level decision, not a flag"
+  if [[ "$VERIFY_ONLY" -ne 1 && "$MARGIN" -lt 0 ]]; then
+    problem "user_data: rendered cloud-init is ${RENDERED_SIZE} bytes, $((-MARGIN)) over Hetzner's ${USER_DATA_CAP}-byte cap after gzip+base64 (raw file ${RAW_SIZE}, comment-stripped ${MINIFIED_SIZE}). See infra/README.md 'user_data size'"
+  elif [[ "$VERIFY_ONLY" -ne 1 && "$MARGIN" -lt "$USER_DATA_MARGIN_WARN" ]]; then
+    note "user_data: only ${MARGIN} bytes below Hetzner's ${USER_DATA_CAP}-byte cap — see infra/README.md 'user_data size' before the contract grows further"
   fi
+
+  if [[ -n "$EMIT_USER_DATA" ]]; then
+    cp "$RENDERED" "$EMIT_USER_DATA" || die "--emit-user-data: cannot write '${EMIT_USER_DATA}'"
+  fi
+fi
+
+# The size line is printed on every run that renders, not only on dry-run:
+# the margin is the number that says how far the contract may still grow.
+if [[ -r "$CLOUD_INIT" && "$VERIFY_ONLY" -ne 1 ]]; then
+  say "user_data: ${RENDERED_SIZE} bytes of ${USER_DATA_CAP} (margin ${MARGIN} bytes, $((MARGIN * 100 / USER_DATA_CAP))%) — raw ${RAW_SIZE}, comment-stripped ${MINIFIED_SIZE}, sent as one gzip+base64 line"
 fi
 
 # --- Preflight verdict --------------------------------------------------------
@@ -431,7 +476,6 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   say 'DRY-RUN — no server is created, no SSH is opened, no workflow is triggered.'
   say "plan for server '${NAME}' (${SERVER_TYPE}, ${LOCATION}, ${IMAGE}):"
   say "  HCLOUD_TOKEN: $( [[ -n "${HCLOUD_TOKEN:-}" ]] && echo 'set' || echo 'UNSET' ) (value never printed)"
-  say "  user_data: raw ${RAW_SIZE} B -> rendered ${RENDERED_SIZE} B (API cap ${USER_DATA_CAP} B)$( [[ "$RENDERED_SIZE" -gt "$USER_DATA_CAP" ]] && echo ' — OVER CAP, see Known blocker' )"
 fi
 
 for w in ${WARNINGS[@]+"${WARNINGS[@]}"}; do warn "$w"; done

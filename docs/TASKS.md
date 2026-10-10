@@ -69,6 +69,9 @@ when deferred → due; struck through or moved to the WORKLOG when taken):**
   be checked against a table that does not reproduce.
 - User-data cap for `infra/cloud-init.yaml` (slim the contract vs pre-signed
   `#include`) → 21 E1/Q1, 2026-09-02 → this week; nothing deploys until then.
+  2026-10-10: the size half no longer blocks (gzip+base64 user_data is 22,184 of
+  32,768 bytes, see B9). The open question is now only where the on-box scripts
+  belong: first-boot user_data, or deploy-time delivery.
 - The integration series — the founder's "commit" under rule 4 — and branch
   protection on `main` → 22 E1/Q1, 21 E5, 2026-09-02 → this week.
 - D-track pause until the host records (every unrecorded day is a row in
@@ -425,6 +428,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   §9-level decision (move embedded payloads to deploy-time delivery, or
   `#include` a pre-signed URL) plus a real Hetzner account/token for the
   end-to-end run.*
+  *2026-10-10 — the size half is resolved by compression, with no deploy-time delivery change, no pre-signed URL and no new host. `provision.sh` gzips the comment-stripped document (`-9n`) and base64-encodes it onto one line. Result: 22,184 bytes against the 32,768 cap, a 10,584-byte margin (32%); raw 59,806, comment-stripped 49,449. Why this is safe: Hetzner's API takes user_data as an opaque string, and `hcloud --user-data-from-file` passes it verbatim. cloud-init's Hetzner datasource base64-decodes it (`maybe_b64decode`, `validate=True`, hence one line), and cloud-init gunzips it. Both steps exist in cloud-init 20.3 and later; Debian 12 ships 22.4.2. Nothing encoded is committed, and `cloud-init.yaml` stays the readable source. Checks: the script decodes its own output and byte-compares it with the render. Preflight prints size and margin on every run, warns below 4,096 bytes of headroom, and still exits 2 over the cap. `--emit-user-data <path>` writes what would be sent. The new unit test `infra/user-data/render.test.ts` runs the real `--dry-run`, decodes the way the datasource does, and requires the decoded document and every `write_files` payload, byte for byte, to match the repo file (`yaml` added as a root devDependency). In a `debian:12` container (cloud-init 22.4.2), the datasource helper plus `UserDataProcessor` produced one `text/cloud-config` part, byte-identical to the render, and `cloud-init schema -c` reported it valid. Per-file `encoding: gz+b64` was measured first and rejected (33,761 bytes, still over). Still unticked: a real Hetzner account/token and the first real VM run to "migrations applied". That run is also the first real boot of the encoded path. Left to the founder: 21 E1/Q1 (decision list above). Size no longer forces it, but whether the large on-box scripts belong in first-boot user_data or in deploy-time delivery is still a §9 ownership choice.*
 
 ## Track C — WP1 ingestion in shadow mode (Aug–Sep 2026) — THE PRIORITY
 

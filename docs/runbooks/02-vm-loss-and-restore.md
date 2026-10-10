@@ -38,8 +38,9 @@ loss. RPO 24 h at MVP (nightly dump). RPO ≤ 15 min from the first stored watch
 Gaps:
 - `NOT YET BUILT (C5)`: none of the healthchecks.io checks or the UptimeRobot monitors
   exist yet.
-- `NOT YET BUILT (B9)`: there is no provisioned host to lose. `infra/provision.sh` is
-  blocked on the 32 KiB user_data cap; see `infra/README.md`, "Known blocker".
+- `NOT YET BUILT (B9)`: there is no provisioned host to lose. `infra/provision.sh`
+  fits the 32 KiB user_data cap (gzip+base64; see `infra/README.md`, "user_data
+  size") but has not yet run against a real Hetzner account.
 
 ## 2. Triage
 
@@ -72,8 +73,10 @@ Gaps:
 - **M2 — The VM is lost: build a new one** (review 04 RB-2 order).
   1. Create the VM from the host contract:
      `HCLOUD_TOKEN=<token> infra/provision.sh --deploy-key <path.pub>`.
-     - `NOT YET BUILT (B9)`: this currently refuses at preflight (exit 2) because
-       rendered user_data exceeds 32,768 bytes; the fix is the 21 E1 decision.
+     - `NOT YET BUILT (B9)`: never yet run against a real VM. Preflight passes the
+       size check (22,184 of 32,768 bytes as of 2026-10-10) and still refuses
+       (exit 2) if the contract outgrows the cap. The image needs cloud-init 20.3
+       or later.
      - The token is taken from the environment only, never as a flag.
   2. Deploy the pinned images through `.github/workflows/deploy.yml`.
      - `NOT YET BUILT (J4)`: the `deploy` job is a stub (`DEPLOY_STEP_IS_STUB`) and
