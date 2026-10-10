@@ -183,3 +183,49 @@ S4 and S5 are recorded as `no_fitting_fire`, because neither leaves a burnt area
 **History**
 
 - 2026-10-10 — entry opened (TASKS D5). Six layers fetched and hashed, and the selection written. Which candidate to use for each scenario is still open (founder).
+
+### DS-7 — ESA WorldCover 2021 v200 land-cover shares, 0.005° (fetched 2026-10-10)
+
+The land-cover half of TASKS D10. It holds the WorldCover 10 m class shares over the polling
+box, aggregated to 0.005° cells (60 × 60 source pixels, about 0.3 ha per source pixel). It is
+the land-cover input that A6's `likely_agri_burn` (≥ 70 % WorldCover 40) and S3 are written
+against. It is a cited input, not a fit corpus.
+
+| Field     | Value |
+| --------- | ----- |
+| Plan      | `pnpm run geodata:worldcover` — `infra/geodata/worldcover.ts` (pure TIFF/IFD parse, deflate block decode, tile selection, accumulation, largest-remainder quantization, lookups) + `worldcover-cli.ts` (fetch, cache in `data/worldcover-cache/`, write). `--refresh` refetches. No native dependencies (`node:zlib` only). |
+| Identity  | format `fire-watch/worldcover-landcover@1` · version `worldcover_2021_v200_0p005` · grid index sha256 `eeb5074b…2f5b` · the 14 source tiles below · product sha256 `e3760600f7710650adc598a4ccb76e78efd677e192c1ed31ba08cd755fdb31bb` |
+| Source    | ESA WorldCover 10 m 2021 v200 (doi:10.5281/zenodo.7254221), AWS Open Data bucket `esa-worldcover`: `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_<TILE>_Map.tif`; grid `…/v200/2021/esa_worldcover_grid.geojson`; fetched 2026-10-10 18:47–19:01Z |
+| Area      | bbox W20 S39 E31 N46 (`polling_bbox_v1`, read from `server/src/core/config/polling-bbox.ts` at run time; a unit test guards the parse). The grid is 2200 cols × 1400 rows. Tile N42E030 does not exist (sea), and its 120,000 cells are all `no_data`. |
+| Product   | `data/worldcover-cache/worldcover-landcover-worldcover_2021_v200_0p005.bin` — 36,960,000 B, **not committed** (git-ignored cache). The layout is uint8, cell-major, `byte[(row * 2200 + col) * 12 + plane]`, where planes are classes 0, 10, 20 … 95, 100. Each cell's shares sum to 250 (largest remainder, ties to the lower plane). Row 0 is the northern edge. |
+| Asset     | `server/fixtures/worldcover-landcover.json` — 10,351 B, committed. It is the manifest: tile URLs, bytes and sha256s, the product sha256, box-wide shares, and the D5 S3 cross-check. Rebuilding with the same tiles reproduces the product sha256. |
+| Contents  | Box-wide shares: tree cover 34.6 %, cropland 23.9 %, grassland 16.0 %, permanent water 14.0 %, no data 8.1 %, built-up 1.8 %, shrubland 0.7 %, herbaceous wetland 0.7 %, bare/sparse 0.3 %. |
+| Licence   | CC BY 4.0 — "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium" (`docs/licenses/esa-worldcover.md`; DATA-SOURCES attribution row 26, not rendered yet) |
+| Consumers | none at run time. The D5 S3 cross-check reads it (in the asset). Expected: A6 `likely_agri_burn`, S3's real-data cut, and D10's mask-data half. |
+| Refresh   | proposed: re-derive only when ESA publishes a new epoch, never mid-season (founder call). A new epoch or a different cell size is a new version string and a new entry. |
+
+| Tile      | Bytes      | sha256                                                             |
+| --------- | ---------- | ------------------------------------------------------------------ |
+| `N39E018` | 60,148,624 | `221cd99d48e0066bae1df97c3221f2fa6e02fc3e38122d8aedb9726dc20915cf` |
+| `N39E021` | 87,399,010 | `ab3f8cd2b984deb530e53100ab97ec7e4801e3a3b96ebb3bb764332bb64fcf30` |
+| `N39E024` | 55,602,696 | `4b4b07af608fdac2c0b632a00e65a6bb64f0a024aa5ade38d8b7351a2cb69b5d` |
+| `N39E027` | 75,565,146 | `6a27dcbc962e87a39fff839594b1a70c2e7ac1e8b5228c6031a32b1334f49831` |
+| `N39E030` | 72,981,441 | `6983e9f66fcd8685f1dd161cb304bb0530f05a879fee8be95c33a474b429ffaf` |
+| `N42E018` | 92,152,214 | `29dc9f517b44e00c705d210bd9e3d50dc90edffa69dacf19285af717576bfa0c` |
+| `N42E021` | 84,628,979 | `abd79b6b7ded84268d43cf5fcd320e391397415c5983a677db64578efa76aa6b` |
+| `N42E024` | 73,278,657 | `89148a8977fd7ca35f1b89a7f49f659156a4ec0cb813630d5f58ba03246348f4` |
+| `N42E027` | 27,924,603 | `19bd911232adccdb06bf7a05e2d356a454f40dd35fa6ad3fe1fe9da28374dc12` |
+| `N45E018` | 75,430,355 | `d793f4cf323d43d7b215fa4dae16d3fe72dea7511d43cff5e33f405e9562836f` |
+| `N45E021` | 77,098,975 | `4581a97c5437058df44f36a679c2f9d2d16d95943ea57ecd7b3189f34e0330f1` |
+| `N45E024` | 78,606,123 | `2ae062010910ae45e78832849f1cb879d43357357e7a3c705d51c8742181d48b` |
+| `N45E027` | 78,839,197 | `f7aadc9d33e0048f97adc49aa7a85dceeb1b2ad7ef0b739eb14ab2eae6cabbc7` |
+| `N45E030` | 38,379,267 | `b22d7fc49f983e5d31085cca14aa4cedd890d04bb760d71ff14a64bf5cf06562` |
+
+Caveats: 2021 is a single epoch. WorldCover cropland (40) is arable land, while pasture and
+mixed farmland mostly read as grassland (30), so EFFIS AGRIAREAS (CORINE-based) and
+WorldCover cropland measure different things. Under a small perimeter, a 0.005° cell mixes
+in the land around it.
+
+**History**
+
+- 2026-10-10 — entry opened (TASKS D10, land-cover half). Fourteen tiles fetched and hashed, the product built, and the D5 S3 cross-check written into the asset. No S3 candidate reaches A6's 70 % cropland (TASKS D5 note). The cell size, the refresh rule and the runtime form (cache `.bin` or a committed lookup) are still open (founder).

@@ -29,6 +29,7 @@
     "geodata": "tsc --build infra/geodata && node infra/geodata/dist/cli.js",
     "geodata:static-sources": "tsc --build infra/geodata && node infra/geodata/dist/static-sources-cli.js",
     "geodata:effis-ba": "tsc --build infra/geodata && node infra/geodata/dist/effis-ba-candidates-cli.js",
+    "geodata:worldcover": "tsc --build infra/geodata && node infra/geodata/dist/worldcover-cli.js",
     "status": "tsc --build infra/status && node infra/status/dist/cli.js"
   },
   "devDependencies": {

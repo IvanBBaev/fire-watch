@@ -855,6 +855,7 @@ licence text plus its retrieval date into `docs/licenses/` (09 §2.3.5).
 | 23 | GeoNames gazetteer (place search, `web/src/assets/geodata/settlements.json`) | `/credits`, **render** | `Place names: GeoNames (geonames.org), CC BY 4.0` — hyperlinked to `https://www.geonames.org/`; **our chosen form** (GeoNames prescribes no sentence); CI-13 asserts `GeoNames` | GeoNames export readme, CC BY 4.0 (retrieved 2026-09-28; `docs/licenses/geonames.md`) |
 | 24 | Natural Earth admin-1 (region filter, `web/src/assets/geodata/oblasts.json`) | `/credits`, render — **requested, not required** (public domain) | `Made with Natural Earth.` | naturalearthdata.com terms of use (retrieved 2026-09-28; `docs/licenses/natural-earth.md`) |
 | 25 | CelesTrak GP orbital elements (satellite-pass predictions, §F15) | `/credits` + the Layers panel's pass section + the swath layer (panel line and map corner, while it is on), render — **requested, not required** (no licence or terms page found; citation asked for) | `Orbital elements: CelesTrak (celestrak.org)` — hyperlinked to `https://celestrak.org/`; **our chosen form** (CelesTrak prescribes no sentence); `credits.ts` id `celestrak` | CelesTrak GP data documentation, `https://celestrak.org/NORAD/documentation/gp-data-formats.php` (retrieved 2026-09-30; `docs/licenses/celestrak.md`) |
+| 26 | ESA WorldCover 10 m 2021 v200 (land-cover class shares, DS-7, TASKS D10) | **not rendered yet** (no runtime consumer); `/credits`, **render** from the PR that first shows a WorldCover-derived value, together with a `credits.ts` entry | `© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium` | WorldCover Product User Manual V2.0 §5.2, `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf` (retrieved 2026-10-10; `docs/licenses/esa-worldcover.md`) |
 
 Assembled map-corner line (09 §2.4, unchanged in substance; the DEM sentences live on
 `/credits` because they do not fit a map corner):
@@ -866,10 +867,11 @@ Contains modified Copernicus Sentinel data & Service information [YEAR] | Terrai
 
 **Strings still to be pinned at integration** — CC BY sources whose exact wording is not
 yet verified against the provider, so they are *not* in CI-13's assertion set until the
-adapter lands and `docs/licenses/` is populated: ESA WorldCover, CLC+/CORINE, GHSL
+adapter lands and `docs/licenses/` is populated: CLC+/CORINE, GHSL
 GHS-POP/GHS-BUILT, CLMS SWI/SSM, GPM IMERG, CAMS. UNVERIFIED — each must be
 copied verbatim from the provider at integration time and added to this table in the
-same PR as the adapter.
+same PR as the adapter. (ESA WorldCover left this list on 2026-10-10: its string is
+verified and pinned as row 26, still unrendered.)
 
 ## Licence quick reference
 

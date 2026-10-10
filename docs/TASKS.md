@@ -890,6 +890,19 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   thresholds and anchors (rules `effis_ba_candidates_v1`). The current fixtures are
   not yet recut from these dates. `availability.json` stays out of scope (no measured
   NRT lag), and S3/S4 still wait on D10. Unticked.*
+  *2026-10-10 (WorldCover cross-check, from D10) — DS-7 read every 10 m pixel under
+  the five S3 perimeters (`server/fixtures/worldcover-landcover.json`,
+  `s3_crosscheck`). They are 91–99 % cropland + grassland, but only 11–53 %
+  WorldCover cropland (40). Majorities: 210963 Topolovgrad grassland (cropland
+  14.5 %), 233933 Karlovo cropland (52.8 %), 44452 Vetrino grassland (14.2 %),
+  43276 Cherven Bryag cropland (47.2 %), 275514 Topolovgrad grassland (11.3 %).
+  None reaches A6's `likely_agri_burn` threshold of ≥ 70 % WorldCover 40. EFFIS
+  AGRIAREAS is CORINE-based and counts pasture and mixed farmland, which WorldCover
+  maps as grassland. On these small perimeters (7–24 cells), the 0.005° product moves
+  cropland by up to 12 points and crop + grass by up to 16, so per-fire readings use
+  full resolution. The selection is unchanged. Still open for the founder: whether S3's
+  "agricultural" means WorldCover cropland (then no candidate fits as cut, and the
+  selection needs a stricter rule) or cropland + grassland.*
 - [ ] **D6 — Fixture suite S7–S16.** Spec: A4 register. Needs: D5 harness.
   S7–S10 (per GATES) + S11 (retired source), S12 (officially_* re-detection),
   S16 (bbox-edge fire); S13–S15 stubs handed to their owner tracks. **Done
@@ -1125,6 +1138,18 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 - [ ] **D10 — Data prep: masks + land cover + cloud join.** Spec: A6. Needs: B8.
   Static hot-source mask (backfill + curated seed), WorldCover/CORINE prep,
   hourly cloud-cover join. **Done when:** S3/S4 use real mask data.
+  *2026-10-10 — land-cover half built (WorldCover only). `pnpm run geodata:worldcover`
+  fetches the 14 ESA WorldCover 2021 v200 tiles over `polling_bbox_v1` (CC BY 4.0,
+  `docs/licenses/esa-worldcover.md`), with the box read from `polling-bbox.ts`. It
+  decodes the COGs in pure TypeScript (`node:zlib`, no GDAL) and writes class shares on
+  a 0.005° grid: a 37 MB `.bin` in the git-ignored `data/worldcover-cache/`, plus a
+  committed sha256 manifest, `server/fixtures/worldcover-landcover.json`. Registered as
+  DS-7. Parsing, aggregation and lookups are unit-tested offline (18 tests). The D5 S3
+  cross-check is recorded under D5: no candidate is ≥ 70 % WorldCover cropland. Not
+  done: CORINE (needs an account), the hourly cloud join (needs ERA5/CDS), a runtime
+  consumer, and S3/S4 on real mask data. Founder calls: the cell size, the refresh
+  rule, whether the runtime reads the `.bin` or a committed lookup, and the S3 reading
+  of "agricultural". Unticked.*
 - [ ] **D11 — CP1 evaluation run.** Spec: A2 protocol. Needs: D7, D8. Execute the
   protocol, produce the dated report artifact, record go/pause. **Done when:**
   the CP1 report exists and is linked from GATES §4.

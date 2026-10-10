@@ -29,3 +29,7 @@ web/public/fixtures/passes/swaths.json
 # Written by `pnpm run geodata:effis-ba` (TASKS D5) with one fire record per line, so a
 # refresh diffs fire by fire; regenerated, never hand-edited.
 server/fixtures/effis-ba-candidates.json
+
+# Written by `pnpm run geodata:worldcover` (TASKS D10) with one tile and one candidate per
+# line; regenerated, never hand-edited.
+server/fixtures/worldcover-landcover.json
