@@ -7,6 +7,12 @@
  * two the style can ever render keeps a stray `name:ja` in a Greek village from demanding
  * a CJK glyph build nobody will see. If the style ever reads another field, the contract
  * file changes and so does this scan — both sides test against it.
+ *
+ * The fields are a fallback chain, exactly as the style's `coalesce` reads them: a feature
+ * contributes only its first present field. The first real build showed why this matters —
+ * the z0–z2 tiles carry every country on Earth, and scanning `name` beside `name:bg`
+ * demanded CJK, Arabic and Devanagari glyphs for "中国" and "भारत", which the map never
+ * draws because their `name:bg` ("Китай", "Индия") wins.
  */
 
 import { gunzipSync } from 'node:zlib';
@@ -22,7 +28,10 @@ const LAYER_VALUES = 4;
 const FEATURE_TAGS = 2;
 const VALUE_STRING = 1;
 
-/** Label strings, per MVT layer, carried by one tile under the given fields. */
+/**
+ * Label strings, per MVT layer, carried by one tile: for each feature, the value of the
+ * first of `labelFields` (fallback order) that it has — the text the style renders.
+ */
 export function labelStrings(
   tile: Uint8Array,
   labelFields: readonly string[],
@@ -51,11 +60,15 @@ export function labelStrings(
     if (wantedKeys.size === 0) continue;
     for (const feature of features) {
       const tags = repeatedVarints(readFields(feature), FEATURE_TAGS);
+      const present = new Map<string, string>();
       for (let i = 0; i + 1 < tags.length; i += 2) {
         const field = wantedKeys.get(tags[i] ?? -1);
         const text = values[tags[i + 1] ?? -1];
-        if (field !== undefined && typeof text === 'string') out.push({ layer: name, field, text });
+        if (field !== undefined && typeof text === 'string') present.set(field, text);
       }
+      const field = labelFields.find((candidate) => present.has(candidate));
+      const text = field === undefined ? undefined : present.get(field);
+      if (field !== undefined && text !== undefined) out.push({ layer: name, field, text });
     }
   }
   return out;

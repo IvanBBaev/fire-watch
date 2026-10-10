@@ -124,7 +124,29 @@ describe('label scan', () => {
 
   it('reads only the style’s label fields', () => {
     const labels = labelStrings(tile, contract.labelFields).map((label) => `${label.field}=${label.text}`);
-    expect(labels).toEqual(['name:bg=Славянка', 'name=Славянка', 'name=Σιδηρόκαστρο', 'name=Constanța']);
+    expect(labels).toEqual(['name:bg=Славянка', 'name=Σιδηρόκαστρο', 'name=Constanța']);
+  });
+
+  it('reads the fields as the style’s coalesce does: name:bg shadows name', () => {
+    // The z0 tile of a real Protomaps build: every country carries its local `name`, but the
+    // style draws `name:bg` — scanning both demanded CJK and Devanagari glyphs for nothing.
+    const world = encodeMvt([
+      {
+        name: 'places',
+        features: [
+          { kind: 'country', 'name:bg': 'Китай', name: '中国' },
+          { kind: 'country', name: 'भारत', 'name:bg': 'Индия' },
+          { kind: 'country', name: 'Ελλάς' },
+        ],
+      },
+    ]);
+    expect(labelStrings(world, contract.labelFields).map((label) => label.text)).toEqual(['Китай', 'Индия', 'Ελλάς']);
+    const collector = new CodepointCollector();
+    collector.addTile(world, contract.labelFields, '0/0/0');
+    const codepoints = collector.entries().map((entry) => entry.codepoint);
+    expect(codepoints).not.toContain(0x4e2d); // 中
+    expect(codepoints).not.toContain(0x092d); // भ
+    expect(planGlyphs(contract.fontstacks, collector.entries()).ranges.map(rangeFileName)).toEqual(A17_RANGES);
   });
 
   it('collects Greek codepoints from a border tile, gzip or not', () => {
