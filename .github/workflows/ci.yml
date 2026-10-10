@@ -123,7 +123,7 @@ jobs:
       # allowed. It rides here rather than in `verify` because it needs the production
       # build, and it runs first because it takes a second and needs no browser. The e2e
       # step below rebuilds; `vite build` is deterministic, so both see the same bundle.
-      # The timing half of CI-12 (map-ready on 4G/3G) is not enforced — see docs/GATES.md.
+      # The timing half of CI-12 (map-ready on 4G/3G) is the `timing` job below.
       - name: Bundle byte budgets (CI-12)
         run: pnpm run test:budgets
 
@@ -184,6 +184,93 @@ jobs:
       # CI-18, so a red here is one of the two — the failing file names which.
       - name: Polling-only end-to-end and accessibility suites (CI-7, CI-18)
         run: pnpm run test:e2e
+
+  # CI-12, the timing half (TASKS F8): map-ready ≤ 6 s on Fast 4G and ≤ 15 s on Fast 3G,
+  # median of 5 cold runs per profile on the emulated reference device
+  # (`web/e2e/map-ready.timing.ts`, every number in `web/e2e/timing/map-ready-budget.ts`).
+  #
+  # Its own job, not a step of `e2e`: every job gets a fresh runner VM, so nothing else of
+  # this workflow shares the CPU while it measures. The gate does not need an idle host — it
+  # calibrates the CDP CPU throttle per run against a fixed workload, so a hosted runner
+  # slower than the fast desktop it was tuned on is simply throttled less and the page sees
+  # the same reference CPU. What calibration cannot fix it does not hide: a run on a host
+  # slower than the reference device itself is discarded, and too few representative runs
+  # fail the job as *inconclusive*, never pass it. So a red here is either over budget or a
+  # runner that cannot stand in for the device; the report in the log says which. There are
+  # no retries and no `continue-on-error` — a budget that only passes on a second try is
+  # not met.
+  timing:
+    name: Map-ready timing budgets (CI-12)
+    needs: verify
+    runs-on: ubuntu-latest
+    # Two profiles × 5 runs, each at most a few seconds over its budget; the slack is for
+    # skipped calibrations on a noisy runner (up to 12 attempts per profile).
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # The same pinned browser as the `e2e` job, provisioned the same way and sharing its
+      # cache key — see the comments there for why each step is shaped as it is.
+      - name: Resolve the pinned browser build
+        id: browser
+        run: |
+          set -euo pipefail
+          build="$(pnpm --filter @fire-watch/web exec node -e \
+            "import('puppeteer-core/internal/revisions.js').then((m) => console.log(m.PUPPETEER_REVISIONS['chrome-headless-shell']))")"
+          echo "build=${build}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the browser cache
+        id: browser-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ runner.os }}-chrome-headless-shell-${{ steps.browser.outputs.build }}
+
+      # Unlike `e2e`, no fallback to the runner's Google Chrome: a different browser build
+      # is a different device to time, and a timing verdict from it would not be this gate's.
+      - name: Install the pinned headless shell
+        id: browser-install
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          build="${{ steps.browser.outputs.build }}"
+          pnpm --filter @fire-watch/web exec browsers install \
+            "chrome-headless-shell@${build}" --path "${HOME}/.cache/puppeteer"
+          echo "installed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Save the browser cache
+        if: steps.browser-install.outputs.installed == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-${{ runner.os }}-chrome-headless-shell-${{ steps.browser.outputs.build }}
+
+      # The host the verdict was measured on, so a red can be read against the machine: the
+      # per-run report already prints the calibrated CPU rate and the host's benchmark time.
+      - name: Runner
+        run: |
+          nproc
+          grep -m1 'model name' /proc/cpuinfo || true
+          uptime
+
+      # Builds `web/dist` and runs `vitest --project timing` against the built assets. The
+      # script uses the verbose reporter, so every run's numbers are in the log on a pass
+      # too — the default reporter drops a passing test's console output.
+      - name: Map-ready on Fast 4G and Fast 3G (CI-12 timing)
+        run: pnpm run test:timing
 
   integration:
     name: Migrations against PostGIS
