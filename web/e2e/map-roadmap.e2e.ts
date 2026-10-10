@@ -33,6 +33,13 @@ import type { OblastIndex } from '../src/core/filter/oblasts.js';
 import { LOCALE_STORAGE_KEY } from '../src/core/i18n/locale.js';
 import EN from '../src/core/i18n/en.js';
 import { ageWindowHours } from '../src/core/time/age-filter.js';
+import {
+  EFFIS_BA_FILL_LAYER_ID,
+  EFFIS_BA_LINE_LAYER_ID,
+  EFFIS_BA_SOURCE_ID,
+  EFFIS_FWI_LAYER_ID,
+  EFFIS_FWI_SOURCE_ID,
+} from '../src/map/effis-overlays.js';
 import { parseMapHash } from '../src/map/hash.js';
 import { OVERLAY_URLS } from '../src/ui/layers.js';
 import { eventPath } from '../src/ui/logic/event-resolution.js';
@@ -44,6 +51,15 @@ import { loadFixtureSnapshot, observedWithin } from './harness/fixture.js';
 import type { WireFeature, WireSnapshot } from './harness/fixture.js';
 import { HARNESS_POLL_INTERVAL_MS, startOrigin } from './harness/origin.js';
 import type { HarnessOrigin } from './harness/origin.js';
+import {
+  belowFireDefect,
+  cornerText,
+  enableMapInspection,
+  noneOf,
+  readMap,
+  startLoadableBasemap,
+  untilStyleLoaded,
+} from './harness/map-inspect.js';
 import { openInstrumentedPage, until } from './harness/page.js';
 import type { InstrumentedPage, InstrumentedPageOptions } from './harness/page.js';
 
@@ -87,6 +103,8 @@ interface BootOptions {
   readonly page?: (origin: HarnessOrigin) => InstrumentedPageOptions;
   /** Fixture events the origin does not serve until a scenario adds them back. */
   readonly withhold?: readonly string[];
+  /** Runs on the opened page before the first navigation (e.g. an opt-in hook). */
+  readonly beforeGoto?: (page: Page) => Promise<void>;
 }
 
 async function boot(options: BootOptions = {}): Promise<Booted> {
@@ -106,6 +124,7 @@ async function boot(options: BootOptions = {}): Promise<Booted> {
     options.page?.(origin) ?? {},
   );
   cleanups.push(() => page.close());
+  await options.beforeGoto?.(page.page);
   await page.page.goto(origin.baseUrl + (options.path ?? '/'), { waitUntil: 'load' });
   await page.page.waitForSelector(ROW_SELECTOR, { timeout: 15_000 });
   return { origin, page };
@@ -190,15 +209,21 @@ async function setHidden(page: Page, hidden: boolean): Promise<void> {
  * the panel do not move it. A real click on the input, as a reader's would be.
  */
 async function clickFwi(page: Page): Promise<void> {
+  await clickLayerOption(page, EN.layers.fwi);
+}
+
+/** Toggle the Layers-panel checkbox whose label is exactly `label`, with a real click. */
+async function clickLayerOption(page: Page, label: string): Promise<void> {
   const index = await page.$$eval(
     '#fw-layers-panel label.layers-option',
-    (options, label) => options.findIndex((option) => (option.textContent ?? '').trim() === label),
-    EN.layers.fwi,
+    (options, wanted) =>
+      options.findIndex((option) => (option.textContent ?? '').trim() === wanted),
+    label,
   );
-  if (index < 0) throw new Error('e2e: no fire-danger checkbox in the layers panel');
+  if (index < 0) throw new Error(`e2e: no "${label}" checkbox in the layers panel`);
   const inputs = await page.$$('#fw-layers-panel label.layers-option input');
   const input = inputs[index];
-  if (input === undefined) throw new Error('e2e: the fire-danger label has no input');
+  if (input === undefined) throw new Error(`e2e: the "${label}" label has no input`);
   await input.click();
 }
 
@@ -397,6 +422,89 @@ describe('CI-7 map roadmap (F10–F13)', () => {
     expect(await hash(page.page)).not.toContain('ov=');
 
     await expectQuietPage(page);
+  });
+
+  it('draws both EFFIS overlays on the real map below the fire layers, crediting EFFIS', async () => {
+    const stub = await startEffisOverlayStub();
+    cleanups.push(() => stub.close());
+    const loadable = await startLoadableBasemap();
+    cleanups.push(() => loadable.basemap.close());
+    const { page } = await boot({
+      page: (harness) => ({
+        extraOrigins: [stub.baseUrl, ...loadable.pageOptions.extraOrigins],
+        rewrite: { ...stub.rewriteFor(harness.baseUrl), ...loadable.pageOptions.rewrite },
+      }),
+      beforeGoto: enableMapInspection,
+    });
+    const loaded = await untilStyleLoaded(page.page, 20_000);
+    expect(loaded.sources).not.toContain(EFFIS_FWI_SOURCE_ID);
+    expect(loaded.sources).not.toContain(EFFIS_BA_SOURCE_ID);
+    const effisMark = 'EFFIS';
+    expect(await cornerText(page.page)).not.toContain(effisMark);
+
+    const toggle = 'button.map-control[aria-controls="fw-layers-panel"]';
+    await page.page.waitForSelector(toggle, { timeout: 15_000 });
+    await page.page.click(toggle);
+    await page.page.waitForSelector('#fw-layers-panel:not([hidden])', { timeout: 5_000 });
+
+    // Fire danger: an image source, which carries no attribution in MapLibre — so the
+    // EFFIS credit is the panel's, and the corner stays without it (`effis-overlays.ts`).
+    await clickFwi(page.page);
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && belowFireDefect(read, [EFFIS_FWI_LAYER_ID]) === null;
+      },
+      { timeoutMs: 10_000, what: 'the FWI layer in the style, below the fire layers' },
+    );
+    expect(await text(page.page, '#fw-layers-panel .layers-credit')).toContain(
+      'European Forest Fire Information System (EFFIS)',
+    );
+    expect(await cornerText(page.page)).not.toContain(effisMark);
+    await clickFwi(page.page);
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && read.styleLoaded && noneOf(read, [EFFIS_FWI_LAYER_ID]);
+      },
+      { timeoutMs: 10_000, what: 'the FWI layer gone from the style' },
+    );
+
+    // Burnt areas: the credit rides on the source, so the corner carries it while drawn.
+    const baLayers = [EFFIS_BA_FILL_LAYER_ID, EFFIS_BA_LINE_LAYER_ID];
+    await clickLayerOption(page.page, EN.layers.ba);
+    await until(() => stub.requests.includes(OVERLAY_URLS.ba), {
+      timeoutMs: 5_000,
+      what: 'the burnt-area request at the proxy',
+    });
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && belowFireDefect(read, baLayers) === null;
+      },
+      { timeoutMs: 10_000, what: 'the burnt-area layers in the style, below the fire layers' },
+    );
+    await until(async () => (await cornerText(page.page)).includes(effisMark), {
+      timeoutMs: 10_000,
+      what: 'the EFFIS credit in the map corner',
+    });
+    await clickLayerOption(page.page, EN.layers.ba);
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && read.styleLoaded && noneOf(read, baLayers);
+      },
+      { timeoutMs: 10_000, what: 'the burnt-area layers gone from the style' },
+    );
+    await until(async () => !(await cornerText(page.page)).includes(effisMark), {
+      timeoutMs: 10_000,
+      what: 'the EFFIS credit gone from the map corner',
+    });
+
+    // Both stand-ins answer in the harness: nothing blocked, an empty allowlist.
+    expect(page.blocked).toEqual([]);
+    expect(page.consoleErrors).toEqual([]);
+    expect(page.pageErrors).toEqual([]);
   });
 
   it('moves the camera onto a settlement chosen in place search', async () => {

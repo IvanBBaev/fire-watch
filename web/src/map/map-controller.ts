@@ -67,6 +67,7 @@ import {
 } from './layer-registry.js';
 import { buildMapReadyProbe, mapReadyProbeEnabled } from './map-ready-probe.js';
 import type { MapReadyProbe } from './map-ready-probe.js';
+import { installMapInspection } from './map-inspection.js';
 import { resolveBasemapStyle } from './outdoor-style.js';
 import type { FrameScheduler } from './throttle.js';
 import { createFrameThrottle } from './throttle.js';
@@ -116,6 +117,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
   map.addControl(
     new AttributionControl({ compact: true, customAttribution: deps.attributionLine }),
   );
+  // Inert unless an e2e harness opted in (`map-inspection.ts`); no reader page ever does.
+  const uninstallInspection = installMapInspection(map);
 
   let selectedId: string | null = null;
   let snapshotMarked = false;
@@ -615,6 +618,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
     destroy(): void {
       unsubscribe();
       throttle.dispose();
+      uninstallInspection();
       map.remove();
     },
   };

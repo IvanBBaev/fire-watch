@@ -181,21 +181,11 @@ const mirrorReads = (mirror: HarnessMirror): MirrorRequest[] =>
     (request) => request.method === 'GET' && request.path === `/${MIRROR_OBJECT_KEY}`,
   );
 
-const rowHrefs = async (page: Page): Promise<string[]> => {
-  const hrefs = await page.$$eval(ROW_SELECTOR, (rows) =>
-    rows.map((row) => row.getAttribute('href') ?? ''),
-  );
-  return hrefs.sort();
-};
-
 /**
  * How many rows the list says it is leaving out of the current map view, read from its
  * own "N more fires outside the current view" note (0 when there is no such note).
  */
-const outsideViewCount = async (page: Page): Promise<number> => {
-  const notes = await page.$$eval('.list-scope-note span', (spans) =>
-    spans.map((span) => (span.textContent ?? '').trim()),
-  );
+const outsideCountFrom = (notes: readonly string[]): number => {
   for (const note of notes) {
     for (let count = 1; count <= 1_000; count += 1) {
       if (note === en.listInView.outsideView(count)) return count;
@@ -213,8 +203,22 @@ const outsideViewCount = async (page: Page): Promise<number> => {
  * So: the rows shown are all expected ones, and shown + counted-outside is all of them.
  */
 const wholeWindowAccounted = async (page: Page, expected: readonly string[]): Promise<boolean> => {
-  const hrefs = await rowHrefs(page);
-  const outside = await outsideViewCount(page);
+  // One read of the DOM, not two: rows and note read in separate round-trips can straddle
+  // a re-render (the map settling a frame after a clock jump, more likely under suite
+  // load) and pair the old rows with the new note — a torn read, not a shrunk list.
+  const { rows, notes } = await page.evaluate(
+    (rowSelector: string) => ({
+      rows: [...document.querySelectorAll(rowSelector)].map(
+        (row) => row.getAttribute('href') ?? '',
+      ),
+      notes: [...document.querySelectorAll('.list-scope-note span')].map((span) =>
+        (span.textContent ?? '').trim(),
+      ),
+    }),
+    ROW_SELECTOR,
+  );
+  const hrefs = rows.sort();
+  const outside = outsideCountFrom(notes);
   return (
     hrefs.length > 0 &&
     hrefs.every((href) => expected.includes(href)) &&

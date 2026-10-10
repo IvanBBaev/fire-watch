@@ -31,11 +31,21 @@ import BG from '../src/core/i18n/bg.js';
 import EN from '../src/core/i18n/en.js';
 import { LOCALE_STORAGE_KEY } from '../src/core/i18n/locale.js';
 import type { Locale } from '../src/core/types.js';
+import { LIGHTNING_LAYER_ID, LIGHTNING_SOURCE_ID } from '../src/map/lightning-layer.js';
 import { ONBOARDING_DONE_VALUE, ONBOARDING_STORAGE_KEY } from '../src/ui/logic/onboarding.js';
 import { launchBrowser } from './harness/browser.js';
 import { loadFixtureSnapshot } from './harness/fixture.js';
 import type { WireSnapshot } from './harness/fixture.js';
 import { startOrigin } from './harness/origin.js';
+import {
+  belowFireDefect,
+  cornerText,
+  enableMapInspection,
+  noneOf,
+  readMap,
+  startLoadableBasemap,
+  untilStyleLoaded,
+} from './harness/map-inspect.js';
 import { openInstrumentedPage, until } from './harness/page.js';
 import type { InstrumentedPage } from './harness/page.js';
 
@@ -98,6 +108,7 @@ async function bootAt(
   locale: Locale,
   viewport?: { readonly width: number; readonly height: number },
   hash = '',
+  realMap = false,
 ): Promise<Pinned> {
   const offsetMs = atMs - Date.now();
   const origin = await startOrigin({
@@ -109,13 +120,17 @@ async function bootAt(
   });
   cleanups.push(() => origin.close());
   origin.setScenario('fresh');
+  // With `realMap`, a local stand-in basemap lets the style load, and the map is readable.
+  const loadable = realMap ? await startLoadableBasemap() : null;
+  if (loadable !== null) cleanups.push(() => loadable.basemap.close());
   const page = await openInstrumentedPage(
     browser,
     origin.baseUrl,
     { [ONBOARDING_STORAGE_KEY]: ONBOARDING_DONE_VALUE, [LOCALE_STORAGE_KEY]: locale },
-    { warpClock: true, initialClockOffsetMs: offsetMs },
+    { warpClock: true, initialClockOffsetMs: offsetMs, ...loadable?.pageOptions },
   );
   cleanups.push(() => page.close());
+  if (loadable !== null) await enableMapInspection(page.page);
   if (viewport !== undefined) {
     await page.page.setViewport({ ...viewport, deviceScaleFactor: 1 });
   }
@@ -200,6 +215,46 @@ describe('CI-7 lightning context layer (F18)', () => {
     expect(await page.page.evaluate(() => window.location.hash)).not.toContain('ov=');
 
     await expectQuietPage(page);
+  });
+
+  it('draws on the real map below the fire layers, with the EUMETSAT corner credit only while on', async () => {
+    const { page } = await bootAt(coveredThroughMs + 5 * MINUTE_MS, 'en', undefined, '', true);
+    const loaded = await untilStyleLoaded(page.page, 20_000);
+    expect(loaded.sources).not.toContain(LIGHTNING_SOURCE_ID);
+    expect(await cornerText(page.page)).not.toContain(CREDIT_MARK);
+
+    await openPanel(page.page);
+    await clickLightning(page.page);
+    const on = await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && belowFireDefect(read, [LIGHTNING_LAYER_ID]) === null ? read : null;
+      },
+      { timeoutMs: 10_000, what: 'the lightning layer in the style, below the fire layers' },
+    );
+    expect(on.sources).toContain(LIGHTNING_SOURCE_ID);
+    await until(async () => (await cornerText(page.page)).includes(CREDIT_MARK), {
+      timeoutMs: 10_000,
+      what: 'the exact EUMETSAT credit in the map corner',
+    });
+
+    await clickLightning(page.page);
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && read.styleLoaded && noneOf(read, [LIGHTNING_LAYER_ID]);
+      },
+      { timeoutMs: 10_000, what: 'the lightning layer gone from the style' },
+    );
+    await until(async () => !(await cornerText(page.page)).includes(CREDIT_MARK), {
+      timeoutMs: 10_000,
+      what: 'the EUMETSAT credit gone from the map corner',
+    });
+
+    // The stand-in basemap means nothing third-party was asked for: an empty allowlist.
+    expect(page.blocked).toEqual([]);
+    expect(page.consoleErrors).toEqual([]);
+    expect(page.pageErrors).toEqual([]);
   });
 
   it('says there is nothing to draw once every flash in the copy is over six hours old', async () => {

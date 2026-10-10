@@ -10,11 +10,10 @@
  * `ov=swaths`; switching it off takes the credit away again. A page error from drawing the
  * swaths fails the quiet-page check.
  *
- * The map corner is not asserted here: the harness blocks the third-party basemap, so the
- * style never finishes loading and no runtime source (swaths, wind, lightning) reaches the
- * map — the corner shows only the controller's own attribution line. That the swath source
- * carries the CelesTrak credit into the corner is CI-13's unit case
- * (`ui/attribution-presence.test.tsx`), against the real controller.
+ * The map corner is asserted by one scenario that swaps the blocked third-party basemap
+ * for a local stand-in (`harness/map-inspect.ts`), so the style loads and the swath
+ * source reaches the real map: its layers sit below the fire layers and the corner carries
+ * CelesTrak exactly while they are drawn. The other scenarios keep the basemap blocked.
  *
  * ## Not time-bombed: the scenario runs at the fixture's moment
  *
@@ -39,11 +38,27 @@ import BG from '../src/core/i18n/bg.js';
 import EN from '../src/core/i18n/en.js';
 import { LOCALE_STORAGE_KEY } from '../src/core/i18n/locale.js';
 import type { Locale } from '../src/core/types.js';
+import {
+  PASS_SWATHS_FILL_LAYER_ID,
+  PASS_SWATHS_LABEL_LAYER_ID,
+  PASS_SWATHS_OUTLINE_LAYER_ID,
+  PASS_SWATHS_SOURCE_ID,
+  PASS_SWATHS_TRACK_LAYER_ID,
+} from '../src/map/pass-swaths-layer.js';
 import { ONBOARDING_DONE_VALUE, ONBOARDING_STORAGE_KEY } from '../src/ui/logic/onboarding.js';
 import { launchBrowser } from './harness/browser.js';
 import { loadFixtureSnapshot } from './harness/fixture.js';
 import type { WireSnapshot } from './harness/fixture.js';
 import { startOrigin } from './harness/origin.js';
+import {
+  belowFireDefect,
+  cornerText,
+  enableMapInspection,
+  noneOf,
+  readMap,
+  startLoadableBasemap,
+  untilStyleLoaded,
+} from './harness/map-inspect.js';
 import { openInstrumentedPage, until } from './harness/page.js';
 import type { InstrumentedPage } from './harness/page.js';
 
@@ -104,6 +119,7 @@ async function bootAt(
   locale: Locale,
   viewport?: { readonly width: number; readonly height: number },
   hash = '',
+  realMap = false,
 ): Promise<Pinned> {
   const offsetMs = atMs - Date.now();
   const origin = await startOrigin({
@@ -115,13 +131,17 @@ async function bootAt(
   });
   cleanups.push(() => origin.close());
   origin.setScenario('fresh');
+  // With `realMap`, a local stand-in basemap lets the style load, and the map is readable.
+  const loadable = realMap ? await startLoadableBasemap() : null;
+  if (loadable !== null) cleanups.push(() => loadable.basemap.close());
   const page = await openInstrumentedPage(
     browser,
     origin.baseUrl,
     { [ONBOARDING_STORAGE_KEY]: ONBOARDING_DONE_VALUE, [LOCALE_STORAGE_KEY]: locale },
-    { warpClock: true, initialClockOffsetMs: offsetMs },
+    { warpClock: true, initialClockOffsetMs: offsetMs, ...loadable?.pageOptions },
   );
   cleanups.push(() => page.close());
+  if (loadable !== null) await enableMapInspection(page.page);
   if (viewport !== undefined) {
     await page.page.setViewport({ ...viewport, deviceScaleFactor: 1 });
   }
@@ -205,6 +225,53 @@ describe('CI-7 predicted satellite swaths (F15)', () => {
     expect(await page.page.evaluate(() => window.location.hash)).not.toContain('ov=');
 
     await expectQuietPage(page);
+  });
+
+  it('draws on the real map below the fire layers, with CelesTrak in the corner only while on', async () => {
+    const { page } = await bootAt(computedForMs + 5 * MINUTE_MS, 'en', undefined, '', true);
+    const swathLayers = [
+      PASS_SWATHS_FILL_LAYER_ID,
+      PASS_SWATHS_OUTLINE_LAYER_ID,
+      PASS_SWATHS_TRACK_LAYER_ID,
+    ];
+    const loaded = await untilStyleLoaded(page.page, 20_000);
+    expect(loaded.sources).not.toContain(PASS_SWATHS_SOURCE_ID);
+    expect(await cornerText(page.page)).not.toContain('CelesTrak');
+
+    await openPanel(page.page);
+    await clickSwaths(page.page);
+    const on = await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && belowFireDefect(read, swathLayers) === null ? read : null;
+      },
+      { timeoutMs: 10_000, what: 'the swath layers in the style, below the fire layers' },
+    );
+    expect(on.sources).toContain(PASS_SWATHS_SOURCE_ID);
+    // The stand-in style has no glyphs, so the label layer is (correctly) left out.
+    expect(on.layers).not.toContain(PASS_SWATHS_LABEL_LAYER_ID);
+    await until(async () => (await cornerText(page.page)).includes('CelesTrak'), {
+      timeoutMs: 10_000,
+      what: 'the CelesTrak credit in the map corner',
+    });
+
+    await clickSwaths(page.page);
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && read.styleLoaded && noneOf(read, swathLayers);
+      },
+      { timeoutMs: 10_000, what: 'the swath layers gone from the style' },
+    );
+    await until(async () => !(await cornerText(page.page)).includes('CelesTrak'), {
+      timeoutMs: 10_000,
+      what: 'the CelesTrak credit gone from the map corner',
+    });
+
+    // The stand-in basemap means nothing third-party was asked for: an empty allowlist.
+    expect(page.blocked).toEqual([]);
+    expect(page.consoleErrors).toEqual([]);
+    expect(page.pageErrors).toEqual([]);
   });
 
   it('says the prediction has expired, and lists nothing ahead, once its window is over', async () => {

@@ -12,6 +12,10 @@
  *   nearest mapped solar park — outside the 1 km caveat radius — while one of its six
  *   fixture detections lies on one, so the event page must say "1 of 6 detections is near
  *   a known solar park" where a centre-only caveat would have said nothing.
+ * - On the real map (a local stand-in basemap, `harness/map-inspect.ts`, so the style
+ *   loads), the mask's layers sit below the fire layers and are gone when switched off.
+ *   The map corner carries the OSM credit throughout: the corner line always does,
+ *   so the mask's source needs no `attribution` of its own.
  */
 
 import { fileURLToPath } from 'node:url';
@@ -21,12 +25,27 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { LOCALE_STORAGE_KEY } from '../src/core/i18n/locale.js';
 import EN from '../src/core/i18n/en.js';
+import {
+  STATIC_SOURCES_FILL_LAYER_ID,
+  STATIC_SOURCES_LINE_LAYER_ID,
+  STATIC_SOURCES_POINT_LAYER_ID,
+  STATIC_SOURCES_SOURCE_ID,
+} from '../src/map/static-sources-layer.js';
 import { ONBOARDING_DONE_VALUE, ONBOARDING_STORAGE_KEY } from '../src/ui/logic/onboarding.js';
 import { STATIC_SOURCES_STORAGE_KEY } from '../src/ui/static-sources.js';
 import { launchBrowser } from './harness/browser.js';
 import { loadFixtureSnapshot } from './harness/fixture.js';
 import type { WireSnapshot } from './harness/fixture.js';
 import { startOrigin } from './harness/origin.js';
+import {
+  belowFireDefect,
+  cornerText,
+  enableMapInspection,
+  noneOf,
+  readMap,
+  startLoadableBasemap,
+  untilStyleLoaded,
+} from './harness/map-inspect.js';
 import { openInstrumentedPage, until } from './harness/page.js';
 import type { InstrumentedPage } from './harness/page.js';
 
@@ -69,7 +88,7 @@ afterEach(async () => {
   }
 });
 
-async function openPage(path: string): Promise<InstrumentedPage> {
+async function openPage(path: string, realMap = false): Promise<InstrumentedPage> {
   const origin = await startOrigin({
     distDir: DIST_DIR,
     fixture,
@@ -78,8 +97,14 @@ async function openPage(path: string): Promise<InstrumentedPage> {
   });
   cleanups.push(() => origin.close());
   origin.setScenario('fresh');
-  const page = await openInstrumentedPage(browser, origin.baseUrl, STORAGE, {});
+  // With `realMap`, a local stand-in basemap lets the style load, and the map is readable.
+  const loadable = realMap ? await startLoadableBasemap() : null;
+  if (loadable !== null) cleanups.push(() => loadable.basemap.close());
+  const page = await openInstrumentedPage(browser, origin.baseUrl, STORAGE, {
+    ...loadable?.pageOptions,
+  });
   cleanups.push(() => page.close());
+  if (loadable !== null) await enableMapInspection(page.page);
   await page.page.goto(`${origin.baseUrl}${path}`, { waitUntil: 'load' });
   return page;
 }
@@ -145,6 +170,51 @@ describe('CI-7 static hot-source mask (F16)', () => {
     });
 
     await expectQuietPage(page);
+  });
+
+  it('draws on the real map below the fire layers, with OpenStreetMap in the corner', async () => {
+    const maskLayers = [
+      STATIC_SOURCES_FILL_LAYER_ID,
+      STATIC_SOURCES_LINE_LAYER_ID,
+      STATIC_SOURCES_POINT_LAYER_ID,
+    ];
+    const page = await openPage('/', true);
+    await page.page.waitForSelector(ROW_SELECTOR, { timeout: 15_000 });
+    const loaded = await untilStyleLoaded(page.page, 20_000);
+    expect(loaded.sources).not.toContain(STATIC_SOURCES_SOURCE_ID);
+    await until(async () => (await cornerText(page.page)).includes('OpenStreetMap'), {
+      timeoutMs: 10_000,
+      what: 'the OpenStreetMap credit in the map corner',
+    });
+
+    await openPanel(page.page);
+    await (await staticSourcesInput(page.page)).click();
+    const on = await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && belowFireDefect(read, maskLayers) === null ? read : null;
+      },
+      { timeoutMs: 10_000, what: 'the mask layers in the style, below the fire layers' },
+    );
+    expect(on.sources).toContain(STATIC_SOURCES_SOURCE_ID);
+    // The registry's exact OSM text; its ODbL link lives on the credits page, because
+    // the corner line is plain text (contracts `MAP_CORNER_LINE`).
+    expect(await cornerText(page.page)).toContain('© OpenStreetMap contributors');
+
+    await (await staticSourcesInput(page.page)).click();
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && read.styleLoaded && noneOf(read, maskLayers);
+      },
+      { timeoutMs: 10_000, what: 'the mask layers gone from the style' },
+    );
+    expect(await cornerText(page.page)).toContain('OpenStreetMap');
+
+    // The stand-in basemap means nothing third-party was asked for: an empty allowlist.
+    expect(page.blocked).toEqual([]);
+    expect(page.consoleErrors).toEqual([]);
+    expect(page.pageErrors).toEqual([]);
   });
 
   it('opens a link carrying ov=static with the layer on, leaving storage alone', async () => {

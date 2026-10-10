@@ -8,6 +8,12 @@
  * hour it is for and the model run, prints all five ECMWF credit components and records
  * `ov=wind`; switching it off takes the credits away again. A page error from drawing the
  * arrows (MapLibre's `addImage` / symbol layer) fails the quiet-page check.
+ *
+ * A second scenario swaps the blocked third-party basemap for a local stand-in
+ * (`harness/map-inspect.ts`) so the style loads and the arrows reach the real map: the
+ * layer sits below the fire layers and is gone when switched off. The map corner carries
+ * no ECMWF credit by design — the source has no `attribution`, because the five ECMWF
+ * components are owed together in the panel and on the credits page (`wind-layer.ts`).
  */
 
 import { fileURLToPath } from 'node:url';
@@ -19,11 +25,21 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../src/core/config.js';
 import { LOCALE_STORAGE_KEY } from '../src/core/i18n/locale.js';
 import EN from '../src/core/i18n/en.js';
+import { WIND_LAYER_ID, WIND_SOURCE_ID } from '../src/map/wind-layer.js';
 import { ONBOARDING_DONE_VALUE, ONBOARDING_STORAGE_KEY } from '../src/ui/logic/onboarding.js';
 import { launchBrowser } from './harness/browser.js';
 import { loadFixtureSnapshot } from './harness/fixture.js';
 import type { WireSnapshot } from './harness/fixture.js';
 import { startOrigin } from './harness/origin.js';
+import {
+  belowFireDefect,
+  cornerText,
+  enableMapInspection,
+  noneOf,
+  readMap,
+  startLoadableBasemap,
+  untilStyleLoaded,
+} from './harness/map-inspect.js';
 import { openInstrumentedPage, until } from './harness/page.js';
 import type { InstrumentedPage } from './harness/page.js';
 
@@ -140,5 +156,57 @@ describe('CI-7 wind context layer (F14)', () => {
     expect(await page.page.evaluate(() => window.location.hash)).not.toContain('ov=');
 
     await expectQuietPage(page);
+  });
+  it('draws on the real map below the fire layers, and leaves the corner to the panel', async () => {
+    const origin = await startOrigin({
+      distDir: DIST_DIR,
+      fixture,
+      advertiseStaticCopy: false,
+      staleByMs: 0,
+    });
+    cleanups.push(() => origin.close());
+    origin.setScenario('fresh');
+    const loadable = await startLoadableBasemap();
+    cleanups.push(() => loadable.basemap.close());
+    const page = await openInstrumentedPage(browser, origin.baseUrl, STORAGE, loadable.pageOptions);
+    cleanups.push(() => page.close());
+    await enableMapInspection(page.page);
+    await page.page.goto(`${origin.baseUrl}/`, { waitUntil: 'load' });
+    await page.page.waitForSelector(ROW_SELECTOR, { timeout: 15_000 });
+    const loaded = await untilStyleLoaded(page.page, 20_000);
+    expect(loaded.sources).not.toContain(WIND_SOURCE_ID);
+
+    const toggle = `button.map-control[aria-controls="${PANEL.slice(1)}"]`;
+    await page.page.waitForSelector(toggle, { timeout: 15_000 });
+    await page.page.click(toggle);
+    await page.page.waitForSelector(`${PANEL}:not([hidden])`, { timeout: 5_000 });
+    await clickWind(page.page);
+    const on = await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && belowFireDefect(read, [WIND_LAYER_ID]) === null ? read : null;
+      },
+      { timeoutMs: 10_000, what: 'the wind layer in the style, below the fire layers' },
+    );
+    expect(on.sources).toContain(WIND_SOURCE_ID);
+    // ECMWF is credited in the panel while the arrows are drawn, never in the corner.
+    expect((await credits(page.page)).join('\n')).toContain(
+      'European Centre for Medium-Range Weather Forecasts',
+    );
+    expect(await cornerText(page.page)).not.toMatch(/ECMWF|European Centre/u);
+
+    await clickWind(page.page);
+    await until(
+      async () => {
+        const read = await readMap(page.page);
+        return read !== null && read.styleLoaded && noneOf(read, [WIND_LAYER_ID]);
+      },
+      { timeoutMs: 10_000, what: 'the wind layer gone from the style' },
+    );
+
+    // The stand-in basemap means nothing third-party was asked for: an empty allowlist.
+    expect(page.blocked).toEqual([]);
+    expect(page.consoleErrors).toEqual([]);
+    expect(page.pageErrors).toEqual([]);
   });
 });
