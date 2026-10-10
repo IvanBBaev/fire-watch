@@ -71,7 +71,8 @@ Order of operations, and why:
    a new build is a new prefix, and the switch is a client-config change made **last**.
 5. **Switch** — set `ClientConfig.outdoorBasemap` (web) to the URL templates the upload plan
    prints. `demTilesUrl` stays `null` until a Terrarium DEM mirror exists under
-   `dem/terrarium/{z}/{x}/{y}.png`; with it `null` the style simply has no hillshade.
+   `dem/terrarium/{z}/{x}/{y}.png` (see [DEM mirror](#dem-mirror--terrarium-hillshade-g3));
+   with it `null` the style simply has no hillshade.
    With `tilesUrl`/`glyphsUrl` unset the app keeps the current default basemap.
 
 ## Local serving — no bucket needed (G3)
@@ -110,6 +111,74 @@ unchanged — CI, e2e and every deploy run without it.
   server, no third-party host, no tofu in Greek (tonos, ς), Cyrillic, Romanian ș ț, bold or
   italic labels.
 
+## DEM mirror — Terrarium hillshade (G3)
+
+Hillshade reads a `raster-dem` source in Terrarium encoding. The mirror copies those PNGs from
+the AWS Open Data **Terrain Tiles** bucket, once, so the browser never asks AWS for them:
+
+- Source: `https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png`
+  (registry `https://registry.opendata.aws/terrain-tiles/`, 256 px, upstream z0–z15). The EU
+  replica `elevation-tiles-prod-eu` answered 403 on 2026-10-10, so the US bucket is the source.
+- Licence / required attribution: `https://github.com/tilezen/joerd/blob/master/docs/attribution.md`
+  (SRTM, GMTED, ETOPO1, EU-DEM, … per area). The credit lines live in
+  `packages/contracts/src/credits.ts` (`layer:terrain`) and follow automatically: a non-null
+  `demTilesUrl` makes the active basemap `terrain: true`.
+- Zoom cap **z12** (`DEM_MAXZOOM`): at 42° N a z12 tile is ≈ 28 m/px, already the resolution
+  of the ~30 m source data under Bulgaria; z13+ would only upsample. MapLibre overzooms the
+  `raster-dem` source past its `maxzoom` for z13/z14 hillshade.
+- Tiers: the same tier file as the vector build, each tier capped at z12 — `europe` stays
+  z0–6, `bg-border` becomes z0–12. With `tiers-local.json` that is **6,402** tiles (z12: 4,514,
+  z11: 1,178, z10: 304); the dry run prints the per-zoom table and a nominal size estimate.
+
+```sh
+pnpm exec tsc --build infra/tiles
+# Dry run (default): tiers, per-zoom counts, nominal bytes and the minimum time at --rate.
+node infra/tiles/dist/cli.js dem-mirror --work ./tiles-dem --tiers ./tiles/tiers-local.json
+# Fetch: polite (--rate 8 req/s, --concurrency 4), resumable, sha256 manifest.
+node infra/tiles/dist/cli.js dem-mirror --work ./tiles-dem --tiers ./tiles/tiers-local.json --apply
+node infra/tiles/dist/cli.js dem-verify --work ./tiles-dem   # re-hash every tile against the manifest
+# Upload plan (dry) for the bucket: dem/terrarium/… with the DEM cache headers.
+node infra/tiles/dist/cli.js dem-mirror --work ./tiles-dem --tiers ./tiles/tiers-local.json --remote <rclone-remote:bucket>
+```
+
+- Layout: `<work>/dem/terrarium/{z}/{x}/{y}.png` + `<work>/dem/manifest.json`
+  (`fire-watch/dem-mirror@1`: source URL, licence, and per tile `{ bytes, sha256 }`, keys
+  sorted, written atomically and checkpointed during the fetch).
+- Resume: a tile already in the manifest with the same size on disk is skipped; an interrupted
+  run continues where it stopped. Every body is checked to be a 256×256 PNG before it is kept.
+- Retries: network errors, 429 and 5xx back off 1 s·2ⁿ (≤ 30 s); 403/404 are failures, listed
+  at the end, and the run exits non-zero.
+- Only `dem-mirror --apply` touches the network; every other command is offline.
+
+Local serving: put the mirror under the tiles work directory (`./tiles/dem/terrarium`), or
+point `FIRE_WATCH_LOCAL_DEM_DIR` at its own work directory:
+
+```sh
+FIRE_WATCH_LOCAL_TILES_DIR=./tiles FIRE_WATCH_LOCAL_DEM_DIR=./tiles-dem pnpm --filter @fire-watch/web dev
+```
+
+The dev server then serves `/__local-tiles/dem/terrarium/{z}/{x}/{y}.png` and defines
+`VITE_FIRE_WATCH_LOCAL_DEM`, and `readLocalTiles` sets `demTilesUrl` — loopback origins only,
+like the tiles. A named `FIRE_WATCH_LOCAL_DEM_DIR` that does not exist fails the start. A DEM
+tile outside the mirror is a **404**, not a 204: MapLibre turns an empty `raster-dem` body into
+a 1 px tile and then throws "dem dimension mismatch" when it backfills a 256 px neighbour.
+
+Known gap: the style's `outdoor-dem` source has no `bounds`, so at the mirror's edges (the
+Balkans z6 view, any pan outside `bg-border`) MapLibre requests tiles the mirror does not have
+and logs each 404. Either the source gets `bounds` from the tier plan or the mirror covers the
+whole view range — a decision for the hosting step, recorded here, not made.
+
+### DEM proof, 2026-10-10
+
+- `dem-mirror --apply` with `tiers-local.json`: **6,402** tiles z0–z12, **628.1 MB**
+  (measured ≈ 98 kB/tile, nominal estimate 704 MB) in 812 s at 8 req/s, 4 in flight; 0 failures,
+  0 retries surfaced. `dem-verify` re-hashed all 6,402 against the manifest in ≈ 2 s: clean.
+- Rendered with the local tiles + DEM in light and dark (S1 z9/z11/z12/z13/z14, Sofia z12,
+  Balkans z6): hillshade drawn at every view; every tile, glyph and DEM request went to the
+  loopback dev server only; the attribution showed "Terrain: Tilezen/Mapzen" at every view.
+  DEM 404s: none at S1 or Sofia, 4 at the Balkans z6 edge (the gap above). The only other
+  console errors were the `/api` proxy's 502s (no local API running).
+
 ## Visual check — "no tofu" in Greek labels near the border (G2 done-when)
 
 The byte-level verifier proves the glyphs exist; this proves MapLibre actually renders them.
@@ -141,3 +210,9 @@ Run it after step 5 against the deployed config, in **both light and dark** them
   the codepoint scan reads only those fields, so adding `name:en` needs a rebuild.
 - Tier bboxes and zooms (cost ↔ coverage).
 - Attribution lines for Protomaps/OSM and the DEM source (G5 / CI-13, `credits.ts`).
+- DEM host and mirror location (same bucket under `dem/terrarium/`, or elsewhere), its tier
+  coverage, and whether the `outdoor-dem` source gets `bounds`.
+- DEM credit wording: `terrarium-etopo1` is `verified: false` and does not match the source
+  text; `terrarium-usgs` is only part of the required line; the joerd page requires "Mapzen"
+  when the hosted tiles are used; ETOPO1 has its own formal NCEI citation; the map-corner
+  "Terrain: Tilezen/Mapzen" vs `terrarium-short` mismatch is already a CI-13 finding.

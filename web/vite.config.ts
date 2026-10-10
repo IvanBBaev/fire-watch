@@ -16,24 +16,39 @@ import {
  * preview`) serves the newest `infra/tiles/build.sh` output under `/__local-tiles` and
  * builds the client with `VITE_FIRE_WATCH_LOCAL_TILES`, which points `outdoorBasemap` at
  * it (`core/config.ts` readLocalTiles). `FIRE_WATCH_LOCAL_TILES_VERSION` pins a version.
+ * A Terrarium mirror (`infra/tiles` `dem-mirror`) under `<dir>/dem/terrarium`, or under
+ * `FIRE_WATCH_LOCAL_DEM_DIR` when it was fetched elsewhere, is served too and sets
+ * `VITE_FIRE_WATCH_LOCAL_DEM`, which turns hillshade on.
  * Unset — CI, e2e, every deploy — no plugin, no define: the default basemap is untouched.
  */
-function localTiles(workDir: string | undefined, version: string | undefined): Plugin[] {
+function localTiles(
+  workDir: string | undefined,
+  version: string | undefined,
+  demWorkDir: string | undefined,
+): Plugin[] {
   const dir = workDir?.trim();
   if (!dir) return [];
-  const local = resolveLocalTiles(dir, version?.trim() || undefined);
+  const local = resolveLocalTiles(
+    dir,
+    version?.trim() || undefined,
+    demWorkDir?.trim() || undefined,
+  );
   return [
     {
       name: 'fire-watch:local-tiles',
       config: () => ({
         define: {
           'import.meta.env.VITE_FIRE_WATCH_LOCAL_TILES': JSON.stringify(LOCAL_TILES_PREFIX),
+          ...(local.demDir !== null && {
+            'import.meta.env.VITE_FIRE_WATCH_LOCAL_DEM': JSON.stringify('1'),
+          }),
         },
       }),
       configureServer(server) {
         server.middlewares.use(localTilesMiddleware(local));
         server.config.logger.info(
-          `  local tiles: ${local.tilesDir} + glyphs ${local.glyphsDir} at ${LOCAL_TILES_PREFIX}`,
+          `  local tiles: ${local.tilesDir} + glyphs ${local.glyphsDir}` +
+            `${local.demDir === null ? ' (no DEM)' : ` + DEM ${local.demDir}`} at ${LOCAL_TILES_PREFIX}`,
         );
       },
       configurePreviewServer(server) {
@@ -171,6 +186,7 @@ export default defineConfig({
     ...localTiles(
       process.env['FIRE_WATCH_LOCAL_TILES_DIR'],
       process.env['FIRE_WATCH_LOCAL_TILES_VERSION'],
+      process.env['FIRE_WATCH_LOCAL_DEM_DIR'],
     ),
   ],
   optimizeDeps: {

@@ -9,6 +9,11 @@
  * directory, and the client points `outdoorBasemap` at it (`web/src/core/config.ts`
  * `readLocalTiles`). Unset, nothing is mounted and nothing changes.
  *
+ * The Terrarium DEM mirror (`cli.js dem-mirror`) is served from the same prefix when it
+ * exists: `<work>/dem/terrarium/{z}/{x}/{y}.png` under the tiles work directory, or under
+ * `FIRE_WATCH_LOCAL_DEM_DIR` when the DEM was fetched into a directory of its own. Without
+ * one the client gets no `demTilesUrl` and the style draws no hillshade.
+ *
  * Node built-ins only (connect-style signature, no Vite types), so it stays in this
  * project and is tested here.
  */
@@ -16,6 +21,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join, resolve, sep } from 'node:path';
+
+import { DEM_PREFIX } from './tile-plan.js';
 
 /** The URL prefix both sides agree on; the client builds its templates from it. */
 export const LOCAL_TILES_PREFIX = '/__local-tiles';
@@ -27,6 +34,8 @@ export interface LocalTiles {
   readonly glyphsDir: string;
   readonly tilesVersion: string;
   readonly glyphsVersion: string;
+  /** `<dem work>/dem/terrarium`, or `null` when no DEM mirror is present. */
+  readonly demDir: string | null;
 }
 
 /** The newest `<version>` directory under `dir` (versions are dates, so names sort). */
@@ -43,7 +52,7 @@ function newestVersion(dir: string): string | null {
  * versions unless `version` pins one. Throws with the path it looked at, so a typo in the
  * env var fails the dev server start loudly instead of rendering a blank map.
  */
-export function resolveLocalTiles(workDir: string, version?: string): LocalTiles {
+export function resolveLocalTiles(workDir: string, version?: string, demWorkDir?: string): LocalTiles {
   const root = resolve(workDir);
   const tilesVersion = version ?? newestVersion(join(root, 'tree'));
   const glyphsVersion = version ?? newestVersion(join(root, 'fonts'));
@@ -54,7 +63,22 @@ export function resolveLocalTiles(workDir: string, version?: string): LocalTiles
   for (const dir of [tilesDir, glyphsDir]) {
     if (!existsSync(dir)) throw new Error(`${dir} does not exist`);
   }
-  return { tilesDir, glyphsDir, tilesVersion, glyphsVersion };
+  return { tilesDir, glyphsDir, tilesVersion, glyphsVersion, demDir: resolveLocalDem(root, demWorkDir) };
+}
+
+/**
+ * The DEM tree: `<demWorkDir>/dem/terrarium` when a DEM work directory is named — it must
+ * exist then, like the tiles directory — else the same path under the tiles work directory
+ * if a mirror was fetched there, else `null` (no hillshade).
+ */
+export function resolveLocalDem(tilesWorkDir: string, demWorkDir?: string): string | null {
+  if (demWorkDir !== undefined) {
+    const dir = join(resolve(demWorkDir), DEM_PREFIX);
+    if (!existsSync(dir)) throw new Error(`no DEM mirror at ${dir} — run "node infra/tiles/dist/cli.js dem-mirror --work <dir> --apply"`);
+    return dir;
+  }
+  const dir = join(resolve(tilesWorkDir), DEM_PREFIX);
+  return existsSync(dir) ? dir : null;
 }
 
 export interface LocalTilesResponse {
@@ -65,6 +89,7 @@ export interface LocalTilesResponse {
 
 const TILE_PATH = /^\/tiles\/(\d{1,2})\/(\d{1,5})\/(\d{1,5})\.mvt$/u;
 const GLYPH_PATH = /^\/fonts\/([^/]+)\/(\d{1,5})-(\d{1,5})\.pbf$/u;
+const DEM_PATH = /^\/dem\/terrarium\/(\d{1,2})\/(\d{1,5})\/(\d{1,5})\.png$/u;
 
 /**
  * The response for one request path below the prefix (`/tiles/…` or `/fonts/…`), or
@@ -76,6 +101,9 @@ const GLYPH_PATH = /^\/fonts\/([^/]+)\/(\d{1,5})-(\d{1,5})\.pbf$/u;
  *   same header here lets the browser inflate them, exactly as from the bucket.
  * - The fontstack segment is URL-decoded (`Noto%20Sans%20Regular`) and must stay inside
  *   the glyph directory.
+ * - A DEM tile outside the mirror is a 404, as the bucket would answer. Not a 204: MapLibre
+ *   turns an empty raster-dem body into a 1 px tile, and backfilling a 256 px neighbour's
+ *   border from it throws ("dem dimension mismatch"); a 404 only marks that tile errored.
  */
 export function localTilesResponse(local: LocalTiles, path: string): LocalTilesResponse | null {
   const tile = TILE_PATH.exec(path);
@@ -108,6 +136,16 @@ export function localTilesResponse(local: LocalTiles, path: string): LocalTilesR
     return {
       status: 200,
       headers: { 'Content-Type': 'application/x-protobuf', 'Cache-Control': 'no-cache' },
+      body: new Uint8Array(readFileSync(file)),
+    };
+  }
+  const dem = DEM_PATH.exec(path);
+  if (dem !== null) {
+    const file = local.demDir === null ? null : join(local.demDir, dem[1] ?? '', dem[2] ?? '', `${dem[3] ?? ''}.png`);
+    if (file === null || !existsSync(file)) return { status: 404, headers: { 'Cache-Control': 'no-cache' }, body: null };
+    return {
+      status: 200,
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' },
       body: new Uint8Array(readFileSync(file)),
     };
   }

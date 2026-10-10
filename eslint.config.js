@@ -11,6 +11,7 @@ export default tseslint.config(
       '**/node_modules/**',
       'data/**',
       'tiles/**',
+      'tiles-dem/**',
       // Seeded and removed by the boundary test; never real source.
       '**/__boundary-fixture.*.ts',
     ],

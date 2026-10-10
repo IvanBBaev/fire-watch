@@ -65,7 +65,8 @@ async function boot(): Promise<void> {
       (input, init) => fetch(input, init),
       // `pnpm dev:live` builds with VITE_FIRE_WATCH_DATA=live; everything else reads fixtures.
       // FIRE_WATCH_LOCAL_TILES_DIR (dev/preview only) draws the outdoor style from a local
-      // `infra/tiles/build.sh` output; unset, the default basemap is untouched.
+      // `infra/tiles/build.sh` output (with hillshade when a DEM mirror is served beside it);
+      // unset, the default basemap is untouched.
       withLocalTiles(
         withDataSource(
           DEFAULT_CONFIG,
@@ -74,6 +75,7 @@ async function boot(): Promise<void> {
         readLocalTiles(
           import.meta.env['VITE_FIRE_WATCH_LOCAL_TILES'] as string | undefined,
           location.origin,
+          import.meta.env['VITE_FIRE_WATCH_LOCAL_DEM'] as string | undefined,
         ),
       ),
     ),

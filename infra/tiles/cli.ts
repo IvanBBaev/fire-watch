@@ -10,9 +10,13 @@
  *   node infra/tiles/dist/cli.js verify-glyphs --glyphs <dir> --manifest <file> [--strict]
  *   node infra/tiles/dist/cli.js upload-plan --tiles <dir> --tiles-version <v> --manifest <file>
  *        --remote <rclone-remote:bucket> [--glyphs <dir> --glyphs-version <v>] [--public-base <https-url>]
+ *   node infra/tiles/dist/cli.js dem-mirror --work <dir> [--tiers <json>] [--maxzoom 12] [--rate 8]
+ *        [--concurrency 4] [--remote <rclone-remote:bucket>] [--apply]
+ *   node infra/tiles/dist/cli.js dem-verify --work <dir>
  *
- * Nothing here touches the network: `plan` and `upload-plan` print the commands that do,
- * and `build.sh` runs them only with `--apply`.
+ * Nothing here touches the network except `dem-mirror --apply` (G3), which downloads the
+ * public Terrarium tiles; without `--apply` it only prints the plan. `plan` and
+ * `upload-plan` print the commands that do, and `build.sh` runs them only with `--apply`.
  *
  * Exit codes: 0 ok, 1 a check failed, 2 usage error.
  */
@@ -22,6 +26,23 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import {
+  DEM_MAXZOOM,
+  DEM_SOURCE,
+  type DemFetchResponse,
+  demManifestPath,
+  demSizeOnDisk,
+  demTileFile,
+  demTiers,
+  demTileUrl,
+  demUploadStep,
+  emptyDemManifest,
+  mirrorDem,
+  planDemMirror,
+  readDemManifest,
+  summarizeDemManifest,
+  verifyDemMirror,
+} from './dem-mirror.js';
 import { explode, type ExplodeManifest, fileSource, mergeManifests } from './explode.js';
 import {
   codepointLabel,
@@ -36,6 +57,7 @@ import {
   clientUrlTemplates,
   countTiles,
   DEFAULT_EXTRACT_TIERS,
+  enumerateTiles,
   type ExtractTier,
   isValidKey,
   planUpload,
@@ -298,6 +320,155 @@ function commandUploadPlan(args: string[]): number {
   return 0;
 }
 
+const USER_AGENT = 'fire-watch-tiles/0.1 (+https://github.com/IvanBBaev/fire-watch)';
+
+/** Used for the dry-run byte estimate only, until a run has measured the real average. */
+/** The CLI is the clock boundary: `mirrorDem` and the manifest take `now` as input. */
+function wallClock(): number {
+  // eslint-disable-next-line no-restricted-syntax -- operator CLI pacing real requests
+  return Date.now();
+}
+
+const NOMINAL_DEM_TILE_BYTES = 110_000;
+
+function numberOption(value: string | undefined, flag: string, fallback: number, min: number, max: number): number {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    throw new UsageError(`${flag} must be a number in [${min}, ${max}], got ${JSON.stringify(value)}`);
+  }
+  return parsed;
+}
+
+function megabytes(bytes: number): string {
+  return `${(bytes / 1e6).toFixed(1)} MB`;
+}
+
+async function fetchDemTile(url: string): Promise<DemFetchResponse> {
+  const response = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT },
+    signal: AbortSignal.timeout(30_000),
+  });
+  return {
+    status: response.status,
+    body: new Uint8Array(await response.arrayBuffer()),
+    etag: response.headers.get('etag'),
+    lastModified: response.headers.get('last-modified'),
+  };
+}
+
+async function commandDemMirror(args: string[]): Promise<number> {
+  const { values } = parseArgs({
+    args,
+    options: {
+      work: { type: 'string' },
+      tiers: { type: 'string' },
+      maxzoom: { type: 'string' },
+      rate: { type: 'string' },
+      concurrency: { type: 'string' },
+      remote: { type: 'string' },
+      apply: { type: 'boolean' },
+    },
+    strict: true,
+  });
+  const workDir = resolve(required(values.work, '--work'));
+  const maxzoom = numberOption(values.maxzoom, '--maxzoom', DEM_MAXZOOM, 0, DEM_SOURCE.upstreamMaxzoom);
+  const rate = numberOption(values.rate, '--rate', 8, 0.1, 50);
+  const concurrency = numberOption(values.concurrency, '--concurrency', 4, 1, 16);
+  const tiers = demTiers(loadTiers(values.tiers), maxzoom);
+  const estimate = countTiles(tiers);
+  const manifest = readDemManifest(workDir) ?? emptyDemManifest(tiers, maxzoom, new Date(wallClock()));
+  const plan = planDemMirror(enumerateTiles(tiers), manifest, demSizeOnDisk(workDir));
+  const have = summarizeDemManifest(manifest);
+  const average = have.tiles > 0 ? have.bytes / have.tiles : NOMINAL_DEM_TILE_BYTES;
+
+  const out: string[] = [
+    '# Terrarium DEM mirror (TASKS G3)',
+    `source:  ${DEM_SOURCE.urlTemplate}`,
+    `registry: ${DEM_SOURCE.registry}`,
+    `licence: ${DEM_SOURCE.licence} (credits: packages/contracts/src/credits.ts, layer:terrain)`,
+    `work:    ${workDir} → ${join(workDir, 'dem', 'terrarium')}, manifest ${demManifestPath(workDir)}`,
+    '',
+    `# Tiers, capped at z${maxzoom}`,
+    ...tiers.map(
+      (tier) =>
+        `- ${tier.name}: bbox ${tier.bbox.west},${tier.bbox.south},${tier.bbox.east},${tier.bbox.north} z${tier.minzoom}–z${tier.maxzoom}`,
+    ),
+    '',
+    '# Distinct tiles per zoom',
+    ...estimate.byZoom.map((row) => `  z${row.z}: ${row.tiles}`),
+    `  total: ${estimate.total}`,
+    '',
+    `present: ${plan.present} (manifest holds ${have.tiles}, ${megabytes(have.bytes)}; ${plan.outsidePlan} outside this plan, kept)`,
+    `to fetch: ${plan.fetch.length} ≈ ${megabytes(plan.fetch.length * average)}` +
+      ` (${have.tiles > 0 ? 'measured' : 'nominal'} ${Math.round(average / 1000)} kB/tile),` +
+      ` ≥ ${Math.ceil(plan.fetch.length / rate / 60)} min at ${rate} req/s, ${concurrency} in flight`,
+    ...plan.fetch.slice(0, 3).map((tile) => `  e.g. ${demTileUrl(tile)}`),
+  ];
+  if (values.remote !== undefined) {
+    out.push('', '# Upload (after a clean dem-verify)', rcloneCommand(demUploadStep(workDir, estimate.total), values.remote));
+  }
+  process.stdout.write(`${out.join('\n')}\n`);
+
+  if (values.apply !== true) {
+    process.stdout.write('== dry run: nothing downloaded. Re-run with --apply.\n');
+    return 0;
+  }
+  if (plan.fetch.length === 0) {
+    process.stdout.write('dem-mirror: nothing to fetch\n');
+    return 0;
+  }
+  const started = wallClock();
+  const result = await mirrorDem({
+    workDir,
+    manifest: { ...manifest, tiers, maxzoom },
+    tiles: plan.fetch,
+    fetchTile: fetchDemTile,
+    sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
+    now: wallClock,
+    ratePerSecond: rate,
+    concurrency,
+    log: (line) => process.stdout.write(`dem-mirror: ${line}\n`),
+  });
+  const total = summarizeDemManifest(result.manifest);
+  process.stdout.write(
+    `dem-mirror: fetched ${result.fetched} tiles, ${megabytes(result.bytes)} in ${Math.round((wallClock() - started) / 1000)} s;` +
+      ` manifest now ${total.tiles} tiles, ${megabytes(total.bytes)}\n`,
+  );
+  for (const finding of result.failed.slice(0, 20)) {
+    process.stderr.write(`dem-mirror: ${finding.id}: ${finding.problem}\n`);
+  }
+  if (result.failed.length > 0) {
+    process.stderr.write(`dem-mirror: ${result.failed.length} tile(s) failed — re-run to retry them\n`);
+    return 1;
+  }
+  return 0;
+}
+
+function commandDemVerify(args: string[]): number {
+  const { values } = parseArgs({ args, options: { work: { type: 'string' } }, strict: true });
+  const workDir = resolve(required(values.work, '--work'));
+  const manifest = readDemManifest(workDir);
+  if (manifest === null) {
+    process.stderr.write(`dem-verify: no manifest at ${demManifestPath(workDir)}\n`);
+    return 1;
+  }
+  const findings = verifyDemMirror(enumerateTiles(manifest.tiers), manifest, (tile) => {
+    const file = demTileFile(workDir, tile);
+    return existsSync(file) ? new Uint8Array(readFileSync(file)) : null;
+  });
+  for (const finding of findings.slice(0, 20)) process.stderr.write(`dem-verify: ${finding.id}: ${finding.problem}\n`);
+  if (findings.length > 0) {
+    process.stderr.write(`dem-verify: ${findings.length} finding(s)\n`);
+    return 1;
+  }
+  const summary = summarizeDemManifest(manifest);
+  process.stdout.write(
+    `dem-verify: ${summary.tiles} tiles z0–z${manifest.maxzoom}, ${megabytes(summary.bytes)}; every planned tile is on disk, matches its sha256 and is a 256 px Terrarium PNG\n`,
+  );
+  return 0;
+}
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   switch (command) {
@@ -313,9 +484,13 @@ async function main(argv: string[]): Promise<number> {
       return commandVerifyGlyphs(rest);
     case 'upload-plan':
       return commandUploadPlan(rest);
+    case 'dem-mirror':
+      return commandDemMirror(rest);
+    case 'dem-verify':
+      return commandDemVerify(rest);
     default:
       throw new UsageError(
-        `unknown command ${JSON.stringify(command ?? '')} — plan | explode | glyph-plan | glyph-combinations | verify-glyphs | upload-plan`,
+        `unknown command ${JSON.stringify(command ?? '')} — plan | explode | glyph-plan | glyph-combinations | verify-glyphs | upload-plan | dem-mirror | dem-verify`,
       );
   }
 }

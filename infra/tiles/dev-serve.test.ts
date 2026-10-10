@@ -5,7 +5,7 @@ import { gzipSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
-import { localTilesResponse, resolveLocalTiles } from './dev-serve.js';
+import { localTilesResponse, resolveLocalDem, resolveLocalTiles } from './dev-serve.js';
 
 /** A work directory shaped like `build.sh` leaves it: two tile versions, one glyph build. */
 function workDir(): string {
@@ -49,5 +49,31 @@ describe('local tile serving (TASKS G3)', () => {
     expect(localTilesResponse(local, '/fonts/..%2F..%2F..%2Fsecret/0-255.pbf')?.status).toBe(404);
     expect(localTilesResponse(local, '/fonts/%E0%A4%A/0-255.pbf')?.status).toBe(400);
     expect(localTilesResponse(local, '/other/thing')).toBeNull();
+  });
+
+  it('finds a DEM mirror under the tiles work dir or a DEM work dir of its own', () => {
+    const root = workDir();
+    expect(resolveLocalTiles(root).demDir).toBeNull();
+    const dem = mkdtempSync(join(tmpdir(), 'fire-watch-local-dem-'));
+    expect(() => resolveLocalTiles(root, undefined, dem)).toThrow(/no DEM mirror at .*dem.terrarium/);
+    mkdirSync(join(dem, 'dem', 'terrarium', '9', '290'), { recursive: true });
+    expect(resolveLocalTiles(root, undefined, dem).demDir).toBe(join(dem, 'dem', 'terrarium'));
+    mkdirSync(join(root, 'dem', 'terrarium'), { recursive: true });
+    expect(resolveLocalDem(root)).toBe(join(root, 'dem', 'terrarium'));
+  });
+
+  it('serves Terrarium PNGs and answers 404 outside the mirror, never 204', () => {
+    const root = workDir();
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    mkdirSync(join(root, 'dem', 'terrarium', '9', '290'), { recursive: true });
+    writeFileSync(join(root, 'dem', 'terrarium', '9', '290', '190.png'), png);
+    const local = resolveLocalTiles(root);
+    const hit = localTilesResponse(local, '/dem/terrarium/9/290/190.png');
+    expect(hit?.status).toBe(200);
+    expect(hit?.headers['Content-Type']).toBe('image/png');
+    expect(Buffer.from(hit?.body ?? [])).toEqual(png);
+    expect(localTilesResponse(local, '/dem/terrarium/12/1/1.png')?.status).toBe(404);
+    expect(localTilesResponse(local, '/dem/terrarium/9/290/..%2F190.png')).toBeNull();
+    expect(localTilesResponse(resolveLocalTiles(workDir()), '/dem/terrarium/9/290/190.png')?.status).toBe(404);
   });
 });

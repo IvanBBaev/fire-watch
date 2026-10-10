@@ -149,17 +149,23 @@ const LOOPBACK_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/u;
  * unset — every CI and production build — this is `null` and nothing changes. A value that
  * is not a plain absolute path, or a page that is not on loopback, is `null` too: the
  * local tiles exist on one machine, and no shipped origin may be pointed at them.
+ *
+ * `rawDem` is `VITE_FIRE_WATCH_LOCAL_DEM`, which the same plugin sets to `1` only when a
+ * Terrarium mirror (`cli.js dem-mirror`) is being served beside the tiles; then
+ * `demTilesUrl` points at it and the style draws hillshade (and the terrain credits follow,
+ * `layer:terrain`). Anything else leaves `demTilesUrl` null — no hillshade, no 404s.
  */
 export function readLocalTiles(
   raw: string | undefined,
   origin: string,
+  rawDem?: string,
 ): OutdoorBasemapConfig | null {
   const prefix = raw?.trim() ?? '';
   if (!/^\/[\w-]+$/u.test(prefix) || !LOOPBACK_ORIGIN.test(origin)) return null;
   return {
     tilesUrl: `${origin}${prefix}/tiles/{z}/{x}/{y}.mvt`,
     glyphsUrl: `${origin}${prefix}/fonts/{fontstack}/{range}.pbf`,
-    demTilesUrl: null,
+    demTilesUrl: rawDem?.trim() === '1' ? `${origin}${prefix}/dem/terrarium/{z}/{x}/{y}.png` : null,
     maxzoom: 14,
   };
 }

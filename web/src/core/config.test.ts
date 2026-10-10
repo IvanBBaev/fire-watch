@@ -98,6 +98,21 @@ describe('local tiles (TASKS G3)', () => {
     expect(readLocalTiles('/__local-tiles', 'http://192.168.1.5:5173')).toBeNull();
     expect(readLocalTiles('https://evil.example/x', origin)).toBeNull();
     expect(readLocalTiles('/a/../b', origin)).toBeNull();
+    expect(readLocalTiles('/__local-tiles', 'https://firewatch.example', '1')).toBeNull();
+  });
+
+  it('adds the local DEM only when the dev server says it serves one, and the terrain credit follows', () => {
+    expect(readLocalTiles('/__local-tiles', origin)?.demTilesUrl).toBeNull();
+    expect(readLocalTiles('/__local-tiles', origin, 'yes')?.demTilesUrl).toBeNull();
+    const local = readLocalTiles('/__local-tiles', origin, '1');
+    expect(local?.demTilesUrl).toBe(
+      'http://localhost:5173/__local-tiles/dem/terrarium/{z}/{x}/{y}.png',
+    );
+    const config = withLocalTiles(DEFAULT_CONFIG, local);
+    expect(activeBasemap(config.basemapStyleUrl, config.outdoorBasemap)).toMatchObject({
+      kind: 'outdoor',
+      terrain: true,
+    });
   });
 });
 

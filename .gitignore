@@ -18,4 +18,5 @@ coverage/
 # Never committed — see docs/DATA-SOURCES.md for how to re-fetch.
 /data/
 /tiles/
+/tiles-dem/
 /tmp/
