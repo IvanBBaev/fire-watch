@@ -76,8 +76,16 @@ export function resolveBasemapStyle(
 const LABEL_TEXT = ['coalesce', ...OUTDOOR_LABEL_FIELDS.map((field) => ['get', field])];
 
 const kindIn = (...kinds: string[]) => ['in', ['get', 'kind'], ['literal', kinds]];
-/** MapLibre may report either spelling for line features; fill layers skip lines anyway. */
+/** MapLibre may report either spelling for line features. */
 const isLine = ['in', ['geometry-type'], ['literal', ['LineString', 'MultiLineString']]];
+/**
+ * Every fill layer carries this. A MapLibre `fill` layer does **not** skip line features: it
+ * closes each LineString into a polygon and fills it. Protomaps v4 puts rivers and streams in
+ * the same `water` layer as lakes and the sea, so an unfiltered water fill drew long blue
+ * wedges between river vertices across the whole border area (seen in the first render from
+ * a real build, TASKS G3, 2026-10-10).
+ */
+const isPolygon = ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]];
 
 /** Land classes shared by the low-zoom `landcover` and the detailed `landuse` layers. */
 function landClassColor(p: OutdoorPalette): unknown[] {
@@ -171,6 +179,7 @@ export function buildOutdoorStyle(
       source,
       'source-layer': 'landcover',
       maxzoom: 9,
+      filter: isPolygon,
       paint: { 'fill-color': landClassColor(p), 'fill-opacity': 0.9 },
     },
     {
@@ -179,7 +188,7 @@ export function buildOutdoorStyle(
       source,
       'source-layer': 'landuse',
       minzoom: 6,
-      filter: kindIn(...LAND_KINDS),
+      filter: ['all', isPolygon, kindIn(...LAND_KINDS)],
       paint: { 'fill-color': landClassColor(p) },
     },
     ...(hasDem
@@ -202,6 +211,7 @@ export function buildOutdoorStyle(
       type: 'fill',
       source,
       'source-layer': 'water',
+      filter: isPolygon,
       paint: { 'fill-color': p.water },
     },
     {
@@ -237,6 +247,7 @@ export function buildOutdoorStyle(
       source,
       'source-layer': 'buildings',
       minzoom: 13,
+      filter: isPolygon,
       paint: { 'fill-color': p.building },
     },
     {

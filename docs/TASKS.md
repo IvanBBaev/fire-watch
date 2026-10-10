@@ -1802,6 +1802,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   DEM mirror, the config URLs, and `credits.ts` keyed on the active style (it still credits
   OpenFreeMap). Open: fonts, tile host, tier bboxes/zooms, palette, label fields,
   Protomaps/OSM/DEM attribution wording.*
+  *2026-10-10 — local serving, light/dark render, unticked (no DEM mirror, no host; the corner credit is not style-aware). `FIRE_WATCH_LOCAL_TILES_DIR` mounts a `build.sh` output under `/__local-tiles` in vite dev/preview (`infra/tiles/dev-serve.ts`, gzip tiles, 204 outside the extract, glyph path confined); `readLocalTiles` accepts only a plain path on a loopback origin, so unset — every CI and production build — nothing changes. First real render found river LineStrings in `water` closed into blue wedges by the fill layer; every outdoor fill now filters to polygons (test). Screenshots of 8 views × 2 themes, only the dev server contacted. CI-13/CI-14 green. Founder: palette, label density (Sofia z12 is dense with ж.к./кв.), `MAP_CORNER_LINE` still credits OpenMapTiles and Tilezen terrain on the outdoor style while omitting Protomaps.*
 - [x] **G4 — EFFIS overlay proxy productionized.** Spec: ADR-001 A1.2 + A17
   content sanity. Needs: C4. **Done when:** a 200-with-error-image fixture does
   not poison the cache.

@@ -17,7 +17,13 @@ import { createBrowserPageVisibility } from './adapters/page-visibility.js';
 import { createMulberry32, entropySeed } from './adapters/seeded-rng.js';
 import { createSystemClock } from './adapters/system-clock.js';
 import { createAuthClient, takeSignInToken } from './core/auth/sign-in.js';
-import { DEFAULT_CONFIG, readDataSource, withDataSource } from './core/config.js';
+import {
+  DEFAULT_CONFIG,
+  readDataSource,
+  readLocalTiles,
+  withDataSource,
+  withLocalTiles,
+} from './core/config.js';
 import {
   createFeedCoordinator,
   createPollingFeed,
@@ -58,9 +64,17 @@ async function boot(): Promise<void> {
     fetchClientConfig(
       (input, init) => fetch(input, init),
       // `pnpm dev:live` builds with VITE_FIRE_WATCH_DATA=live; everything else reads fixtures.
-      withDataSource(
-        DEFAULT_CONFIG,
-        readDataSource(import.meta.env['VITE_FIRE_WATCH_DATA'] as string | undefined),
+      // FIRE_WATCH_LOCAL_TILES_DIR (dev/preview only) draws the outdoor style from a local
+      // `infra/tiles/build.sh` output; unset, the default basemap is untouched.
+      withLocalTiles(
+        withDataSource(
+          DEFAULT_CONFIG,
+          readDataSource(import.meta.env['VITE_FIRE_WATCH_DATA'] as string | undefined),
+        ),
+        readLocalTiles(
+          import.meta.env['VITE_FIRE_WATCH_LOCAL_TILES'] as string | undefined,
+          location.origin,
+        ),
       ),
     ),
     loadMessages(locale),

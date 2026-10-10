@@ -158,6 +158,19 @@ describe('outdoor style — structure', () => {
     }
   });
 
+  it('fills polygons only, so a river line in the water layer is never closed into a wedge', () => {
+    const polygonOnly = ['in', ['geometry-type'], ['literal', ['Polygon', 'MultiPolygon']]];
+    for (const theme of THEMES) {
+      const fills = built(theme).layers.filter((layer) => layer.type === 'fill');
+      expect(fills.map((layer) => layer.id)).toContain('outdoor-water');
+      for (const layer of fills) {
+        const filter = (layer as { filter?: unknown }).filter;
+        const parts = Array.isArray(filter) && filter[0] === 'all' ? filter.slice(1) : [filter];
+        expect(parts, `${theme} ${layer.id}`).toContainEqual(polygonOnly);
+      }
+    }
+  });
+
   it('emphasises forest over the other land classes', () => {
     for (const theme of THEMES) {
       const p = OUTDOOR_PALETTES[theme];

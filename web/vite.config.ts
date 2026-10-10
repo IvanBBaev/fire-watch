@@ -1,8 +1,50 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+
+import {
+  LOCAL_TILES_PREFIX,
+  localTilesMiddleware,
+  resolveLocalTiles,
+} from '../infra/tiles/dev-serve.ts';
+
+/**
+ * TASKS G3: `FIRE_WATCH_LOCAL_TILES_DIR=./tiles pnpm dev` (or `dev:live`, or `vite
+ * preview`) serves the newest `infra/tiles/build.sh` output under `/__local-tiles` and
+ * builds the client with `VITE_FIRE_WATCH_LOCAL_TILES`, which points `outdoorBasemap` at
+ * it (`core/config.ts` readLocalTiles). `FIRE_WATCH_LOCAL_TILES_VERSION` pins a version.
+ * Unset — CI, e2e, every deploy — no plugin, no define: the default basemap is untouched.
+ */
+function localTiles(workDir: string | undefined, version: string | undefined): Plugin[] {
+  const dir = workDir?.trim();
+  if (!dir) return [];
+  const local = resolveLocalTiles(dir, version?.trim() || undefined);
+  return [
+    {
+      name: 'fire-watch:local-tiles',
+      config: () => ({
+        define: {
+          'import.meta.env.VITE_FIRE_WATCH_LOCAL_TILES': JSON.stringify(LOCAL_TILES_PREFIX),
+        },
+      }),
+      configureServer(server) {
+        server.middlewares.use(localTilesMiddleware(local));
+        server.config.logger.info(
+          `  local tiles: ${local.tilesDir} + glyphs ${local.glyphsDir} at ${LOCAL_TILES_PREFIX}`,
+        );
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use(localTilesMiddleware(local));
+      },
+    },
+  ];
+}
 
 // No Preact plugin needed: Vite picks up `jsx`/`jsxImportSource` from tsconfig.
 // The dev proxy forwards the API routes and the live snapshot to the local API.
 export default defineConfig({
+  plugins: localTiles(
+    process.env['FIRE_WATCH_LOCAL_TILES_DIR'],
+    process.env['FIRE_WATCH_LOCAL_TILES_VERSION'],
+  ),
   optimizeDeps: {
     // Dev: the dep optimizer rewrites maplibre's worker URL to a .vite/deps
     // file it never emits (404 → no tile parsing, blank map). Serving

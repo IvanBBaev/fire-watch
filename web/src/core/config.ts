@@ -139,6 +139,39 @@ export function readDataSource(raw: string | undefined): DataSource {
   return raw?.trim().toLowerCase() === 'live' ? 'live' : 'fixtures';
 }
 
+/** Only a loopback page may point the basemap at its own dev server. */
+const LOOPBACK_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/u;
+
+/**
+ * The locally built basemap (TASKS G3), from the raw env value `VITE_FIRE_WATCH_LOCAL_TILES`
+ * and the page's origin. `web/vite.config.ts` sets the value to the path it mounted the
+ * `build.sh` output under (`/__local-tiles`) only when `FIRE_WATCH_LOCAL_TILES_DIR` is set;
+ * unset — every CI and production build — this is `null` and nothing changes. A value that
+ * is not a plain absolute path, or a page that is not on loopback, is `null` too: the
+ * local tiles exist on one machine, and no shipped origin may be pointed at them.
+ */
+export function readLocalTiles(
+  raw: string | undefined,
+  origin: string,
+): OutdoorBasemapConfig | null {
+  const prefix = raw?.trim() ?? '';
+  if (!/^\/[\w-]+$/u.test(prefix) || !LOOPBACK_ORIGIN.test(origin)) return null;
+  return {
+    tilesUrl: `${origin}${prefix}/tiles/{z}/{x}/{y}.mvt`,
+    glyphsUrl: `${origin}${prefix}/fonts/{fontstack}/{range}.pbf`,
+    demTilesUrl: null,
+    maxzoom: 14,
+  };
+}
+
+/** `config` drawing the outdoor style from local tiles, or unchanged when there are none. */
+export function withLocalTiles(
+  config: ClientConfig,
+  local: OutdoorBasemapConfig | null,
+): ClientConfig {
+  return local === null ? config : { ...config, outdoorBasemap: local };
+}
+
 /**
  * The API's per-event detections route (`server/src/adapters/http/event-detections-route.ts`),
  * the same GeoJSON shape as the fixture files. Proxied under `/api` in dev.

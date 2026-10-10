@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { parseDetectionsGeoJson } from '../map/geojson.js';
 import { parseDetectionDetail } from '../ui/event/detection-detail.js';
-import { DEFAULT_CONFIG, LIVE_DETECTIONS_URL_TEMPLATE, withDataSource } from './config.js';
+import { activeBasemap } from './basemap.js';
+import {
+  DEFAULT_CONFIG,
+  LIVE_DETECTIONS_URL_TEMPLATE,
+  readLocalTiles,
+  withDataSource,
+  withLocalTiles,
+} from './config.js';
 
 /**
  * A body exactly as `GET /api/v1/events/:publicId/detections` writes it (server
@@ -56,6 +63,41 @@ describe('withDataSource', () => {
     expect(LIVE_DETECTIONS_URL_TEMPLATE.replace('{id}', 'fw-2026-b2n5c')).toBe(
       '/api/v1/events/fw-2026-b2n5c/detections',
     );
+  });
+});
+
+describe('local tiles (TASKS G3)', () => {
+  const origin = 'http://localhost:5173';
+
+  it('leaves the config untouched without the env value, so the default basemap stays', () => {
+    expect(readLocalTiles(undefined, origin)).toBeNull();
+    expect(readLocalTiles('', origin)).toBeNull();
+    expect(withLocalTiles(DEFAULT_CONFIG, null)).toBe(DEFAULT_CONFIG);
+    expect(activeBasemap(DEFAULT_CONFIG.basemapStyleUrl, DEFAULT_CONFIG.outdoorBasemap).kind).toBe(
+      'external',
+    );
+  });
+
+  it('draws the outdoor style from the dev server when the prefix is set on loopback', () => {
+    const local = readLocalTiles('/__local-tiles', origin);
+    expect(local).toEqual({
+      tilesUrl: 'http://localhost:5173/__local-tiles/tiles/{z}/{x}/{y}.mvt',
+      glyphsUrl: 'http://localhost:5173/__local-tiles/fonts/{fontstack}/{range}.pbf',
+      demTilesUrl: null,
+      maxzoom: 14,
+    });
+    const config = withLocalTiles(DEFAULT_CONFIG, local);
+    expect(activeBasemap(config.basemapStyleUrl, config.outdoorBasemap).kind).toBe('outdoor');
+    expect(readLocalTiles('/__local-tiles', 'http://127.0.0.1:4173')?.tilesUrl).toMatch(
+      /^http:\/\/127\.0\.0\.1:4173\//,
+    );
+  });
+
+  it('never points a non-loopback page, or a value that is not a plain path, at local tiles', () => {
+    expect(readLocalTiles('/__local-tiles', 'https://firewatch.example')).toBeNull();
+    expect(readLocalTiles('/__local-tiles', 'http://192.168.1.5:5173')).toBeNull();
+    expect(readLocalTiles('https://evil.example/x', origin)).toBeNull();
+    expect(readLocalTiles('/a/../b', origin)).toBeNull();
   });
 });
 
