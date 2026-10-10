@@ -96,6 +96,7 @@ Assessment perimeters (DATA-SOURCES §D1: ≥30 ha via MODIS, smaller via Sentin
 **History**
 
 - 2026-09-03 — entry opened (review 23 E1). Needs its own plan before D7 (23 §5.1).
+- 2026-10-10 — archive access verified (TASKS D5). The season perimeters are served as WFS layers `modis.ba.poly.2016` … `modis.ba.poly.2025` on the same endpoint as the live layers, as GeoJSON cut to `polling_bbox_v1`. 2020–2025 were fetched and hashed for fixture sourcing (DS-6). There is still no plan in code: D7's label plan is still open, and DS-6's six files are a possible input for it, not its identity.
 
 ### DS-4 — LSA SAF GEO back-processing, 2025 (eps_geo fit)
 
@@ -137,3 +138,48 @@ detections score differently under a different mask.
 
 - 2026-09-30 — entry opened with `osm-2026-09-30` (TASKS F16).
 - 2026-10-01 — consumer moved to `static_source_policy_v2`; mask version recorded per event (migration 021); mask refresh triggers re-evaluation of live events.
+
+### DS-6 — EFFIS burnt-area fixture candidates, 2020–2025 (fetched 2026-10-10)
+
+This is the A6 fixture-sourcing input (IMPLEMENTATION-PLAN "pin the S1–S6 fire dates
+against it"; TASKS D5). It has two parts: the six season layers of EFFIS burnt-area
+perimeters over the polling box, and the ranked per-scenario selection cut from them. It is
+not a fit corpus. No fixture replays these perimeters. They choose the dates and places a
+real-data fixture is cut from.
+
+| Field     | Value |
+| --------- | ----- |
+| Plan      | `pnpm run geodata:effis-ba` — `infra/geodata/effis-ba-candidates.ts` (pure parse and selection rules, `RULES_VERSION` `effis_ba_candidates_v1`) + `effis-ba-candidates-cli.ts` (fetch, cache in `data/effis-ba-cache/`, write) |
+| Identity  | format `fire-watch/effis-ba-candidates@1` · rules `effis_ba_candidates_v1` · the six source files below · outline `web/src/assets/geodata/oblasts.json` (built from Natural Earth 10m admin-1 v5.1.2, source sha256 `22d0e3ad…62fb5`) · asset sha256 `c9db2337…53041b` |
+| Request   | `https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.<YEAR>&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326` (WFS 1.1.0 axis order is lat,lon, so this is `polling_bbox_v1` W20 S39 E31 N46); fetched 2026-10-10 17:59Z |
+| Area      | bbox W20 S39 E31 N46 (`polling_bbox_v1`) |
+| Asset     | `server/fixtures/effis-ba-candidates.json` — 17,150 B. The raw layers stay in the git-ignored cache. |
+| Licence   | CC BY 4.0 — "© European Union, 2020–2025, European Forest Fire Information System (EFFIS)" (DATA-SOURCES §D1, attribution row 12), carried in the asset |
+| Consumers | none yet. Expected: the real-data recuts of S1/S2/S6 (D5), and S3 once D10 lands. D6 for S7–S16, if it sources from the archive. |
+| Refresh   | none planned. EFFIS revises perimeters (`LASTUPDATE`), so a refetch is a new DS-6.n line with new hashes. The selection is regenerated only on purpose. |
+
+| Layer                | Perimeters | Bytes      | sha256                                                             |
+| -------------------- | ---------- | ---------- | ------------------------------------------------------------------ |
+| `modis.ba.poly.2020` | 829        | 70,074,089 | `58c213f88d59c30fe744b4fad648037319bb7c8a442296e13c7e7f144885a265` |
+| `modis.ba.poly.2021` | 748        | 2,204,641  | `cfe9947401921414586130a3635d2233923e76fa6c967b4108226d2eee9f2f23` |
+| `modis.ba.poly.2022` | 1811       | 6,349,184  | `36fac8b72715701124503e8cf14337f6a12f95ab7b8d14d43cd59cbf5e30fbfe` |
+| `modis.ba.poly.2023` | 649        | 3,110,893  | `25ebfe601a4c336e26b558fe68a77959b3f4f10f1b62df0933342c1eb4bc5a02` |
+| `modis.ba.poly.2024` | 2448       | 10,853,133 | `bdbb5b4cd72bf7708d99ad5d24387bc9a2f35de9a7a6ce203a9d8a8d3491d936` |
+| `modis.ba.poly.2025` | 2477       | 18,250,751 | `2885051223af3d91f77b87ac9e691170ea713d2fd2e71c1d98d9ba377ad3dab5` |
+
+Contents: five ranked candidates each for S1, S2, S3 and S6.
+
+- **S1** — border straddlers and cross-border pairs, nearest Slavyanka first. Top: 239071
+  Sandanski 2024-08-19, then 236136 Achladochori/Serres 2024-07-19..21.
+- **S2** — touching Haskovo/Yambol pairs with overlapping dates, e.g. 41712 Elhovo + 41713
+  Topolovgrad, 2020-08-07..10.
+- **S3** — AGRIAREAS ≥ 95 %. Top: 210963 Topolovgrad 2022-09-29, 327 ha.
+- **S6** — ≥ 1000 ha mapped over ≥ 48 h. Top: 233724 Svilengrad 2024-07-13..16, 8124 ha.
+  No S6 candidate has a reignition perimeter within 3 km / 14 d.
+
+S4 and S5 are recorded as `no_fitting_fire`, because neither leaves a burnt area.
+`availability.json` and S7–S16 are recorded as out of scope.
+
+**History**
+
+- 2026-10-10 — entry opened (TASKS D5). Six layers fetched and hashed, and the selection written. Which candidate to use for each scenario is still open (founder).

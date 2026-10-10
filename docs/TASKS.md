@@ -871,6 +871,25 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   fixtures. What still keeps this unticked is unchanged: S3/S4 need D10's masks
   and the ADR-002 D6 score, and the A6 half — pinning real fire dates from the
   EFFIS BA archive and building `availability.json` — is untouched.*
+  *2026-10-10: the date-pinning half of A6 is done. `availability.json` is not.
+  Access to the EFFIS archive is verified: the WFS serves per-year
+  `modis.ba.poly.<YEAR>` layers. The 2020–2025 layers were fetched over the polling
+  box and hashed. `pnpm run geodata:effis-ba` (`infra/geodata/effis-ba-candidates*.ts`,
+  16 unit tests with no network) ranks real perimeters per scenario into
+  `server/fixtures/effis-ba-candidates.json`. That file is DS-6, and each fire carries
+  its EFFIS id, dates, area, place and source sha256. S1, S2, S3 and S6 each get five
+  candidates, e.g.:
+  - S1: 239071 Sandanski 2024-08-19, a straddle 2.7 km from Slavyanka.
+  - S2: 41712 Elhovo + 41713 Topolovgrad, 2020-08-07..10.
+  - S3: 210963 Topolovgrad 2022-09-29, 327 ha, 95 % agricultural.
+  - S6: 233724 Svilengrad 2024-07-13..16, 8124 ha.
+  S4 and S5 are recorded as `no_fitting_fire`, because a burnt-area archive has no
+  record of what did not burn. No S6 candidate has a reignition perimeter
+  (≤ 3 km / 14 d), so S6's reignition leg has to come from FIRMS around the chosen
+  dates. Still open for the founder: which candidate each scenario uses, and the
+  thresholds and anchors (rules `effis_ba_candidates_v1`). The current fixtures are
+  not yet recut from these dates. `availability.json` stays out of scope (no measured
+  NRT lag), and S3/S4 still wait on D10. Unticked.*
 - [ ] **D6 — Fixture suite S7–S16.** Spec: A4 register. Needs: D5 harness.
   S7–S10 (per GATES) + S11 (retired source), S12 (officially_* re-detection),
   S16 (bbox-edge fire); S13–S15 stubs handed to their owner tracks. **Done

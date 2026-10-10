@@ -28,6 +28,7 @@
     "tiles": "tsc --build infra/tiles && node infra/tiles/dist/cli.js",
     "geodata": "tsc --build infra/geodata && node infra/geodata/dist/cli.js",
     "geodata:static-sources": "tsc --build infra/geodata && node infra/geodata/dist/static-sources-cli.js",
+    "geodata:effis-ba": "tsc --build infra/geodata && node infra/geodata/dist/effis-ba-candidates-cli.js",
     "status": "tsc --build infra/status && node infra/status/dist/cli.js"
   },
   "devDependencies": {

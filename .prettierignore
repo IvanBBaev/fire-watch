@@ -25,3 +25,7 @@ web/src/assets/geodata/
 # Written by the swath drift test (`vitest -u` on server/src/core/passes/swaths-document.test.ts)
 # as canonical single-line JSON and compared byte-for-byte; reformatting would read as drift.
 web/public/fixtures/passes/swaths.json
+
+# Written by `pnpm run geodata:effis-ba` (TASKS D5) with one fire record per line, so a
+# refresh diffs fire by fire; regenerated, never hand-edited.
+server/fixtures/effis-ba-candidates.json

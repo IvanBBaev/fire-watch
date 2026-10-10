@@ -1,0 +1,96 @@
+{
+  "format": "fire-watch/effis-ba-candidates@1",
+  "rules": "effis_ba_candidates_v1",
+  "task": "TASKS D5 (A6 fixture sourcing): candidates only — which one becomes each fixture is a founder decision",
+  "attribution": "© European Union, 2020–2025, European Forest Fire Information System (EFFIS)",
+  "licence": "CC BY 4.0",
+  "outline": "web/src/assets/geodata/oblasts.json (Natural Earth 10m admin-1 v5.1.2 (public domain) sha256:22d0e3ad85eb3e27f17cabf8ba2d50e554fbc27a87796ff891d958185da62fb5)",
+  "caveats": ["FIREDATE/FINALDATE are the first and last mapping dates of the perimeter, not ignition and extinction; EFFIS states no time zone.","EFFIS BA has no wildfire/agricultural flag; agri_pct is the AGRIAREAS land-cover share.","EFFIS revises perimeters (LASTUPDATE); the sha256 of each source file pins the version read."],
+  "out_of_scope": {"availability.json":"not built: it models NRT lag sampled from a measured distribution (C9/WP1), and no measured lag exists yet","S7-S16":"not sourced here: the pre-season set and the suites are D6"},
+  "sources": [
+    {"layer":"modis.ba.poly.2020","url":"https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.2020&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326","fetched_at":"2026-10-10T17:59:02.728Z","bytes":70074089,"sha256":"58c213f88d59c30fe744b4fad648037319bb7c8a442296e13c7e7f144885a265","features":829,"dropped":0},
+    {"layer":"modis.ba.poly.2021","url":"https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.2021&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326","fetched_at":"2026-10-10T17:59:04.597Z","bytes":2204641,"sha256":"cfe9947401921414586130a3635d2233923e76fa6c967b4108226d2eee9f2f23","features":748,"dropped":0},
+    {"layer":"modis.ba.poly.2022","url":"https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.2022&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326","fetched_at":"2026-10-10T17:59:08.360Z","bytes":6349184,"sha256":"36fac8b72715701124503e8cf14337f6a12f95ab7b8d14d43cd59cbf5e30fbfe","features":1811,"dropped":0},
+    {"layer":"modis.ba.poly.2023","url":"https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.2023&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326","fetched_at":"2026-10-10T17:59:10.966Z","bytes":3110893,"sha256":"25ebfe601a4c336e26b558fe68a77959b3f4f10f1b62df0933342c1eb4bc5a02","features":649,"dropped":0},
+    {"layer":"modis.ba.poly.2024","url":"https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.2024&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326","fetched_at":"2026-10-10T17:59:16.342Z","bytes":10853133,"sha256":"bdbb5b4cd72bf7708d99ad5d24387bc9a2f35de9a7a6ce203a9d8a8d3491d936","features":2448,"dropped":0},
+    {"layer":"modis.ba.poly.2025","url":"https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature&TYPENAME=modis.ba.poly.2025&OUTPUTFORMAT=geojson&BBOX=39,20,46,31,urn:ogc:def:crs:EPSG::4326","fetched_at":"2026-10-10T17:59:24.415Z","bytes":18250751,"sha256":"2885051223af3d91f77b87ac9e691170ea713d2fd2e71c1d98d9ba377ad3dab5","features":2477,"dropped":0}
+  ],
+  "scenarios": [
+    {"scenario":"S1","status":"candidates","rule":"a perimeter with >= 10 % of its sampled vertices on each side of the Bulgaria outline, or a BG and a non-BG perimeter <= 1 km apart with dates overlapping +- 1 d; nearest the Slavyanka anchor first","note":"The outline is Natural Earth 1:10M; along the Danube its generalisation can put a Romanian bank inside it, which is why the ranking is by distance from Slavyanka.","candidates":[
+      {"rank":1,"evidence":"straddle: 32 of 79 sampled perimeter vertices inside the Bulgaria outline; 2.72 km from the Slavyanka anchor","fires":[
+        {"effis_id":"239071","layer":"modis.ba.poly.2024","country":"BG","province":"Благоевград","commune":"Сандански","firedate":"2024-08-19 19:49:00","finaldate":"2024-08-20 00:24:00","lastupdate":"2024-08-28 15:00:13.524746","area_ha":60,"agri_pct":0,"centroid":[23.6426,41.3884],"bbox":[23.6358,41.3839,23.6478,41.3916]}
+      ]},
+      {"rank":2,"evidence":"straddle: 120 of 197 sampled perimeter vertices inside the Bulgaria outline; 2.88 km from the Slavyanka anchor","fires":[
+        {"effis_id":"236136","layer":"modis.ba.poly.2024","country":"EL","province":"Σέρρες","commune":"Τοπική Κοινότητα Αχλαδοχωρίου","firedate":"2024-07-19 00:24:00","finaldate":"2024-07-21 00:24:00","lastupdate":"2024-08-07 13:23:44.625568","area_ha":795,"agri_pct":0.13,"centroid":[23.5807,41.3764],"bbox":[23.5568,41.3491,23.6129,41.3898]}
+      ]},
+      {"rank":3,"evidence":"straddle: 80 of 122 sampled perimeter vertices inside the Bulgaria outline; 5.03 km from the Slavyanka anchor","fires":[
+        {"effis_id":"235796","layer":"modis.ba.poly.2024","country":"EL","province":"Σέρρες","commune":"Τοπική Κοινότητα Αχλαδοχωρίου","firedate":"2024-07-20 19:21:00","finaldate":"2024-07-21 00:30:00","lastupdate":"2024-10-21 13:53:57.565046","area_ha":146,"agri_pct":0,"centroid":[23.5499,41.386],"bbox":[23.5353,41.3793,23.573,41.3953]}
+      ]},
+      {"rank":4,"evidence":"cross-border pair: BG and MK perimeters 0.00 km apart with overlapping dates; 54.20 km from the Slavyanka anchor","fires":[
+        {"effis_id":"234324","layer":"modis.ba.poly.2024","country":"BG","province":"Благоевград","commune":"Петрич","firedate":"2024-07-11 19:51:00","finaldate":"2024-07-12 01:32:00","lastupdate":"2024-10-21 14:43:01.745785","area_ha":33,"agri_pct":12.12,"centroid":[22.9684,41.4684],"bbox":[22.9642,41.4627,22.9708,41.4726]},
+        {"effis_id":"234323","layer":"modis.ba.poly.2024","country":"MK","province":"Југоисточен","commune":"Novo Selo","firedate":"2024-07-11 00:24:00","finaldate":"2024-07-13 00:24:00","lastupdate":"2024-07-22 12:07:04.860249","area_ha":612,"agri_pct":0,"centroid":[22.9569,41.4607],"bbox":[22.9421,41.4401,22.9775,41.4785]}
+      ]},
+      {"rank":5,"evidence":"straddle: 96 of 109 sampled perimeter vertices inside the Bulgaria outline; 55.02 km from the Slavyanka anchor","fires":[
+        {"effis_id":"234323","layer":"modis.ba.poly.2024","country":"MK","province":"Југоисточен","commune":"Novo Selo","firedate":"2024-07-11 00:24:00","finaldate":"2024-07-13 00:24:00","lastupdate":"2024-07-22 12:07:04.860249","area_ha":612,"agri_pct":0,"centroid":[22.9569,41.4607],"bbox":[22.9421,41.4401,22.9775,41.4785]}
+      ]}
+    ]},
+    {"scenario":"S2","status":"candidates","rule":"two BG perimeters in Хасково/Ямбол, each >= 100 ha, <= 1 km apart with dates overlapping +- 1 d; nearest the Sakar anchor first","note":"Two touching perimeters are the archive trace of two fronts that met; whether the FIRMS detections first formed two clusters and then merged is what the replay window has to show.","candidates":[
+      {"rank":1,"evidence":"two perimeters (839 ha + 292 ha) 0.13 km apart with overlapping dates; 28.10 km from the Sakar anchor","fires":[
+        {"effis_id":"234186","layer":"modis.ba.poly.2024","country":"BG","province":"Ямбол","commune":"Елхово","firedate":"2024-07-12 10:38:00","finaldate":"2024-07-14 11:40:00","lastupdate":"2024-07-19 12:57:56.714855","area_ha":839,"agri_pct":64.88,"centroid":[26.5366,42.0698],"bbox":[26.5101,42.0562,26.5626,42.0817]},
+        {"effis_id":"234187","layer":"modis.ba.poly.2024","country":"BG","province":"Хасково","commune":"Тополовград","firedate":"2024-07-12 12:17:00","finaldate":"2024-07-14 11:40:00","lastupdate":"2024-07-22 09:29:24.332899","area_ha":292,"agri_pct":72.13,"centroid":[26.51,42.0538],"bbox":[26.4869,42.0462,26.5283,42.06]}
+      ]},
+      {"rank":2,"evidence":"two perimeters (2202 ha + 143 ha) 0.23 km apart with overlapping dates; 28.43 km from the Sakar anchor","fires":[
+        {"effis_id":"41713","layer":"modis.ba.poly.2020","country":"BG","province":"Хасково","commune":"Тополовград","firedate":"2020-08-08 23:06:00","finaldate":"2020-08-10 00:24:00","lastupdate":"2022-01-26 11:45:36.105095","area_ha":2202,"agri_pct":35.18,"centroid":[26.5377,41.8945],"bbox":[26.5063,41.8539,26.5713,41.9355]},
+        {"effis_id":"42525","layer":"modis.ba.poly.2020","country":"BG","province":"Хасково","commune":"Свиленград","firedate":"2020-08-08 00:00:00","finaldate":"2020-08-08 00:00:00","lastupdate":"2022-01-26 11:45:36.105095","area_ha":143,"agri_pct":34.51,"centroid":[26.5144,41.8471],"bbox":[26.502,41.8382,26.5227,41.8558]}
+      ]},
+      {"rank":3,"evidence":"two perimeters (1167 ha + 2202 ha) 0.28 km apart with overlapping dates; 28.62 km from the Sakar anchor","fires":[
+        {"effis_id":"41712","layer":"modis.ba.poly.2020","country":"BG","province":"Ямбол","commune":"Елхово","firedate":"2020-08-07 11:54:00","finaldate":"2020-08-09 00:30:00","lastupdate":"2022-01-26 11:45:36.105095","area_ha":1167,"agri_pct":26.56,"centroid":[26.5682,41.9587],"bbox":[26.5383,41.9274,26.5988,41.9723]},
+        {"effis_id":"41713","layer":"modis.ba.poly.2020","country":"BG","province":"Хасково","commune":"Тополовград","firedate":"2020-08-08 23:06:00","finaldate":"2020-08-10 00:24:00","lastupdate":"2022-01-26 11:45:36.105095","area_ha":2202,"agri_pct":35.18,"centroid":[26.5377,41.8945],"bbox":[26.5063,41.8539,26.5713,41.9355]}
+      ]},
+      {"rank":4,"evidence":"two perimeters (521 ha + 170 ha) 0.26 km apart with overlapping dates; 37.70 km from the Sakar anchor","fires":[
+        {"effis_id":"209008","layer":"modis.ba.poly.2022","country":"BG","province":"Ямбол","commune":"Елхово","firedate":"2022-08-10 09:26:00","finaldate":"2022-08-11 11:47:00","lastupdate":"2022-08-15 10:06:33.448549","area_ha":521,"agri_pct":0,"centroid":[26.6575,42.051],"bbox":[26.6362,42.0375,26.6802,42.0638]},
+        {"effis_id":"209151","layer":"modis.ba.poly.2022","country":"BG","province":"Ямбол","commune":"Елхово","firedate":"2022-08-10 10:26:00","finaldate":"2022-08-13 00:20:00","lastupdate":"2022-08-15 19:52:34.871838","area_ha":170,"agri_pct":7.1,"centroid":[26.6419,42.0342],"bbox":[26.6302,42.0253,26.6514,42.0418]}
+      ]},
+      {"rank":5,"evidence":"two perimeters (7793 ha + 1016 ha) 0.23 km apart with overlapping dates; 54.67 km from the Sakar anchor","fires":[
+        {"effis_id":"234291","layer":"modis.ba.poly.2024","country":"BG","province":"Ямбол","commune":"Болярово","firedate":"2024-07-16 11:02:00","finaldate":"2024-07-21 01:02:00","lastupdate":"2024-07-29 08:07:28.093596","area_ha":7793,"agri_pct":58.51,"centroid":[26.9203,42.0577],"bbox":[26.8333,42.0192,26.9861,42.144]},
+        {"effis_id":"234469","layer":"modis.ba.poly.2024","country":"BG","province":"Ямбол","commune":"Болярово","firedate":"2024-07-18 00:18:00","finaldate":"2024-07-22 00:18:00","lastupdate":"2024-07-29 08:18:38.391422","area_ha":1016,"agri_pct":9.14,"centroid":[26.8579,42],"bbox":[26.8164,41.9793,26.8969,42.0236]}
+      ]}
+    ]},
+    {"scenario":"S3","status":"candidates","rule":"a BG perimeter >= 20 ha with AGRIAREAS >= 95 %; largest first","note":"AGRIAREAS is a land-cover share, not a burn-type label: EFFIS BA has no agricultural flag. S3 stays blocked on LAND_COVER (D10) whatever is picked here.","candidates":[
+      {"rank":1,"evidence":"95.03 % of 327 ha on agricultural land","fires":[
+        {"effis_id":"210963","layer":"modis.ba.poly.2022","country":"BG","province":"Хасково","commune":"Тополовград","firedate":"2022-09-29 10:41:00","finaldate":"2022-09-29 11:28:00","lastupdate":"2022-10-05 12:05:07.900049","area_ha":327,"agri_pct":95.03,"centroid":[26.2647,42.0934],"bbox":[26.2556,42.0749,26.275,42.11]}
+      ]},
+      {"rank":2,"evidence":"97.02 % of 164 ha on agricultural land","fires":[
+        {"effis_id":"233933","layer":"modis.ba.poly.2024","country":"BG","province":"Пловдив","commune":"Карлово","firedate":"2024-07-16 10:13:00","finaldate":"2024-07-16 12:12:00","lastupdate":"2024-07-23 09:30:43.471031","area_ha":164,"agri_pct":97.02,"centroid":[24.6665,42.6417],"bbox":[24.6547,42.6362,24.6782,42.6494]}
+      ]},
+      {"rank":3,"evidence":"100 % of 122 ha on agricultural land","fires":[
+        {"effis_id":"44452","layer":"modis.ba.poly.2020","country":"BG","province":"Варна","commune":"Ветрино","firedate":"2020-09-14 09:30:00","finaldate":"2020-09-14 11:42:00","lastupdate":"2022-01-26 11:45:36.105095","area_ha":122,"agri_pct":100,"centroid":[27.3895,43.297],"bbox":[27.3794,43.2909,27.3978,43.3024]}
+      ]},
+      {"rank":4,"evidence":"100 % of 60 ha on agricultural land","fires":[
+        {"effis_id":"43276","layer":"modis.ba.poly.2020","country":"BG","province":"Плевен","commune":"Червен бряг","firedate":"2020-09-01 10:00:00","finaldate":"2020-09-01 11:36:00","lastupdate":"2022-01-26 11:45:36.105095","area_ha":60,"agri_pct":100,"centroid":[24.2263,43.2671],"bbox":[24.2188,43.2622,24.2338,43.271]}
+      ]},
+      {"rank":5,"evidence":"100 % of 57 ha on agricultural land","fires":[
+        {"effis_id":"275514","layer":"modis.ba.poly.2025","country":"BG","province":"Хасково","commune":"Тополовград","firedate":"2025-07-12 10:45:00","finaldate":"2025-07-12 11:13:00","lastupdate":"2025-07-28 07:46:49.94786","area_ha":57,"agri_pct":100,"centroid":[26.3747,41.9399],"bbox":[26.3671,41.9349,26.3811,41.9445]}
+      ]}
+    ]},
+    {"scenario":"S4","status":"no_fitting_fire","rule":"none — not a burnt-area scenario","note":"An industrial static source is a persistent hot spot that never burns an area; the DS-5 static-source mask, not the BA archive, is where S4 sites come from.","candidates":[]},
+    {"scenario":"S5","status":"no_fitting_fire","rule":"none — not a burnt-area scenario","note":"A single spurious detection leaves no burnt area by definition, so the archive cannot contain one; S5 stays constructed.","candidates":[]},
+    {"scenario":"S6","status":"candidates","rule":"a BG perimeter >= 1000 ha mapped over >= 48 h; one with a later perimeter <= 3 km away starting within 14 d after its FINALDATE ranks first, then largest first","note":"No candidate has a reignition perimeter: the archive shows the megafires, not the cooling and reignition inside one perimeter. Those have to be found in the FIRMS detections over a candidate window before the fixture can be cut from it.","candidates":[
+      {"rank":1,"evidence":"8124 ha mapped over 64 h; no perimeter starts within 3 km in the 14 d after FINALDATE","fires":[
+        {"effis_id":"233724","layer":"modis.ba.poly.2024","country":"BG","province":"Хасково","commune":"Свиленград","firedate":"2024-07-13 08:30:00","finaldate":"2024-07-16 00:30:00","lastupdate":"2024-07-22 09:14:31.205995","area_ha":8124,"agri_pct":51.5,"centroid":[26.3142,41.8693],"bbox":[26.219,41.818,26.3987,41.9245]}
+      ]},
+      {"rank":2,"evidence":"7848 ha mapped over 113 h; no perimeter starts within 3 km in the 14 d after FINALDATE","fires":[
+        {"effis_id":"275508","layer":"modis.ba.poly.2025","country":"BG","province":"Ямбол","commune":"Елхово","firedate":"2025-07-26 18:06:00","finaldate":"2025-07-31 11:28:00","lastupdate":"2025-07-28 07:43:12.781737","area_ha":7848,"agri_pct":41.51,"centroid":[26.5075,41.9722],"bbox":[26.4311,41.9068,26.5895,42.0514]}
+      ]},
+      {"rank":3,"evidence":"7793 ha mapped over 110 h; no perimeter starts within 3 km in the 14 d after FINALDATE","fires":[
+        {"effis_id":"234291","layer":"modis.ba.poly.2024","country":"BG","province":"Ямбол","commune":"Болярово","firedate":"2024-07-16 11:02:00","finaldate":"2024-07-21 01:02:00","lastupdate":"2024-07-29 08:07:28.093596","area_ha":7793,"agri_pct":58.51,"centroid":[26.9203,42.0577],"bbox":[26.8333,42.0192,26.9861,42.144]}
+      ]},
+      {"rank":4,"evidence":"3261 ha mapped over 72 h; no perimeter starts within 3 km in the 14 d after FINALDATE","fires":[
+        {"effis_id":"275499","layer":"modis.ba.poly.2025","country":"BG","province":"Благоевград","commune":"Струмяни","firedate":"2025-07-25 19:04:00","finaldate":"2025-07-28 19:04:00","lastupdate":"2025-07-27 08:37:59.151294","area_ha":3261,"agri_pct":11.4,"centroid":[23.2624,41.6824],"bbox":[23.213,41.6435,23.3257,41.7285]}
+      ]},
+      {"rank":5,"evidence":"2719 ha mapped over 77 h; no perimeter starts within 3 km in the 14 d after FINALDATE","fires":[
+        {"effis_id":"277499","layer":"modis.ba.poly.2025","country":"BG","province":"Хасково","commune":"Харманли","firedate":"2025-08-04 19:06:00","finaldate":"2025-08-08 00:03:00","lastupdate":"2025-08-08 10:07:45.669067","area_ha":2719,"agri_pct":32.7,"centroid":[26.0637,41.9054],"bbox":[26.026,41.8725,26.1044,41.9415]}
+      ]}
+    ]}
+  ]
+}
