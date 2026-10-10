@@ -10,6 +10,10 @@
  *   both within {@link STATIC_SOURCE_CAVEAT} of a source;
  * - the Layers panel, which can draw the mask on the map so the reader sees why.
  *
+ * The event page also follows the server's `static_source_verdict`: when the server says
+ * `annotated` and the bundled mask finds nothing, a kind-neutral sentence still appears
+ * ({@link eventStaticSourceCaveat} has the rule).
+ *
  * The caveat never hides anything: the event, its score and its detections are shown
  * exactly as before, with one more sentence. The server applies the separate, stricter
  * §3.6 override (every member on a source) when it scores; the web does not re-derive it.
@@ -36,6 +40,7 @@ import {
 } from '@fire-watch/contracts';
 
 import staticSourcesUrl from '../assets/geodata/static-sources.json?url';
+import type { StaticSourceVerdictOnWire } from '../core/types.js';
 import { readStorage, writeStorage } from './storage.js';
 
 export const STATIC_SOURCES_STORAGE_KEY = 'fw:static-sources';
@@ -145,6 +150,63 @@ export function staticSourceDetectionCaveat(
   }
   if (near === 0) return null;
   return { caveat: allSolar ? 'solar' : 'industrial', near, total: positions.length };
+}
+
+// ── Following the server's verdict ──────────────────────────────────────────
+
+/**
+ * What the event page's caveat says (TASKS F16): a kind-specific sentence from the bundled
+ * mask — per detection, or from the centre — or the kind-neutral "server check" sentence.
+ */
+export type EventStaticSourceCaveat =
+  | ({ readonly basis: 'detections' } & StaticSourceDetectionCaveat)
+  | { readonly basis: 'centre'; readonly caveat: StaticSourceCaveat }
+  | { readonly basis: 'server' };
+
+/** The bundled mask's own answer, before the server's verdict is weighed. */
+export type BundledStaticSourceLookup = Exclude<EventStaticSourceCaveat, { basis: 'server' }>;
+
+/**
+ * Combine the server's `static_source_verdict` with the bundled mask's lookup. The rule is
+ * "never hide information the reader already sees", so the verdict can only add a caveat:
+ *
+ * - The bundled mask found a source → its kind-specific sentence, whatever the verdict. The
+ *   reader can switch the mask layer on and see that source beside the event, so a server
+ *   `clear` (an older server mask, or the server's tighter §3.6 distance) never takes the
+ *   sentence away.
+ * - The bundled mask found nothing and the server says `annotated` → the kind-neutral
+ *   sentence. The server's mask is hot-reloaded and can be newer than the bundle (version
+ *   skew), and the wire carries no kind, so the page cannot say "solar park" or
+ *   "industrial". This also covers the bundle still loading, or failing to load.
+ * - The bundled mask found nothing and the verdict is `clear` or not reported → nothing,
+ *   exactly as before: the absence of a caveat is never a claim that the hotspot is a fire.
+ *
+ * The caller passes whichever bundled lookup it trusts — per detection once positions are
+ * known, the centre until then ({@link bundledStaticSourceLookup}); the two are not mixed.
+ */
+export function eventStaticSourceCaveat(
+  verdict: StaticSourceVerdictOnWire | undefined,
+  bundled: BundledStaticSourceLookup | null,
+): EventStaticSourceCaveat | null {
+  if (bundled !== null) return bundled;
+  return verdict === 'annotated' ? { basis: 'server' } : null;
+}
+
+/**
+ * The bundled lookup for an event: per detection when positions are known (an empty list
+ * counts as unknown), otherwise from the event's centre; `null` when nothing is near.
+ */
+export function bundledStaticSourceLookup(
+  mask: StaticSourceMask,
+  centre: { readonly lon: number; readonly lat: number },
+  positions: readonly { readonly lon: number; readonly lat: number }[] | null,
+): BundledStaticSourceLookup | null {
+  if (positions !== null && positions.length > 0) {
+    const perDetection = staticSourceDetectionCaveat(mask, positions);
+    return perDetection === null ? null : { basis: 'detections', ...perDetection };
+  }
+  const caveat = staticSourceCaveat(mask, centre);
+  return caveat === null ? null : { basis: 'centre', caveat };
 }
 
 /** The OSM credit the mask is paid for with (contracts registry, `osm`), never retyped. */

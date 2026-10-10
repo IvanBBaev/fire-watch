@@ -509,6 +509,11 @@ export interface Messages {
     /** F16, per detection: the same, when any of them is near a non-solar source. */
     readonly staticSourceDetectionsIndustrial: (near: number, total: number) => string;
     /**
+     * F16, kind-neutral: the server's verdict says the event sits on a mapped hot source but
+     * the bundled mask finds none nearby (a newer server mask), so the kind is unknown.
+     */
+    readonly staticSourceServer: string;
+    /**
      * F18 context, never cause: `count` (≥ 1) MTG-LI flashes within `radiusKm` in the
      * `hours` before the first detection, the nearest `nearestKm` away.
      */

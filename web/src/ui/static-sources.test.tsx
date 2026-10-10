@@ -1,10 +1,12 @@
 /**
  * TASKS F16, web half: the mask's lazy load, the event-detail caveat and the Layers-panel
- * row. The caveat must never hide anything — it only adds a sentence — and the row must
+ * row. The caveat must never hide anything — it only adds a sentence, and the server's
+ * `static_source_verdict` can only add one more (never remove one) — and the row must
  * print the OSM credit, with its link, while the layer is on (CI-13).
  */
 
 import {
+  EMPTY_STATIC_SOURCE_MASK,
   STATIC_SOURCE_CAVEAT,
   STATIC_SOURCE_FORMAT,
   STATIC_SOURCE_KINDS,
@@ -17,7 +19,7 @@ import { DEFAULT_CONFIG } from '../core/config.js';
 import bg from '../core/i18n/bg.js';
 import en from '../core/i18n/en.js';
 import type { Messages } from '../core/i18n/messages.js';
-import type { FireEventStore } from '../core/types.js';
+import type { FireEventStore, StaticSourceVerdictOnWire } from '../core/types.js';
 import { AppContext } from './context.js';
 import type { AppServices } from './context.js';
 import { StaticSourceNote } from './event/static-source-note.js';
@@ -25,7 +27,11 @@ import { StaticSourcesOption } from './static-sources-option.js';
 import {
   STATIC_SOURCES_STORAGE_KEY,
   applyStaticSourcesFromLink,
+  bundledStaticSourceLookup,
   caveatFor,
+  eventStaticSourceCaveat,
+  type BundledStaticSourceLookup,
+  type EventStaticSourceCaveat,
   loadStaticSources,
   resetStaticSourcesForTest,
   setStaticSourcesChosen,
@@ -209,11 +215,91 @@ describe('StaticSourceNote', () => {
     ).toBe('');
   });
 
+  it("adds the kind-neutral sentence when only the server's verdict finds a source", async () => {
+    staticSourceMask.value = MASK;
+    const away = { lon: 23.32, lat: 42.7, staticSourceVerdict: 'annotated' } as const;
+    expect(await render(<StaticSourceNote event={away} />)).toContain(
+      en.eventDetail.staticSourceServer,
+    );
+    expect(await render(<StaticSourceNote event={away} positions={[away]} />, bg)).toContain(
+      bg.eventDetail.staticSourceServer,
+    );
+    // Before the bundled mask has loaded, the server's word is all there is.
+    staticSourceMask.value = EMPTY_STATIC_SOURCE_MASK;
+    expect(await render(<StaticSourceNote event={away} />)).toContain(
+      en.eventDetail.staticSourceServer,
+    );
+  });
+
+  it('keeps the kind-specific sentence whatever the verdict says', async () => {
+    staticSourceMask.value = MASK;
+    for (const verdict of ['annotated', 'clear'] as const) {
+      const html = await render(
+        <StaticSourceNote event={{ lon: 25.005, lat: 42.005, staticSourceVerdict: verdict }} />,
+      );
+      expect(html).toContain(en.eventDetail.staticSourceSolar);
+      expect(html).not.toContain(en.eventDetail.staticSourceServer);
+    }
+    expect(
+      await render(
+        <StaticSourceNote event={{ lon: 23.32, lat: 42.7, staticSourceVerdict: 'clear' }} />,
+      ),
+    ).toBe('');
+  });
+
   it('falls back to the centre when there are no positions', async () => {
     staticSourceMask.value = MASK;
     expect(
       await render(<StaticSourceNote event={{ lon: 25.005, lat: 42.005 }} positions={[]} />),
     ).toContain(en.eventDetail.staticSourceSolar);
+  });
+});
+
+describe('eventStaticSourceCaveat', () => {
+  const detections: BundledStaticSourceLookup = {
+    basis: 'detections',
+    caveat: 'solar',
+    near: 1,
+    total: 3,
+  };
+  const centre: BundledStaticSourceLookup = { basis: 'centre', caveat: 'industrial' };
+  // verdict × bundled lookup → caveat. The verdict only ever adds a sentence.
+  const table: readonly [
+    StaticSourceVerdictOnWire | undefined,
+    BundledStaticSourceLookup | null,
+    EventStaticSourceCaveat | null,
+  ][] = [
+    ['annotated', detections, detections],
+    ['annotated', centre, centre],
+    ['annotated', null, { basis: 'server' }],
+    ['clear', detections, detections],
+    ['clear', centre, centre],
+    ['clear', null, null],
+    [undefined, detections, detections],
+    [undefined, centre, centre],
+    [undefined, null, null],
+  ];
+  it.each(table)('verdict %s with bundled %j → %j', (verdict, bundled, expected) => {
+    expect(eventStaticSourceCaveat(verdict, bundled)).toEqual(expected);
+  });
+});
+
+describe('bundledStaticSourceLookup', () => {
+  it('judges per detection when positions are known, else from the centre', () => {
+    const onPark = { lon: 25.005, lat: 42.005 };
+    const clear = { lon: 23.32, lat: 42.7 };
+    expect(bundledStaticSourceLookup(MASK, clear, [onPark, clear])).toEqual({
+      basis: 'detections',
+      caveat: 'solar',
+      near: 1,
+      total: 2,
+    });
+    expect(bundledStaticSourceLookup(MASK, onPark, [clear])).toBeNull();
+    expect(bundledStaticSourceLookup(MASK, onPark, [])).toEqual({
+      basis: 'centre',
+      caveat: 'solar',
+    });
+    expect(bundledStaticSourceLookup(MASK, clear, null)).toBeNull();
   });
 });
 

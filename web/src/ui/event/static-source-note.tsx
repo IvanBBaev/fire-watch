@@ -11,10 +11,15 @@
  * data reads the per-event detections route, which holds the 1000 newest detections, so
  * "N of M" on a truncated event counts over those.
  *
+ * The server's verdict can only add to this: when the snapshot says `annotated` and the
+ * bundled mask finds nothing (the server's mask is newer, or the bundle has not loaded), a
+ * kind-neutral "server check" sentence appears instead; a `clear` verdict never removes a
+ * sentence the bundled mask supports (`eventStaticSourceCaveat` has the rule).
+ *
  * A caveat, never a filter: the event, its score and its detections render exactly as
- * before. Nothing renders until the mask has loaded (fetched from our own origin the first
- * time an event is opened), and nothing renders if it fails to load — the absence of a
- * caveat is not a claim that the hotspot is a fire.
+ * before. Without a server `annotated`, nothing renders until the mask has loaded (fetched
+ * from our own origin the first time an event is opened), and nothing renders if it fails
+ * to load — the absence of a caveat is not a claim that the hotspot is a fire.
  */
 
 import { useEffect } from 'preact/hooks';
@@ -22,15 +27,15 @@ import { useEffect } from 'preact/hooks';
 import type { FireEvent } from '../../core/types.js';
 import { useApp } from '../context.js';
 import {
+  bundledStaticSourceLookup,
+  eventStaticSourceCaveat,
   loadStaticSources,
-  staticSourceCaveat,
-  staticSourceDetectionCaveat,
   staticSourceMask,
 } from '../static-sources.js';
 import type { DetectionPosition } from './detection-detail.js';
 
 export interface StaticSourceNoteProps {
-  readonly event: Pick<FireEvent, 'lon' | 'lat'>;
+  readonly event: Pick<FireEvent, 'lon' | 'lat' | 'staticSourceVerdict'>;
   /** The detections' positions; `null` (or empty) falls back to the event's centre. */
   readonly positions?: readonly DetectionPosition[] | null;
 }
@@ -41,23 +46,25 @@ export function StaticSourceNote({ event, positions = null }: StaticSourceNotePr
     void loadStaticSources();
   }, []);
   const t = messages.eventDetail;
-  if (positions !== null && positions.length > 0) {
-    const perDetection = staticSourceDetectionCaveat(staticSourceMask.value, positions);
-    if (perDetection === null) return null;
-    const { caveat: kind, near, total } = perDetection;
-    return (
-      <p class="event-note static-source-note">
-        {kind === 'solar'
-          ? t.staticSourceDetectionsSolar(near, total)
-          : t.staticSourceDetectionsIndustrial(near, total)}
-      </p>
-    );
-  }
-  const caveat = staticSourceCaveat(staticSourceMask.value, event);
-  if (caveat === null) return null;
-  return (
-    <p class="event-note static-source-note">
-      {caveat === 'solar' ? t.staticSourceSolar : t.staticSourceIndustrial}
-    </p>
+  const caveat = eventStaticSourceCaveat(
+    event.staticSourceVerdict,
+    bundledStaticSourceLookup(staticSourceMask.value, event, positions),
   );
+  if (caveat === null) return null;
+  let text: string;
+  switch (caveat.basis) {
+    case 'detections':
+      text =
+        caveat.caveat === 'solar'
+          ? t.staticSourceDetectionsSolar(caveat.near, caveat.total)
+          : t.staticSourceDetectionsIndustrial(caveat.near, caveat.total);
+      break;
+    case 'centre':
+      text = caveat.caveat === 'solar' ? t.staticSourceSolar : t.staticSourceIndustrial;
+      break;
+    case 'server':
+      text = t.staticSourceServer;
+      break;
+  }
+  return <p class="event-note static-source-note">{text}</p>;
 }

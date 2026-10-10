@@ -12,6 +12,10 @@
  *   nearest mapped solar park — outside the 1 km caveat radius — while one of its six
  *   fixture detections lies on one, so the event page must say "1 of 6 detections is near
  *   a known solar park" where a centre-only caveat would have said nothing.
+ * - The caveat follows the server's verdict. A copy of the fixture marks `fw-2026-x4k6m`
+ *   (no bundled source within 5 km of its centre or any detection) `static_source_verdict:
+ *   "annotated"` — a server mask newer than the bundle — so its page must carry the
+ *   kind-neutral "server check" sentence. The shipped fixture is left alone.
  * - On the real map (a local stand-in basemap, `harness/map-inspect.ts`, so the style
  *   loads), the mask's layers sit below the fire layers and are gone when switched off.
  *   The map corner carries the OSM credit throughout: the corner line always does,
@@ -61,6 +65,8 @@ const PANEL = '#fw-layers-panel';
 const TOGGLE = `button.map-control[aria-controls="${PANEL.slice(1)}"]`;
 /** Centre ~1.1 km from a solar park; one of its six detections on one (see the header). */
 const EVENT_ID = 'fw-2026-q7f3d';
+/** No bundled source near it; the copied fixture gives it a server `annotated` verdict. */
+const SERVER_ONLY_EVENT_ID = 'fw-2026-x4k6m';
 
 /** See `polling-only.e2e.ts`: the blocked third-party basemap, and nothing else. */
 const EXPECTED_CONSOLE_ERRORS: readonly RegExp[] = [
@@ -88,10 +94,29 @@ afterEach(async () => {
   }
 });
 
-async function openPage(path: string, realMap = false): Promise<InstrumentedPage> {
+/** A copy of the fixture with the server's `annotated` verdict on one event. */
+function withServerVerdict(base: WireSnapshot, eventId: string): WireSnapshot {
+  return {
+    ...base,
+    features: base.features.map((feature) =>
+      feature.id === eventId
+        ? {
+            ...feature,
+            properties: { ...feature.properties, static_source_verdict: 'annotated' },
+          }
+        : feature,
+    ),
+  };
+}
+
+async function openPage(
+  path: string,
+  realMap = false,
+  snapshot: WireSnapshot = fixture,
+): Promise<InstrumentedPage> {
   const origin = await startOrigin({
     distDir: DIST_DIR,
-    fixture,
+    fixture: snapshot,
     advertiseStaticCopy: false,
     staleByMs: 0,
   });
@@ -241,6 +266,27 @@ describe('CI-7 static hot-source mask (F16)', () => {
           )
         ).includes(expected),
       { timeoutMs: 15_000, what: 'the per-detection static-source caveat' },
+    );
+    expect(await page.page.$$('.static-source-note')).toHaveLength(1);
+
+    await expectQuietPage(page);
+  });
+
+  it("follows the server's annotated verdict where the bundled mask finds nothing", async () => {
+    const page = await openPage(
+      `/event/${SERVER_ONLY_EVENT_ID}`,
+      false,
+      withServerVerdict(fixture, SERVER_ONLY_EVENT_ID),
+    );
+    const expected = EN.eventDetail.staticSourceServer;
+    await until(
+      async () =>
+        (
+          await page.page.$$eval('.static-source-note', (nodes) =>
+            nodes.map((node) => node.textContent ?? ''),
+          )
+        ).includes(expected),
+      { timeoutMs: 15_000, what: 'the server-check static-source caveat' },
     );
     expect(await page.page.$$('.static-source-note')).toHaveLength(1);
 

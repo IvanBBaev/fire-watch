@@ -42,6 +42,8 @@ export interface WireFeatureProperties {
   readonly place_name_en: string;
   readonly area_ha: number | null;
   readonly next_pass_window: { readonly start: string; readonly end: string } | null;
+  /** Additive (F16); the shipped fixture leaves it out, a suite may set it on a copy. */
+  readonly static_source_verdict?: 'annotated' | 'clear' | null;
 }
 
 export interface WireFeature {

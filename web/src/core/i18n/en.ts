@@ -532,6 +532,8 @@ const messages: Messages = {
           ? 'Its only detection is near a known industrial heat source — this hotspot may not be a fire.'
           : `All ${formatNumber(total, 'en')} detections are near a known industrial heat source — this hotspot may not be a fire.`
         : `${formatNumber(near, 'en')} of ${formatNumber(total, 'en')} detections ${near === 1 ? 'is' : 'are'} near a known industrial heat source — ${near === 1 ? 'it' : 'they'} may not be a fire.`,
+    staticSourceServer:
+      'Near a known heat source, according to our server check — this hotspot may not be a fire.',
     lightningContextFlashes: (count, radiusKm, hours, nearestKm) =>
       count === 1
         ? `Lightning context: 1 flash was recorded within ${formatNumber(radiusKm, 'en')} km in the ${formatNumber(hours, 'en')} hours before the first detection, ${formatNumber(nearestKm, 'en')} km away. Context only: it does not mean lightning started this fire.`

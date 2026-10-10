@@ -199,6 +199,7 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'eventDetail.staticSourceIndustrial',
       'eventDetail.staticSourceDetectionsSolar',
       'eventDetail.staticSourceDetectionsIndustrial',
+      'eventDetail.staticSourceServer',
       // TASKS F18 — the lightning context on the event detail page.
       'eventDetail.lightningContextFlashes',
       'eventDetail.lightningContextNone',
