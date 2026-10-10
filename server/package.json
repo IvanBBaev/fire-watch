@@ -18,6 +18,7 @@
     "erasure-drill": "node dist/app/erasure-drill-cli.js",
     "restore-drill": "node dist/app/restore-drill-cli.js",
     "zone-key-rotation": "node dist/app/zone-key-rotation-cli.js",
+    "lightning-backfill": "node dist/app/lightning-backfill-cli.js",
     "replay": "node dist/adapters/fixtures/replay-cli.js",
     "typecheck": "tsc --build",
     "test": "vitest run",

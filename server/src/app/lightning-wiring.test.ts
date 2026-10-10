@@ -119,6 +119,7 @@ describe('the lightning cycle with a database', () => {
                 asked.push(version);
                 return Promise.reject(new Error('db down'));
               },
+              incompleteEvents: () => Promise.reject(new Error('unused')),
               save: () => Promise.resolve(),
             },
             reader: payloads,

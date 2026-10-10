@@ -12,12 +12,22 @@
  * has left the document's retention. A `complete` row with zero flashes is a statement
  * about the data; an `unavailable` row is a statement that there is none.
  *
+ * **An answer is about a place and a time.** Each row records the centroid and first
+ * detection it was computed for; once the event moves beyond {@link LIGHTNING_CONTEXT_DRIFT}
+ * it is computed again ({@link recomputeReason}). Otherwise a `complete` row is final.
+ *
  * Runs in the lightning loop after each refresh, against the document that refresh just
  * wrote. Pure evaluation ({@link evaluateLightningContext}) plus a thin pass that reads the
- * document and the pending events and saves the answers.
+ * document and the pending events and saves the answers. Windows that left the document
+ * before they were answered are the archive backfill's (`lightning-context-backfill.ts`).
  */
 
-import { LIGHTNING_CONTEXT, type LightningContextValues } from '../config/lightning-context.js';
+import {
+  LIGHTNING_CONTEXT,
+  LIGHTNING_CONTEXT_DRIFT,
+  type LightningContextDrift,
+  type LightningContextValues,
+} from '../config/lightning-context.js';
 import type { VersionedConfig } from '../config/versioned-config.js';
 import type { Clock, EpochMs } from '../ports/clock.js';
 import type {
@@ -75,6 +85,31 @@ export function coverage(
   return merged;
 }
 
+/** Why an event needs its context computed (again). */
+export type LightningContextReason = 'missing' | 'params' | 'moved' | 'redated';
+
+/**
+ * Whether an event's stored row still answers for it: `null` when it does, otherwise why
+ * not — no row, another params version, a centroid more than `drift.centroidKm` from the
+ * one counted around, or a first detection more than `drift.firstDetectionMs` from the
+ * window's end. Status plays no part: an `unavailable` row is final for the loop too (only
+ * the archive backfill revisits it), and a `complete` row is never recomputed for nothing.
+ */
+export function recomputeReason(
+  event: LightningContextCandidate,
+  paramsVersion: string,
+  drift: LightningContextDrift = LIGHTNING_CONTEXT_DRIFT,
+): LightningContextReason | null {
+  const previous = event.previous;
+  if (previous === null) return 'missing';
+  if (previous.paramsVersion !== paramsVersion) return 'params';
+  if (greatCircleKm(event, previous) > drift.centroidKm) return 'moved';
+  if (Math.abs(event.firstDetectedAt - previous.windowTo) > drift.firstDetectionMs) {
+    return 'redated';
+  }
+  return null;
+}
+
 /**
  * The answer for one event, or `null` while it is still worth waiting for: the window is
  * not yet covered but its start is still inside the document's retention.
@@ -93,6 +128,8 @@ export function evaluateLightningContext(
     windowFrom,
     windowTo,
     radiusKm,
+    lat: event.lat,
+    lon: event.lon,
     paramsVersion: config.version,
     computedAt: now,
   };
@@ -139,6 +176,8 @@ export interface LightningContextDeps {
 
 export interface LightningContextReport {
   readonly pending: number;
+  /** Of `pending`, events whose row was computed for a centroid or time they have left. */
+  readonly moved: number;
   readonly complete: number;
   readonly unavailable: number;
   readonly waiting: number;
@@ -150,8 +189,9 @@ export interface LightningContextReport {
 export async function runLightningContextPass(
   deps: LightningContextDeps,
   config: VersionedConfig<LightningContextValues> = LIGHTNING_CONTEXT,
+  drift: LightningContextDrift = LIGHTNING_CONTEXT_DRIFT,
 ): Promise<LightningContextReport> {
-  const empty = { pending: 0, complete: 0, unavailable: 0, waiting: 0 };
+  const empty = { pending: 0, moved: 0, complete: 0, unavailable: 0, waiting: 0 };
   let document: LightningDocument | null;
   try {
     const text = await deps.reader.readText(LIGHTNING_CURRENT_PATH);
@@ -161,7 +201,12 @@ export async function runLightningContextPass(
     return { ...empty, error: `document unreadable: ${describe(error)}` };
   }
   try {
-    const pending = await deps.store.pendingEvents(config.version, config.values.batchSize);
+    const listed = await deps.store.pendingEvents(config.version, config.values.batchSize, drift);
+    // The store's query is the coarse filter; this is the rule (the two agree to within
+    // the spheroid's rounding, and an event the rule says still holds is left alone).
+    const reasons = listed.map((event) => recomputeReason(event, config.version, drift));
+    const pending = listed.filter((_, i) => reasons[i] !== null);
+    const moved = reasons.filter((r) => r === 'moved' || r === 'redated').length;
     const now = deps.clock.now();
     const rows = pending
       .map((event) => evaluateLightningContext(event, document, now, config))
@@ -170,6 +215,7 @@ export async function runLightningContextPass(
     const complete = rows.filter((r) => r.status === 'complete').length;
     return {
       pending: pending.length,
+      moved,
       complete,
       unavailable: rows.length - complete,
       waiting: pending.length - rows.length,

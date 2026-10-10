@@ -92,6 +92,15 @@ export interface LightningRefreshDeps {
   readonly feedStatus: FeedStatusStore;
 }
 
+/**
+ * What fetching and recording one product needs — shared with the archive backfill
+ * (`lightning-context-backfill.ts`), which writes the same records the same way.
+ */
+export type LightningProductDeps = Pick<
+  LightningRefreshDeps,
+  'client' | 'decoder' | 'payloads' | 'reader'
+>;
+
 export type LightningProductOutcome =
   'recorded' | 'download_failed' | 'decode_failed' | 'refused' | 'write_failed' | 'not_attempted';
 
@@ -310,8 +319,8 @@ async function safeSearch(deps: LightningRefreshDeps, now: EpochMs): Promise<Lig
  * cycle that died before the document), `'refused'` for a product whose sidecar says the
  * decoder refused it, or `null` for a product never seen.
  */
-async function readExisting(
-  deps: LightningRefreshDeps,
+export async function readExisting(
+  deps: Pick<LightningProductDeps, 'reader'>,
   windowEnd: EpochMs,
   productId: string,
 ): Promise<LightningRecord | 'refused' | null> {
@@ -333,8 +342,8 @@ async function readExisting(
   return null;
 }
 
-async function fetchOne(
-  deps: LightningRefreshDeps,
+export async function fetchOne(
+  deps: LightningProductDeps,
   product: LightningProduct,
   window: { readonly start: EpochMs; readonly end: EpochMs },
 ): Promise<{
@@ -431,7 +440,7 @@ async function fetchOne(
 }
 
 async function writeMeta(
-  deps: LightningRefreshDeps,
+  deps: Pick<LightningProductDeps, 'payloads'>,
   windowEnd: EpochMs,
   productId: string,
   meta: Record<string, unknown>,
@@ -452,7 +461,7 @@ function changed(previous: LightningDocument, next: LightningDocument): boolean 
   });
 }
 
-function windowKeyOf(window: { readonly start: EpochMs; readonly end: EpochMs }): string {
+export function windowKeyOf(window: { readonly start: EpochMs; readonly end: EpochMs }): string {
   return `${String(window.start)}/${String(window.end)}`;
 }
 
@@ -463,7 +472,7 @@ function asEntry(product: LightningProduct): { id: string; published_at: string 
 }
 
 /** One candidate per window: the one {@link supersedes} ranks first. */
-function latestPerWindow<
+export function latestPerWindow<
   C extends {
     readonly product: LightningProduct;
     readonly window: { start: EpochMs; end: EpochMs };
@@ -479,7 +488,7 @@ function latestPerWindow<
   return [...best.values()];
 }
 
-function dedupe(products: readonly LightningProduct[]): LightningProduct[] {
+export function dedupe(products: readonly LightningProduct[]): LightningProduct[] {
   const byId = new Map<string, LightningProduct>();
   for (const product of products) if (!byId.has(product.id)) byId.set(product.id, product);
   return [...byId.values()];

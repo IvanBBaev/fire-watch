@@ -704,6 +704,30 @@ cloud-to-ground flashes are not distinguished).
   by day), or "no lightning data" — **"no data" is never rendered as "no lightning"**.
   Answering never bumps the event's `seq`. Fixtures (`web/public/fixtures/lightning-context/`)
   are synthetic.
+- **Recompute on drift (migration 024).** Each row records the centroid it counted around
+  (`centroid_lat`/`centroid_lon`; `window_to` already records the first detection). The
+  worker recomputes a row once the event has moved more than **1 km** or its first
+  detection has moved more than **60 s** (`LIGHTNING_CONTEXT_DRIFT`, kept out of
+  `lightning_context_v1` so changing it invalidates nothing); otherwise a `complete` row is
+  never touched. The rule is the pure `recomputeReason` (`core/lightning/lightning-context.ts`);
+  the store's SQL is only the coarse filter. A moved event whose new window has aged out of
+  the 9-h document reads `unavailable` until the backfill answers it. Rows written before
+  024 took the event's then-current centroid.
+- **Archive backfill (`lightning-backfill-cli.ts`, `pnpm --filter @fire-watch/server lightning-backfill`).**
+  For live events first detected more than 6 h ago (the window no longer fits the 9-h
+  document) with no `complete` row that still holds — none, another params version,
+  `unavailable`, or drifted — it searches the Data Store for the LFL products of the 3-h
+  window, keeps the latest product per 10-min window, reuses records already in the state
+  dir and downloads the rest (token needed), decodes them in the same sandboxed child and
+  writes a `complete` row **only when every product of the window was read**. A window the
+  archive covers in part, or a product the decoder refuses, is reported with its missing ISO
+  intervals and written as nothing. Bounded by `--max-events` (default 50, ceiling 1 000)
+  and `--max-products` downloads (default 200, ceiling 5 000); downloads stop after a
+  401/403. Idempotent: records are keyed by product id, and the upsert never lets an
+  `unavailable` row replace a `complete` one for the same params, centroid and first
+  detection. **Without EUMETSAT credentials it refuses (exit 2) before listing anything.**
+  Exit 0 all answered, 3 some still incomplete, 1 a failure. Tested only with a fake client
+  and decoder; no real archived product has been fetched.
 - Web: the Layers panel toggle `lightning` (`ov=lightning`) fetches the route (the
   fixtures build reads `web/public/fixtures/lightning/recent.json`, a synthetic six-hour
   window over Bulgaria) and draws one ringed circle per flash below every fire layer,
@@ -735,6 +759,10 @@ turned on in production (TASKS F18 done-when).
 6. The false-likelihood threshold (0.5) and keeping unrated flashes (`lightning_filter_v1`).
 7. The event-context radius and window (10 km, 3 h; `lightning_context_v1`).
 8. The `disabled` FeedStatus wording on `/status` (en/bg).
+9. The drift tolerance that triggers a recompute (1 km, 60 s; `LIGHTNING_CONTEXT_DRIFT`).
+10. The backfill's per-run defaults (50 events, 200 downloads) and that its decoded records
+    share the live record paths in the state dir with no pruning (about 18 small records per
+    event window).
 
 **Attribution.** Row 7 below; licence record `docs/licenses/eumetsat-mtg-li.md`.
 

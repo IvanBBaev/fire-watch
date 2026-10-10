@@ -296,6 +296,14 @@ export interface EventDetections {
 }
 
 export interface EventLightningContext {
+  /**
+   * Event centroid (WGS84) the flashes were counted around; the row is recomputed once the event moves beyond LIGHTNING_CONTEXT_DRIFT.
+   */
+  centroid_lat: number;
+  /**
+   * Event centroid (WGS84) the flashes were counted around.
+   */
+  centroid_lon: number;
   computed_at: Timestamp;
   filter_version: string;
   fire_event_id: Int8;

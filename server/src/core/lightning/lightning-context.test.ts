@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { defineConfig } from '../config/versioned-config.js';
-import { LIGHTNING_CONTEXT } from '../config/lightning-context.js';
+import { LIGHTNING_CONTEXT, LIGHTNING_CONTEXT_DRIFT } from '../config/lightning-context.js';
 import { VirtualClock, isoFromEpochMs } from '../ports/clock.js';
 import type {
   LightningContextCandidate,
+  LightningContextPrevious,
   LightningContextRow,
   LightningContextStore,
 } from '../ports/lightning-context-store.js';
@@ -13,6 +14,7 @@ import {
   coverage,
   evaluateLightningContext,
   greatCircleKm,
+  recomputeReason,
   runLightningContextPass,
 } from './lightning-context.js';
 import {
@@ -28,8 +30,31 @@ const MIN = 60_000;
 const NOW = Date.parse('2026-09-30T12:00:00Z');
 const FIRE = { lat: 42.7, lon: 23.3 };
 
-function event(firstDetectedMinutesAgo: number, id = '7'): LightningContextCandidate {
-  return { eventId: id, ...FIRE, firstDetectedAt: NOW - firstDetectedMinutesAgo * MIN };
+function event(
+  firstDetectedMinutesAgo: number,
+  id = '7',
+  previous: LightningContextPrevious | null = null,
+): LightningContextCandidate {
+  return {
+    eventId: id,
+    ...FIRE,
+    firstDetectedAt: NOW - firstDetectedMinutesAgo * MIN,
+    previous,
+  };
+}
+
+/** What a row computed for FIRE with its window ending `windowToMinutesAgo` would say. */
+function computed(
+  windowToMinutesAgo: number,
+  overrides: Partial<LightningContextPrevious> = {},
+): LightningContextPrevious {
+  return {
+    status: 'complete',
+    paramsVersion: LIGHTNING_CONTEXT.version,
+    windowTo: NOW - windowToMinutesAgo * MIN,
+    ...FIRE,
+    ...overrides,
+  };
 }
 
 /** A 10-minute product ending `endMinutesAgo` before NOW. */
@@ -84,6 +109,44 @@ describe('greatCircleKm', () => {
   });
 });
 
+describe('recomputeReason', () => {
+  const v = LIGHTNING_CONTEXT.version;
+
+  it('leaves a row alone while the event stays where and when it was computed', () => {
+    expect(recomputeReason(event(60, '7', computed(60)), v)).toBeNull();
+    // ~0.9 km north and 59 s later: both inside the tolerance.
+    const near = computed(60, { lat: FIRE.lat - 0.008 });
+    expect(recomputeReason(event(60, '7', near), v)).toBeNull();
+    const early = computed(60, { windowTo: NOW - 60 * MIN + 59_000 });
+    expect(recomputeReason(event(60, '7', early), v)).toBeNull();
+  });
+
+  it('names why an event needs computing again', () => {
+    expect(recomputeReason(event(60), v)).toBe('missing');
+    expect(recomputeReason(event(60, '7', computed(60, { paramsVersion: 'old' })), v)).toBe(
+      'params',
+    );
+    // ~1.1 km: beyond 1 km.
+    expect(recomputeReason(event(60, '7', computed(60, { lat: FIRE.lat - 0.01 })), v)).toBe(
+      'moved',
+    );
+    // A merge moved the first detection two minutes earlier.
+    expect(recomputeReason(event(62, '7', computed(60)), v)).toBe('redated');
+  });
+
+  it("ignores the status: an unavailable row is the backfill's, not the loop's", () => {
+    expect(recomputeReason(event(60, '7', computed(60, { status: 'unavailable' })), v)).toBeNull();
+  });
+
+  it('follows the tolerance it is given', () => {
+    const moved = event(60, '7', computed(60, { lat: FIRE.lat - 0.01 }));
+    expect(recomputeReason(moved, v, { ...LIGHTNING_CONTEXT_DRIFT, centroidKm: 2 })).toBeNull();
+    expect(
+      recomputeReason(event(60, '7', computed(60)), v, { centroidKm: 1, firstDetectionMs: 0 }),
+    ).toBeNull();
+  });
+});
+
 describe('coverage', () => {
   it('joins abutting products and splits at a missing one', () => {
     const spans = coverage(doc(60, 0, [30]), 60_000);
@@ -101,6 +164,8 @@ describe('evaluateLightningContext', () => {
     const row = evaluateLightningContext(event(60), d, NOW);
     expect(row).toMatchObject({
       status: 'complete',
+      lat: FIRE.lat,
+      lon: FIRE.lon,
       flashCount: 1,
       nearestKm: 5.6,
       radiusKm: 10,
@@ -160,6 +225,9 @@ class MemoryStore implements LightningContextStore {
     this.asked.push([paramsVersion, limit]);
     return Promise.resolve(this.events);
   }
+  incompleteEvents(): Promise<LightningContextCandidate[]> {
+    return Promise.reject(new Error('the loop never asks for the backfill list'));
+  }
   save(rows: readonly LightningContextRow[]): Promise<void> {
     this.saved.push(...rows);
     return Promise.resolve();
@@ -185,12 +253,33 @@ describe('runLightningContextPass', () => {
       reader: reader(JSON.stringify(doc(300, 20))),
       clock,
     });
-    expect(report).toEqual({ pending: 3, complete: 1, unavailable: 1, waiting: 1, error: null });
+    expect(report).toEqual({
+      pending: 3,
+      moved: 0,
+      complete: 1,
+      unavailable: 1,
+      waiting: 1,
+      error: null,
+    });
     expect(store.saved.map((r) => [r.eventId, r.status])).toEqual([
       ['a', 'complete'],
       ['c', 'unavailable'],
     ]);
     expect(store.asked).toEqual([[LIGHTNING_CONTEXT.version, LIGHTNING_CONTEXT.values.batchSize]]);
+  });
+
+  it('recomputes an event that moved, and skips one the coarse query let through', async () => {
+    const moved = event(60, 'm', computed(60, { lat: FIRE.lat - 0.05 }));
+    const settled = event(60, 's', computed(60));
+    const store = new MemoryStore([moved, settled]);
+    const report = await runLightningContextPass({
+      store,
+      reader: reader(JSON.stringify(doc(300, 20))),
+      clock,
+    });
+    expect(report).toMatchObject({ pending: 1, moved: 1, complete: 1 });
+    expect(store.saved).toHaveLength(1);
+    expect(store.saved[0]).toMatchObject({ eventId: 'm', lat: FIRE.lat, lon: FIRE.lon });
   });
 
   it('does not turn an unreadable document into unavailable rows', async () => {

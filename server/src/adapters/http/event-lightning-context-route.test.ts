@@ -20,6 +20,8 @@ function row(overrides: Partial<LightningContextRow> = {}): LightningContextRow 
     windowFrom: NOW - 5 * HOUR,
     windowTo: NOW - 2 * HOUR,
     radiusKm: 10,
+    lat: 42.6,
+    lon: 25.1,
     flashCount: 3,
     nearestKm: 4.2,
     paramsVersion: 'lightning_context_v1',
