@@ -57,8 +57,17 @@ const FLASHES: readonly SyntheticFlash[] = [
     radiance: 120.5,
     durationMs: 180,
     footprint: 12,
+    falseLikelihood: 0.02,
   },
-  { t: '2026-09-30T12:25:30Z', lat: 42.1, lon: 24.75, radiance: 40, durationMs: 90, footprint: 3 },
+  {
+    t: '2026-09-30T12:25:30Z',
+    lat: 42.1,
+    lon: 24.75,
+    radiance: 40,
+    durationMs: 90,
+    footprint: 3,
+    falseLikelihood: 0.9,
+  },
   { t: '2026-09-30T12:29:59Z', lat: 39.6, lon: 22.4, radiance: null },
   { t: '2026-09-30T12:22:00Z', lat: 4.5, lon: 3.2, radiance: 10 },
 ];
@@ -92,6 +101,7 @@ describe('the child and the core agree', () => {
       'radiance',
       'flash_duration',
       'flash_footprint',
+      'flash_filter_confidence',
     ]);
   });
 });
@@ -199,14 +209,46 @@ describe('decodeLflBody', () => {
     expect(reason).toContain('flash_time');
   });
 
+  it('passes flash_filter_confidence through as falseLikelihood, either byte sign, fill as null', async () => {
+    for (const falseLikelihoodType of ['uint8', 'int8'] as const) {
+      const payload = payloadOf(
+        await decodeLflBody(REF, await buildLflBody(FLASHES, { falseLikelihoodType })),
+      );
+      const [first, second, third] = payload.flashes;
+      expect(first?.falseLikelihood).toBe(0.02);
+      // A signed byte saturates at 127 × 0.004; the decoder reports what the file holds.
+      expect(second?.falseLikelihood).toBe(falseLikelihoodType === 'uint8' ? 0.9 : 0.508);
+      expect(third?.falseLikelihood).toBeNull();
+    }
+  });
+
+  it('treats a decoded likelihood outside [0, 1] as no value', async () => {
+    const payload = payloadOf(
+      await decodeLflBody(
+        REF,
+        await buildLflBody([
+          { t: '2026-09-30T12:21:00Z', lat: 42, lon: 23, falseLikelihood: 1.02 },
+        ]),
+      ),
+    );
+    expect(payload.flashes[0]?.falseLikelihood).toBeNull();
+  });
+
   it('decodes without the optional variables, as nulls', async () => {
     const payload = payloadOf(
       await decodeLflBody(
         REF,
-        await buildLflBody(FLASHES, { omit: ['radiance', 'flash_duration', 'flash_footprint'] }),
+        await buildLflBody(FLASHES, {
+          omit: ['radiance', 'flash_duration', 'flash_footprint', 'flash_filter_confidence'],
+        }),
       ),
     );
-    expect(payload.flashes[0]).toMatchObject({ radiance: null, durationMs: null, footprint: null });
+    expect(payload.flashes[0]).toMatchObject({
+      radiance: null,
+      durationMs: null,
+      footprint: null,
+      falseLikelihood: null,
+    });
   });
 
   it('refuses units that are not the specified ones, quoting what it found', async () => {

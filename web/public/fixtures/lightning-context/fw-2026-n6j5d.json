@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "event_id": "fw-2026-n6j5d",
+  "status": "no_data",
+  "radius_km": 10,
+  "window_hours": 3,
+  "window_from": "2026-07-18T08:47:00Z",
+  "window_to": "2026-07-18T11:47:00Z",
+  "generated_at": "2026-08-09T09:58:00Z",
+  "attribution": []
+}

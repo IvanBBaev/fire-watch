@@ -508,6 +508,20 @@ export interface Messages {
     readonly staticSourceDetectionsSolar: (near: number, total: number) => string;
     /** F16, per detection: the same, when any of them is near a non-solar source. */
     readonly staticSourceDetectionsIndustrial: (near: number, total: number) => string;
+    /**
+     * F18 context, never cause: `count` (≥ 1) MTG-LI flashes within `radiusKm` in the
+     * `hours` before the first detection, the nearest `nearestKm` away.
+     */
+    readonly lightningContextFlashes: (
+      count: number,
+      radiusKm: number,
+      hours: number,
+      nearestKm: number,
+    ) => string;
+    /** F18: the window was fully covered and no flash was recorded — LI misses some. */
+    readonly lightningContextNone: (radiusKm: number, hours: number) => string;
+    /** F18: the window was not covered (or not yet answered) — no data, not no lightning. */
+    readonly lightningContextNoData: string;
   };
 }
 

@@ -42,6 +42,7 @@ import {
   createTransportWatch,
   degradeChunk,
   drainRetryChunk,
+  disabledRows,
   expectedRows,
 } from './health-wiring.js';
 
@@ -71,8 +72,17 @@ describe('expectedRows', () => {
       'effis:layers',
       'weather:context',
       'celestrak:elements',
+      'eumetsat:lightning',
       'effis-refresh',
     ]);
+  });
+});
+
+describe('disabledRows', () => {
+  it('names the lightning row disabled only where feeds are recorded but no credentials are set', () => {
+    expect(disabledRows(true, false)).toEqual(['eumetsat:lightning']);
+    expect(disabledRows(true, true)).toEqual([]);
+    expect(disabledRows(false, false)).toEqual([]);
   });
 });
 

@@ -64,6 +64,7 @@ export const SOURCE_LEVELS = [
   'severely_delayed',
   'muted',
   'no_data',
+  'disabled',
 ] as const;
 export type SourceLevel = (typeof SOURCE_LEVELS)[number];
 
@@ -284,6 +285,8 @@ export function sourceLevel(row: FreshnessBody['rows'][number]): SourceLevel {
       return 'muted';
     case 'unknown':
       return 'no_data';
+    case 'disabled':
+      return 'disabled';
   }
 }
 

@@ -20,11 +20,20 @@
  *   | `radiance`        | ushort | units `mW.m-2.sr-1`, scale_factor/add_offset configured       |
  *   | `flash_duration`  | ushort | units `ms`                                                   |
  *   | `flash_footprint` | ushort | (LI pixels, no units attribute)                              |
+ *   | `flash_filter_confidence` | byte | scale_factor 0.004, add_offset 0, _FillValue (no units) |
  *
- * all of dimension `flashes`. `flash_filter_confidence` is deliberately **not** read: its
- * semantics are inverted (0 = high confidence) and a context layer has no use for a
- * threshold we would have to choose. The netCDF-CF convention decodes a packed value as
+ * all of dimension `flashes`. The netCDF-CF convention decodes a packed value as
  * `raw × scale_factor + add_offset`, with `_FillValue` meaning "no value".
+ *
+ * **`flash_filter_confidence` is read and passed through, never applied here.** Annex
+ * A.6 calls it "L2 filtered flash confidence" with range 0–1, "where 0 means high
+ * confidence of a true flash and 1 means low confidence of a true flash" — inverted, so
+ * the payload names it `falseLikelihood`, not `confidence`, to stop a reader taking a
+ * high number for a good flash. The spec types it `byte`, yet 1 / 0.004 = 250 does not fit
+ * a signed byte, so the decoder accepts an 8-bit integer of either sign (the fill default
+ * follows the sign found). A decoded value outside [0, 1] is treated as no value. The
+ * threshold that drops flashes is the core's, versioned (`lightning-filter.ts`), so a
+ * change of threshold never needs a new decode.
  *
  * **Never a guess.** No real product has been read yet (no Data Store account — see
  * DATA-SOURCES §F18). So every assumption above is checked against the file, and any
@@ -99,6 +108,8 @@ const TIME_UNITS = /^seconds since 2000-01-01[ T]00:00:00(?:\.0+)?Z?$/u;
 /** netCDF's default fills (netcdf.h), used only when the variable declares none. */
 const NC_FILL_SHORT = -32767;
 const NC_FILL_USHORT = 65535;
+const NC_FILL_BYTE = -127;
+const NC_FILL_UBYTE = 255;
 
 /** `\x89HDF\r\n\x1a\n` — netCDF-4 is HDF5 underneath. */
 const HDF5_SIGNATURE = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a] as const;
@@ -114,7 +125,8 @@ interface VariableSpec {
   readonly type: 0 | 1;
   /** Element size in bytes. */
   readonly size: number;
-  readonly signed: boolean;
+  /** `'either'` accepts both signs — the fill default then follows the sign found. */
+  readonly signed: boolean | 'either';
   /** The exact units string, a pattern, or `null` when the spec gives none. */
   readonly units: string | RegExp | null;
   /** Whether `scale_factor` must be present (the spec lists it for this variable). */
@@ -183,6 +195,16 @@ export const LFL_VARIABLES = {
     scaled: false,
     defaultFill: null,
   },
+  falseLikelihood: {
+    name: 'flash_filter_confidence',
+    required: false,
+    type: 0,
+    size: 1,
+    signed: 'either',
+    units: null,
+    scaled: true,
+    defaultFill: NC_FILL_BYTE,
+  },
 } as const satisfies Record<string, VariableSpec>;
 
 type VariableKey = keyof typeof LFL_VARIABLES;
@@ -206,6 +228,11 @@ export interface FlashRow {
   readonly radiance: number | null;
   readonly durationMs: number | null;
   readonly footprint: number | null;
+  /**
+   * `flash_filter_confidence`, decoded: 0 = a true flash with high confidence, 1 = low
+   * confidence. `null` when the variable is absent, fill, or outside [0, 1].
+   */
+  readonly falseLikelihood: number | null;
 }
 
 export interface Payload {
@@ -359,6 +386,7 @@ export function readLflBody(
       radiance: roundOrNull(optional(columns.get('radiance'), i), 3),
       durationMs: roundOrNull(optional(columns.get('duration'), i), 0),
       footprint: roundOrNull(optional(columns.get('footprint'), i), 0),
+      falseLikelihood: unitIntervalOrNull(optional(columns.get('falseLikelihood'), i)),
     });
   }
 
@@ -412,7 +440,7 @@ function readColumn(file: h5wasm.File, spec: VariableSpec): Column | string | nu
     return `${name} is a virtual dataset; the decoder reads no other file`;
   }
   // HDF5 reports `signed` only meaningfully for integers; a float's flag is not compared.
-  const signedMatches = spec.type !== 0 || meta.signed === spec.signed;
+  const signedMatches = spec.type !== 0 || spec.signed === 'either' || meta.signed === spec.signed;
   if (meta.type !== spec.type || meta.size !== spec.size || !signedMatches) {
     return `${name} is ${typeName(meta.type, meta.size, meta.signed)}, specified as ${typeName(spec.type, spec.size, spec.signed)}`;
   }
@@ -442,7 +470,9 @@ function readColumn(file: h5wasm.File, spec: VariableSpec): Column | string | nu
   if (scale === 0) return `${name} has scale_factor 0`;
   const offset = numericAttribute(entity, 'add_offset', 0);
   if (typeof offset === 'string') return offset;
-  const fill = numericAttribute(entity, '_FillValue', spec.defaultFill);
+  const defaultFill =
+    spec.signed === 'either' && spec.size === 1 && !meta.signed ? NC_FILL_UBYTE : spec.defaultFill;
+  const fill = numericAttribute(entity, '_FillValue', defaultFill);
   if (typeof fill === 'string') return fill;
 
   const values = entity.value;
@@ -478,8 +508,9 @@ function numericAttribute<T extends number | null>(
   return value;
 }
 
-function typeName(type: number, size: number, signed: boolean): string {
+function typeName(type: number, size: number, signed: boolean | 'either'): string {
   if (type === 1) return `a ${String(size * 8)}-bit float`;
+  if (type === 0 && signed === 'either') return `a ${String(size * 8)}-bit integer`;
   if (type === 0) return `a ${signed ? '' : 'un'}signed ${String(size * 8)}-bit integer`;
   return `HDF5 class ${String(type)}`;
 }
@@ -507,6 +538,12 @@ function optional(column: Column | undefined, i: number): number | null {
 function round(value: number, digits: number): number {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+}
+
+/** A decoded likelihood, rounded to the packing's 0.004 step; out of [0, 1] is no value. */
+function unitIntervalOrNull(value: number | null): number | null {
+  if (value === null || value < 0 || value > 1) return null;
+  return round(value, 3);
 }
 
 function roundOrNull(value: number | null, digits: number): number | null {

@@ -127,6 +127,7 @@ const en: Messages = {
     severely_delayed: 'Severely delayed',
     muted: 'Known provider outage',
     no_data: 'No data received yet',
+    disabled: 'Not enabled on this deployment',
   },
   source: {
     'firms:viirs:snpp': 'VIIRS satellite detections (Suomi NPP)',
@@ -139,6 +140,7 @@ const en: Messages = {
     'effis:layers': 'EFFIS map layers',
     'weather:context': 'Weather context',
     'celestrak:elements': 'Satellite orbital elements',
+    'eumetsat:lightning': 'Lightning detections (MTG Lightning Imager)',
     'snapshot-push': 'Map data publishing',
     'nightly-backup': 'Nightly backup',
     'wal-archive': 'Continuous backup',
@@ -216,6 +218,7 @@ const bg: Messages = {
     severely_delayed: 'Силно закъснява',
     muted: 'Известен проблем при доставчика',
     no_data: 'Все още няма получени данни',
+    disabled: 'Не е включен в тази инсталация',
   },
   source: {
     'firms:viirs:snpp': 'Сателитни засичания VIIRS (Suomi NPP)',
@@ -228,6 +231,7 @@ const bg: Messages = {
     'effis:layers': 'Слоеве на EFFIS',
     'weather:context': 'Метеорологичен контекст',
     'celestrak:elements': 'Орбитални елементи на спътниците',
+    'eumetsat:lightning': 'Засичания на мълнии (MTG Lightning Imager)',
     'snapshot-push': 'Публикуване на данните за картата',
     'nightly-backup': 'Нощно резервно копие',
     'wal-archive': 'Непрекъснато архивиране',

@@ -29,6 +29,13 @@ export interface Flash {
   readonly radiance: number | null;
   readonly durationMs: number | null;
   readonly footprint: number | null;
+  /**
+   * The product's `flash_filter_confidence`, 0 = very likely a true flash, 1 = very likely
+   * false (PUG Annex A.6; the inverted name keeps a high value from reading as "good").
+   * `null` when the product left it unset. Filtering happens later, against the versioned
+   * `lightning_filter` config, so records keep every flash.
+   */
+  readonly falseLikelihood: number | null;
 }
 
 export interface DecoderCounts {
@@ -100,10 +107,16 @@ export function parseLightningPayload(
     const radiance = optionalNonNegative(row['radiance']);
     const durationMs = optionalNonNegative(row['durationMs']);
     const footprint = optionalNonNegative(row['footprint']);
-    if (radiance === undefined || durationMs === undefined || footprint === undefined) {
+    const falseLikelihood = optionalUnit(row['falseLikelihood']);
+    if (
+      radiance === undefined ||
+      durationMs === undefined ||
+      footprint === undefined ||
+      falseLikelihood === undefined
+    ) {
       return refuse(`flash ${String(i)} has a malformed optional field`);
     }
-    flashes.push({ at, lat, lon, radiance, durationMs, footprint });
+    flashes.push({ at, lat, lon, radiance, durationMs, footprint, falseLikelihood });
   }
   const counts = readCounts(parsed['decoder'], rows.length);
   if (counts === null) return refuse('payload decoder counts are malformed');
@@ -162,6 +175,13 @@ function isFiniteIn(value: unknown, bound: number): value is number {
 function optionalNonNegative(value: unknown): number | null | undefined {
   if (value === null) return null;
   if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value;
+  return undefined;
+}
+
+/** Absent or `null` is `null`; a finite number in [0, 1] passes; anything else is `undefined`. */
+function optionalUnit(value: unknown): number | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1) return value;
   return undefined;
 }
 

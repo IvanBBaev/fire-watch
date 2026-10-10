@@ -20,6 +20,9 @@
  *   GET /overlays/lightning/recent.json
  *                                the F18 lightning flashes of the last six hours, only with
  *                                `lightningOverlay` deps. Its own per-IP limit.
+ *   GET /api/v1/events/:publicId/lightning-context
+ *                                F18 lightning before one event's first detection, only
+ *                                with `eventLightningContext` deps. Its own per-IP limit.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -70,6 +73,11 @@ import {
   registerEventDetectionsRoute,
   type EventDetectionsRouteDeps,
 } from './event-detections-route.js';
+import {
+  EVENT_LIGHTNING_CONTEXT_PATH,
+  registerEventLightningContextRoute,
+  type EventLightningContextRouteDeps,
+} from './event-lightning-context-route.js';
 import {
   LIGHTNING_OVERLAY_PATH,
   registerLightningOverlayRoute,
@@ -142,6 +150,8 @@ export interface HealthServerDeps {
    * having quietly stopped reporting a fourth.
    */
   readonly expected: readonly FreshnessRowId[];
+  /** Expected rows configured off here; they report `disabled` and are never scored. */
+  readonly disabled?: readonly FreshnessRowId[];
   readonly rateLimit?: { readonly limit: number; readonly windowMs: number };
   /**
    * The request header our own edge *overwrites* with the real client IP (for Cloudflare,
@@ -200,6 +210,8 @@ export interface HealthServerDeps {
    * per-IP limit, so the hook exempts it from the probe limiter.
    */
   readonly lightningOverlay?: LightningOverlayRouteDeps | undefined;
+  /** F18 per-event lightning context, with a database. Its own per-IP limit. */
+  readonly eventLightningContext?: EventLightningContextRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -257,7 +269,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === WIND_OVERLAY_PATH ||
       matched === PASSES_PATH ||
       matched === PASS_SWATHS_PATH ||
-      matched === LIGHTNING_OVERLAY_PATH
+      matched === LIGHTNING_OVERLAY_PATH ||
+      matched === EVENT_LIGHTNING_CONTEXT_PATH
     ) {
       done();
       return;
@@ -357,6 +370,7 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       now: deps.clock.now(),
       expected: deps.expected,
       observations,
+      ...(deps.disabled === undefined ? {} : { disabled: deps.disabled }),
     });
     return reply.code(verdict.httpStatus).send(verdict.report);
   });
@@ -391,6 +405,12 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerLightningOverlayRoute(app, {
       ...deps.lightningOverlay,
       clientIpHeader: deps.lightningOverlay.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.eventLightningContext !== undefined) {
+    registerEventLightningContextRoute(app, {
+      ...deps.eventLightningContext,
+      clientIpHeader: deps.eventLightningContext.clientIpHeader ?? deps.clientIpHeader,
     });
   }
 

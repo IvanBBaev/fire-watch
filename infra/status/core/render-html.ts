@@ -192,7 +192,7 @@ a{color:inherit}
 .muted{color:var(--muted)}
 .badge{font-weight:600;white-space:nowrap}
 .operational,.on_time{color:var(--ok)}.degraded,.delayed{color:var(--warn)}
-.outage,.severely_delayed{color:var(--down)}.unknown,.no_data{color:var(--unk)}
+.outage,.severely_delayed{color:var(--down)}.unknown,.no_data,.disabled{color:var(--unk)}
 .sources{width:100%;border-collapse:collapse;font-size:.95rem}
 .sources th,.sources td{text-align:left;padding:.4rem .5rem .4rem 0;border-bottom:1px solid var(--line);vertical-align:top}
 .sources th{font-weight:500}

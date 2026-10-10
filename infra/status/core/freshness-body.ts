@@ -25,6 +25,7 @@ export const FRESHNESS_BODY_STATES = [
   'critical',
   'muted',
   'unknown',
+  'disabled',
 ] as const satisfies readonly FreshnessState[];
 
 export const FRESHNESS_BODY_STATUSES = [

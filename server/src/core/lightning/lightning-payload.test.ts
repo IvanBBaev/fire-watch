@@ -28,6 +28,7 @@ function payload(overrides: Record<string, unknown> = {}, rows?: unknown[]): str
       radiance: 12.5,
       durationMs: 180,
       footprint: 3,
+      falseLikelihood: 0.02,
     },
     {
       t: '2026-09-30T12:29:00Z',
@@ -75,6 +76,7 @@ describe('parseLightningPayload', () => {
           radiance: 12.5,
           durationMs: 180,
           footprint: 3,
+          falseLikelihood: 0.02,
         },
         {
           at: Date.UTC(2026, 8, 30, 12, 29),
@@ -83,6 +85,7 @@ describe('parseLightningPayload', () => {
           radiance: null,
           durationMs: null,
           footprint: null,
+          falseLikelihood: null,
         },
       ],
       counts: {
@@ -93,6 +96,23 @@ describe('parseLightningPayload', () => {
         droppedOutsideWindow: 0,
       },
     });
+  });
+
+  it('refuses a false likelihood outside [0, 1]', () => {
+    for (const bad of [-0.1, 1.2, '0.5']) {
+      const rows = [
+        {
+          t: '2026-09-30T12:21:00Z',
+          lat: 42,
+          lon: 23,
+          radiance: 1,
+          durationMs: 1,
+          footprint: 1,
+          falseLikelihood: bad,
+        },
+      ];
+      expect(reason(payload({}, rows))).toMatch(/malformed optional field/);
+    }
   });
 
   it('refuses another format, and a window that is not the one fetched', () => {

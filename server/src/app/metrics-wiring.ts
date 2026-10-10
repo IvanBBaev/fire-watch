@@ -261,6 +261,8 @@ export function monitorObserver(
 export interface FreshnessCollectorDeps {
   readonly reader: FreshnessReader;
   readonly expected: readonly FreshnessRowId[];
+  /** Expected rows configured off here (`disabled`); never scored. */
+  readonly disabled?: readonly FreshnessRowId[];
   readonly clock: Clock;
 }
 
@@ -277,6 +279,7 @@ export function freshnessCollector(deps: FreshnessCollectorDeps): () => Promise<
         now: deps.clock.now(),
         expected: deps.expected,
         observations,
+        ...(deps.disabled === undefined ? {} : { disabled: deps.disabled }),
       });
       return [
         { name: FRESHNESS_COLLECTOR_UP.name, labels: {}, value: 1 },

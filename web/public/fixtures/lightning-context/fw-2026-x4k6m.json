@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "event_id": "fw-2026-x4k6m",
+  "status": "complete",
+  "radius_km": 10,
+  "window_hours": 3,
+  "window_from": "2026-08-09T04:41:00Z",
+  "window_to": "2026-08-09T07:41:00Z",
+  "flash_count": 1,
+  "nearest_km": 8.3,
+  "generated_at": "2026-08-09T09:58:00Z",
+  "attribution": [
+    {
+      "id": "eumetsat-meteosat",
+      "source": "EUMETSAT data (Meteosat/MTG products)",
+      "text": "Contains modified EUMETSAT Meteosat data 2026"
+    }
+  ]
+}

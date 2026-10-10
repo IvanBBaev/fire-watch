@@ -58,6 +58,10 @@ export const MONITORED_SOURCE_IDS = [
  * - `celestrak:elements` — the SGP4 orbital elements behind the satellite-pass predictions
  *   (TASKS F15, DATA-SOURCES §F15). Display only, so it never pages; the row exists so a
  *   halted or starved element refresh is visible before the predictions go stale.
+ * - `eumetsat:lightning` — the MTG Lightning Imager flashes behind the F18 overlay and the
+ *   per-event lightning context (DATA-SOURCES §F18). Context only, so it never pages. It
+ *   needs EUMETSAT Data Store credentials; without them the row reads `disabled`, which
+ *   says "not configured here", never "broken".
  */
 export type MonitoredSourceId = (typeof MONITORED_SOURCE_IDS)[number];
 
@@ -66,6 +70,7 @@ export const UNREGISTERED_FEED_IDS = [
   'effis:layers',
   'weather:context',
   'celestrak:elements',
+  'eumetsat:lightning',
 ] as const;
 
 /** Everything with a freshness budget that is fetched from outside, in reporting order. */
@@ -129,8 +134,13 @@ export type FreshnessRowId = MonitoredFeedId | BudgetedJobId;
  * never 500s — a database that has just been created must not roll a first deploy back
  * (§2.2 rule 8), and the leg that catches "the job never started at all" is the
  * heartbeat, not this endpoint.
+ *
+ * `disabled` is a row this deployment knows about but deliberately does not run — a feed
+ * whose credentials are not configured here (`eumetsat:lightning` without EUMETSAT keys).
+ * It is shown so the gap is visible, carries no age, and never moves the body's status:
+ * a choice not to run something is not an outage.
  */
-export const FRESHNESS_STATES = ['ok', 'warn', 'critical', 'muted', 'unknown'] as const;
+export const FRESHNESS_STATES = ['ok', 'warn', 'critical', 'muted', 'unknown', 'disabled'] as const;
 
 export type FreshnessState = (typeof FRESHNESS_STATES)[number];
 

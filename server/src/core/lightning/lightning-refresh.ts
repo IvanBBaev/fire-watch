@@ -22,6 +22,22 @@
  * whose decode was *refused* is recorded as refused in its sidecar only (no flashes), so a
  * file the decoder will always reject is not fetched every five minutes forever. The merged
  * document is rewritten whenever the set of merged products or the retention cut changes.
+ *
+ * ## Reprocessed products
+ *
+ * EUMETSAT may publish a second product for a window it already published (a reprocess);
+ * the two have different ids. Records are keyed by product id, and the document holds one
+ * product per window ({@link supersedes}: later publication wins). Candidates are reduced to
+ * one per window *before* anything is fetched, so a superseded product is never downloaded,
+ * and a product the document already holds a newer one for is skipped.
+ *
+ * ## FeedStatus
+ *
+ * Every cycle records an attempt on the `eumetsat:lightning` row. It succeeded when the
+ * search answered, no product failed, the document is sound, and `covered_through` is
+ * within {@link LIGHTNING_MAX_STALENESS_MS} — the route's own refusal threshold, so the
+ * row turns before the map silently stops drawing. `hadData` is whether a product was
+ * recorded this cycle. A store failure is `feedStatusError` and degrades the cycle.
  */
 
 import { canonicalJson } from '../determinism/canonical-json.js';
@@ -37,12 +53,14 @@ import {
   type LightningDecoder,
   type LightningGranuleRef,
 } from '../ports/lightning-decoder.js';
+import type { FeedStatusStore } from '../ports/feed-status-store.js';
 import type { PayloadReader } from '../ports/payload-reader.js';
 import type { PayloadStore } from '../ports/payload-store.js';
 import {
   LIGHTNING_CURRENT_META_PATH,
   LIGHTNING_CURRENT_PATH,
-  LIGHTNING_RETENTION_MS,
+  LIGHTNING_DOCUMENT_RETENTION_MS,
+  LIGHTNING_MAX_STALENESS_MS,
   buildRecord,
   emptyDocument,
   mergeRecords,
@@ -50,6 +68,8 @@ import {
   parseLightningRecord,
   recordMetaPath,
   recordPath,
+  supersedes,
+  windowKey,
   type LightningDocument,
   type LightningRecord,
 } from './lightning-document.js';
@@ -69,6 +89,7 @@ export interface LightningRefreshDeps {
   readonly payloads: PayloadStore;
   readonly reader: PayloadReader;
   readonly clock: Clock;
+  readonly feedStatus: FeedStatusStore;
 }
 
 export type LightningProductOutcome =
@@ -89,12 +110,16 @@ export interface LightningRefreshReport {
   readonly searchError: string | null;
   readonly found: number;
   readonly alreadyRecorded: number;
+  /** Candidates skipped because a later product of the same window exists. */
+  readonly superseded: number;
   readonly products: readonly LightningProductResult[];
   /** Whether the merged document was rewritten this cycle. */
   readonly documentWritten: boolean;
   readonly documentError: string | null;
   /** The merged document's `covered_through` after this cycle. */
   readonly coveredThrough: string | null;
+  /** `null` when the `eumetsat:lightning` attempt was recorded. */
+  readonly feedStatusError: string | null;
 }
 
 /** Degraded when the search failed, the document could not be written, or a fetch failed. */
@@ -102,6 +127,7 @@ export function lightningRefreshFailed(report: LightningRefreshReport): boolean 
   return (
     report.searchError !== null ||
     report.documentError !== null ||
+    report.feedStatusError !== null ||
     report.products.some((p) => p.outcome !== 'recorded' && p.outcome !== 'refused')
   );
 }
@@ -121,15 +147,16 @@ export async function runLightningRefresh(
     previous = emptyDocument(startedAt);
     documentError = `document unreadable: ${describeError(error)}`;
   }
-  const merged = new Set(previous.products.map((p) => p.id));
+  const held = new Map(previous.products.map((p) => [windowKey(p), p] as const));
 
   const results: LightningProductResult[] = [];
   const newRecords: LightningRecord[] = [];
   let found = 0;
   let alreadyRecorded = 0;
+  let superseded = 0;
   if (search.ok) {
-    const cutoff = startedAt - LIGHTNING_RETENTION_MS;
-    const candidates = dedupe(search.products)
+    const cutoff = startedAt - LIGHTNING_DOCUMENT_RETENTION_MS;
+    const windowed = dedupe(search.products)
       .map((product) => ({
         product,
         window: parseInterval(`${product.window.startIso}/${product.window.endIso}`),
@@ -137,15 +164,23 @@ export async function runLightningRefresh(
       .filter(
         (c): c is { product: LightningProduct; window: { start: EpochMs; end: EpochMs } } =>
           c.window !== null && c.window.end > cutoff,
-      )
-      .sort((a, b) => b.window.end - a.window.end || a.product.id.localeCompare(b.product.id));
-    found = candidates.length;
+      );
+    const candidates = latestPerWindow(windowed).sort(
+      (a, b) => b.window.end - a.window.end || a.product.id.localeCompare(b.product.id),
+    );
+    found = windowed.length;
+    superseded = windowed.length - candidates.length;
 
     let downloads = 0;
     let stopped: string | null = null;
     for (const { product, window } of candidates) {
-      if (merged.has(product.id)) {
+      const holding = held.get(windowKeyOf(window));
+      if (holding?.id === product.id) {
         alreadyRecorded += 1;
+        continue;
+      }
+      if (holding !== undefined && !supersedes(asEntry(product), holding)) {
+        superseded += 1;
         continue;
       }
       const existing = await readExisting(deps, window.end, product.id);
@@ -187,7 +222,10 @@ export async function runLightningRefresh(
           generated_at: next.generated_at,
           covered_through: next.covered_through,
           products: next.products.length,
-          flashes: next.flashes.length,
+          flashes: next.products.reduce((n, p) => n + p.kept, 0),
+          filtered_out: next.products.reduce((n, p) => n + p.filtered_out, 0),
+          unrated: next.products.reduce((n, p) => n + p.unrated, 0),
+          filter_version: next.filter_version,
         })}\n`,
       );
       documentWritten = true;
@@ -196,23 +234,70 @@ export async function runLightningRefresh(
     }
   }
 
+  const searchError = search.ok ? null : describeSearchFailure(search);
+  const feedStatusError = await recordFeed(deps, {
+    searchError,
+    documentError,
+    results,
+    coveredThrough: next.covered_through,
+  });
   return {
     startedAt,
     finishedAt: deps.clock.now(),
-    searchError: search.ok ? null : describeSearchFailure(search),
+    searchError,
     found,
     alreadyRecorded,
+    superseded,
     products: results,
     documentWritten,
     documentError,
     coveredThrough: next.covered_through,
+    feedStatusError,
   };
+}
+
+/** Records this cycle on the `eumetsat:lightning` row; returns the store's failure or `null`. */
+async function recordFeed(
+  deps: LightningRefreshDeps,
+  cycle: {
+    readonly searchError: string | null;
+    readonly documentError: string | null;
+    readonly results: readonly LightningProductResult[];
+    readonly coveredThrough: string | null;
+  },
+): Promise<string | null> {
+  const attemptAt = deps.clock.now();
+  const problems: string[] = [];
+  if (cycle.searchError !== null) problems.push(`search: ${cycle.searchError}`);
+  if (cycle.documentError !== null) problems.push(cycle.documentError);
+  for (const p of cycle.results) {
+    if (p.outcome !== 'recorded' && p.outcome !== 'refused') {
+      problems.push(`${p.id}: ${p.error ?? p.outcome}`);
+    }
+  }
+  if (cycle.coveredThrough === null) {
+    problems.push('no product merged yet');
+  } else if (attemptAt - Date.parse(cycle.coveredThrough) > LIGHTNING_MAX_STALENESS_MS) {
+    problems.push(`covered only through ${cycle.coveredThrough}`);
+  }
+  try {
+    await deps.feedStatus.recordAttempt({
+      row: 'eumetsat:lightning',
+      attemptAt,
+      succeeded: problems.length === 0,
+      hadData: cycle.results.some((p) => p.outcome === 'recorded'),
+      error: problems.length === 0 ? null : problems.slice(0, 5).join('; '),
+    });
+    return null;
+  } catch (error: unknown) {
+    return describeError(error);
+  }
 }
 
 async function safeSearch(deps: LightningRefreshDeps, now: EpochMs): Promise<LightningSearch> {
   try {
     return await deps.client.search({
-      startIso: isoFromEpochMs(now - LIGHTNING_RETENTION_MS - SEARCH_MARGIN_MS),
+      startIso: isoFromEpochMs(now - LIGHTNING_DOCUMENT_RETENTION_MS - SEARCH_MARGIN_MS),
       endIso: isoFromEpochMs(now),
     });
   } catch (error: unknown) {
@@ -231,13 +316,13 @@ async function readExisting(
   productId: string,
 ): Promise<LightningRecord | 'refused' | null> {
   try {
-    const text = await deps.reader.readText(recordPath(windowEnd));
+    const text = await deps.reader.readText(recordPath(windowEnd, productId));
     if (text !== null) {
       const record = parseLightningRecord(text);
       if (record?.product_id === productId) return record;
       return null;
     }
-    const meta = await deps.reader.readText(recordMetaPath(windowEnd));
+    const meta = await deps.reader.readText(recordMetaPath(windowEnd, productId));
     if (meta !== null) {
       const parsed = JSON.parse(meta) as { outcome?: unknown; product_id?: unknown };
       if (parsed.outcome === 'refused' && parsed.product_id === productId) return 'refused';
@@ -290,7 +375,7 @@ async function fetchOne(
   };
   if (decoded.outcome !== 'ok') {
     if (decoded.outcome === 'refused') {
-      const error = await writeMeta(deps, window.end, {
+      const error = await writeMeta(deps, window.end, product.id, {
         ...provenance,
         outcome: 'refused',
         reason: decoded.error,
@@ -318,12 +403,13 @@ async function fetchOne(
   const record = buildRecord({
     productId: product.id,
     window,
+    publishedAtIso: product.publishedAtIso,
     availableAt: download.availableAt,
     flashes: read.flashes,
   });
   try {
-    await deps.payloads.writeText(recordPath(window.end), `${canonicalJson(record)}\n`);
-    const error = await writeMeta(deps, window.end, {
+    await deps.payloads.writeText(recordPath(window.end, product.id), `${canonicalJson(record)}\n`);
+    const error = await writeMeta(deps, window.end, product.id, {
       ...provenance,
       outcome: 'recorded',
       counts: read.counts,
@@ -347,10 +433,11 @@ async function fetchOne(
 async function writeMeta(
   deps: LightningRefreshDeps,
   windowEnd: EpochMs,
+  productId: string,
   meta: Record<string, unknown>,
 ): Promise<string | null> {
   try {
-    await deps.payloads.writeText(recordMetaPath(windowEnd), `${canonicalJson(meta)}\n`);
+    await deps.payloads.writeText(recordMetaPath(windowEnd, productId), `${canonicalJson(meta)}\n`);
     return null;
   } catch (error: unknown) {
     return `sidecar write failed: ${describeError(error)}`;
@@ -359,8 +446,37 @@ async function writeMeta(
 
 function changed(previous: LightningDocument, next: LightningDocument): boolean {
   if (previous.products.length !== next.products.length) return true;
-  if (previous.flashes.length !== next.flashes.length) return true;
-  return previous.products.some((p, i) => p.id !== next.products[i]?.id);
+  return previous.products.some((p, i) => {
+    const n = next.products[i];
+    return n === undefined || p.id !== n.id || p.kept !== n.kept;
+  });
+}
+
+function windowKeyOf(window: { readonly start: EpochMs; readonly end: EpochMs }): string {
+  return `${String(window.start)}/${String(window.end)}`;
+}
+
+/** A search hit in the shape {@link supersedes} compares; arrival is not known before download. */
+function asEntry(product: LightningProduct): { id: string; published_at: string | null } {
+  const ms = product.publishedAtIso === null ? NaN : Date.parse(product.publishedAtIso);
+  return { id: product.id, published_at: Number.isFinite(ms) ? isoFromEpochMs(ms) : null };
+}
+
+/** One candidate per window: the one {@link supersedes} ranks first. */
+function latestPerWindow<
+  C extends {
+    readonly product: LightningProduct;
+    readonly window: { start: EpochMs; end: EpochMs };
+  },
+>(candidates: readonly C[]): C[] {
+  const best = new Map<string, C>();
+  for (const c of candidates) {
+    const key = windowKeyOf(c.window);
+    const held = best.get(key);
+    if (held === undefined || supersedes(asEntry(c.product), asEntry(held.product)))
+      best.set(key, c);
+  }
+  return [...best.values()];
 }
 
 function dedupe(products: readonly LightningProduct[]): LightningProduct[] {

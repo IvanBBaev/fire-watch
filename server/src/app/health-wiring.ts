@@ -66,6 +66,7 @@ import {
 import { createPgChangeReader } from '../adapters/db/pg-change-reader.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgEventDetectionsReader } from '../adapters/db/pg-event-detections-reader.js';
+import { createPgLightningContextStore } from '../adapters/db/pg-lightning-context-store.js';
 import { createPgSnapshotReader } from '../adapters/db/pg-snapshot-reader.js';
 import { createHealthServer } from '../adapters/http/health-server.js';
 import type { ProblemLogEntry } from '../adapters/http/problem.js';
@@ -171,6 +172,7 @@ export interface HealthWiring {
   readonly freshness: {
     readonly reader: FreshnessReader;
     readonly expected: readonly FreshnessRowId[];
+    readonly disabled: readonly FreshnessRowId[];
   };
   /**
    * Fleet control as the metrics collector reads it (C5): the transport on offer, the
@@ -288,11 +290,13 @@ export function wireHealthServer(
       : combineFreshnessReaders([pgReader, createFsFeedStatusStore(config.stateDir)]);
 
   const expected = expectedRows(config.stateDir !== null);
+  const disabled = disabledRows(config.stateDir !== null, config.lightning !== null);
   const app = createHealthServer({
     reader,
     probe: createPgDatabaseProbe(pool),
     clock: systemClock,
     expected,
+    disabled,
     ...(config.apiClientIpHeader !== undefined ? { clientIpHeader: config.apiClientIpHeader } : {}),
     snapshot: {
       reader: createPgSnapshotReader(snapshotPool),
@@ -307,6 +311,12 @@ export function wireHealthServer(
     // timeout, and the route's own in-flight cap keeps it from starving the snapshot.
     eventDetections: {
       reader: createPgEventDetectionsReader(snapshotPool),
+      clock: systemClock,
+      onProblem,
+    },
+    // F18: the same pool and reasoning as the detections read.
+    eventLightningContext: {
+      reader: createPgLightningContextStore(snapshotPool),
       clock: systemClock,
       onProblem,
     },
@@ -379,7 +389,7 @@ export function wireHealthServer(
   const timers: ReturnType<typeof setInterval>[] = [];
 
   return {
-    freshness: { reader, expected },
+    freshness: { reader, expected, disabled },
     transport: () => ({
       transport: demotion.transport(),
       connections: hub.size,
@@ -556,7 +566,27 @@ export function expectedRows(feedsRecorded: boolean): readonly FreshnessRowId[] 
       isMonitoredFeedId(source) && isMonitoredSourceId(source),
   );
   if (!feedsRecorded) return sources;
-  return [...sources, 'effis:layers', 'weather:context', 'celestrak:elements', 'effis-refresh'];
+  return [
+    ...sources,
+    'effis:layers',
+    'weather:context',
+    'celestrak:elements',
+    'eumetsat:lightning',
+    'effis-refresh',
+  ];
+}
+
+/**
+ * Expected rows this deployment deliberately does not run, reported `disabled` rather than
+ * `unknown` (F18): the lightning loop starts only with EUMETSAT credentials (`worker.ts`),
+ * and a box without them has chosen not to draw lightning — the row says so instead of
+ * sitting at `warn` for a job that will never run.
+ */
+export function disabledRows(
+  feedsRecorded: boolean,
+  lightningConfigured: boolean,
+): readonly FreshnessRowId[] {
+  return feedsRecorded && !lightningConfigured ? ['eumetsat:lightning'] : [];
 }
 
 /**

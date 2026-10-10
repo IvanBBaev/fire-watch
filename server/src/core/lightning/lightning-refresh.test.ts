@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { MemoryFeedStatus } from '../passes/__fixtures__/memory-feed-status.js';
 import { MemoryPayloads } from '../passes/__fixtures__/memory-payloads.js';
 import { VirtualClock, isoFromEpochMs } from '../ports/clock.js';
 import type { DecodeResult } from '../ports/granule-decoder.js';
@@ -13,6 +14,7 @@ import type { LightningDecoder, LightningGranuleRef } from '../ports/lightning-d
 import {
   LIGHTNING_CURRENT_META_PATH,
   LIGHTNING_CURRENT_PATH,
+  documentFlashes,
   parseLightningDocument,
   recordMetaPath,
   recordPath,
@@ -28,12 +30,12 @@ const NOW = Date.UTC(2026, 8, 30, 12, 40);
 const MIN = 60_000;
 
 /** A product whose window ends `endMinutesAgo` before NOW (on the real :09 offset). */
-function product(id: string, endMinutesAgo: number): LightningProduct {
+function product(id: string, endMinutesAgo: number, publishedLagMs = 40_000): LightningProduct {
   const end = NOW - endMinutesAgo * MIN + 9_000;
   return {
     id,
     window: { startIso: isoFromEpochMs(end - 10 * MIN), endIso: isoFromEpochMs(end) },
-    publishedAtIso: isoFromEpochMs(end + 40_000),
+    publishedAtIso: isoFromEpochMs(end + publishedLagMs),
     md5: '041c99be56e84090dfd04b9ade629e3a',
     bodyName: `${id}-BODY.nc`,
   };
@@ -86,6 +88,7 @@ class FakeDecoder implements LightningDecoder {
           radiance: 1,
           durationMs: 2,
           footprint: 3,
+          falseLikelihood: 0.02,
         },
       ],
       decoder: {
@@ -111,8 +114,9 @@ function harness() {
   const client = new FakeClient(clock);
   const decoder = new FakeDecoder();
   const payloads = new MemoryPayloads();
-  const deps = { client, decoder, payloads, reader: payloads, clock };
-  return { clock, client, decoder, payloads, deps };
+  const feedStatus = new MemoryFeedStatus();
+  const deps = { client, decoder, payloads, reader: payloads, clock, feedStatus };
+  return { clock, client, decoder, payloads, feedStatus, deps };
 }
 
 function documentOf(payloads: MemoryPayloads) {
@@ -121,7 +125,7 @@ function documentOf(payloads: MemoryPayloads) {
 }
 
 describe('runLightningRefresh', () => {
-  it('searches six hours plus a margin, records each product, and writes the merged document', async () => {
+  it('searches nine hours plus a margin, records each product, and writes the merged document', async () => {
     const { client, decoder, payloads, deps } = harness();
     const a = product('a', 20);
     const b = product('b', 10);
@@ -130,7 +134,7 @@ describe('runLightningRefresh', () => {
     const report = await runLightningRefresh(deps);
 
     expect(client.searches).toEqual([
-      { startIso: '2026-09-30T06:30:00Z', endIso: '2026-09-30T12:40:00Z' },
+      { startIso: '2026-09-30T03:30:00Z', endIso: '2026-09-30T12:40:00Z' },
     ]);
     expect(client.downloads).toEqual(['b', 'a']);
     expect(decoder.refs[0]).toMatchObject({
@@ -149,7 +153,7 @@ describe('runLightningRefresh', () => {
 
     const doc = documentOf(payloads);
     expect(doc?.products.map((p) => p.id)).toEqual(['a', 'b']);
-    expect(doc?.flashes).toHaveLength(2);
+    expect(doc === null ? [] : documentFlashes(doc)).toHaveLength(2);
     const meta = JSON.parse(payloads.text(LIGHTNING_CURRENT_META_PATH) ?? '{}') as Record<
       string,
       unknown
@@ -158,7 +162,7 @@ describe('runLightningRefresh', () => {
     expect(meta['sha256']).toMatch(/^[0-9a-f]{64}$/);
 
     const sidecar = JSON.parse(
-      payloads.text(recordMetaPath(Date.parse(b.window.endIso))) ?? '{}',
+      payloads.text(recordMetaPath(Date.parse(b.window.endIso), 'b')) ?? '{}',
     ) as Record<string, unknown>;
     expect(sidecar).toMatchObject({
       product_id: 'b',
@@ -216,9 +220,9 @@ describe('runLightningRefresh', () => {
       error: 'required variable latitude is absent',
     });
     expect(lightningRefreshFailed(first)).toBe(false);
-    expect(payloads.text(recordPath(Date.parse(p.window.endIso)))).toBeUndefined();
+    expect(payloads.text(recordPath(Date.parse(p.window.endIso), 'bad'))).toBeUndefined();
     const meta = JSON.parse(
-      payloads.text(recordMetaPath(Date.parse(p.window.endIso))) ?? '{}',
+      payloads.text(recordMetaPath(Date.parse(p.window.endIso), 'bad')) ?? '{}',
     ) as Record<string, unknown>;
     expect(meta).toMatchObject({
       outcome: 'refused',
@@ -281,7 +285,7 @@ describe('runLightningRefresh', () => {
   it('ignores products older than the retention window and duplicates in the search', async () => {
     const { client, deps } = harness();
     const a = product('a', 10);
-    client.searchAnswer = { ok: true, products: [a, a, product('old', 6 * 60 + 5)] };
+    client.searchAnswer = { ok: true, products: [a, a, product('old', 9 * 60 + 5)] };
     const report = await runLightningRefresh(deps);
     expect(report.found).toBe(1);
     expect(client.downloads).toEqual(['a']);
@@ -317,5 +321,91 @@ describe('runLightningRefresh', () => {
     expect(report.documentError).toMatch(/document unreadable/);
     expect(report.documentWritten).toBe(false);
     expect(payloads.text(LIGHTNING_CURRENT_PATH)).toBeUndefined();
+  });
+
+  it('fetches only the latest product of a window, and replaces an older one already held', async () => {
+    const { client, payloads, deps, clock } = harness();
+    client.searchAnswer = { ok: true, products: [product('orig', 10), product('n', 20)] };
+    await runLightningRefresh(deps);
+    clock.advanceMinutes(10);
+
+    const reprocess = product('rep', 10, 30 * MIN);
+    const stale = product('rep-old', 10, 20 * MIN);
+    client.searchAnswer = {
+      ok: true,
+      products: [product('orig', 10), product('n', 20), stale, reprocess],
+    };
+    const report = await runLightningRefresh(deps);
+
+    expect(client.downloads).toEqual(['orig', 'n', 'rep']);
+    // `orig` (held) and `rep-old` both lose their window to `rep`.
+    expect(report.superseded).toBe(2);
+    expect(documentOf(payloads)?.products.map((p) => p.id)).toEqual(['n', 'rep']);
+
+    clock.advanceMinutes(1);
+    client.searchAnswer = { ok: true, products: [product('orig', 10)] };
+    const again = await runLightningRefresh(deps);
+    expect(again.superseded).toBe(1);
+    expect(client.downloads).toHaveLength(3);
+  });
+});
+
+describe('the eumetsat:lightning feed row', () => {
+  it('records a successful attempt with data, then a quiet success', async () => {
+    const { client, feedStatus, deps, clock } = harness();
+    client.searchAnswer = { ok: true, products: [product('a', 10)] };
+    await runLightningRefresh(deps);
+    clock.advanceMinutes(1);
+    await runLightningRefresh(deps);
+    expect(feedStatus.attempts).toEqual([
+      { row: 'eumetsat:lightning', attemptAt: NOW, succeeded: true, hadData: true, error: null },
+      {
+        row: 'eumetsat:lightning',
+        attemptAt: NOW + MIN,
+        succeeded: true,
+        hadData: false,
+        error: null,
+      },
+    ]);
+  });
+
+  it('fails on a search error, a failed product, or coverage the route would refuse', async () => {
+    const { client, decoder, feedStatus, deps, clock } = harness();
+    client.searchAnswer = { ok: false, status: 503, error: 'busy' };
+    await runLightningRefresh(deps);
+    expect(feedStatus.attempts.at(-1)).toMatchObject({ succeeded: false, hadData: false });
+    expect(feedStatus.attempts.at(-1)?.error).toMatch(/^search: HTTP 503/);
+
+    client.searchAnswer = { ok: true, products: [product('a', 10)] };
+    decoder.answers.set('a-BODY.nc', { outcome: 'crashed', payload: null, error: 'boom' });
+    await runLightningRefresh(deps);
+    expect(feedStatus.attempts.at(-1)?.error).toMatch(/^a: /);
+
+    decoder.answers.clear();
+    await runLightningRefresh(deps);
+    expect(feedStatus.attempts.at(-1)?.succeeded).toBe(true);
+
+    clock.advanceMinutes(60);
+    client.searchAnswer = { ok: true, products: [] };
+    await runLightningRefresh(deps);
+    expect(feedStatus.attempts.at(-1)).toMatchObject({ succeeded: false });
+    expect(feedStatus.attempts.at(-1)?.error).toMatch(/covered only through/);
+  });
+
+  it('counts a refused product as the feed working', async () => {
+    const { client, decoder, feedStatus, deps } = harness();
+    client.searchAnswer = { ok: true, products: [product('ok', 10), product('bad', 20)] };
+    decoder.answers.set('bad-BODY.nc', { outcome: 'refused', payload: null, error: 'no lat' });
+    await runLightningRefresh(deps);
+    expect(feedStatus.attempts.at(-1)).toMatchObject({ succeeded: true, hadData: true });
+  });
+
+  it('reports a store failure without throwing, and degrades the cycle', async () => {
+    const { client, feedStatus, deps } = harness();
+    client.searchAnswer = { ok: true, products: [product('a', 10)] };
+    feedStatus.throws = true;
+    const report = await runLightningRefresh(deps);
+    expect(report.feedStatusError).toBe('feed status disk unwritable');
+    expect(lightningRefreshFailed(report)).toBe(true);
   });
 });

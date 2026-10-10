@@ -481,6 +481,9 @@ export const CATALOG_GOVERNANCE = {
     governance: 'own-voice',
     reason: 'capability-prose',
   },
+  'eventDetail.lightningContextFlashes': { governance: 'own-voice', reason: 'capability-prose' },
+  'eventDetail.lightningContextNone': { governance: 'own-voice', reason: 'capability-prose' },
+  'eventDetail.lightningContextNoData': { governance: 'own-voice', reason: 'capability-prose' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -760,6 +763,9 @@ export const PENDING_FOUNDER_REVIEW = [
   'eventDetail.staticSourceIndustrial',
   'eventDetail.staticSourceDetectionsSolar',
   'eventDetail.staticSourceDetectionsIndustrial',
+  'eventDetail.lightningContextFlashes',
+  'eventDetail.lightningContextNone',
+  'eventDetail.lightningContextNoData',
   'layers.swaths',
   'layers.swathsNote',
   'layers.swathsNext',

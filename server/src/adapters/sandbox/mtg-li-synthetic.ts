@@ -23,6 +23,8 @@ export interface SyntheticFlash {
   readonly radiance?: number | null;
   readonly durationMs?: number;
   readonly footprint?: number;
+  /** `flash_filter_confidence`, decoded (0 = likely true flash); absent or `null` writes fill. */
+  readonly falseLikelihood?: number | null;
 }
 
 /** Specified packing (A.6.1.4). Radiance scale is "configured"; this is our choice. */
@@ -31,10 +33,20 @@ export const LFL_SYNTHETIC_ENCODING = {
   radianceScale: 0.1,
   shortFill: -32767,
   ushortFill: 65535,
+  /** A.6: `flash_filter_confidence` scale_factor 0.004, add_offset 0. */
+  falseLikelihoodScale: 0.004,
+  byteFill: -127,
+  ubyteFill: 255,
 } as const;
 
 type Variable =
-  'flash_time' | 'latitude' | 'longitude' | 'radiance' | 'flash_duration' | 'flash_footprint';
+  | 'flash_time'
+  | 'latitude'
+  | 'longitude'
+  | 'radiance'
+  | 'flash_duration'
+  | 'flash_footprint'
+  | 'flash_filter_confidence';
 
 export interface SyntheticBodyOptions {
   /** Variables to leave out entirely. */
@@ -45,6 +57,12 @@ export interface SyntheticBodyOptions {
   readonly extra?: readonly string[];
   /** Write latitude as float32 instead of the specified short. */
   readonly latitudeAsFloat?: boolean;
+  /**
+   * How `flash_filter_confidence` is stored. The spec says `byte` (signed), which cannot
+   * hold 1 / 0.004 = 250; `uint8` is the reading under which the full range fits. A signed
+   * byte saturates at 127 × 0.004 = 0.508. Default `uint8`.
+   */
+  readonly falseLikelihoodType?: 'int8' | 'uint8';
 }
 
 let sequence = 0;
@@ -120,6 +138,26 @@ export async function buildLflBody(
     if (!omit.has('flash_footprint')) {
       const data = new Uint16Array(flashes.map((f) => f.footprint ?? 1));
       file.create_dataset({ name: 'flash_footprint', data, shape: [n], dtype: '<H' });
+    }
+    if (!omit.has('flash_filter_confidence')) {
+      const signed = options.falseLikelihoodType === 'int8';
+      const fill = signed ? enc.byteFill : enc.ubyteFill;
+      const raw = flashes.map((f) => {
+        const v = f.falseLikelihood ?? null;
+        if (v === null) return fill;
+        const packed = Math.round(v / enc.falseLikelihoodScale);
+        return signed ? Math.min(packed, 127) : packed;
+      });
+      const ds = file.create_dataset({
+        name: 'flash_filter_confidence',
+        data: signed ? new Int8Array(raw) : new Uint8Array(raw),
+        shape: [n],
+        dtype: signed ? '<b' : '<B',
+      });
+      ds.create_attribute('long_name', 'L2 filtered flash confidence');
+      ds.create_attribute('scale_factor', enc.falseLikelihoodScale, null, '<f');
+      ds.create_attribute('add_offset', 0, null, '<f');
+      ds.create_attribute('_FillValue', fill, null, signed ? '<b' : '<B');
     }
     // The ids the specification also lists; the decoder does not read them.
     file.create_dataset({

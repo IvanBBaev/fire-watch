@@ -122,6 +122,7 @@ describe('the shipped table', () => {
       'effis:layers': { pages: true, criticalSeconds: 180_000 },
       'weather:context': { pages: false, criticalSeconds: 86_400 },
       'celestrak:elements': { pages: false, criticalSeconds: 259_200 },
+      'eumetsat:lightning': { pages: false, criticalSeconds: 10_800 },
       'snapshot-push': { pages: true, criticalSeconds: 900 },
       'nightly-backup': { pages: false, criticalSeconds: 180_000 },
       'wal-archive': { pages: false, criticalSeconds: 3_600 },

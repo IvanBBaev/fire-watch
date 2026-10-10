@@ -199,6 +199,10 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'eventDetail.staticSourceIndustrial',
       'eventDetail.staticSourceDetectionsSolar',
       'eventDetail.staticSourceDetectionsIndustrial',
+      // TASKS F18 — the lightning context on the event detail page.
+      'eventDetail.lightningContextFlashes',
+      'eventDetail.lightningContextNone',
+      'eventDetail.lightningContextNoData',
       // TASKS F15 — the predicted swath overlay (its Layers toggle and legend).
       'layers.swaths',
       'layers.swathsNote',

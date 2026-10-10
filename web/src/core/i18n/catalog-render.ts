@@ -151,6 +151,12 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
     [1, N],
     [2, N],
   ],
+  // One flash and many; a fractional nearest distance.
+  'eventDetail.lightningContextFlashes': [
+    [1, 10, 3, 5.6],
+    [N, 10, 3, 0.4],
+  ],
+  'eventDetail.lightningContextNone': [[10, 3]],
   'eventDetail.frpPeak': [[T1, T2, T3]],
   'eventDetail.frpChartLabel': [
     [1, T1, T2],

@@ -265,6 +265,50 @@ describe('a feed nobody has heard from', () => {
   });
 });
 
+describe('a disabled row', () => {
+  it('reads as disabled, carries no age, sorts last, and never moves the status', () => {
+    const stale = NOW - 10 * 60 * MINUTE;
+    const verdict = evaluateFreshness({
+      now: NOW,
+      expected: ['eumetsat:lightning', 'firms:viirs:snpp'],
+      disabled: ['eumetsat:lightning'],
+      observations: [
+        healthy('firms:viirs:snpp', 3),
+        {
+          row: 'eumetsat:lightning',
+          lastAttemptAt: stale,
+          lastSuccessAt: stale,
+          lastDataAt: stale,
+          consecutiveFailures: 4,
+        },
+      ],
+    });
+
+    expect(verdict.report.status).toBe('ok');
+    expect(verdict.httpStatus).toBe(200);
+    expect(verdict.report.rows.map((row) => [row.row, row.state])).toEqual([
+      ['firms:viirs:snpp', 'ok'],
+      ['eumetsat:lightning', 'disabled'],
+    ]);
+    expect(verdict.report.rows[1]).toMatchObject({
+      ageSeconds: null,
+      lastSuccessAt: null,
+      consecutiveFailures: 0,
+      pages: false,
+    });
+  });
+
+  it('ignores a disabled id the caller does not expect', () => {
+    const verdict = evaluateFreshness({
+      now: NOW,
+      expected: ['firms:viirs:snpp'],
+      disabled: ['eumetsat:lightning'],
+      observations: [healthy('firms:viirs:snpp', 3)],
+    });
+    expect(verdict.report.rows.map((row) => row.row)).toEqual(['firms:viirs:snpp']);
+  });
+});
+
 describe('a muted row', () => {
   it('stops paging but stays visible', () => {
     const verdict = evaluateFreshness({

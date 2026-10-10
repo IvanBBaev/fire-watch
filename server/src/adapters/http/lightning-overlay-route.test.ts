@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 function flash(at: number, lat: number, lon: number): Flash {
-  return { at, lat, lon, radiance: 10, durationMs: 100, footprint: 2 };
+  return { at, lat, lon, radiance: 10, durationMs: 100, footprint: 2, falseLikelihood: 0.1 };
 }
 
 /** One product over Bulgaria plus one flash outside the served box. */

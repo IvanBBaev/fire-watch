@@ -314,6 +314,33 @@ describe('evaluateStatus', () => {
     ]);
   });
 
+  it('shows a feed this deployment does not run as disabled, without degrading anything', () => {
+    const base = report('ok');
+    if (base.kind !== 'response') throw new Error('fixture');
+    const body = base.body as { rows: readonly Record<string, unknown>[] };
+    const freshness: BodyObservation = {
+      ...base,
+      body: {
+        ...body,
+        rows: [
+          ...body.rows,
+          {
+            row: 'eumetsat:lightning',
+            state: 'disabled',
+            pages: false,
+            ageSeconds: null,
+            lastSuccessAt: null,
+            mutedUntil: null,
+            muteReason: null,
+          },
+        ],
+      },
+    };
+    const model = run({ ...healthy, freshness });
+    expect(model.overall).toBe('operational');
+    expect(model.sources.at(-1)).toMatchObject({ row: 'eumetsat:lightning', level: 'disabled' });
+  });
+
   it('never carries a URL, host name or error text into the model', () => {
     const model = run({
       ...healthy,

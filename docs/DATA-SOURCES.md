@@ -664,9 +664,13 @@ cloud-to-ground flashes are not distinguished).
   own window (± 2 min) are dropped and counted; more than 10 % outside refuses the
   product. Only flashes inside `polling_bbox_v1` leave the child.
 - `server/src/core/lightning/` — each product becomes one small decoded record
-  (`lightning/mtg-li/lfl/<YYYYMMDD>/<window end>.json` + canonical-JSON provenance
-  sidecar: product id, md5, raw sha256, counts, `available_at`); the last **6 h** are merged
-  into `overlays/lightning/current.json` (sha256 sidecar). **Raw full-disc bytes are not
+  (`lightning/mtg-li/lfl/<YYYYMMDD>/<product id>.json` + canonical-JSON provenance
+  sidecar: product id, md5, raw sha256, counts, `available_at`); the last **9 h** are merged
+  into `overlays/lightning/current.json` (sha256 sidecar; the route serves 6 h of it, the
+  event context below reads all 9). **Keyed by product id, not window:** a reprocessed
+  product for a window replaces exactly the product it supersedes (later publication wins,
+  then the id), so a window is never counted twice and never loses its flashes to a
+  neighbour; candidates are reduced to one per window before anything is downloaded. **Raw full-disc bytes are not
   stored** (~220 kB per product, ~32 MB/day): the product id makes them re-fetchable
   from the EUMETSAT archive.
 - `GET /overlays/lightning/recent.json` — ETag from the served bytes, `max-age=60`,
@@ -675,6 +679,31 @@ cloud-to-ground flashes are not distinguished).
   pipeline would read as "no storms".
 - Cadence every **5 min** (two chances per 10-min product). Search is keyless; the token
   is asked for only when there is something new to download.
+- **Confidence filter (`lightning_filter_v1`, `server/src/core/config/lightning-filter.ts`).**
+  The PUG's `flash_filter_confidence` is the probability that a flash is *false*
+  (0 = certainly real). A flash is kept when it is ≤ **0.5**; a flash with the fill value
+  (unrated) is **kept**, because dropping unrated flashes would turn a processing gap into
+  "no lightning". Dropped flashes are counted per product. The threshold is versioned
+  config: the merged document carries `filter_version`, and a document written under a
+  different version is ignored (re-merged), never mixed.
+- **FeedStatus row `eumetsat:lightning`.** Recorded by the refresh (newest covered
+  minute), budgets in `freshness-budgets.ts` (10-min cadence, warn 45 min, critical 3 h,
+  does not page — context, not an alerting input). Without EUMETSAT credentials the row
+  reads **`disabled`** ("Not enabled on this deployment" on `/status`), never `stale` or
+  `down`: an unconfigured optional source is not a broken one.
+- **Event context (migration 022, `event_lightning_context`).** After each refresh the
+  worker answers, for live events, "flashes within **10 km** in the **3 h** before first
+  detection" (`lightning_context_v1`) against the 9-h document: `complete` (count, possibly
+  0, and the nearest distance) only when merged products cover the whole window with no
+  gap over 60 s; otherwise `unavailable`. A DB constraint forbids a count on an
+  `unavailable` row. `GET /api/v1/events/:publicId/lightning-context` says `complete`,
+  `pending` (unanswered, window still inside the document) or `no_data`; a merged-away id
+  reads its survivor's row. The event page renders one sentence: a count and a distance
+  with "context only: it does not mean lightning started this fire", "no flashes were
+  recorded … the satellite misses some flashes" (LI detection efficiency is roughly 70 %
+  by day), or "no lightning data" — **"no data" is never rendered as "no lightning"**.
+  Answering never bumps the event's `seq`. Fixtures (`web/public/fixtures/lightning-context/`)
+  are synthetic.
 - Web: the Layers panel toggle `lightning` (`ov=lightning`) fetches the route (the
   fixtures build reads `web/public/fixtures/lightning/recent.json`, a synthetic six-hour
   window over Bulgaria) and draws one ringed circle per flash below every fire layer,
@@ -699,9 +728,13 @@ turned on in production (TASKS F18 done-when).
    flashes are drawn. Confirm or drop the corner line.
 3. The six new `layers.lightning*` strings (en/bg) are in PENDING_FOUNDER_REVIEW.
 3. Framing: context only — "lightning recorded near here", never "caused by lightning".
+   The three `eventDetail.lightningContext*` strings (en/bg) are in PENDING_FOUNDER_REVIEW.
 4. Age classes (15 min / 1 h / 6 h) and colours (white / yellow / blue — no red or orange,
    CI-14).
 5. Whether to keep raw BODY files (32 MB/day) for replay instead of decoded records only.
+6. The false-likelihood threshold (0.5) and keeping unrated flashes (`lightning_filter_v1`).
+7. The event-context radius and window (10 km, 3 h; `lightning_context_v1`).
+8. The `disabled` FeedStatus wording on `/status` (en/bg).
 
 **Attribution.** Row 7 below; licence record `docs/licenses/eumetsat-mtg-li.md`.
 

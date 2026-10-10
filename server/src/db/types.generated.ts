@@ -295,6 +295,22 @@ export interface EventDetections {
   fire_event_id: Int8;
 }
 
+export interface EventLightningContext {
+  computed_at: Timestamp;
+  filter_version: string;
+  fire_event_id: Int8;
+  flash_count: number | null;
+  nearest_km: number | null;
+  params_version: string;
+  radius_km: number;
+  /**
+   * complete = window fully covered by LI products (flash_count is data); unavailable = no lightning data for the window.
+   */
+  status: string;
+  window_from: Timestamp;
+  window_to: Timestamp;
+}
+
 export interface EventsShadow {
   candidate_config_digest: string;
   candidate_version: string;
@@ -375,7 +391,7 @@ export interface FireEvents {
    */
   static_source_policy_version: string | null;
   /**
-   * Latest static hot-source verdict (TASKS F16, static-source-policy.ts); NULL = never evaluated. Bookkeeping: never bumps seq.
+   * Latest static hot-source verdict (TASKS F16, static-source-policy.ts); NULL = never evaluated. Projected on the snapshot (additive, A1.3): a change bumps seq (023).
    */
   static_source_verdict: string | null;
   status: string;
@@ -523,6 +539,7 @@ export interface DB {
   detections: Detections;
   erasure_requests: ErasureRequests;
   event_detections: EventDetections;
+  event_lightning_context: EventLightningContext;
   events_shadow: EventsShadow;
   fire_event_transitions: FireEventTransitions;
   fire_events: FireEvents;

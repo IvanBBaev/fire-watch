@@ -179,6 +179,18 @@ const ROWS: readonly FreshnessBudget[] = [
     pages: false,
   },
 
+  // MTG LI flashes (F18): a 10-minute product, refreshed every 5 minutes. Warn at the
+  // route's own 45-minute staleness refusal — that is when the map stops drawing the layer
+  // — and critical after 3 h, half the drawn window. Context only: never pages. Without
+  // EUMETSAT credentials the row is `disabled`, not scored.
+  {
+    row: 'eumetsat:lightning',
+    nominalCadenceSeconds: 10 * MINUTE,
+    warnSeconds: 45 * MINUTE,
+    criticalSeconds: 3 * HOUR,
+    pages: false,
+  },
+
   // The snapshot push is the only job that 500s, and its warn budget is the one threshold
   // the client also has to know (GLOSSARY §3b trigger 1) — so it is imported, not repeated.
   {

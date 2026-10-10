@@ -127,6 +127,7 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'detections',
       'erasure_requests',
       'event_detections',
+      'event_lightning_context',
       'events_shadow',
       'fire_event_transitions',
       'fire_events',

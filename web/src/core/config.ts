@@ -70,6 +70,11 @@ export interface ClientConfig {
    */
   readonly lightningOverlayUrl?: string;
   /**
+   * The F18 lightning context of one event (`{id}` is its public id): committed fixtures by
+   * default, the API's route in live mode. Optional; absent hides the note.
+   */
+  readonly lightningContextUrlTemplate?: string;
+  /**
    * The F15 satellite-pass document for one grid cell: `{cell}` is replaced with the cell id.
    * The default is one committed fixture (no `{cell}`, so every cell reads the same file);
    * live mode is the API's route. Optional so older literal configs still type-check.
@@ -94,6 +99,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   windOverlayUrl: '/fixtures/wind/latest.json',
   passSwathsUrl: '/fixtures/passes/swaths.json',
   lightningOverlayUrl: '/fixtures/lightning/recent.json',
+  lightningContextUrlTemplate: '/fixtures/lightning-context/{id}.json',
   passesUrlTemplate: '/fixtures/passes/sample.json',
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
@@ -156,6 +162,7 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     windOverlayUrl: '/overlays/wind/latest.json',
     passSwathsUrl: '/overlays/passes/swaths.json',
     lightningOverlayUrl: '/overlays/lightning/recent.json',
+    lightningContextUrlTemplate: '/api/v1/events/{id}/lightning-context',
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
   };
 }

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { LIGHTNING_REFRESH_INTERVAL_MS } from '../core/lightning/lightning-refresh.js';
+import { MemoryFeedStatus } from '../core/passes/__fixtures__/memory-feed-status.js';
 import { MemoryPayloads } from '../core/passes/__fixtures__/memory-payloads.js';
 import { VirtualClock } from '../core/ports/clock.js';
 import type { LightningClient } from '../core/ports/lightning-client.js';
@@ -42,7 +43,7 @@ describe('startLightningLoops', () => {
     const lines: string[] = [];
     const observed: string[] = [];
     const loops = startLightningLoops(
-      { client, decoder, payloads, reader: payloads, clock },
+      { client, decoder, payloads, reader: payloads, clock, feedStatus: new MemoryFeedStatus() },
       {
         clock,
         sleeper,
@@ -87,5 +88,68 @@ describe('wireLightningRefresh', () => {
     } finally {
       rmSync(stateDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('the lightning cycle with a database', () => {
+  it('runs the context pass after the refresh, reports its error as degraded, and closes the pool', async () => {
+    const payloads = new MemoryPayloads();
+    const client: LightningClient = {
+      search: () => Promise.resolve({ ok: true, products: [] }),
+      downloadBody: () => Promise.reject(new Error('not expected')),
+    } as unknown as LightningClient;
+    const decoder: LightningDecoder = { decode: () => Promise.reject(new Error('not expected')) };
+    const clock = new VirtualClock(NOW);
+    const controller = new AbortController();
+    const asked: string[] = [];
+    let closed = 0;
+    const lines: string[] = [];
+    const loops = startLightningLoops(
+      {
+        client,
+        decoder,
+        payloads,
+        reader: payloads,
+        clock,
+        feedStatus: new MemoryFeedStatus(),
+        context: {
+          deps: {
+            store: {
+              pendingEvents: (version) => {
+                asked.push(version);
+                return Promise.reject(new Error('db down'));
+              },
+              save: () => Promise.resolve(),
+            },
+            reader: payloads,
+            clock,
+          },
+          close: () => {
+            closed += 1;
+            return Promise.resolve();
+          },
+        },
+      },
+      {
+        clock,
+        sleeper: {
+          sleep: () => {
+            controller.abort();
+            return Promise.resolve();
+          },
+        },
+        writeLine: (line) => lines.push(line),
+      },
+      controller.signal,
+    );
+    await Promise.all(loops.map(([, stats]) => stats));
+    expect(asked).toEqual(['lightning_context_v1']);
+    expect(closed).toBe(1);
+    const parsed = JSON.parse(lines[0] ?? '{}') as {
+      degraded: boolean;
+      lightning_refresh: { context: { error: string } };
+    };
+    expect(parsed.lightning_refresh.context.error).toBe('db down');
+    expect(parsed.degraded).toBe(true);
   });
 });

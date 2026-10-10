@@ -25,6 +25,7 @@ import type { FrpSummary, Overpass } from './detection-detail.js';
 import { distanceText, orbitText, pixelText, sensorLabel } from './event-format.js';
 import { geolocationAlreadyGranted } from './location-permission.js';
 import { sparklineGeometry } from './sparkline.js';
+import { LightningContextNote } from './lightning-context-note.js';
 import { StaticSourceNote } from './static-source-note.js';
 import type { DetailState } from './use-detection-summary.js';
 import { approximateCentre, coordinatesText, openStreetMapAreaUrl } from './where.js';
@@ -296,6 +297,7 @@ export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
         event={event}
         positions={detail.kind === 'ready' ? detail.summary.positions : null}
       />
+      <LightningContextNote eventId={event.id} />
       <DetectionSections detail={detail} />
       <WhereSection event={event} />
     </>

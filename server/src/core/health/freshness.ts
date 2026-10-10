@@ -60,6 +60,11 @@ export interface FreshnessQuery {
   readonly table?: FreshnessBudgetTable;
   /** The version string reported in the body; defaults to the shipped table's. */
   readonly version?: string;
+  /**
+   * Expected rows this deployment deliberately does not run (a feed without credentials).
+   * They report `disabled`, carry no age, and never move the body's status or the probe.
+   */
+  readonly disabled?: readonly FreshnessRowId[];
 }
 
 export interface FreshnessVerdict {
@@ -80,6 +85,7 @@ const STATE_RANK: Readonly<Record<FreshnessState, number>> = {
   muted: 2,
   unknown: 3,
   ok: 4,
+  disabled: 5,
 };
 
 export function evaluateFreshness(query: FreshnessQuery): FreshnessVerdict {
@@ -91,6 +97,7 @@ export function evaluateFreshness(query: FreshnessQuery): FreshnessVerdict {
     if (budget === undefined) {
       throw new RangeError(`freshness was asked about ${row}, which has no budget`);
     }
+    if (query.disabled?.includes(row) === true) return disabledRow(budget);
     return evaluateRow(
       budget,
       query.observations.find((observation) => observation.row === row),
@@ -181,8 +188,25 @@ function rawState(
  */
 function overallStatus(rows: readonly FreshnessRow[]): FreshnessStatus {
   if (rows.some((row) => row.state === 'critical')) return 'critical';
-  if (rows.some((row) => row.state !== 'ok')) return 'warn';
+  if (rows.some((row) => row.state !== 'ok' && row.state !== 'disabled')) return 'warn';
   return 'ok';
+}
+
+/** A row that is configured off here: no age, no failures, never scored. */
+function disabledRow(budget: FreshnessBudget): FreshnessRow {
+  return {
+    row: budget.row,
+    lastSuccessAt: null,
+    lastDataAt: null,
+    ageSeconds: null,
+    warnSeconds: budget.warnSeconds,
+    criticalSeconds: budget.criticalSeconds,
+    state: 'disabled',
+    consecutiveFailures: 0,
+    pages: budget.pages,
+    mutedUntil: null,
+    muteReason: null,
+  };
 }
 
 function dedupe(rows: readonly FreshnessRowId[]): readonly FreshnessRowId[] {
