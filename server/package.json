@@ -13,6 +13,7 @@
     "promote": "node dist/app/sp-promotion-cli.js",
     "shadow-diff": "node dist/app/shadow-diff-cli.js",
     "qa-report": "node dist/app/qa-report-cli.js",
+    "fit": "node dist/app/fit-cli.js",
     "backup": "node dist/app/backup-cli.js",
     "restore": "node dist/app/restore-cli.js",
     "erasure-drill": "node dist/app/erasure-drill-cli.js",

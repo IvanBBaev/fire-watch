@@ -1038,6 +1038,42 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   D1. Grid search (~600 configs) vs EFFIS BA labels; plateau rule; fitted params
   land as versioned config-as-data. **Done when:** GATES §2 acceptance thresholds
   met and the chosen config committed with its fit report.
+  *2026-10-11, the machinery landed; the fit itself has not run — there is no DS-1
+  backfill and no DS-3 label set (B8 waits on a FIRMS key and a host). `pnpm fit
+  --input=<dir> --out=<dir>` is the whole run. Core under `server/src/core/fit/`:
+  `fit-params.ts` (`clustering_fit_v1`: the GATES §2 thresholds, the 11 §4 label join
+  and hard-negative windows, the size strata, the splits fit 2020–23 / calibrate 2024 /
+  test 2025, the plateau tolerances); `effis-perimeters.ts` (DS-3 GeoJSON, the DS-6
+  reading rules, every drop counted by reason); `label-join.ts` (exactly one perimeter
+  within the buffer and `[FIREDATE − 1 d, FINALDATE + 3 d]` = labelled, two or more =
+  ambiguous, none = unlabelled and never a negative); `season-frame.ts` (labels, strata,
+  hard negatives within 20 km and 7 days); `fit-clustering.ts` (replays a season
+  through the production `clusterBatch` in 60-minute batches); `fit-metrics.ts`
+  (pairwise recall, precision over hard negatives only, over-split mean and p95, chimera
+  rate, timeline agreement within ±12 h, ARI — per source, cross-source and GEO
+  attach-only next to every pooled number, per stratum; a failing or unmeasured bottom
+  stratum fails the gate); `fit-grid.ts` (`clustering_fit_grid_v1`: 120 fixed-MODIS cells + 30
+  footprint-MODIS cells = 150 × 4 fit seasons = 600 runs, plus the separate ε_geo
+  sweep on 2025 GEO rows, recorded as the 11 §9.1 exemption); `plateau.ts` (the
+  plateau rule, every word defined in its header: neighbour, stable, acceptable,
+  region, inradius, width, centre, ties, and no fallback when nothing is acceptable);
+  `test-season.ts` (the touch-once lock: `--touch-test-season` plus a ledger keyed on
+  the DS-1/DS-3 file hashes); `dataset-readiness.ts` (the 23 E1 refusal, read from
+  `DATASETS.md`); `fit-run.ts`; `fit-report.ts` (`fit-report.json`, `fit-report.md`,
+  and the unwired `clustering-params-v2.candidate.json`, `active: false`). Adapter
+  `server/src/adapters/fit/fit-input-dir.ts`; CLI `server/src/app/fit-cli.ts`. Without
+  `--synthetic` the CLI refuses until DS-1 and DS-3 carry a dated `--check` row; ε_geo
+  runs only when DS-4 is checked. Tests: hand-computed metrics on a ten-row season, the
+  plateau ties and the empty case, the label join's edges, and one end-to-end synthetic
+  fit through the CLI (selects `modis_footprint/v1.25/t48`, then touches the test
+  season once and is refused the second time).*
+
+  *What remains is data and a decision, not code: DS-1 backfilled and `--check`ed (B8),
+  DS-3 fetched under a pinned plan and `--check`ed, DS-4 planned (its input file shape
+  is provisional); then `pnpm fit` for real, a founder read of the report and of the
+  decisions it lists (`FIT_DECISIONS`), one `--touch-test-season` run, and committing
+  the selected config as `clustering_params_v2` with its report — the step that ticks
+  this item.*
 - [ ] **D8 — QA metrics harness + weekly report.** Spec: A2 (shadow definitions);
   A11 formulas. Needs: D1. Shadow-PCR/PLB + FER/FLR/DAR computed from the shadow
   pipeline; weekly job. **Done when:** one real weekly report generated.
