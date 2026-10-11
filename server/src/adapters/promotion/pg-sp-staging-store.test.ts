@@ -53,10 +53,10 @@ describe('stagingInsertSql', () => {
     expect(sql).toContain('INSERT INTO detections_2020_07_sp_staging (');
     expect(sql).toContain('unnest(');
     expect(sql).toContain('ON CONFLICT (acq_ts, detection_uid) DO NOTHING');
-    // The 19 record columns arrive as 19 typed array parameters.
-    expect(sql.match(/\$\d+::\w+\[\]/gu)).toHaveLength(19);
+    // The 20 record columns arrive as 20 typed array parameters.
+    expect(sql.match(/\$\d+::\w+\[\]/gu)).toHaveLength(20);
     expect(sql).toContain('$1::text[]');
-    expect(sql).toContain('$19::boolean[]');
+    expect(sql).toContain('$20::boolean[]');
   });
 
   it('refuses a table name outside the promotion grammar', () => {

@@ -174,6 +174,7 @@ function toSpRecord(row: StagedIntermediate, job: BackfillJob): DetectionRecord 
     collectionVersion: row.versionRaw === '' ? null : row.versionRaw,
     sourceRegistryVersion: SOURCE_REGISTRY_VERSION,
     ingestConfigVersion: job.pollingBboxVersion,
+    ingestConfigDigest: job.pollingBboxDigest,
     quarantined: false,
   };
 }

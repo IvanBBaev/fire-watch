@@ -266,6 +266,15 @@ describe('the rows a slot writes', () => {
     expect(record?.lat).toBe('41.85012');
   });
 
+  it('store the bbox digest next to the bbox version (migration 025)', async () => {
+    const run = await pollGranuleSlot(SOURCE, SLOT, deps());
+
+    const [record] = granuleDetectionRecords(run);
+
+    expect(record?.ingestConfigVersion).toBe('polling_bbox_v1');
+    expect(record?.ingestConfigDigest).toBe('91e946a7');
+  });
+
   it('carry the breaker verdict, like every other batch', async () => {
     const run = await pollGranuleSlot(SOURCE, SLOT, deps());
 

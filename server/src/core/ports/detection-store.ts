@@ -48,6 +48,12 @@ export interface DetectionRecord {
   readonly sourceRegistryVersion: string;
   readonly ingestConfigVersion: string;
   /**
+   * `configDigest` of the same config `ingestConfigVersion` names (migration 025). The
+   * version is hand-written and could survive an edit to the values; the digest cannot,
+   * so it is what proves years later which polling box a row was queried under.
+   */
+  readonly ingestConfigDigest: string;
+  /**
    * The ingest anomaly breaker tripped on the batch this row arrived in (TASKS C2). Set
    * here and never afterwards: the table is append-only by grant, so the flag has to be
    * decided before the insert rather than applied by an UPDATE the runtime role could not

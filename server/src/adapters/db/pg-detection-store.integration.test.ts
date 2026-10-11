@@ -21,6 +21,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { detectionUid } from '@fire-watch/contracts/node';
 
+import { POLLING_BBOX } from '../../core/config/polling-bbox.js';
 import { detectionRecords, pollAttempt } from '../../core/ingest/detection-records.js';
 import { pollFirmsSource, type FirmsPollRun } from '../../core/ingest/firms-poller.js';
 import type { DetectionRecord } from '../../core/ports/detection-store.js';
@@ -117,6 +118,7 @@ interface StoredDetection {
   readonly collection_version: string | null;
   readonly source_registry_version: string;
   readonly ingest_config_version: string;
+  readonly ingest_config_digest: string | null;
   readonly quarantined: boolean;
   readonly geom_text: string;
 }
@@ -180,6 +182,7 @@ describe.skipIf(!hasDocker)('the ingest write path', () => {
         collection_version: '2.0NRT',
         source_registry_version: 'source_registry_v1',
         ingest_config_version: 'polling_bbox_v1',
+        ingest_config_digest: POLLING_BBOX.digest,
       });
       expect(stored?.acq_ts.toISOString()).toBe('2026-08-02T11:24:00.000Z');
       expect(stored?.available_at.toISOString()).toBe('2026-08-02T11:29:30.000Z');
@@ -320,6 +323,27 @@ describe.skipIf(!hasDocker)('the ingest write path', () => {
       expect((await storedDetections())[0]?.quarantined).toBe(false);
     });
 
+    it('leaves a pre-025 row without a digest and refuses a digest that is not one', async () => {
+      // Migration 025 adds the column nullable: rows written before it have no recorded
+      // digest, and inventing today's would claim what the column exists to prove.
+      await db.query(
+        `INSERT INTO detections (detection_uid, source, product_tier, acq_ts, available_at,
+                                 lat, lon, confidence_raw, confidence,
+                                 source_registry_version, ingest_config_version)
+         VALUES ($1, 'firms:viirs:snpp', 'NRT', '2026-08-02T11:24:00Z', '2026-08-02T11:29:30Z',
+                 41.85012, 26.14003, 'n', 'nominal', 'source_registry_v1', 'polling_bbox_v1')`,
+        ['e'.repeat(64)],
+      );
+      expect((await storedDetections())[0]?.ingest_config_digest).toBeNull();
+
+      const [record] = detectionRecords(await poll(csv(row({ acq_time: '1130' })), AVAILABLE_AT));
+      if (record === undefined) throw new Error('expected one polled record');
+      await expect(
+        store.appendDetections([{ ...record, ingestConfigDigest: 'polling_bbox_v1' }]),
+      ).rejects.toThrow(/detections_ingest_config_digest_format/);
+      expect(await storedDetections()).toHaveLength(1);
+    });
+
     it('refuses a row with no partition instead of hiding it in a default one', async () => {
       // There is no DEFAULT partition on purpose: a corrupt acq_ts must fail loudly.
       const orphan: DetectionRecord = {
@@ -341,6 +365,7 @@ describe.skipIf(!hasDocker)('the ingest write path', () => {
         collectionVersion: null,
         sourceRegistryVersion: 'source_registry_v1',
         ingestConfigVersion: 'polling_bbox_v1',
+        ingestConfigDigest: '91e946a7',
         quarantined: false,
       };
 

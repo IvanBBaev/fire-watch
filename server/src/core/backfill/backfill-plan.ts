@@ -128,6 +128,11 @@ export interface BackfillJob {
   /** The exact `west,south,east,north` argument every request carries. */
   readonly area: string;
   readonly pollingBboxVersion: string;
+  /**
+   * Digest of the same bbox config. Not part of the manifest (the version pins the run);
+   * carried so the SP rows staged from this job store it per row like live rows do.
+   */
+  readonly pollingBboxDigest: string;
   readonly chunks: readonly BackfillChunk[];
 }
 
@@ -140,6 +145,7 @@ export function backfillJob(
     planDigest: plan.digest,
     area: firmsAreaArgument(bbox.values),
     pollingBboxVersion: bbox.version,
+    pollingBboxDigest: bbox.digest,
     chunks: plan.values.sources.flatMap((spec) => planChunks(spec)),
   };
 }

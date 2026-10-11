@@ -149,6 +149,8 @@ describe('stageMonth', () => {
     );
     expect(record?.availableAt).toBe(Date.parse(FETCHED_AT));
     expect(record?.ingestConfigVersion).toBe(job.pollingBboxVersion);
+    expect(record?.ingestConfigDigest).toBe(job.pollingBboxDigest);
+    expect(record?.ingestConfigDigest).toBe('91e946a7');
   });
 
   it('maps an empty version column to a null collection_version', async () => {

@@ -373,6 +373,8 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   so a later migration should add the column and the ingest writer should fill
   it. Not a blocker for recording detections — a blocker for explaining one of
   them in three years.*
+  *2026-10-11 — closed by migration 025 (`detections.ingest_config_digest`); see
+  the C1 note of the same date.*
   *2026-09-26 (wave F) — the Testcontainers image is overridable: `FIRE_WATCH_PG_IMAGE`
   (e.g. the arm64 `imresamu/postgis:16-3.4` on Apple Silicon, where the amd64-only
   `postgis/postgis:16-3.4` misses its health check under emulation) is substituted for
@@ -459,6 +461,24 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   default zones" is D9's decision function, not ingest — `low` is normalized,
   stored and never dropped. Remaining for "live rows landing continuously": the
   FIRMS MAP_KEY and the deployed VM. Nothing in the code.*
+  *2026-10-11 — the per-row digest gap is closed. Migration 025 adds
+  `detections.ingest_config_digest` as `text` like `clustering_runs.config_digest`,
+  plus a format CHECK (`^[0-9a-f]{8}$`, the `configDigest` FNV-1a shape). It is
+  nullable on purpose: rows written before 025 have no recorded digest, and
+  stamping today's would assert the very thing the column exists to prove. Every
+  writer fills it from the same config object whose version it already stores:
+  `FirmsPollRun`/`GranuleSlotRun` carry `pollingBboxDigest` beside
+  `pollingBboxVersion`, `detectionRecords`/`granuleDetectionRecords` map it, and the
+  C7 SP staging path takes it from `BackfillJob.pollingBboxDigest` (the manifest
+  format is unchanged). The live insert and the staging insert both send 20 columns.
+  The column and CHECK propagate to every month partition, and the
+  `LIKE detections INCLUDING ALL` staging table inherits both, so ATTACH still matches.
+  The integration swap test now asserts the attached SP partition carries the
+  `polling_bbox_v1` digest (`91e946a7`) and the CHECK. A new integration test shows a
+  pre-025 row stays NULL and a version string written as a digest is refused. The
+  double-poll tests compare whole rows, digest included. Types were regenerated with
+  `db:codegen` against a migrated PostGIS 16, and 025 rolls back and re-applies
+  cleanly.*
 - [x] **C2 — CSV validation + quarantine + anomaly breaker leg.** Spec: A23; 01
   §6.1.3. Needs: C1. E1-grade validation (incl. MODIS scan/track NaN guard,
   `available_at < acq_ts` clamp/flag), raw bytes retained on quarantine, batch

@@ -81,6 +81,7 @@ function toRecord(
     collectionVersion: detection.versionRaw === '' ? null : detection.versionRaw,
     sourceRegistryVersion: run.sourceRegistryVersion,
     ingestConfigVersion: run.pollingBboxVersion,
+    ingestConfigDigest: run.pollingBboxDigest,
     quarantined,
   };
 }
@@ -141,6 +142,7 @@ function toGranuleRecord(
     collectionVersion: SOURCE_REGISTRY[run.source].queriedProduct,
     sourceRegistryVersion: run.sourceRegistryVersion,
     ingestConfigVersion: run.pollingBboxVersion,
+    ingestConfigDigest: run.pollingBboxDigest,
     quarantined,
   };
 }

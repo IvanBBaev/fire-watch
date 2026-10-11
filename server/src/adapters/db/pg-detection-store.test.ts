@@ -49,6 +49,7 @@ function record(overrides: Partial<DetectionRecord> = {}): DetectionRecord {
     collectionVersion: '2.0NRT',
     sourceRegistryVersion: 'source_registry_v1',
     ingestConfigVersion: 'polling_bbox_v1',
+    ingestConfigDigest: '91e946a7',
     quarantined: false,
     ...overrides,
   };
@@ -83,15 +84,16 @@ describe('the insert statement', () => {
   it('sends one array per column, so batch size does not change the parameter count', () => {
     const parameters = new Set(INSERT_DETECTIONS_SQL.match(/\$\d+/g));
 
-    expect(parameters.size).toBe(19);
+    expect(parameters.size).toBe(20);
     expect(INSERT_DETECTIONS_SQL).toContain('$18::text[]');
+    expect(INSERT_DETECTIONS_SQL).toContain('ingest_config_version, ingest_config_digest');
   });
 
   it('writes the breaker verdict as a column, since the runtime role cannot update it', () => {
     // ADR-002 A1.1: the app role holds SELECT and INSERT on `detections` and nothing
     // else, so `quarantined` has exactly one chance to be set — this statement.
     expect(INSERT_DETECTIONS_SQL).toContain('quarantined');
-    expect(INSERT_DETECTIONS_SQL).toContain('$19::boolean[]');
+    expect(INSERT_DETECTIONS_SQL).toContain('$20::boolean[]');
   });
 
   it('casts the coordinates to numeric, which round-trips five decimals', () => {
@@ -104,7 +106,7 @@ describe('detectionArrays', () => {
   it('is one array per column, all of the same length', () => {
     const arrays = detectionArrays([record(), record({ detectionUid: 'b'.repeat(64) })]);
 
-    expect(arrays).toHaveLength(19);
+    expect(arrays).toHaveLength(20);
     for (const column of arrays) expect(column).toHaveLength(2);
   });
 
@@ -138,7 +140,14 @@ describe('detectionArrays', () => {
   it('carries the breaker verdict per row, in the last column', () => {
     const arrays = detectionArrays([record({ quarantined: true }), record({ quarantined: false })]);
 
-    expect(arrays[18]).toEqual([true, false]);
+    expect(arrays[19]).toEqual([true, false]);
+  });
+
+  it('sends the config digest next to the config version (migration 025)', () => {
+    const arrays = detectionArrays([record({ ingestConfigDigest: '0badf00d' })]);
+
+    expect(arrays[17]).toEqual(['polling_bbox_v1']);
+    expect(arrays[18]).toEqual(['0badf00d']);
   });
 });
 

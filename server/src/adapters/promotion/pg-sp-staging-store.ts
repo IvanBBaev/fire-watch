@@ -73,7 +73,7 @@ export function partitionBoundLiteral(iso: string): string {
 }
 
 /**
- * Same 19 columns and casts as the live insert path (`pg-detection-store`), redeclared
+ * Same 20 columns and casts as the live insert path (`pg-detection-store`), redeclared
  * because that module keeps them private; `detectionArrays` — the value side — is
  * shared, so the two lists cannot drift from the record shape independently.
  */
@@ -96,6 +96,7 @@ const DETECTION_COLUMNS = [
   'collection_version',
   'source_registry_version',
   'ingest_config_version',
+  'ingest_config_digest',
   'quarantined',
 ] as const;
 
@@ -112,6 +113,7 @@ const DETECTION_CASTS = [
   'real',
   'real',
   'real',
+  'text',
   'text',
   'text',
   'text',

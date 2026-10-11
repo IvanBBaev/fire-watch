@@ -62,6 +62,8 @@ export interface GranuleSlotRun {
   readonly availableAt: number | null;
   readonly sourceRegistryVersion: string;
   readonly pollingBboxVersion: string;
+  /** Digest of the same bbox config; stored per row next to the version (migration 025). */
+  readonly pollingBboxDigest: string;
   /** In the fixed order `(available_at, source, lat, lon, detection_uid)`. */
   readonly detections: readonly IngestedGranuleDetection[];
   readonly rejections: readonly GranuleRowRejection[];
@@ -99,6 +101,7 @@ export async function pollGranuleSlot(
     slotIso,
     sourceRegistryVersion: SOURCE_REGISTRY_VERSION,
     pollingBboxVersion: bbox.version,
+    pollingBboxDigest: bbox.digest,
   } as const;
   const empty = {
     detections: [],

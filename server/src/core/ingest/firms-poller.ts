@@ -56,6 +56,8 @@ export interface FirmsPollRun {
   /** The query as issued, minus the key. Recorded so a run can be reproduced. */
   readonly query: FirmsAreaQuery;
   readonly pollingBboxVersion: string;
+  /** Digest of the same bbox config; stored per row next to the version (migration 025). */
+  readonly pollingBboxDigest: string;
   readonly sourceRegistryVersion: string;
   /**
    * `available_at` for the whole batch; every row inherits it. `null` only when the
@@ -123,6 +125,7 @@ export async function pollFirmsSource(
     source,
     query,
     pollingBboxVersion: bbox.version,
+    pollingBboxDigest: bbox.digest,
     sourceRegistryVersion: SOURCE_REGISTRY_VERSION,
   } as const;
 

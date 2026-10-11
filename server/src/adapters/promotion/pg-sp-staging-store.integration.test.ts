@@ -167,6 +167,7 @@ function nrtRecord(acqDate: string, acqTime = '11:24'): DetectionRecord {
     collectionVersion: '2.0NRT',
     sourceRegistryVersion: 'source_registry_v1',
     ingestConfigVersion: 'polling_bbox_v1',
+    ingestConfigDigest: '91e946a7',
     quarantined: false,
   };
 }
@@ -300,6 +301,27 @@ describe.skipIf(!hasDocker)('the NRT→SP month swap', () => {
         GROUP BY product_tier`,
     );
     expect(rows).toEqual([{ product_tier: 'SP', n: 3 }]);
+
+    // Migration 025: the staging table is `LIKE detections INCLUDING ALL`, so it carried
+    // `ingest_config_digest` and its format CHECK into the ATTACH above, and the staged SP
+    // rows store the digest of the bbox config the backfill job names.
+    const digests = await db.query<{ ingest_config_version: string; ingest_config_digest: string }>(
+      `SELECT DISTINCT ingest_config_version, ingest_config_digest FROM detections_2020_06`,
+    );
+    expect(digests.rows).toEqual([
+      {
+        ingest_config_version: job.pollingBboxVersion,
+        ingest_config_digest: job.pollingBboxDigest,
+      },
+    ]);
+    expect(job.pollingBboxDigest).toBe('91e946a7');
+    expect(
+      await count(
+        `SELECT count(*)::int AS n FROM pg_constraint
+          WHERE conrelid = 'detections_2020_06'::regclass
+            AND conname = 'detections_ingest_config_digest_format'`,
+      ),
+    ).toBe(1);
 
     // A1.4 step 3: the detached NRT partition is retained, not dropped.
     expect(await count(`SELECT count(*)::int AS n FROM detections_2020_06_nrt_retired`)).toBe(2);

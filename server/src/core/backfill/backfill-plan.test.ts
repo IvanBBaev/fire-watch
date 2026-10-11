@@ -92,6 +92,7 @@ describe('backfillJob', () => {
     expect(job.planDigest).toBe(BACKFILL_PLAN.digest);
     expect(job.area).toBe('20,39,31,46');
     expect(job.pollingBboxVersion).toBe('polling_bbox_v1');
+    expect(job.pollingBboxDigest).toBe('91e946a7');
     expect(job.chunks).toHaveLength(666); // 3 sources × 222
     expect(new Set(job.chunks.map((chunk) => chunk.product))).toEqual(
       new Set(['MODIS_SP', 'VIIRS_SNPP_SP', 'VIIRS_NOAA20_SP']),

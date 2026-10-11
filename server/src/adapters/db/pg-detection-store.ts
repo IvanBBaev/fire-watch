@@ -12,7 +12,7 @@
  *     leave visibly different marks (DATA-SOURCES §A1.1 pitfall 10).
  *
  * Rows go in through `unnest` of one array per column rather than a generated VALUES
- * list: the parameter count stays at nineteen no matter how large the batch is, which
+ * list: the parameter count stays at twenty no matter how large the batch is, which
  * keeps a busy August afternoon from running into the 65,535-parameter wire limit.
  */
 
@@ -58,6 +58,7 @@ const DETECTION_COLUMNS = [
   'collection_version',
   'source_registry_version',
   'ingest_config_version',
+  'ingest_config_digest',
   'quarantined',
 ] as const;
 
@@ -80,6 +81,7 @@ const DETECTION_CASTS = [
   'real',
   'real',
   'real',
+  'text',
   'text',
   'text',
   'text',
@@ -185,6 +187,7 @@ export function detectionArrays(records: readonly DetectionRecord[]): readonly u
     records.map((record) => record.collectionVersion),
     records.map((record) => record.sourceRegistryVersion),
     records.map((record) => record.ingestConfigVersion),
+    records.map((record) => record.ingestConfigDigest),
     records.map((record) => record.quarantined),
   ];
 }

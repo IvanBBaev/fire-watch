@@ -45,6 +45,7 @@ function run(overrides: Partial<FirmsPollRun> = {}): FirmsPollRun {
     outcome: 'ok',
     query: QUERY,
     pollingBboxVersion: 'polling_bbox_v1',
+    pollingBboxDigest: '91e946a7',
     sourceRegistryVersion: 'source_registry_v1',
     availableAt: 1_785_670_170_000,
     detections: [detection()],
@@ -76,9 +77,21 @@ describe('detectionRecords', () => {
         collectionVersion: '2.0NRT',
         sourceRegistryVersion: 'source_registry_v1',
         ingestConfigVersion: 'polling_bbox_v1',
+        ingestConfigDigest: '91e946a7',
         quarantined: false,
       },
     ]);
+  });
+
+  it('stores the digest of the same config whose version it stores', () => {
+    // Migration 025: the version is hand-written, the digest is computed. Both come off
+    // the run, so a row can never pair one config's version with another's digest.
+    const [record] = detectionRecords(
+      run({ pollingBboxVersion: 'polling_bbox_v2', pollingBboxDigest: '0badf00d' }),
+    );
+
+    expect(record?.ingestConfigVersion).toBe('polling_bbox_v2');
+    expect(record?.ingestConfigDigest).toBe('0badf00d');
   });
 
   it('marks every row of a batch the breaker tripped on', () => {

@@ -264,6 +264,10 @@ export interface Detections {
   footprint: string | null;
   frp_mw: number | null;
   geom: Generated<string | null>;
+  /**
+   * configDigest of the ingest config named by ingest_config_version (8 hex chars, FNV-1a over canonical JSON). NULL only on rows written before migration 025.
+   */
+  ingest_config_digest: string | null;
   ingest_config_version: string;
   ingested_at: Generated<Timestamp>;
   lat: Numeric;

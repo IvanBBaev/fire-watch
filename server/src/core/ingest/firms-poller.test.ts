@@ -2,6 +2,7 @@ import { detectionUid } from '@fire-watch/contracts/node';
 import { describe, expect, it } from 'vitest';
 
 import { POLLING_BBOX } from '../config/polling-bbox.js';
+import { defineConfig } from '../config/versioned-config.js';
 import type { FirmsAreaQuery, FirmsAreaResponse } from '../ports/firms-client.js';
 import {
   FIRMS_DAY_RANGE,
@@ -168,6 +169,7 @@ describe('pollFirmsSource — a successful poll', () => {
     const run = await pollFirmsSource('firms:viirs:snpp', deps(client));
 
     expect(run.pollingBboxVersion).toBe('polling_bbox_v1');
+    expect(run.pollingBboxDigest).toBe('91e946a7');
     expect(run.sourceRegistryVersion).toBe('source_registry_v1');
     expect(run.query).toEqual({
       source: 'firms:viirs:snpp',
@@ -335,6 +337,24 @@ describe('pollFirmsSource — silence is never inferred', () => {
 
     expect(run.pollingBboxVersion).toBe(POLLING_BBOX.version);
     expect(client.calls[0]?.area).toBe('20,39,31,46');
+  });
+
+  it('records the digest of the bbox it queried, not of the default one', async () => {
+    // Version and digest must come from one config object: a run pinned to another box
+    // that still carried polling_bbox_v1's digest would make the per-row digest a lie.
+    const client = stubClient({ 'firms:viirs:snpp': [response(csv(), 1)] });
+    const other = defineConfig('polling_bbox', 'polling_bbox_v2', {
+      west: 21.0,
+      south: 39.0,
+      east: 31.0,
+      north: 46.0,
+    });
+
+    const run = await pollFirmsSource('firms:viirs:snpp', { ...deps(client), bbox: other });
+
+    expect(run.pollingBboxVersion).toBe('polling_bbox_v2');
+    expect(run.pollingBboxDigest).toBe(other.digest);
+    expect(run.pollingBboxDigest).not.toBe(POLLING_BBOX.digest);
   });
 });
 
