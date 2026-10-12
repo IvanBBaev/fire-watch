@@ -39,6 +39,13 @@ function directSendSource(relativeImport: string): string {
   ].join('\n');
 }
 
+/**
+ * Each test spawns a full dependency-cruiser run, which resolves the whole TypeScript
+ * project. That takes about a second alone and more than vitest's 10 s default when the
+ * unit suite saturates every core, so the suite carries this budget instead.
+ */
+const CRUISE_TIMEOUT_MS = 60_000;
+
 const seeded: string[] = [];
 
 function seed(relativePath: string, source: string): string {
@@ -71,7 +78,7 @@ function cruise(relativePath: string): { ok: boolean; output: string } {
   }
 }
 
-describe('only-the-gateway-sends', () => {
+describe('only-the-gateway-sends', { timeout: CRUISE_TIMEOUT_MS }, () => {
   it('fails a direct send seeded in app code', () => {
     const path = seed(
       'server/src/app/__boundary-fixture.direct-send.ts',
