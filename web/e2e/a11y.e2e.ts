@@ -454,16 +454,29 @@ function violations(surface: string, leg: Leg, m: Measurements): Violation[] {
 async function sweep(surface: string, leg: Leg, page: Page): Promise<Violation[]> {
   // Fonts are the system stack (CI-12), so nothing is downloaded, but a route change still
   // takes a frame or two to lay out. Two animation frames is the shortest honest wait.
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
+  // The narrow-viewport bottom sheet slides open over 160 ms, longer than two frames, and a
+  // box measured mid-slide fails the hit test under whatever it is still passing over — so
+  // every running animation or transition finishes first. A cancelled one rejects
+  // `finished`; it is no longer moving anything either, so it counts as settled. An infinite
+  // one (a spinner) never finishes and moves no layout, so it is not waited for.
+  await page.evaluate(async () => {
+    for (let round = 0; round < 10; round += 1) {
+      const running = document
+        .getAnimations()
+        .filter(
+          (a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity,
+        );
+      if (running.length === 0) break;
+      await Promise.all(running.map((a) => a.finished.catch(() => undefined)));
+    }
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            resolve();
-          });
+          resolve();
         });
-      }),
-  );
+      });
+    });
+  });
   return violations(surface, leg, await measure(page, MAP_CANVAS_SCOPE));
 }
 
