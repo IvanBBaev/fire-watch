@@ -2414,7 +2414,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   RB-1…RB-4, RISKS R1/R2/R4/R5 and review 14. Every step cites a log line, env var or file
   that exists; every missing capability is marked NOT YET BUILT with its task (J5 status
   page, C5 legs, J1 canary and `/api/health/meta`, C6 restore, G6 Esri degrade, B9/J4
-  deploy, H5/H6). The one-line pointer from `docs/OPERATIONS.md` is still missing. Cannot be
+  deploy, H5/H6). The one-line pointer from `docs/OPERATIONS.md` was added on 2026-10-13. Cannot be
   ticked: no season experience; revise after season 1 and at each pre-season drill.*
 - [ ] **J4 — Deploy gates + season regime (L-12).** Spec: A3. Needs: B3.
   8-checkbox deploy gate wired into CI/CD.

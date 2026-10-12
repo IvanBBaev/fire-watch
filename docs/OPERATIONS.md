@@ -23,6 +23,9 @@ it is not a rule. The product survives an unattended night because ADR-003's T1/
 path degrades automatically and ADR-004's outbox keeps accumulating — not because
 someone is watching.
 
+**Runbooks:** the step-by-step incident procedures that use these quantities live in
+[`runbooks/`](runbooks/README.md) (pre-season drafts, task J3).
+
 ---
 
 ## 1. Freshness budgets
