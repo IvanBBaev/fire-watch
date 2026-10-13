@@ -1538,6 +1538,21 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   again until the pump catches up. Candidate fix: a cursor ahead of the buffer triggers one
   shared catch-up read before the answer. ADR-003 design call, not made; the test waits for
   the pump (`streamCaughtUpTo`) and keeps its `not.toContain('event: reset')`.*
+
+  *2026-10-13 — the `SELECT_CHANGES` known limit is closed: an integration suite now
+  exists, `server/src/adapters/db/pg-change-reader.integration.test.ts` (14 tests, same
+  Testcontainers harness and `FIRE_WATCH_REQUIRE_DOCKER` convention as the snapshot
+  reader's). It covers the mark (empty registry reads as 0 with the no-change marker, a
+  cursor at the mark is empty, the mark equals the snapshot's and is global across a
+  short page), `seq` ordering (inserts in order, an update moves the row behind every
+  earlier write via 004's trigger, a bookkeeping write moves nothing), the exclusive
+  cursor, rows leaving the map (tier change, invalidation and merge all surface as
+  changes), the `merged_into` self-join (survivor's public id not the bigint key, several
+  losers into one survivor, one hop only — a survivor merged later neither re-emits nor
+  re-points its losers) and paging (limit caps the page, paging from the last row's `seq`
+  until a short page visits every row exactly once across `seq` holes, an even split ends
+  with an empty page). Run on colima `fwtest`: 2 files (with the snapshot reader's suite),
+  29/29 passed. No bug found.*
 - [ ] **E3 — R2 static mirror (T2) + age monitor.** Spec: ADR-003 D1 (T2 row) as
   amended by A15 (A1.2 — the flip is client-side, never a Worker route);
   14 E-minor. Needs: E1. Upload job, second hostname, object-age monitor.
