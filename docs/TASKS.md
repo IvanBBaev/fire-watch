@@ -6,6 +6,118 @@ amendment plans in `reviews/13-second-round-audit.md` §3 and
 never overrides them; if executing a task would contradict an ADR, stop and flag
 instead of writing.*
 
+<!-- release-progress:begin -->
+## Release progress (Opus 5.5 hours)
+
+> Maintained by the `relase-opus-5-5-persentage` skill. Unit: wall-clock hours
+> of one autonomous Opus 5.5 session at this project's gate standard.
+> Numbers are computed by the skill's script from the table below.
+
+| | |
+|---|---|
+| Release target | `public launch, May 2027` — all GATES §3 launch gates green, CP2 recorded (IMPLEMENTATION-PLAN WP9) (current version `0.0.0`) |
+| Progress | **71.9 %** — 442.4 h of 615 h earned |
+| Remaining | **172.6 h** Opus 5.5 (31.5 h workable now, 141.1 h blocked) |
+| Blocked by | external accounts/hosts (FIRMS MAP_KEY, Hetzner VM + staging, R2/Cloudflare, EUMETSAT/LSA SAF, CORINE/CDS, VAPID, domain); founder decisions (copy keys, thresholds, D-track fixture picks, FIT_DECISIONS, H4 breaker floor); legal (ЕООД, lawyer, DPAs); the live 2026/2027 seasons (CP1, live shadow, beta cohort) |
+| Calibration | WORKLOG 2026-10: C1 config digest ≈ 2–3 h, H5 SES/SNS hook ≈ 3–4 h, D7 fit machinery ≈ 6–8 h, wave-6/7 slices ≈ 1–2 h each; map items F14–F18 ≈ 4–8 h each |
+| Updated | 2026-10-13 at `fb97640` |
+
+Partially built unticked tasks are split: their committed, green parts are earned in
+the per-track `*-built` rows; each task's remainder is its own row. `L*` rows are
+GATES §3 launch gates with no TASKS item yet.
+
+| ID | Item | Source | Status | Est h |
+|---|---|---|---|---|
+| A | Track A — corpus amendments A1–A23 | TASKS.md:219 | `done` | 35 |
+| B | Track B — WP0 scaffolding B1–B7 | TASKS.md:445 | `done` | 22 |
+| C2 | C2 — CSV validation, quarantine, anomaly breaker leg | TASKS.md:594 | `done` | 5 |
+| D-done | D2, D3, D9, D12 — identity, lifecycle, score, metrics base | TASKS.md:842–1328 | `done` | 26 |
+| E-done | E2, E5 — T0 snapshot path, safety banner contract | TASKS.md:1478, 1593 | `done` | 18 |
+| F-done | F1–F3, F5–F7, F9 — map frontend, a11y, keyless FIRMS | TASKS.md:1676–1970 | `done` | 42 |
+| G-done | G2, G4 — real Protomaps tiles + glyphs, style registry | TASKS.md:2049, 2070 | `done` | 8.5 |
+| H-done | H1–H3, H6 — alert engine, live evaluation, banner contract | TASKS.md:2142–2336 | `done` | 36 |
+| B-built | Built, committed and green parts of unticked B8, B9 | TASKS.md Track B status notes | `done` | 10.6 |
+| C-built | Built, committed and green parts of unticked C1, C3, C3a, C4, C5, C6, C7, C8, C9 | TASKS.md Track C status notes | `done` | 40.1 |
+| D-built | Built, committed and green parts of unticked D1, D4, D5, D6, D7, D8, D10 | TASKS.md Track D status notes | `done` | 43.3 |
+| E-built | Built, committed and green parts of unticked E1, E3, E4, E6 | TASKS.md Track E status notes | `done` | 20.5 |
+| F-built | Built, committed and green parts of unticked F4, F8, F10, F11, F12, F13, F14, F15, F16, F17, F18 | TASKS.md Track F status notes | `done` | 52.6 |
+| G-built | Built, committed and green parts of unticked G1, G3, G5, G6 | TASKS.md Track G status notes | `done` | 15.1 |
+| H-built | Built, committed and green parts of unticked H4, H5, H7, H8 | TASKS.md Track H status notes | `done` | 17 |
+| I-built | Built, committed and green parts of unticked I1, I2, I3, I4, I5, I6, I7 | TASKS.md Track I status notes | `done` | 30 |
+| J-built | Built, committed and green parts of unticked J1, J2, J3, J4, J5 | TASKS.md Track J status notes | `done` | 16.5 |
+| K-built | Built, committed and green parts of unticked K2 | TASKS.md Track K status notes | `done` | 4.2 |
+| B8 | B8 remainder: real archive download — FIRMS MAP_KEY + archive host | TASKS.md:522 | `blocked-external` | 0.7 |
+| B9 | B9 remainder: first real VM run — Hetzner account + §9 delivery choice | TASKS.md:533 | `blocked-external` | 0.8 |
+| C1 | C1 remainder: run on deployed VM — MAP_KEY + VM | TASKS.md:549 | `blocked-external` | 0.2 |
+| C3 | C3 remainder: real LSA SAF GEO ingest — EUMETSAT/LSA SAF credentials | TASKS.md:599 | `blocked-external` | 2.7 |
+| C3a | C3a remainder: real LSA-502 granule + worker wiring — LSA SAF credentials | TASKS.md:610 | `blocked-external` | 1.3 |
+| C4 | C4 remainder: VM recording run, serve TTL, healthchecks slug — VM + hc account | TASKS.md:618 | `blocked-external` | 0.8 |
+| C5 | C5 remainder: monitoring accounts, sweeper, WAL-lag — host + accounts; founder thresholds | TASKS.md:633 | `blocked-external` | 1.4 |
+| C6 | C6 remainder: scratch-VM restore, R2, second copy — R2 + host; founder retention | TASKS.md:651 | `blocked-external` | 2.3 |
+| C7 | C7 remainder: dry-run on a real backfill month — needs B8 data | TASKS.md:674 | `blocked-external` | 0.4 |
+| C8 | C8 remainder: EFFIS/EUMETSAT licence text — Data Store registration; founder wording | TASKS.md:694 | `blocked-external` | 0.6 |
+| C9 | C9 remainder: week-one parity run — host + MAP_KEY; founder tolerances | TASKS.md:775 | `blocked-external` | 1 |
+| D1 | D1 remainder: fixture half + 19 open decisions — D5 fixtures, founder | TASKS.md:792 | `blocked-owner` | 1.2 |
+| D4 | D4 remainder: WP1 validation on real arrival times — live data | TASKS.md:887 | `blocked-external` | 0.8 |
+| D5 | D5 remainder: candidate picks, recut, S3/S4 — founder picks; measured lag | TASKS.md:950 | `blocked-owner` | 3 |
+| D6 | D6 remainder: S10 re-author — founder alert-before-quarantine call | TASKS.md:1042 | `blocked-owner` | 0.7 |
+| D7 | D7 remainder: real fit run, commit clustering_params_v2 — DS-1/DS-3 data; FIT_DECISIONS review | TASKS.md:1149 | `blocked-external` | 2.5 |
+| D8 | D8 remainder: shadow-PCR, real weekly report — EFFIS perimeters + live season | TASKS.md:1189 | `blocked-external` | 1.4 |
+| D10 | D10 remainder: CORINE, ERA5 cloud join, runtime consumer — CORINE/CDS accounts | TASKS.md:1310 | `blocked-external` | 7.2 |
+| E1 | E1 remainder: final verification + tick (no blocker) | TASKS.md:1424 | `open` | 0.4 |
+| E3 | E3 remainder: bucket/hostname/token, frozen-ingest check — R2/Cloudflare account | TASKS.md:1541 | `blocked-external` | 1 |
+| E4 | E4 remainder: fleet observation in staging — staging host | TASKS.md:1556 | `blocked-external` | 0.8 |
+| E6 | E6 remainder: staging + real R2 failover run — staging + R2 | TASKS.md:1652 | `blocked-external` | 1.4 |
+| F4 | F4 remainder: armed staleness thresholds + copy — founder | TASKS.md:1772 | `blocked-owner` | 0.8 |
+| F8 | F8 remainder: real-basemap timing — G1 tile host | TASKS.md:1962 | `blocked-external` | 1 |
+| F10 | F10 remainder: 40 copy keys — founder copy review | TASKS.md:1978 | `blocked-owner` | 0.5 |
+| F11 | F11 remainder: 17 keys, FWI classes — founder | TASKS.md:1984 | `blocked-owner` | 0.9 |
+| F12 | F12 remainder: 27 keys, ON_DEMAND_DATA rule — founder | TASKS.md:1991 | `blocked-owner` | 0.5 |
+| F13 | F13 remainder: 8 keys, "seen" semantics — founder | TASKS.md:1998 | `blocked-owner` | 0.4 |
+| F14 | F14 remainder: 5 keys, speed ramp, credit — founder | TASKS.md:2004 | `blocked-owner` | 0.5 |
+| F15 | F15 remainder: keys, thresholds, CelesTrak terms — founder | TASKS.md:2011 | `blocked-owner` | 0.6 |
+| F16 | F16 remainder: override-vs-annotate policy, S3 — founder | TASKS.md:2018 | `blocked-owner` | 0.7 |
+| F17 | F17 remainder: 5 keys, okta thresholds — founder | TASKS.md:2028 | `blocked-owner` | 0.5 |
+| F18 | F18 remainder: real LFL lightning product — EUMETSAT account | TASKS.md:2034 | `blocked-external` | 1.1 |
+| G1 | G1 remainder: tile upload + full tiers — R2 bucket / tile host | TASKS.md:2046 | `blocked-external` | 1.8 |
+| G3 | G3 remainder: hosted DEM — DEM host; founder mirror location | TASKS.md:2053 | `blocked-external` | 1.3 |
+| G5 | G5 remainder: corner-credit wording — founder | TASKS.md:2089 | `blocked-owner` | 0.6 |
+| G6 | G6 remainder: usage.json writer, tile endpoint — imagery provider key; founder ceiling | TASKS.md:2111 | `blocked-external` | 1.3 |
+| H4 | H4 remainder: fixtures, rehearsal — founder breaker floor; staging; approval surface | TASKS.md:2263 | `blocked-owner` | 2.3 |
+| H5 | H5 remainder: L-5 physical-device test — VAPID keys + device (human act) | TASKS.md:2300 | `blocked-external` | 0.3 |
+| H7 | H7 remainder: explain route, missing codes — founder §5.5.6 shape / descope | TASKS.md:2353 | `blocked-owner` | 2.4 |
+| H8 | H8 remainder: nightly shadow report in staging — staging host | TASKS.md:2363 | `blocked-external` | 1 |
+| I1 | I1 remainder: OAuth, staff accounts, audit (mail sender/domain still founder) | TASKS.md:2382 | `open` | 6.3 |
+| I2 | I2 remainder: polygon edit, matcher — ЕООД before first stored zone (L-10) | TASKS.md:2395 | `blocked-owner` | 1.4 |
+| I3 | I3 remainder: mailer + Telegram bot wiring — founder bot identity + token | TASKS.md:2410 | `blocked-owner` | 2.5 |
+| I4 | I4 remainder: staging erasure drill, retentions — staging; founder retentions | TASKS.md:2427 | `blocked-external` | 0.8 |
+| I5 | I5 remainder: 29 keys, legal review — lawyer + controller entity | TASKS.md:2469 | `blocked-owner` | 1 |
+| I6 | I6 remainder: sign-offs — lawyer, signed DPAs, ЕООД, DPO | TASKS.md:2484 | `blocked-owner` | 2.5 |
+| I7 | I7 remainder: staging drill run — staging host | TASKS.md:2500 | `blocked-external` | 0.6 |
+| J1 | J1 remainder: synthetic canary, meta-alert route (thresholds still founder) | TASKS.md:2506 | `open` | 2.8 |
+| J2 | J2 remainder: real RTO runs — staging + R2 | TASKS.md:2517 | `blocked-external` | 0.8 |
+| J3 | J3 remainder: season-tested runbook revision — season experience | TASKS.md:2522 | `blocked-external` | 1.2 |
+| J4 | J4 remainder: real deploy step, secrets — production host | TASKS.md:2532 | `blocked-external` | 1.8 |
+| J5 | J5 remainder: status hosting, DNS/DMARC — real domain + status host | TASKS.md:2542 | `blocked-external` | 2 |
+| K2 | K2 remainder: staging behind Cloudflare, measured baseline — staging + CF + generators | TASKS.md:2550 | `blocked-external` | 2.8 |
+| D11 | CP1 evaluation run and dated report | TASKS.md:1325 | `blocked-external` | 8 |
+| H9 | Live shadow Mar–Apr 2027 + staged enablement | TASKS.md:2375 | `blocked-external` | 12 |
+| K1 | Beta ≥ 500 users + CP2 instrumentation | TASKS.md:2548 | `blocked-owner` | 17 |
+| K3 | Launch checklist: fire drill L-11, legal L-10, Galileo | TASKS.md:2564 | `blocked-owner` | 10 |
+| K4 | Public launch (pre-season, May 2027) | TASKS.md:2566 | `blocked-owner` | 5 |
+| L4 | Per-season kill-switch rehearsal (no own task) | GATES.md §3 L-4 | `blocked-external` | 4 |
+| L6 | SES production-quota raise (human act) | GATES.md §3 L-6 | `blocked-owner` | 1 |
+| L7 | Correctness metrics as a launch gate (no own task) | GATES.md §3 L-7 | `blocked-external` | 4 |
+| L13 | v1 score calibration: ECE ≤ 0.07, Platt, bucket thresholds | GATES.md §3 L-13 | `blocked-external` | 8 |
+| L14 | 2027-constellation replay (no own task) | GATES.md §3 L-14 | `open` | 6 |
+| L15 | Editorial standard + WP6 admin/approval form + curated_correction rehearsal | GATES.md §3 L-15 | `open` | 12 |
+| L16 | Accessibility statement + dated manual AT pass (M-1..M-3) | GATES.md §3 L-16 | `open` | 4 |
+| L17 | Restore-proven single deploy path (no own task) | GATES.md §3 L-17 | `blocked-external` | 4 |
+
+### History
+- 2026-10-13 `fb97640` — 71.9 %, 172.6 h left (first run; baseline 50/109 TASKS ticked plus built parts of the unticked; 8 GATES §3 launch gates without a TASKS item added as L-rows)
+<!-- release-progress:end -->
+
 ## 0. Execution contract (read first, applies to every task)
 
 Each task is written so a single agent can execute it in one session with no
