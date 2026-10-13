@@ -731,3 +731,16 @@ real because the host is code; the drill in §6.3 is what catches drift.
    path — a recovered VM with unrecovered DNS still cannot deliver an alert.
 6. Quota alarms are mandatory where a free tier has a cliff (imagery tiles, CDSE, SES,
    R2 operations); each alarm has a named owner in `EXTERNAL-ACCOUNTS.md`.
+7. **SES bounce and complaint feedback** (04-sre §5 deliverability hygiene). SES publishes
+   Bounce and Complaint events (configuration-set event destination or identity
+   notifications) to one standard SNS topic, whose HTTPS subscription points at
+   `POST /api/v1/hooks/ses-feedback`; the API registers that route only when
+   `FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN` names the topic (a `404` otherwise). Signature
+   version 2 (SHA-256) is recommended on the topic. A permanent bounce or a complaint
+   revokes every live email subscription for the address; transient bounces are ignored.
+   The route is exempt from the probe limiter, and the Cloudflare `/api/*` rule (item 3)
+   must exempt the hook path too — a throttled delivery is a lost bounce once SNS stops
+   retrying. Status codes are SNS's retry contract: `401`/`400` are never retried, `500`
+   (certificate fetch, database) is. Each delivery logs one `ses_feedback` event with
+   SNS/SES ids, types and counts only, never an address; a run of `refused` events is
+   either probing or a topic misconfiguration.

@@ -198,6 +198,16 @@ export interface ServerConfig {
    * The pair is a credential and is never logged.
    */
   readonly lightning: LightningConfig | null;
+  /**
+   * The SNS topic SES bounce and complaint feedback is published to (TASKS H5 follow-up,
+   * `FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN`), or `null` when there is none. Set, the API
+   * registers `POST /api/v1/hooks/ses-feedback` and accepts only SNS messages signed by AWS
+   * *for this topic* — the ARN is the one value that ties a validly signed message to us,
+   * since anyone can create an SNS topic and point it at a public URL. Unset, the route does
+   * not exist (404). Standard topics only: SES cannot publish to a FIFO topic. Not a secret
+   * (an ARN grants nothing), so it is logged.
+   */
+  readonly sesFeedbackTopicArn: string | null;
 }
 
 export interface LightningConfig {
@@ -364,7 +374,27 @@ export function loadConfig(env: Environment, applicationName = 'fire-watch'): Se
     },
     auth: readAuth(env),
     lightning: readLightning(env),
+    sesFeedbackTopicArn: readSesFeedbackTopicArn(env['FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN']?.trim()),
   };
+}
+
+/**
+ * `arn:<partition>:sns:<region>:<12-digit account>:<topic>` — a standard topic's name is
+ * 1–256 letters, digits, hyphens and underscores, so a `.fifo` name (which SES cannot
+ * publish to) is refused here rather than by a route that would never hear anything.
+ */
+const SNS_TOPIC_ARN_RE =
+  /^arn:aws(?:-[a-z]+)*:sns:[a-z]{2}(?:-[a-z]+)+-\d:\d{12}:[A-Za-z0-9_-]{1,256}$/u;
+
+function readSesFeedbackTopicArn(raw: string | undefined): string | null {
+  if (raw === undefined || raw === '') return null;
+  if (!SNS_TOPIC_ARN_RE.test(raw)) {
+    throw new ConfigError(
+      'FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN is not a standard SNS topic ARN ' +
+        '(arn:aws:sns:<region>:<account id>:<topic name>).',
+    );
+  }
+  return raw;
 }
 
 function readLightning(env: Environment): LightningConfig | null {
@@ -903,6 +933,8 @@ export function describeConfig(config: ServerConfig): Record<string, string> {
     // Whether, never which: the key pair is a credential. The base URL is an open endpoint.
     lightning:
       config.lightning === null ? '<not configured>' : `<configured, ${config.lightning.baseUrl}>`,
+    // Not a secret: an ARN grants nothing, and it is what "why is no feedback arriving" needs.
+    ses_feedback_topic: config.sesFeedbackTopicArn ?? '<not configured>',
   };
 }
 

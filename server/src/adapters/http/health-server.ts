@@ -95,6 +95,7 @@ import {
   registerWindOverlayRoute,
   type WindOverlayRouteDeps,
 } from './wind-overlay-route.js';
+import { SES_FEEDBACK_PATH } from './ses-feedback-route.js';
 import { SNAPSHOT_PATH, registerSnapshotRoute, type SnapshotRouteDeps } from './snapshot-route.js';
 import { STREAM_PATH, registerStreamRoute, type StreamRouteDeps } from './stream-route.js';
 
@@ -278,8 +279,11 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     noStore(reply);
     // Liveness is exempt from the limiter: it answers from memory and costs nothing, and
     // a 429'd liveness probe turns a harmless flood into a restart loop — the exact
-    // failure the route exists to prevent. Everything else, 404s included, pays.
-    if (request.routeOptions.url === LIVENESS_PATH) {
+    // failure the route exists to prevent. The SES feedback hook is exempt too: SNS
+    // delivers from a handful of AWS addresses, so a per-IP budget would throttle all of
+    // AWS at once, and a 429 there is a bounce we never hear about (ses-feedback-route.ts).
+    // Everything else, 404s included, pays.
+    if (matched === LIVENESS_PATH || matched === SES_FEEDBACK_PATH) {
       done();
       return;
     }

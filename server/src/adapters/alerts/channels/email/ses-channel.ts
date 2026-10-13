@@ -28,8 +28,10 @@
  * Nothing here ever returns `prune` for something SES said: SES accepts a syntactically
  * valid address it has never seen and only later learns it bounces. Bounces and
  * complaints arrive asynchronously through SNS (04-sre §5 "deliverability hygiene"), and
- * the handler that turns them into `prune` is not this adapter — it is the piece H5
- * leaves open and OPERATIONS names. The one `prune` this adapter does return is for a
+ * the handler that acts on them is not this adapter: `adapters/http/ses-feedback-route.ts`
+ * verifies the SNS delivery, `core/alerts/email-feedback.ts` decides which addresses to
+ * suppress, and `adapters/db/pg-email-suppression.ts` revokes their subscriptions, so
+ * dispatch stops resolving them. The one `prune` this adapter does return is for a
  * stored address that is not an address at all, which no future event will fix.
  *
  * The secret access key is scrubbed from every error; the access key id is not a

@@ -776,3 +776,46 @@ describe('loadConfig — sign-in (I1)', () => {
     expect(describeConfig(loadConfig(env()))['auth_mail']).toBe('<not enabled>');
   });
 });
+
+describe('loadConfig — SES feedback topic (H5 follow-up)', () => {
+  const ARN = 'arn:aws:sns:eu-central-1:123456789012:fire-watch-ses-feedback';
+
+  it('has no topic, and so no route, unless one is set', () => {
+    expect(loadConfig(env()).sesFeedbackTopicArn).toBeNull();
+    expect(loadConfig(env({ FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN: '  ' })).sesFeedbackTopicArn).toBe(
+      null,
+    );
+    expect(describeConfig(loadConfig(env()))['ses_feedback_topic']).toBe('<not configured>');
+  });
+
+  it('reads a standard topic ARN in any partition, trimmed', () => {
+    expect(
+      loadConfig(env({ FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN: ` ${ARN} ` })).sesFeedbackTopicArn,
+    ).toBe(ARN);
+    const gov = 'arn:aws-us-gov:sns:us-gov-west-1:123456789012:feedback_topic';
+    expect(loadConfig(env({ FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN: gov })).sesFeedbackTopicArn).toBe(
+      gov,
+    );
+    expect(
+      describeConfig(loadConfig(env({ FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN: ARN })))[
+        'ses_feedback_topic'
+      ],
+    ).toBe(ARN);
+  });
+
+  it('refuses anything that is not a standard SNS topic ARN, by name', () => {
+    for (const raw of [
+      'fire-watch-ses-feedback',
+      'arn:aws:sns:eu-central-1:123456789012:feedback.fifo',
+      'arn:aws:sqs:eu-central-1:123456789012:feedback',
+      'arn:aws:sns:eu-central-1:12345:feedback',
+      'arn:aws:sns:eu-central-1:123456789012:',
+      'arn:aws:sns:eu-central-1:123456789012:a/b',
+      `arn:aws:sns:eu-central-1:123456789012:${'x'.repeat(257)}`,
+    ]) {
+      expect(() => loadConfig(env({ FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN: raw })), raw).toThrow(
+        /FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN/,
+      );
+    }
+  });
+});

@@ -109,6 +109,7 @@ import { wireAuthRoutes } from './auth-wiring.js';
 import type { ServerConfig } from './config.js';
 import { loadImageryConfig } from './imagery-config.js';
 import type { ProcessLog } from './logging.js';
+import { wireSesFeedbackRoute } from './ses-feedback-wiring.js';
 
 /** §2.2 rule 5. Half of it is the answer budget; the rest is connect, serialize and write. */
 export const HEALTH_STATEMENT_TIMEOUT_MS = 1_000;
@@ -377,6 +378,8 @@ export function wireHealthServer(
     onProblem,
     zoneKeyring: options.zoneKeyring ?? null,
   });
+  // SES bounce/complaint feedback: registered only with FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN.
+  const sesFeedback = wireSesFeedbackRoute(app, config, { log, onProblem });
 
   // A failed tick is a log line, never a crash: the cursor stays put and the next tick
   // retries. The rendering goes through the redactor because a driver error can quote the
@@ -420,7 +423,13 @@ export function wireHealthServer(
       } finally {
         // Unconditionally, even when the server refuses to close: pg keeps idle clients'
         // sockets ref'd, and a pool that is never ended is a process that never exits.
-        await Promise.all([pool.end(), snapshotPool.end(), streamPool.end(), auth.close()]);
+        await Promise.all([
+          pool.end(),
+          snapshotPool.end(),
+          streamPool.end(),
+          auth.close(),
+          sesFeedback.close(),
+        ]);
       }
     },
   };
