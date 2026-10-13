@@ -20,8 +20,9 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 
+import { demBounds, type DemBounds, readDemManifest } from './dem-mirror.js';
 import { DEM_PREFIX } from './tile-plan.js';
 
 /** The URL prefix both sides agree on; the client builds its templates from it. */
@@ -36,6 +37,11 @@ export interface LocalTiles {
   readonly glyphsVersion: string;
   /** `<dem work>/dem/terrarium`, or `null` when no DEM mirror is present. */
   readonly demDir: string | null;
+  /**
+   * The mirror's extent from its manifest (`<dem work>/dem/manifest.json`), handed to the
+   * client as the DEM source's `bounds`; `null` without a mirror or without a manifest.
+   */
+  readonly demBounds: DemBounds | null;
 }
 
 /** The newest `<version>` directory under `dir` (versions are dates, so names sort). */
@@ -63,7 +69,26 @@ export function resolveLocalTiles(workDir: string, version?: string, demWorkDir?
   for (const dir of [tilesDir, glyphsDir]) {
     if (!existsSync(dir)) throw new Error(`${dir} does not exist`);
   }
-  return { tilesDir, glyphsDir, tilesVersion, glyphsVersion, demDir: resolveLocalDem(root, demWorkDir) };
+  const demDir = resolveLocalDem(root, demWorkDir);
+  return {
+    tilesDir,
+    glyphsDir,
+    tilesVersion,
+    glyphsVersion,
+    demDir,
+    demBounds: demDir === null ? null : localDemBounds(demDir),
+  };
+}
+
+/**
+ * The extent of the mirror at `demDir` (`<dem work>/dem/terrarium`): the union of the tiers
+ * its manifest records, which is what `dem-mirror` fetched. No manifest (a tree copied
+ * without one) is `null` — the source then has no `bounds`, as before; a manifest that
+ * does not parse throws, like every other misconfiguration here.
+ */
+export function localDemBounds(demDir: string): DemBounds | null {
+  const manifest = readDemManifest(dirname(dirname(demDir)));
+  return manifest === null ? null : demBounds(manifest.tiers);
 }
 
 /**

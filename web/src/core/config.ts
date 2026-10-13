@@ -110,6 +110,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
     tilesUrl: null,
     glyphsUrl: null,
     demTilesUrl: null,
+    demBounds: null,
     maxzoom: 14,
   },
 };
@@ -154,20 +155,38 @@ const LOOPBACK_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/u;
  * Terrarium mirror (`cli.js dem-mirror`) is being served beside the tiles; then
  * `demTilesUrl` points at it and the style draws hillshade (and the terrain credits follow,
  * `layer:terrain`). Anything else leaves `demTilesUrl` null — no hillshade, no 404s.
+ *
+ * `rawDemBounds` is `VITE_FIRE_WATCH_LOCAL_DEM_BOUNDS`, `west,south,east,north` from the
+ * served mirror's manifest (`infra/tiles/dev-serve.ts` localDemBounds); it becomes
+ * `demBounds` only beside a DEM and only when it parses, otherwise `null` (no `bounds`).
  */
 export function readLocalTiles(
   raw: string | undefined,
   origin: string,
   rawDem?: string,
+  rawDemBounds?: string,
 ): OutdoorBasemapConfig | null {
   const prefix = raw?.trim() ?? '';
   if (!/^\/[\w-]+$/u.test(prefix) || !LOOPBACK_ORIGIN.test(origin)) return null;
+  const dem = rawDem?.trim() === '1';
   return {
     tilesUrl: `${origin}${prefix}/tiles/{z}/{x}/{y}.mvt`,
     glyphsUrl: `${origin}${prefix}/fonts/{fontstack}/{range}.pbf`,
-    demTilesUrl: rawDem?.trim() === '1' ? `${origin}${prefix}/dem/terrarium/{z}/{x}/{y}.png` : null,
+    demTilesUrl: dem ? `${origin}${prefix}/dem/terrarium/{z}/{x}/{y}.png` : null,
+    demBounds: dem ? parseBounds(rawDemBounds) : null,
     maxzoom: 14,
   };
+}
+
+/** `west,south,east,north` → a 4-tuple of finite numbers, or `null`. Range checks live in `outdoorConfigProblem`. */
+function parseBounds(raw: string | undefined): readonly [number, number, number, number] | null {
+  const parts = (raw ?? '').split(',').map((part) => part.trim());
+  if (parts.length !== 4 || parts.some((part) => part === '')) return null;
+  const [west, south, east, north] = parts.map(Number);
+  if (west === undefined || south === undefined || east === undefined || north === undefined)
+    return null;
+  const bounds = [west, south, east, north] as const;
+  return bounds.every(Number.isFinite) ? bounds : null;
 }
 
 /** `config` drawing the outdoor style from local tiles, or unchanged when there are none. */

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createPacer,
+  demBounds,
   DEM_MANIFEST_FORMAT,
   DEM_MAXZOOM,
   DEM_SOURCE,
@@ -70,6 +71,15 @@ describe('DEM tile plan (TASKS G3)', () => {
     expect(() => demTiers([{ ...BG_BORDER, minzoom: 13 }], 12)).toThrow(/no tier/);
     expect(() => demTiers([BG_BORDER], 16)).toThrow(RangeError);
     expect(() => demTiers([BG_BORDER], 1.5)).toThrow(RangeError);
+  });
+
+  it('derives the client bounds from the tiers: the box around all of them, never a guess', () => {
+    expect(demBounds(demTiers([EUROPE, BG_BORDER]))).toEqual([-25, 34, 45, 72]);
+    expect(demBounds([BG_BORDER])).toEqual([22.3, 40.4, 28.7, 44.3]);
+    const east: ExtractTier = { ...BG_BORDER, name: 'east', bbox: { west: 30, south: 39, east: 31, north: 46 } };
+    expect(demBounds([BG_BORDER, east])).toEqual([22.3, 39, 31, 46]);
+    expect(() => demBounds([])).toThrow(/no extent/);
+    expect(() => demBounds([{ ...BG_BORDER, bbox: { ...BG_BORDER.bbox, west: 29 } }])).toThrow(RangeError);
   });
 
   it('counts the real bg-border plan: 4514 tiles at z12, as the vector build saw', () => {

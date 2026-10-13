@@ -18,7 +18,8 @@ import {
  * it (`core/config.ts` readLocalTiles). `FIRE_WATCH_LOCAL_TILES_VERSION` pins a version.
  * A Terrarium mirror (`infra/tiles` `dem-mirror`) under `<dir>/dem/terrarium`, or under
  * `FIRE_WATCH_LOCAL_DEM_DIR` when it was fetched elsewhere, is served too and sets
- * `VITE_FIRE_WATCH_LOCAL_DEM`, which turns hillshade on.
+ * `VITE_FIRE_WATCH_LOCAL_DEM`, which turns hillshade on; the extent its manifest records
+ * goes along as `VITE_FIRE_WATCH_LOCAL_DEM_BOUNDS` (the DEM source's `bounds`).
  * Unset — CI, e2e, every deploy — no plugin, no define: the default basemap is untouched.
  */
 function localTiles(
@@ -41,6 +42,11 @@ function localTiles(
           'import.meta.env.VITE_FIRE_WATCH_LOCAL_TILES': JSON.stringify(LOCAL_TILES_PREFIX),
           ...(local.demDir !== null && {
             'import.meta.env.VITE_FIRE_WATCH_LOCAL_DEM': JSON.stringify('1'),
+          }),
+          ...(local.demBounds !== null && {
+            'import.meta.env.VITE_FIRE_WATCH_LOCAL_DEM_BOUNDS': JSON.stringify(
+              local.demBounds.join(','),
+            ),
           }),
         },
       }),

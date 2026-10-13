@@ -5,7 +5,8 @@ import { gzipSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
-import { localTilesResponse, resolveLocalDem, resolveLocalTiles } from './dev-serve.js';
+import { demTiers, emptyDemManifest, writeDemManifest } from './dem-mirror.js';
+import { localDemBounds, localTilesResponse, resolveLocalDem, resolveLocalTiles } from './dev-serve.js';
 
 /** A work directory shaped like `build.sh` leaves it: two tile versions, one glyph build. */
 function workDir(): string {
@@ -60,6 +61,23 @@ describe('local tile serving (TASKS G3)', () => {
     expect(resolveLocalTiles(root, undefined, dem).demDir).toBe(join(dem, 'dem', 'terrarium'));
     mkdirSync(join(root, 'dem', 'terrarium'), { recursive: true });
     expect(resolveLocalDem(root)).toBe(join(root, 'dem', 'terrarium'));
+  });
+
+  it("hands the client the mirror's extent from its manifest, and none without one", () => {
+    const root = workDir();
+    expect(resolveLocalTiles(root).demBounds).toBeNull();
+    const dem = mkdtempSync(join(tmpdir(), 'fire-watch-local-dem-'));
+    mkdirSync(join(dem, 'dem', 'terrarium'), { recursive: true });
+    expect(resolveLocalTiles(root, undefined, dem).demBounds).toBeNull();
+    const tiers = demTiers([
+      { name: 'europe', bbox: { west: -25, south: 34, east: 45, north: 72 }, minzoom: 0, maxzoom: 6 },
+      { name: 'bg-border', bbox: { west: 22.3, south: 40.4, east: 28.7, north: 44.3 }, minzoom: 0, maxzoom: 14 },
+    ]);
+    writeDemManifest(dem, emptyDemManifest(tiers, 12, new Date(0)));
+    expect(resolveLocalTiles(root, undefined, dem).demBounds).toEqual([-25, 34, 45, 72]);
+    expect(localDemBounds(join(dem, 'dem', 'terrarium'))).toEqual([-25, 34, 45, 72]);
+    writeFileSync(join(dem, 'dem', 'manifest.json'), '{"format":"other"}');
+    expect(() => resolveLocalTiles(root, undefined, dem)).toThrow(/DEM manifest/);
   });
 
   it('serves Terrarium PNGs and answers 404 outside the mirror, never 204', () => {

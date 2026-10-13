@@ -20,6 +20,8 @@ export interface OutdoorStyleInputs {
   readonly tilesUrl: string;
   readonly glyphsUrl: string;
   readonly demTilesUrl: string | null;
+  /** The DEM source's `bounds` (`[west, south, east, north]`); `null` declares none. */
+  readonly demBounds: readonly [number, number, number, number] | null;
   readonly maxzoom: number;
 }
 
@@ -50,6 +52,25 @@ function templateProblem(
   return missing.length === 0 ? null : `${name} lacks ${missing.join(', ')}`;
 }
 
+/** Why `bounds` is not a usable `[west, south, east, north]` box in degrees, or `null`. */
+function boundsProblem(bounds: readonly number[]): string | null {
+  const [west, south, east, north] = bounds;
+  if (
+    bounds.length !== 4 ||
+    west === undefined ||
+    south === undefined ||
+    east === undefined ||
+    north === undefined ||
+    !bounds.every(Number.isFinite)
+  ) {
+    return 'demBounds must be four finite numbers [west, south, east, north]';
+  }
+  if (west < -180 || east > 180 || south < -90 || north > 90 || west >= east || south >= north) {
+    return 'demBounds must have -180 ≤ west < east ≤ 180 and -90 ≤ south < north ≤ 90';
+  }
+  return null;
+}
+
 /**
  * Why this config cannot build the outdoor style, or `null` when it can. "Not deployed"
  * (either required URL `null`) is a reason too — the caller falls back either way; the
@@ -66,6 +87,9 @@ export function outdoorConfigProblem(
     config.demTilesUrl === null
       ? null
       : templateProblem('demTilesUrl', config.demTilesUrl, ['{z}', '{x}', '{y}']),
+    config.demBounds === null || config.demBounds === undefined
+      ? null
+      : boundsProblem(config.demBounds),
     Number.isInteger(config.maxzoom) && config.maxzoom >= 0 && config.maxzoom <= 14
       ? null
       : 'maxzoom must be an integer in 0–14 (ADR-001 A1.1)',
@@ -87,9 +111,10 @@ export function activeBasemap(
   }
   const { tilesUrl, glyphsUrl, demTilesUrl, maxzoom } = outdoor;
   if (tilesUrl === null || glyphsUrl === null) return { kind: 'external', styleUrls };
+  const demBounds = demTilesUrl === null ? null : (outdoor.demBounds ?? null);
   return {
     kind: 'outdoor',
-    inputs: { tilesUrl, glyphsUrl, demTilesUrl, maxzoom },
+    inputs: { tilesUrl, glyphsUrl, demTilesUrl, demBounds, maxzoom },
     terrain: demTilesUrl !== null,
   };
 }

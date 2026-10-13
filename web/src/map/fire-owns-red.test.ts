@@ -151,6 +151,7 @@ const OUTDOOR_GATE_URLS: OutdoorStyleInputs = {
   tilesUrl: 'https://tiles.example.org/tiles/v/{z}/{x}/{y}.mvt',
   glyphsUrl: 'https://tiles.example.org/fonts/v/{fontstack}/{range}.pbf',
   demTilesUrl: 'https://tiles.example.org/dem/terrarium/{z}/{x}/{y}.png',
+  demBounds: null,
   maxzoom: 14,
 };
 const outdoorLayers = (['light', 'dark'] as const).flatMap(

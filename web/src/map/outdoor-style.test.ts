@@ -73,6 +73,9 @@ describe('resolveBasemapStyle — falls back until the tiles exist', () => {
         /glyphsUrl lacks \{fontstack\}/u,
       ],
       [{ demTilesUrl: '/dem/{z}/{x}/{y}.png' }, /demTilesUrl must be/u],
+      [{ demBounds: [45, 34, -25, 72] }, /demBounds must have/u],
+      [{ demBounds: [-25, 34, 45, 95] }, /demBounds must have/u],
+      [{ demBounds: [-25, 34, 45, Number.NaN] }, /demBounds must be four finite/u],
       [{ maxzoom: 15 }, /maxzoom/u],
     ];
     for (const [patch, reason] of cases) {
@@ -119,9 +122,37 @@ describe('outdoor style — structure', () => {
     expect(ids.indexOf('outdoor-hillshade')).toBeGreaterThan(ids.indexOf('outdoor-landuse'));
     expect(ids.indexOf('outdoor-hillshade')).toBeLessThan(ids.indexOf('outdoor-water'));
 
+    // No `bounds` without an extent in the config: absent and `null` both behave as before.
+    expect(
+      built('light', { ...DEPLOYED, demBounds: null }).sources[OUTDOOR_DEM_SOURCE_ID],
+    ).toStrictEqual(withDem.sources[OUTDOOR_DEM_SOURCE_ID]);
+
     const withoutDem = built('light', { ...DEPLOYED, demTilesUrl: null });
     expect(withoutDem.sources[OUTDOOR_DEM_SOURCE_ID]).toBeUndefined();
     expect(withoutDem.layers.some((layer) => layer.type === 'hillshade')).toBe(false);
+  });
+
+  it("declares the DEM mirror's extent as the source bounds, so no tile outside it is requested", () => {
+    // The box `dem-verify` prints for the 2026-10-10 local mirror (europe z0–6 + bg-border).
+    const demBounds = [-25, 34, 45, 72] as const;
+    for (const theme of THEMES) {
+      expect(built(theme, { ...DEPLOYED, demBounds }).sources[OUTDOOR_DEM_SOURCE_ID]).toStrictEqual(
+        {
+          type: 'raster-dem',
+          encoding: 'terrarium',
+          tiles: [DEPLOYED.demTilesUrl],
+          tileSize: 256,
+          maxzoom: 12,
+          bounds: [-25, 34, 45, 72],
+        },
+      );
+    }
+    // Bounds belong to the DEM only: the vector source is untouched, and without a DEM
+    // URL the extent is ignored rather than producing a source with nowhere to fetch from.
+    const style = built('light', { ...DEPLOYED, demBounds });
+    expect(style.sources[OUTDOOR_VECTOR_SOURCE_ID]).not.toHaveProperty('bounds');
+    const noDem = built('light', { ...DEPLOYED, demTilesUrl: null, demBounds });
+    expect(noDem.sources[OUTDOOR_DEM_SOURCE_ID]).toBeUndefined();
   });
 
   it('uses only its own sources, unique outdoor- ids, and never a fire-owned id', () => {

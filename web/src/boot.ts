@@ -76,6 +76,7 @@ async function boot(): Promise<void> {
           import.meta.env['VITE_FIRE_WATCH_LOCAL_TILES'] as string | undefined,
           location.origin,
           import.meta.env['VITE_FIRE_WATCH_LOCAL_DEM'] as string | undefined,
+          import.meta.env['VITE_FIRE_WATCH_LOCAL_DEM_BOUNDS'] as string | undefined,
         ),
       ),
     ),

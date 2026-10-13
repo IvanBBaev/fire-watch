@@ -255,6 +255,14 @@ export interface OutdoorBasemapConfig {
   readonly glyphsUrl: string | null;
   /** `…/dem/terrarium/{z}/{x}/{y}.png`; `null` renders the style without hillshade. */
   readonly demTilesUrl: string | null;
+  /**
+   * The DEM mirror's extent, `[west, south, east, north]` in degrees — the DEM source's
+   * `bounds`, so no tile outside the mirror is requested (each would be a 404). It comes
+   * from the mirror itself (`infra/tiles` `dem-verify` prints it from the manifest's tiers;
+   * the local dev server reads the same manifest), never from a box chosen in the client.
+   * Absent or `null`: no `bounds`, every DEM tile in view is requested, as before.
+   */
+  readonly demBounds?: readonly [number, number, number, number] | null;
   /** Deepest zoom in the tile tree; MapLibre overzooms past it (ADR-001 A1.1: 14). */
   readonly maxzoom: number;
 }

@@ -84,6 +84,7 @@ describe('local tiles (TASKS G3)', () => {
       tilesUrl: 'http://localhost:5173/__local-tiles/tiles/{z}/{x}/{y}.mvt',
       glyphsUrl: 'http://localhost:5173/__local-tiles/fonts/{fontstack}/{range}.pbf',
       demTilesUrl: null,
+      demBounds: null,
       maxzoom: 14,
     });
     const config = withLocalTiles(DEFAULT_CONFIG, local);
@@ -113,6 +114,23 @@ describe('local tiles (TASKS G3)', () => {
       kind: 'outdoor',
       terrain: true,
     });
+  });
+
+  it("passes the served mirror's extent through as demBounds, and nothing it cannot parse", () => {
+    const bounded = readLocalTiles('/__local-tiles', origin, '1', '-25,34,45,72');
+    expect(bounded?.demBounds).toEqual([-25, 34, 45, 72]);
+    const config = withLocalTiles(DEFAULT_CONFIG, bounded);
+    expect(activeBasemap(config.basemapStyleUrl, config.outdoorBasemap)).toMatchObject({
+      kind: 'outdoor',
+      inputs: { demBounds: [-25, 34, 45, 72] },
+    });
+    expect(readLocalTiles('/__local-tiles', origin, '1')?.demBounds).toBeNull();
+    expect(
+      readLocalTiles('/__local-tiles', origin, undefined, '-25,34,45,72')?.demBounds,
+    ).toBeNull();
+    for (const raw of ['', '1,2,3', '1,2,3,4,5', 'a,34,45,72', '-25,,45,72', 'Infinity,34,45,72']) {
+      expect(readLocalTiles('/__local-tiles', origin, '1', raw)?.demBounds, raw).toBeNull();
+    }
   });
 });
 

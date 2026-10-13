@@ -430,6 +430,9 @@ export function buildOutdoorStyle(
       tiles: [inputs.demTilesUrl],
       tileSize: DEM_TILE_SIZE,
       maxzoom: DEM_MAXZOOM,
+      // The mirror's extent (from its manifest, via config): MapLibre requests no DEM tile
+      // outside it, where each would be a 404. Absent, every tile in view is requested.
+      ...(inputs.demBounds !== null && { bounds: [...inputs.demBounds] }),
     };
   }
 

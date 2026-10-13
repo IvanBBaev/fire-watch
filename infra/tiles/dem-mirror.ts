@@ -86,6 +86,29 @@ export function demTiers(tiers: readonly ExtractTier[], maxzoom: number = DEM_MA
   return capped;
 }
 
+/** `[west, south, east, north]` in degrees — the order of a TileJSON / MapLibre `bounds`. */
+export type DemBounds = readonly [west: number, south: number, east: number, north: number];
+
+/**
+ * The extent the client's `raster-dem` source should declare as `bounds`: the smallest box
+ * holding every tier of the mirror (the tiers come from its manifest, so this is the
+ * extent actually fetched, not a box chosen here). MapLibre then requests no DEM tile that
+ * misses the box — past it every request would be a 404. `bounds` is one box for every
+ * zoom, so where tiers stop at different zooms (Europe to z8 around a Balkans tier to z12)
+ * the deeper zooms between the inner and outer box still miss; it removes the requests
+ * outside the mirror altogether, not every one at its inner edges.
+ */
+export function demBounds(tiers: readonly ExtractTier[]): DemBounds {
+  if (tiers.length === 0) throw new RangeError('a DEM mirror without tiers has no extent');
+  tiers.forEach(assertTier);
+  return [
+    Math.min(...tiers.map((tier) => tier.bbox.west)),
+    Math.min(...tiers.map((tier) => tier.bbox.south)),
+    Math.max(...tiers.map((tier) => tier.bbox.east)),
+    Math.max(...tiers.map((tier) => tier.bbox.north)),
+  ];
+}
+
 /**
  * The upload of a finished mirror: `<work>/dem/terrarium` to the bucket's `dem/terrarium/`
  * (the key `clientUrlTemplates` points `demTilesUrl` at), PNG + immutable. Unversioned,

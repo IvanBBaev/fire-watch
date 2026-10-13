@@ -29,6 +29,7 @@ import { parseArgs } from 'node:util';
 import {
   DEM_MAXZOOM,
   DEM_SOURCE,
+  demBounds,
   type DemFetchResponse,
   demManifestPath,
   demSizeOnDisk,
@@ -314,6 +315,7 @@ function commandUploadPlan(args: string[]): number {
       `#   tilesUrl:    ${templates.tilesUrl}`,
       `#   glyphsUrl:   ${templates.glyphsUrl}`,
       `#   demTilesUrl: ${templates.demTilesUrl}   (only once the DEM mirror exists; null keeps hillshade off)`,
+      '#   demBounds:   the extent `dem-verify` prints (null requests DEM tiles everywhere)',
     );
   }
   process.stdout.write(`${out.join('\n')}\n`);
@@ -394,6 +396,7 @@ async function commandDemMirror(args: string[]): Promise<number> {
       (tier) =>
         `- ${tier.name}: bbox ${tier.bbox.west},${tier.bbox.south},${tier.bbox.east},${tier.bbox.north} z${tier.minzoom}–z${tier.maxzoom}`,
     ),
+    `extent:  ${demBounds(tiers).join(',')} (ClientConfig.outdoorBasemap.demBounds)`,
     '',
     '# Distinct tiles per zoom',
     ...estimate.byZoom.map((row) => `  z${row.z}: ${row.tiles}`),
@@ -464,7 +467,8 @@ function commandDemVerify(args: string[]): number {
   }
   const summary = summarizeDemManifest(manifest);
   process.stdout.write(
-    `dem-verify: ${summary.tiles} tiles z0–z${manifest.maxzoom}, ${megabytes(summary.bytes)}; every planned tile is on disk, matches its sha256 and is a 256 px Terrarium PNG\n`,
+    `dem-verify: ${summary.tiles} tiles z0–z${manifest.maxzoom}, ${megabytes(summary.bytes)}; every planned tile is on disk, matches its sha256 and is a 256 px Terrarium PNG\n` +
+      `dem-verify: set ClientConfig.outdoorBasemap.demBounds to [${demBounds(manifest.tiers).join(', ')}] beside demTilesUrl\n`,
   );
   return 0;
 }
