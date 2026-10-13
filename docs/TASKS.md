@@ -1959,6 +1959,19 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   exactly those three places. Two findings stay open: `web/src/ui/status/status.css`
   hardcodes light-only hex while the shell is tokenised, and a skip-to-list link
   would need new bg+en copy, which the frozen GLOSSARY makes a founder decision.*
+  *2026-10-13 — `web/src/ui/status/status.css` is tokenised: the banner and the
+  fresh/aging/stale chips read the shell tokens in `web/src/styles.css`, so dark mode
+  (both `prefers-color-scheme` and `[data-theme='dark']`) now covers them. Mapping:
+  banner and aging chip → `--color-banner-text/-bg/-border`, fresh chip →
+  `--color-badge-text/-bg`, stale chip → new pair `--color-badge-stale-bg/-text`
+  (light `#dfe3e6`/`#43494e`, unchanged; dark `#3a4046`/`#dde1e5`), neutral gray, so
+  CI-14's register is unchanged. The shell's own `.fw-chip--stale` rule now reads the
+  same pair (it had painted stale amber). Light banner/fresh/aging shift to the shell
+  values (e.g. banner bg `#faf0d1` → `#fdf3d7`). WCAG contrast (light / dark): banner
+  and aging 8.69 / 9.93, fresh 7.51 / 7.77, stale 7.07 / 7.98, guarded by
+  `web/src/ui/status/status-contrast.test.ts` (no literals in status.css, dark blocks
+  agree, every read token overridden in dark, every pair ≥ 4.5:1 in both themes) over
+  a new `contrastRatio` in `web/src/core/color/color.ts`. Open: the skip-to-list copy.*
 - [ ] **F8 — Budgets + Lighthouse + fire-owns-red.** Spec: IP WP4 DoD. Needs:
   F1–F7. CI-12 real budgets, map-ready ≤6 s 4G / ≤15 s 3G, CI-14. **Done when:**
   all three green in CI.

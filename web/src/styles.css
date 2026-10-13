@@ -19,12 +19,14 @@
   --color-link: #1a5276;
   --color-focus: #1a5276;
 
-  /* Neutral status palette — amber for degraded, gray for stale/idle. */
+  /* Neutral status palette — amber for degraded, gray for stale/idle (status.css reads these). */
   --color-banner-bg: #fdf3d7;
   --color-banner-border: #b98a00;
   --color-banner-text: #574200;
   --color-badge-bg: #ece9e4;
   --color-badge-text: #44494e;
+  --color-badge-stale-bg: #dfe3e6;
+  --color-badge-stale-text: #43494e;
 
   --color-overlay: rgba(31, 36, 40, 0.55);
 
@@ -46,6 +48,8 @@
     --color-banner-text: #f4dfa0;
     --color-badge-bg: #2c3238;
     --color-badge-text: #c4c9ce;
+    --color-badge-stale-bg: #3a4046;
+    --color-badge-stale-text: #dde1e5;
 
     --color-overlay: rgba(0, 0, 0, 0.65);
   }
@@ -65,6 +69,8 @@
   --color-banner-text: #f4dfa0;
   --color-badge-bg: #2c3238;
   --color-badge-text: #c4c9ce;
+  --color-badge-stale-bg: #3a4046;
+  --color-badge-stale-text: #dde1e5;
 
   --color-overlay: rgba(0, 0, 0, 0.65);
 }
@@ -225,11 +231,15 @@ button {
   font-size: 1rem;
 }
 
-/* Aging data goes amber — same neutral degraded palette as the banner. */
-.fw-chip--aging,
-.fw-chip--stale {
+/* Aging data goes amber — same neutral degraded palette as the banner; stale goes gray. */
+.fw-chip--aging {
   background: var(--color-banner-bg);
   color: var(--color-banner-text);
+}
+
+.fw-chip--stale {
+  background: var(--color-badge-stale-bg);
+  color: var(--color-badge-stale-text);
 }
 
 .fw-chip__help {

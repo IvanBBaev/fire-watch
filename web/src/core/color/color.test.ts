@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Lab } from './color.js';
 import {
   ColorParseError,
+  contrastRatio,
   deltaE2000,
   formatHex,
   isNamedColor,
@@ -111,5 +112,17 @@ describe('CIEDE2000 (Sharma, Wu & Dalal 2005 test data)', () => {
 
   it('is zero for identical colours', () => {
     expect(deltaE2000(lab(42, 10, -3), lab(42, 10, -3))).toBe(0);
+  });
+});
+
+describe('contrastRatio', () => {
+  it.each([
+    ['#000000', '#ffffff', 21],
+    ['#ffffff', '#ffffff', 1],
+    ['#777777', '#ffffff', 4.4781],
+    ['#574200', '#fdf3d7', 8.6875],
+  ])('%s on %s is %f', (text, background, expected) => {
+    expect(contrastRatio(parseColor(text), parseColor(background))).toBeCloseTo(expected, 3);
+    expect(contrastRatio(parseColor(background), parseColor(text))).toBeCloseTo(expected, 3);
   });
 });

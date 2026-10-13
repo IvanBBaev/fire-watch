@@ -2,7 +2,10 @@
  * Status surfaces: the single banner slot and the freshness chip.
  *
  * Neutral grays and amber only — red belongs to fire on the map and to nothing else
- * (07-product-ux P8/P9: one meaning of red per view). Body text stays at the 16px floor
+ * (07-product-ux P8/P9: one meaning of red per view). Every colour reads a shell token
+ * from styles.css (light on :root, dark under prefers-color-scheme / [data-theme='dark']),
+ * so the banner and chip follow the theme; status-contrast.test.ts holds each text/
+ * background pair to WCAG AA in both themes. Body text stays at the 16px floor
  * (night-use rule) and the [?] affordance keeps a 44px minimum tap target while the chip
  * itself stays visually compact — but every one of those numbers is written in `rem`, not
  * `px`. A freshness line pinned to 16px is a line that stays 16px when the reader doubles
@@ -16,9 +19,9 @@
   padding: 0.75rem 1rem;
   font-size: 1rem;
   line-height: 1.4;
-  color: #4a3f22;
-  background: #faf0d1;
-  border-bottom: 1px solid #e3d3a1;
+  color: var(--color-banner-text);
+  background: var(--color-banner-bg);
+  border-bottom: 1px solid var(--color-banner-border);
 }
 
 .fw-chip {
@@ -32,18 +35,18 @@
 }
 
 .fw-chip--fresh {
-  color: #333a40;
-  background: #eef1f3;
+  color: var(--color-badge-text);
+  background: var(--color-badge-bg);
 }
 
 .fw-chip--aging {
-  color: #5c4a1c;
-  background: #faf0d1;
+  color: var(--color-banner-text);
+  background: var(--color-banner-bg);
 }
 
 .fw-chip--stale {
-  color: #43494e;
-  background: #dfe3e6;
+  color: var(--color-badge-stale-text);
+  background: var(--color-badge-stale-bg);
 }
 
 /*

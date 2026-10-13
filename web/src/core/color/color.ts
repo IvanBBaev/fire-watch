@@ -308,3 +308,17 @@ export function deltaE2000(first: Lab, second: Lab): number {
   const rT = -Math.sin(2 * dTheta * rad) * rC;
   return Math.sqrt((dL / sL) ** 2 + (dC / sC) ** 2 + (dH / sH) ** 2 + rT * (dC / sC) * (dH / sH));
 }
+
+/** WCAG 2.x relative luminance of an opaque sRGB colour (alpha is ignored). */
+export function relativeLuminance(color: Rgba): number {
+  const [r, g, b] = toLinear(color);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG 2.x contrast ratio, 1–21, symmetric in its arguments. AA body text needs 4.5. */
+export function contrastRatio(first: Rgba, second: Rgba): number {
+  const [light, dark] = [relativeLuminance(first), relativeLuminance(second)].sort(
+    (a, b) => b - a,
+  ) as [number, number];
+  return (light + 0.05) / (dark + 0.05);
+}
