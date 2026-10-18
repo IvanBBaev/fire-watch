@@ -64,7 +64,7 @@ GATES §3 launch gates with no TASKS item yet.
 | D7 | D7 remainder: real fit run, commit clustering_params_v2 — DS-1/DS-3 data; FIT_DECISIONS review | TASKS.md:1149 | `blocked-external` | 2.5 |
 | D8 | D8 remainder: shadow-PCR, real weekly report — EFFIS perimeters + live season | TASKS.md:1189 | `blocked-external` | 1.4 |
 | D10 | D10 remainder: CORINE, ERA5 cloud join, runtime consumer — CORINE/CDS accounts | TASKS.md:1310 | `blocked-external` | 7.2 |
-| E1 | E1 remainder: final verification + tick (no blocker) | TASKS.md:1424 | `open` | 0.4 |
+| E1 | E1 remainder: final verification + tick (no blocker) | TASKS.md:1424 | `done` | 0.4 |
 | E3 | E3 remainder: bucket/hostname/token, frozen-ingest check — R2/Cloudflare account | TASKS.md:1541 | `blocked-external` | 1 |
 | E4 | E4 remainder: fleet observation in staging — staging host | TASKS.md:1556 | `blocked-external` | 0.8 |
 | E6 | E6 remainder: staging + real R2 failover run — staging + R2 | TASKS.md:1652 | `blocked-external` | 1.4 |
