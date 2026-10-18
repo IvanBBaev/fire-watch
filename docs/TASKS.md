@@ -1421,7 +1421,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 
 ## Track E — WP3 read path (Nov–Dec 2026)
 
-- [ ] **E1 — Snapshot endpoint + seq discipline.** Spec: ADR-003 D1 (T1 row) as
+- [x] **E1 — Snapshot endpoint + seq discipline.** Spec: ADR-003 D1 (T1 row) as
   amended by A15 (A1.4/A1.5). Needs: D1. `/snapshot.json` ETag-from-maxSeq,
   `?updated_after_seq` cursor, the set-membership seq invariant enforced in the
   status layer. **Done when:** removal test — an event leaving the set always
@@ -1475,6 +1475,15 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   body's `schema_version` the same way). Fixture `web/public/fixtures/snapshot.json`
   moved to v2 with no `uuid`; the SSE `upsert` frames share `eventFeature`, so they
   dropped it too.*
+  *2026-10-18 — ticked. The tick waited on a green CI run of the removal test: CI run
+  38319673396 (`c2d4ae0`, job "Migrations against PostGIS", `FIRE_WATCH_REQUIRE_DOCKER=1`)
+  passed `pg-snapshot-reader.integration.test.ts` 15/15 inside 301/301 with 0 skipped, and
+  the same suite is 15/15 locally on `d2a8278` (colima `fwtest`, `imresamu/postgis:16-3.4`).
+  The R1 block covers every exit from the set — lifecycle transition, merge tombstone and
+  operator invalidation with the writer forgetting `seq`, display window closing — plus
+  the return and the bookkeeping write that must not move the mark. The known limit
+  (`seq` is not commit order; a second writer needs the mark bounded by
+  `pg_current_snapshot()`) stays open and is not part of E1's Done-when.*
 - [x] **E2 — SSE tier (T0).** Spec: ADR-003 D1 (T0 row) + D3 (the 10-min safety
   snapshot). Needs: E1. Ring buffer, 5,000 cap + 503/Retry-After, drain
   semantics, 10-min safety snapshot. **Done when:** replay/gap/reset property
