@@ -16,7 +16,9 @@
  *
  * What is *not* here, because 05 leaves the mechanism open (see the I1 report): OAuth
  * (Google, Apple), the staff plane (C3 — separate subdomain, 2FA, roles) and the incident
- * draft→publish audit log (C4).
+ * draft→publish audit log (C4). The staff plane's pure rules — roles, the two-person rule,
+ * the C4 workflow and the audit record — are in `core/staff/`; TOTP and recovery codes in
+ * `adapters/crypto/totp.ts`. Its storage, sessions and routes are not built yet.
  */
 
 import type { EpochMs } from '../ports/clock.js';
