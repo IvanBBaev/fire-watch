@@ -17,8 +17,11 @@
  *      `useRecoveryCode` with a recovery code instead. Wrong codes count against the
  *      session; `STAFF_SESSION_POLICY.maxSecondFactorFailures` of them end it.
  *   3. A member with no second factor at all enrolls the first one from the pending
- *      session (`finishWebAuthnRegistration`): that enrollment prints the recovery codes
- *      and elevates the session. Later keys need a verified session.
+ *      session (`finishWebAuthnRegistration`, or `beginTotpEnrollment` then
+ *      `finishTotpEnrollment`): that enrollment prints the recovery codes and elevates
+ *      the session. Later factors need a verified session. A TOTP enrollment keeps the
+ *      new secret sealed in the session's challenge slot (migration 031) until the member
+ *      types a code from their app, and always prints a fresh recovery-code set.
  *   4. `authenticateStaffSession` reads the session on every request and slides its idle
  *      expiry; `signOutStaff` ends it.
  *
@@ -51,8 +54,8 @@ import {
   staffSessionState,
   usableChallenge,
   type ChallengeRefusal,
-  type StaffChallengePurpose,
   type StaffSessionState,
+  type StaffWebAuthnPurpose,
 } from './staff-session-policy.js';
 
 export interface StaffSessionDeps {
@@ -155,7 +158,7 @@ export type BeginWebAuthnResult =
 export async function beginWebAuthn(
   deps: Pick<StaffSessionDeps, 'sessions' | 'staff' | 'ceremonies'>,
   session: StoredStaffSession,
-  purpose: StaffChallengePurpose,
+  purpose: StaffWebAuthnPurpose,
   at: EpochMs,
 ): Promise<BeginWebAuthnResult> {
   const state = staffSessionState(session, at);
@@ -272,7 +275,10 @@ export async function finishWebAuthnAssertion(
 export type RegistrationResult =
   | {
       readonly kind: 'enrolled';
-      /** Shown once, only on the member's first factor; null afterwards. */
+      /**
+       * Shown once: on a passkey enrollment only for the member's first factor (null
+       * afterwards); on a TOTP enrollment always, since it replaces the set.
+       */
       readonly recoveryCodes: readonly string[] | null;
       /** A fresh token when this enrollment elevated a pending session; null otherwise. */
       readonly token: string | null;
@@ -389,6 +395,110 @@ export async function useTotpCode(
     return refuseCode(deps, session, context);
   }
   return elevate(deps, session, { method: 'totp', credentialId: null }, context);
+}
+
+// ── TOTP enrollment ──────────────────────────────────────────────────────────────────
+
+export type BeginTotpEnrollmentResult =
+  | {
+      readonly kind: 'secret';
+      /** Base32, for typing into the app by hand. Shown once; never stored in the clear. */
+      readonly secret: string;
+      /** The `otpauth://` URI for the QR code. */
+      readonly otpauthUri: string;
+    }
+  | { readonly kind: 'refused'; readonly reason: 'not_allowed' | 'session_ended' };
+
+/**
+ * Issues a TOTP secret for the member to add to their app. The secret is sealed and parked
+ * in the session's challenge slot (replacing any pending ceremony) for the challenge's
+ * lifetime; nothing is enrolled until `finishTotpEnrollment` sees a code made from it.
+ * Allowed as `mayEnrollSecondFactor` says; on a verified session it re-enrolls the factor.
+ */
+export async function beginTotpEnrollment(
+  deps: Pick<StaffSessionDeps, 'sessions' | 'staff'> & { readonly totp: StaffTotpCodes },
+  session: StoredStaffSession,
+  at: EpochMs,
+): Promise<BeginTotpEnrollmentResult> {
+  const state = staffSessionState(session, at);
+  if (!mayEnrollSecondFactor(state, await deps.staff.countSecondFactors(session.staffId))) {
+    return { kind: 'refused', reason: 'not_allowed' };
+  }
+  const member = await deps.staff.findMember(session.staffId);
+  if (member === null || member.disabled) return { kind: 'refused', reason: 'session_ended' };
+  const issued = deps.totp.issue({ staffId: session.staffId, account: member.email });
+  const stored = await deps.sessions.putChallenge(
+    session.id,
+    {
+      purpose: 'totp.enroll',
+      challenge: issued.sealed.ciphertext,
+      keyId: issued.sealed.keyId,
+      expiresAt: challengeExpiry(at),
+    },
+    at,
+  );
+  if (!stored) return { kind: 'refused', reason: 'session_ended' };
+  return { kind: 'secret', secret: issued.secret, otpauthUri: issued.otpauthUri };
+}
+
+/**
+ * Confirms a pending TOTP enrollment with a code from the member's app, then enrolls the
+ * factor, replaces the recovery codes (returned for printing, once) and — on a pending
+ * session — elevates it. A wrong code puts the pending secret back with its original
+ * expiry, so the member can retype; it is not counted against the session, because the
+ * code proves possession of a secret the session itself was just handed, not the member's
+ * standing factor. The confirming code's step is burnt, so it cannot sign in again.
+ */
+export async function finishTotpEnrollment(
+  deps: Pick<StaffSessionDeps, 'sessions' | 'staff' | 'tokens' | 'recoveryCodes'> & {
+    readonly totp: StaffTotpCodes;
+  },
+  session: StoredStaffSession,
+  code: string,
+  context: StaffRequestContext,
+): Promise<RegistrationResult> {
+  const pending = await deps.sessions.takeChallenge(session.id);
+  const taken = usableChallenge(pending, 'totp.enroll', context.at);
+  if (taken.kind !== 'usable') return { kind: 'refused', reason: taken.kind };
+  if (pending === null || pending.purpose !== 'totp.enroll') {
+    return { kind: 'refused', reason: 'wrong_purpose' };
+  }
+  const state = staffSessionState(session, context.at);
+  if (!mayEnrollSecondFactor(state, await deps.staff.countSecondFactors(session.staffId))) {
+    return { kind: 'refused', reason: 'not_allowed' };
+  }
+  const factor = {
+    sealed: { ciphertext: pending.challenge, keyId: pending.keyId },
+    algorithm: 'sha1' as const,
+  };
+  const verdict = deps.totp.verify({
+    staffId: session.staffId,
+    factor: { ...factor, lastUsedStep: null },
+    code,
+    at: context.at,
+  });
+  if (verdict.kind === 'refused') {
+    const restored = await deps.sessions.putChallenge(session.id, pending, context.at);
+    return { kind: 'refused', reason: restored ? 'invalid_code' : 'session_ended' };
+  }
+  const codes = deps.recoveryCodes.issue();
+  await deps.staff.enrollTotp(
+    session.staffId,
+    factor,
+    codes.map((issued) => issued.hash),
+    { actorId: session.staffId, at: context.at, ...ipOf(context) },
+  );
+  // Burns the confirming code's step: enrolling reset the replay guard to "never used".
+  await deps.staff.advanceTotpStep(session.staffId, verdict.step);
+  const recoveryCodes = codes.map((issued) => issued.display);
+  if (state === 'verified') return { kind: 'enrolled', recoveryCodes, token: null };
+  const elevated = await elevate(deps, session, { method: 'totp', credentialId: null }, context);
+  // The factor is enrolled either way; a session that ended meanwhile signs in again with it.
+  return {
+    kind: 'enrolled',
+    recoveryCodes,
+    token: elevated.kind === 'verified' ? elevated.token : null,
+  };
 }
 
 export async function useRecoveryCode(

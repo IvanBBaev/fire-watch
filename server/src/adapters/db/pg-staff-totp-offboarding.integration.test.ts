@@ -4,7 +4,8 @@
  * flows with the real sealer, verifier and token issuer: a code elevates once and its
  * replay is refused, the fifth wrong code ends the session, the TOTP factor is never the
  * last one removed, and off-boarding leaves a member with nothing to sign in with — each
- * on the audit trail in its own transaction.
+ * on the audit trail in its own transaction. A TOTP enrollment (migration 031) parks the
+ * sealed secret in the session's challenge slot and confirms it with a code.
  *
  * Skipped when there is no Docker daemon, which is the normal state of a laptop here;
  * `FIRE_WATCH_REQUIRE_DOCKER=1` in CI turns that skip into a failure.
@@ -23,11 +24,16 @@ import { epochMsFromIso } from '../../core/ports/clock.js';
 import type { StaffSessionStore, StaffStore } from '../../core/ports/staff-stores.js';
 import { hashEntityState } from '../../core/staff/staff-audit.js';
 import { STAFF_SESSION_POLICY } from '../../core/staff/staff-session-policy.js';
-import { startStaffSession, useTotpCode } from '../../core/staff/staff-session.js';
+import {
+  beginTotpEnrollment,
+  finishTotpEnrollment,
+  startStaffSession,
+  useTotpCode,
+} from '../../core/staff/staff-session.js';
 import { createAesGcmTotpSealer } from '../crypto/aes-gcm-totp-sealer.js';
 import { createAuthTokens } from '../crypto/auth-tokens.js';
-import { createStaffTotpCodes } from '../crypto/staff-ceremonies.js';
-import { hotp, totpStep } from '../crypto/totp.js';
+import { createStaffRecoveryCodes, createStaffTotpCodes } from '../crypto/staff-ceremonies.js';
+import { base32Decode, hotp, totpStep } from '../crypto/totp.js';
 import { createPgStaffSessionStore } from './pg-staff-session-store.js';
 import { createPgStaffStore, sha256Hex } from './pg-staff-store.js';
 
@@ -119,7 +125,12 @@ describe.skipIf(!hasDocker)('staff TOTP sign-in, removal and off-boarding', () =
     pool = new Pool({ connectionString: databaseUrl, max: 4 });
     staff = createPgStaffStore(pool);
     sessions = createPgStaffSessionStore(pool);
-    deps = { staff, sessions, tokens: createAuthTokens(), totp: createStaffTotpCodes(sealer) };
+    deps = {
+      staff,
+      sessions,
+      tokens: createAuthTokens(),
+      totp: createStaffTotpCodes(sealer, { issuer: 'Fire Watch' }),
+    };
   }, 300_000);
 
   afterAll(async () => {
@@ -272,5 +283,71 @@ describe.skipIf(!hasDocker)('staff TOTP sign-in, removal and off-boarding', () =
         at: AT,
       }),
     ).toEqual({ kind: 'not_found' });
+  });
+
+  it('enrolls TOTP through the challenge slot and signs in with it afterwards', async () => {
+    const id = await newMember();
+    const enrollDeps = { ...deps, recoveryCodes: createStaffRecoveryCodes() };
+    const session = await pendingSession(id);
+    const begun = await beginTotpEnrollment(enrollDeps, session, AT);
+    if (begun.kind !== 'secret') throw new Error('no secret issued');
+    const { rows: parked } = await pool.query<{ purpose: string; key_id: string; len: number }>(
+      `SELECT challenge_purpose AS purpose, challenge_key_id AS key_id,
+              octet_length(challenge) AS len
+       FROM staff_sessions WHERE id = $1`,
+      [session.id],
+    );
+    expect(parked).toEqual([{ purpose: 'totp.enroll', key_id: 'staff-totp-test', len: 48 }]);
+    const secret = base32Decode(begun.secret);
+    if (secret === null) throw new Error('secret is not base32');
+
+    expect(
+      await finishTotpEnrollment(enrollDeps, session, hotp(secret, totpStep(AT) + 10), {
+        at: AT + 1000,
+      }),
+    ).toMatchObject({ kind: 'refused' });
+    const done = await finishTotpEnrollment(enrollDeps, session, hotp(secret, totpStep(AT)), {
+      at: AT + 1000,
+    });
+    expect(done.kind).toBe('enrolled');
+    if (done.kind !== 'enrolled') return;
+    expect(done.recoveryCodes).toHaveLength(10);
+    expect(done.token).not.toBeNull();
+
+    const { rows: cleared } = await pool.query(
+      `SELECT challenge, challenge_purpose, challenge_key_id FROM staff_sessions WHERE id = $1`,
+      [session.id],
+    );
+    expect(cleared).toEqual([{ challenge: null, challenge_purpose: null, challenge_key_id: null }]);
+    expect(await auditActions(id)).toContain('staff.second_factor_enrolled');
+    // The confirming code is burnt; the next step's code signs in.
+    const next = await pendingSession(id);
+    expect(
+      (await useTotpCode(deps, next, hotp(secret, totpStep(AT)), { at: AT + 2000 })).kind,
+    ).toBe('refused');
+    const later = AT + 30_000;
+    const again = await pendingSession(id);
+    expect(
+      (await useTotpCode(deps, again, hotp(secret, totpStep(later)), { at: later })).kind,
+    ).toBe('verified');
+  });
+
+  it('refuses a TOTP key id on a WebAuthn challenge, and a TOTP challenge without one', async () => {
+    const id = await newMember();
+    const session = await pendingSession(id);
+    await expect(
+      pool.query(
+        `UPDATE staff_sessions SET challenge = $2, challenge_purpose = 'webauthn.register',
+           challenge_expires_at = now(), challenge_key_id = 'k1' WHERE id = $1`,
+        [session.id, Buffer.alloc(32)],
+      ),
+    ).rejects.toThrow(/staff_sessions_challenge_key_id_iff_totp/);
+    await expect(
+      pool.query(
+        `UPDATE staff_sessions SET challenge = $2, challenge_purpose = 'totp.enroll',
+           challenge_expires_at = now() WHERE id = $1`,
+        [session.id, Buffer.alloc(48)],
+      ),
+    ).rejects.toThrow(/staff_sessions_challenge_key_id_iff_totp/);
   });
 });

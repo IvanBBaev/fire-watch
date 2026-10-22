@@ -8,7 +8,7 @@ import {
   type StaffTotpKey,
 } from './aes-gcm-totp-sealer.js';
 import { createStaffTotpCodes } from './staff-ceremonies.js';
-import { hotp, totpStep } from './totp.js';
+import { base32Decode, hotp, totpStep } from './totp.js';
 
 const STAFF = '26262626-0000-4000-8000-000000000001';
 const OTHER = '26262626-0000-4000-8000-000000000002';
@@ -90,7 +90,7 @@ describe('createStaffTotpCodes', () => {
     const sealer = createAesGcmTotpSealer({ active: K1, retired: [] });
     const secret = new Uint8Array(randomBytes(20));
     const sealed = sealer.seal(STAFF, new Uint8Array(secret));
-    const codes = createStaffTotpCodes(sealer);
+    const codes = createStaffTotpCodes(sealer, { issuer: 'Fire Watch' });
     const at = Date.UTC(2026, 9, 22, 8, 0, 0);
     const step = totpStep(at);
     const code = hotp(secret, step);
@@ -103,5 +103,32 @@ describe('createStaffTotpCodes', () => {
       kind: 'refused',
       reason: 'malformed',
     });
+  });
+
+  it('issues a sealed secret whose plain form matches what it shows once', () => {
+    const sealer = createAesGcmTotpSealer({ active: K1, retired: [] });
+    const codes = createStaffTotpCodes(sealer, { issuer: 'Fire Watch' });
+    const issued = codes.issue({ staffId: STAFF, account: 'ana@example.org' });
+    expect(issued.algorithm).toBe('sha1');
+    expect(issued.sealed.keyId).toBe('totp2026a');
+    expect(issued.sealed.ciphertext.length).toBe(12 + 20 + 16);
+    const plain = base32Decode(issued.secret);
+    expect(plain).not.toBeNull();
+    expect(sealer.open(STAFF, issued.sealed)).toEqual(plain);
+    expect(issued.otpauthUri).toMatch(/^otpauth:\/\/totp\/Fire%20Watch:ana%40example\.org\?/);
+    expect(issued.otpauthUri).toContain(`secret=${issued.secret}`);
+    // Bound to its member: another member's id does not open it.
+    expect(() => sealer.open(OTHER, issued.sealed)).toThrow(StaffTotpSealerError);
+    // A code made from the shown secret verifies against the sealed one.
+    const at = Date.UTC(2026, 9, 22, 8, 0, 0);
+    const factor = { sealed: issued.sealed, algorithm: 'sha1' as const, lastUsedStep: null };
+    const code = hotp(plain ?? new Uint8Array(), totpStep(at));
+    expect(codes.verify({ staffId: STAFF, factor, code, at }).kind).toBe('accepted');
+  });
+
+  it('refuses an issuer the otpauth label cannot carry', () => {
+    const sealer = createAesGcmTotpSealer({ active: K1, retired: [] });
+    expect(() => createStaffTotpCodes(sealer, { issuer: ' ' })).toThrow(TypeError);
+    expect(() => createStaffTotpCodes(sealer, { issuer: 'Fire:Watch' })).toThrow(TypeError);
   });
 });

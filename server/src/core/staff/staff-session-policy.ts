@@ -11,7 +11,8 @@
  *   * a verified session slides its idle expiry by thirty minutes on use, but never past
  *     an absolute twelve hours from sign-in — a working day, then sign in again;
  *   * a WebAuthn challenge is good for five minutes (WebAuthn §5.4's recommended
- *     ceremony timeout range is 5–10 minutes) and is answered at most once;
+ *     ceremony timeout range is 5–10 minutes) and is answered at most once; a pending TOTP
+ *     enrollment (migration 031) lives in the same slot for the same five minutes;
  *   * five wrong TOTP or recovery codes end a pending session (migration 030): a six-digit
  *     code with a ±1 step window is a 1-in-333,333 guess, so five tries in a ten-minute
  *     window keep a guesser near 1 in 66,000 per sign-in, which the primary sign-in's
@@ -39,8 +40,13 @@ export const STAFF_SESSION_POLICY = {
 export const STAFF_SECOND_FACTOR_METHODS = ['webauthn', 'totp', 'recovery_code'] as const;
 export type StaffSecondFactorMethod = (typeof STAFF_SECOND_FACTOR_METHODS)[number];
 
-export const STAFF_CHALLENGE_PURPOSES = ['webauthn.register', 'webauthn.authenticate'] as const;
+export const STAFF_CHALLENGE_PURPOSES = [
+  'webauthn.register',
+  'webauthn.authenticate',
+  'totp.enroll',
+] as const;
 export type StaffChallengePurpose = (typeof STAFF_CHALLENGE_PURPOSES)[number];
+export type StaffWebAuthnPurpose = Exclude<StaffChallengePurpose, 'totp.enroll'>;
 
 /** What the rules read from a stored session. */
 export interface StaffSessionFacts {
@@ -95,11 +101,24 @@ export function staffPrincipalOf(session: StaffSessionFacts, at: EpochMs): Staff
   };
 }
 
-export interface StoredChallenge {
-  readonly purpose: StaffChallengePurpose;
-  readonly challenge: Uint8Array;
-  readonly expiresAt: EpochMs;
-}
+/**
+ * The session's one pending ceremony. For WebAuthn it is the random challenge. For a TOTP
+ * enrollment (migration 031) it is the new secret, sealed under `keyId`: the secret is
+ * shown to the member once and kept only sealed until the member proves their app has it.
+ */
+export type StoredChallenge =
+  | {
+      readonly purpose: StaffWebAuthnPurpose;
+      readonly challenge: Uint8Array;
+      readonly expiresAt: EpochMs;
+    }
+  | {
+      readonly purpose: 'totp.enroll';
+      /** The sealed secret: iv ‖ ciphertext ‖ tag (`aes-gcm-totp-sealer.ts`). */
+      readonly challenge: Uint8Array;
+      readonly keyId: string;
+      readonly expiresAt: EpochMs;
+    };
 
 export function challengeExpiry(at: EpochMs): EpochMs {
   return at + STAFF_SESSION_POLICY.challengeTtlMs;

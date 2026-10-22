@@ -447,7 +447,42 @@ describe('migration 029', () => {
       /second_factor_method\s+text CHECK \(second_factor_method IN \(([^)]*)\)\)/.exec(up);
     const purposes = /challenge_purpose\s+text CHECK \(challenge_purpose IN \(([^)]*)\)\)/.exec(up);
     expect(quoted(methods?.[1]).sort()).toEqual([...STAFF_SECOND_FACTOR_METHODS].sort());
-    expect(quoted(purposes?.[1]).sort()).toEqual([...STAFF_CHALLENGE_PURPOSES].sort());
+    expect(quoted(purposes?.[1]).sort()).toEqual(
+      STAFF_CHALLENGE_PURPOSES.filter((purpose) => purpose !== 'totp.enroll').sort(),
+    );
+  });
+});
+
+describe('migration 031', () => {
+  const sql = readFileSync(
+    new URL('../../../db/migrations/031_staff_totp_enrollment.sql', import.meta.url),
+    'utf8',
+  );
+  const up = sql.slice(0, sql.indexOf('-- migrate:down'));
+
+  it('widens the challenge purposes to exactly the set the policy knows', () => {
+    const purposes = /CHECK \(challenge_purpose IN \(([^)]*)\)\)/.exec(up);
+    const listed = [...(purposes?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1] ?? '');
+    expect(listed.sort()).toEqual([...STAFF_CHALLENGE_PURPOSES].sort());
+  });
+
+  it('ties the key id to the TOTP enrollment purpose', () => {
+    expect(up).toMatch(
+      /\(challenge_key_id IS NOT NULL\) = \(challenge_purpose IS NOT DISTINCT FROM 'totp\.enroll'\)/,
+    );
+  });
+});
+
+describe('the challenge slot is cleared whole', () => {
+  it('clears the key id wherever a statement clears the challenge', () => {
+    const sources = ['./pg-staff-store.ts', './pg-staff-session-store.ts'].map((path) =>
+      readFileSync(new URL(path, import.meta.url), 'utf8'),
+    );
+    for (const source of sources) {
+      const cleared = source.match(/challenge = NULL/g)?.length ?? 0;
+      expect(cleared).toBeGreaterThan(0);
+      expect(source.match(/challenge_key_id = NULL/g)?.length ?? 0).toBe(cleared);
+    }
   });
 });
 

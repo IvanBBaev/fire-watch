@@ -573,6 +573,7 @@ export interface StaffSessions {
   absolute_expires_at: Timestamp;
   challenge: Buffer | null;
   challenge_expires_at: Timestamp | null;
+  challenge_key_id: string | null;
   challenge_purpose: string | null;
   created_at: Timestamp;
   id: Generated<string>;

@@ -175,7 +175,7 @@ DELETE FROM staff_webauthn_credentials WHERE credential_id = $1::bytea AND staff
 const REVOKE_SESSIONS_BY_CREDENTIAL = `
 UPDATE staff_sessions
 SET revoked_at = $3::timestamptz, challenge = NULL, challenge_purpose = NULL,
-    challenge_expires_at = NULL
+    challenge_expires_at = NULL, challenge_key_id = NULL
 WHERE staff_id = $1::uuid AND second_factor_credential_id = $2::bytea AND revoked_at IS NULL`;
 
 const LOCK_OWN_TOTP = `
@@ -187,7 +187,7 @@ const DELETE_TOTP = `DELETE FROM staff_totp_factors WHERE staff_id = $1::uuid`;
 const REVOKE_SESSIONS_BY_METHOD = `
 UPDATE staff_sessions
 SET revoked_at = $3::timestamptz, challenge = NULL, challenge_purpose = NULL,
-    challenge_expires_at = NULL
+    challenge_expires_at = NULL, challenge_key_id = NULL
 WHERE staff_id = $1::uuid AND second_factor_method = $2::text AND revoked_at IS NULL`;
 
 /** Off-boarding's lock: any member, live or disabled. */
@@ -206,7 +206,7 @@ WHERE id = $1::uuid AND disabled_at IS NULL`;
 const REVOKE_MEMBER_SESSIONS = `
 UPDATE staff_sessions
 SET revoked_at = $2::timestamptz, challenge = NULL, challenge_purpose = NULL,
-    challenge_expires_at = NULL
+    challenge_expires_at = NULL, challenge_key_id = NULL
 WHERE staff_id = $1::uuid AND revoked_at IS NULL`;
 
 const LOCKED_ROLES = `

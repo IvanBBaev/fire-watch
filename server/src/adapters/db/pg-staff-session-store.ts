@@ -14,6 +14,10 @@
  * finds no credential) or waits and then revokes the session it just elevated. The
  * `staff.sign_in` audit row is written in the same transaction.
  *
+ * A pending TOTP enrollment (migration 031) uses the same slot: its challenge is the sealed
+ * secret and `challenge_key_id` names the sealing key; every statement that clears the
+ * slot clears the key id with it.
+ *
  * **Wrong codes are counted** (migration 030). {@link StaffSessionStore.recordSecondFactorFailure}
  * increments `second_factor_failures` on a pending, unrevoked session and, when the new
  * count reaches the limit, revokes it in the same UPDATE — the row lock serialises racing
@@ -27,8 +31,8 @@ import { isStaffRole, type StaffRole } from '../../core/staff/staff-policy.js';
 import {
   STAFF_CHALLENGE_PURPOSES,
   STAFF_SECOND_FACTOR_METHODS,
-  type StaffChallengePurpose,
   type StaffSecondFactorMethod,
+  type StaffWebAuthnPurpose,
   type StoredChallenge,
 } from '../../core/staff/staff-session-policy.js';
 import { epochMs, field, number, string } from './pg-rows.js';
@@ -60,7 +64,8 @@ WHERE id = $1::uuid AND revoked_at IS NULL`;
 
 const PUT_CHALLENGE = `
 UPDATE staff_sessions s
-SET challenge = $2::bytea, challenge_purpose = $3::text, challenge_expires_at = $4::timestamptz
+SET challenge = $2::bytea, challenge_purpose = $3::text, challenge_expires_at = $4::timestamptz,
+    challenge_key_id = $6::text
 FROM staff_members m
 WHERE s.id = $1::uuid AND m.id = s.staff_id AND m.disabled_at IS NULL
   AND s.revoked_at IS NULL
@@ -69,16 +74,18 @@ WHERE s.id = $1::uuid AND m.id = s.staff_id AND m.disabled_at IS NULL
 /** The lock is taken only on a row that still holds a challenge; the loser re-reads none. */
 const TAKE_CHALLENGE = `
 WITH taken AS (
-  SELECT id, challenge, challenge_purpose, challenge_expires_at
+  SELECT id, challenge, challenge_purpose, challenge_expires_at, challenge_key_id
   FROM staff_sessions
   WHERE id = $1::uuid AND challenge IS NOT NULL
   FOR UPDATE
 )
 UPDATE staff_sessions s
-SET challenge = NULL, challenge_purpose = NULL, challenge_expires_at = NULL
+SET challenge = NULL, challenge_purpose = NULL, challenge_expires_at = NULL,
+    challenge_key_id = NULL
 FROM taken
 WHERE s.id = taken.id
-RETURNING taken.challenge, taken.challenge_purpose, taken.challenge_expires_at`;
+RETURNING taken.challenge, taken.challenge_purpose, taken.challenge_expires_at,
+          taken.challenge_key_id`;
 
 const SHARE_CREDENTIAL = `
 SELECT 1 FROM staff_webauthn_credentials c
@@ -92,7 +99,8 @@ SET second_factor_method = $2::text, second_factor_credential_id = $3::bytea,
     second_factor_at = $5::timestamptz, token_hash = $4::bytea,
     idle_expires_at = LEAST($6::timestamptz, s.absolute_expires_at),
     last_seen_at = GREATEST(s.last_seen_at, $5::timestamptz),
-    challenge = NULL, challenge_purpose = NULL, challenge_expires_at = NULL
+    challenge = NULL, challenge_purpose = NULL, challenge_expires_at = NULL,
+    challenge_key_id = NULL
 FROM staff_members m
 WHERE s.id = $1::uuid AND m.id = s.staff_id AND m.disabled_at IS NULL
   AND s.revoked_at IS NULL AND s.second_factor_at IS NULL
@@ -102,7 +110,7 @@ RETURNING s.staff_id::text AS staff_id`;
 const REVOKE = `
 UPDATE staff_sessions
 SET revoked_at = $2::timestamptz, challenge = NULL, challenge_purpose = NULL,
-    challenge_expires_at = NULL
+    challenge_expires_at = NULL, challenge_key_id = NULL
 WHERE id = $1::uuid AND revoked_at IS NULL
 RETURNING staff_id::text AS staff_id, (second_factor_at IS NOT NULL) AS verified`;
 
@@ -115,7 +123,9 @@ SET second_factor_failures = second_factor_failures + 1,
     challenge_purpose =
       CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge_purpose END,
     challenge_expires_at =
-      CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge_expires_at END
+      CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge_expires_at END,
+    challenge_key_id =
+      CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge_key_id END
 WHERE id = $1::uuid AND revoked_at IS NULL AND second_factor_at IS NULL
 RETURNING staff_id::text AS staff_id, second_factor_failures AS failures,
           (revoked_at IS NOT NULL) AS revoked`;
@@ -170,7 +180,7 @@ export function createPgStaffSessionStore(pool: PgStaffPool): StaffSessionStore 
 
     async putChallenge(sessionId, challenge, at) {
       if (challenge.challenge.length < 16 || challenge.challenge.length > 64) {
-        throw new RangeError('a WebAuthn challenge is 16 to 64 bytes');
+        throw new RangeError('a challenge (or a sealed TOTP secret) is 16 to 64 bytes');
       }
       const result = await pool.query(PUT_CHALLENGE, [
         sessionId,
@@ -178,6 +188,7 @@ export function createPgStaffSessionStore(pool: PgStaffPool): StaffSessionStore 
         challenge.purpose,
         isoFromEpochMs(challenge.expiresAt),
         isoFromEpochMs(at),
+        challenge.purpose === 'totp.enroll' ? challenge.keyId : null,
       ]);
       return result.rowCount === 1;
     },
@@ -335,9 +346,11 @@ function decodeChallenge(row: Record<string, unknown>): StoredChallenge {
   if (!(STAFF_CHALLENGE_PURPOSES as readonly string[]).includes(purpose)) {
     throw new Error('challenge_purpose holds a value outside the purpose set');
   }
-  return {
-    purpose: purpose as StaffChallengePurpose,
-    challenge: bytes(field(row, 'challenge'), 'challenge'),
-    expiresAt: epochMs(field(row, 'challenge_expires_at'), 'challenge_expires_at'),
-  };
+  const challenge = bytes(field(row, 'challenge'), 'challenge');
+  const expiresAt = epochMs(field(row, 'challenge_expires_at'), 'challenge_expires_at');
+  if (purpose === 'totp.enroll') {
+    const keyId = string(field(row, 'challenge_key_id'), 'challenge_key_id');
+    return { purpose, challenge, keyId, expiresAt };
+  }
+  return { purpose: purpose as StaffWebAuthnPurpose, challenge, expiresAt };
 }

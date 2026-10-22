@@ -337,12 +337,22 @@ export interface StaffWebAuthnCeremonies {
 }
 
 /**
- * The TOTP check, bound to the secret's seal in the adapter: the core passes the stored
- * (sealed) factor and the typed code and never sees the secret. Throws when the secret
+ * The TOTP secret's issue and check, bound to the secret's seal in the adapter: the core
+ * passes the stored (sealed) factor and the typed code and never sees the secret's bytes. Throws when the secret
  * cannot be opened (a missing key or a tampered row) — that is an operator's problem, not
  * a wrong code.
  */
 export interface StaffTotpCodes {
+  /**
+   * A new secret for an enrollment, sealed for `staffId` under the active key. `secret`
+   * (base32) and `otpauthUri` are for the member's screen, once; only `sealed` is kept.
+   */
+  issue(input: { readonly staffId: string; readonly account: string }): {
+    readonly sealed: SealedSecret;
+    readonly algorithm: StoredTotpAlgorithm;
+    readonly secret: string;
+    readonly otpauthUri: string;
+  };
   verify(input: {
     readonly staffId: string;
     readonly factor: StoredTotpFactor;

@@ -13,7 +13,14 @@ import type {
   StaffWebAuthnCeremonies,
 } from '../../core/ports/staff-stores.js';
 import type { StaffTotpSealer } from './aes-gcm-totp-sealer.js';
-import { generateRecoveryCodes, hashRecoveryCode, verifyTotp } from './totp.js';
+import {
+  base32Encode,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  hashRecoveryCode,
+  otpauthUri,
+  verifyTotp,
+} from './totp.js';
 import {
   generateWebAuthnChallenge,
   verifyAssertion,
@@ -58,11 +65,37 @@ export function createStaffRecoveryCodes(
 }
 
 /**
- * The TOTP check over a sealed secret: opens it for the one verification and drops it.
- * The step it returns is not stored here — the flow advances it with the store's CAS.
+ * The TOTP issue and check over a sealed secret. `issue` makes a secret, seals it and hands
+ * the plain form out once for the member's app; `verify` opens it for the one verification
+ * and drops it. The step `verify` returns is not stored here — the flow advances it with
+ * the store's CAS. `issuer` is the name the authenticator app lists the account under.
  */
-export function createStaffTotpCodes(sealer: StaffTotpSealer): StaffTotpCodes {
+export function createStaffTotpCodes(
+  sealer: StaffTotpSealer,
+  options: { readonly issuer: string; readonly random?: (bytes: number) => Uint8Array },
+): StaffTotpCodes {
+  const issuer = options.issuer.trim();
+  if (issuer === '' || issuer.includes(':')) {
+    // The otpauth label is `issuer:account`; a colon in the issuer would move the split.
+    throw new TypeError('a TOTP issuer is non-empty and has no colon');
+  }
   return {
+    issue(input) {
+      const secret =
+        options.random === undefined ? generateTotpSecret() : generateTotpSecret(options.random);
+      try {
+        return {
+          sealed: sealer.seal(input.staffId, secret),
+          // Authenticator apps reliably support SHA-1 only; `otpauthUri` says SHA1.
+          algorithm: 'sha1',
+          secret: base32Encode(secret),
+          otpauthUri: otpauthUri({ issuer, account: input.account, secret }),
+        };
+      } finally {
+        secret.fill(0);
+      }
+    },
+
     verify(input) {
       const secret = sealer.open(input.staffId, input.factor.sealed);
       try {

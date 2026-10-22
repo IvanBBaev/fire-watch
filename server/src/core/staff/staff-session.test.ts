@@ -13,8 +13,10 @@ import type {
 } from '../ports/staff-stores.js';
 import {
   authenticateStaffSession,
+  beginTotpEnrollment,
   beginWebAuthn,
   disableStaffMember,
+  finishTotpEnrollment,
   finishWebAuthnAssertion,
   finishWebAuthnRegistration,
   offboardStaffMember,
@@ -174,6 +176,17 @@ function world(
       calls.push(`advanceTotp:${step}`);
       return Promise.resolve(true);
     },
+    enrollTotp: (
+      _staffId: string,
+      factor: { sealed: { ciphertext: Uint8Array; keyId: string } },
+      codes: readonly Uint8Array[],
+    ) => {
+      lastTotpStep = null;
+      calls.push(
+        `enrollTotp:${factor.sealed.keyId}:${factor.sealed.ciphertext.length}:${codes.length}`,
+      );
+      return Promise.resolve();
+    },
     removeTotpFactor: () => {
       calls.push('removeTotp');
       return Promise.resolve({ kind: 'removed' as const, sessionsRevoked: 1 });
@@ -224,6 +237,15 @@ function world(
   // A stand-in for the sealed verifier: '123456' is the current step (100), '000000' an
   // older one, '111111' a replayed one; anything else of six digits is wrong.
   const totp: StaffTotpCodes = {
+    issue({ staffId, account }) {
+      calls.push(`issueTotp:${account}`);
+      return {
+        sealed: { ciphertext: new Uint8Array(48).fill(staffId.length), keyId: 'k2' },
+        algorithm: 'sha1',
+        secret: 'JBSWY3DPEHPK3PXP',
+        otpauthUri: `otpauth://totp/Fire%20Watch:${encodeURIComponent(account)}?secret=JBSWY3DPEHPK3PXP`,
+      };
+    },
     verify({ code, factor }) {
       if (!/^\d{6}$/.test(code)) return { kind: 'refused', reason: 'malformed' };
       if (code === '111111') return { kind: 'refused', reason: 'replayed' };
@@ -242,7 +264,7 @@ function world(
     ceremonies,
     recoveryCodes,
   };
-  return { deps, calls, sessions, totp };
+  return { deps, calls, sessions, totp, challenges };
 }
 
 async function pendingSession(deps: StaffSessionDeps): Promise<StoredStaffSession> {
@@ -422,7 +444,7 @@ describe('staff session flows', () => {
     const session = await pendingSession(deps);
     // The verifier saw the stale step; the store already holds 100.
     await deps.staff.advanceTotpStep(STAFF, 100);
-    const stale = { verify: () => ({ kind: 'accepted' as const, step: 100 }) };
+    const stale = { ...totp, verify: () => ({ kind: 'accepted' as const, step: 100 }) };
     expect(await useTotpCode({ ...deps, totp: stale }, session, '123456', { at: AT })).toEqual({
       kind: 'refused',
       reason: 'invalid_code',
@@ -509,5 +531,96 @@ describe('staff session flows', () => {
     });
     expect((await offboardStaffMember(deps, admin, 'staff-2', { at: AT })).kind).toBe('offboarded');
     expect(calls).toEqual(['removeTotp', 'offboard', 'offboard']);
+  });
+});
+
+describe('TOTP enrollment', () => {
+  it('enrolls a first factor from a pending session, prints codes and elevates', async () => {
+    const { deps, calls, totp, challenges } = world({ factors: 0, credential: false });
+    const session = await pendingSession(deps);
+    const begun = await beginTotpEnrollment({ ...deps, totp }, session, AT);
+    expect(begun.kind === 'secret' ? begun.secret : null).toBe('JBSWY3DPEHPK3PXP');
+    expect(begun.kind === 'secret' ? begun.otpauthUri : '').toContain('a%40example.org');
+    const parked = challenges.get(session.id);
+    expect(parked?.purpose).toBe('totp.enroll');
+    expect(parked?.purpose === 'totp.enroll' ? parked.keyId : null).toBe('k2');
+    expect(parked?.expiresAt).toBe(AT + STAFF_SESSION_POLICY.challengeTtlMs);
+
+    const done = await finishTotpEnrollment({ ...deps, totp }, session, '123456', { at: AT });
+    expect(done).toEqual({ kind: 'enrolled', recoveryCodes: ['AAAA-BBBB'], token: 'token-2' });
+    expect(calls).toEqual([
+      'issueTotp:a@example.org',
+      'enrollTotp:k2:48:1',
+      'advanceTotp:100',
+      'markSecondFactor:totp',
+    ]);
+    expect(challenges.has(session.id)).toBe(false);
+    // The confirming code cannot be replayed to sign in.
+    const again = await pendingSession(deps);
+    expect(await useTotpCode({ ...deps, totp }, again, '123456', { at: AT })).toMatchObject({
+      kind: 'refused',
+    });
+  });
+
+  it('keeps the pending secret after a wrong code and does not count it', async () => {
+    const { deps, calls, totp, challenges } = world({ factors: 0, credential: false });
+    const session = await pendingSession(deps);
+    await beginTotpEnrollment({ ...deps, totp }, session, AT);
+    const parked = challenges.get(session.id);
+    for (const code of ['999999', '12ab']) {
+      expect(
+        await finishTotpEnrollment({ ...deps, totp }, session, code, { at: AT + 1000 }),
+      ).toEqual({ kind: 'refused', reason: 'invalid_code' });
+      expect(challenges.get(session.id)).toEqual(parked);
+    }
+    expect(calls.filter((call) => call.startsWith('failure'))).toEqual([]);
+    expect(
+      (await finishTotpEnrollment({ ...deps, totp }, session, '123456', { at: AT + 2000 })).kind,
+    ).toBe('enrolled');
+  });
+
+  it('re-enrolls from a verified session without a new token', async () => {
+    const { deps, calls, totp } = world({ totp: true });
+    const pending = await pendingSession(deps);
+    await useTotpCode({ ...deps, totp }, pending, '000000', { at: AT });
+    const verified = { ...pending, secondFactorAt: AT, secondFactorMethod: 'totp' as const };
+    expect((await beginTotpEnrollment({ ...deps, totp }, verified, AT)).kind).toBe('secret');
+    expect(await finishTotpEnrollment({ ...deps, totp }, verified, '123456', { at: AT })).toEqual({
+      kind: 'enrolled',
+      recoveryCodes: ['AAAA-BBBB'],
+      token: null,
+    });
+    expect(calls).toContain('enrollTotp:k2:48:1');
+    expect(calls.filter((call) => call === 'markSecondFactor:totp')).toHaveLength(1);
+  });
+
+  it('refuses a pending session of a member who already has a factor', async () => {
+    const { deps, totp, challenges } = world();
+    const session = await pendingSession(deps);
+    expect(await beginTotpEnrollment({ ...deps, totp }, session, AT)).toEqual({
+      kind: 'refused',
+      reason: 'not_allowed',
+    });
+    expect(challenges.has(session.id)).toBe(false);
+  });
+
+  it('refuses without a pending secret, after it expires, or for another ceremony', async () => {
+    const { deps, totp } = world({ factors: 0, credential: false });
+    const session = await pendingSession(deps);
+    expect(await finishTotpEnrollment({ ...deps, totp }, session, '123456', { at: AT })).toEqual({
+      kind: 'refused',
+      reason: 'no_challenge',
+    });
+    await beginTotpEnrollment({ ...deps, totp }, session, AT);
+    const late = AT + STAFF_SESSION_POLICY.challengeTtlMs;
+    expect(await finishTotpEnrollment({ ...deps, totp }, session, '123456', { at: late })).toEqual({
+      kind: 'refused',
+      reason: 'challenge_expired',
+    });
+    await beginWebAuthn(deps, session, 'webauthn.register', AT);
+    expect(await finishTotpEnrollment({ ...deps, totp }, session, '123456', { at: AT })).toEqual({
+      kind: 'refused',
+      reason: 'wrong_purpose',
+    });
   });
 });
