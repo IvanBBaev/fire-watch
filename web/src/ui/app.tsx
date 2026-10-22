@@ -39,6 +39,10 @@ const SignInPage = lazy(() => import('./pages/sign-in.js').then((m) => m.SignInP
 const SignInContinuePage = lazy(() =>
   import('./pages/sign-in.js').then((m) => m.SignInContinuePage),
 );
+// The staff curation form (TASKS L15) is staff-only: its own lazy chunk.
+const StaffCurationPage = lazy(() =>
+  import('./pages/staff-curation.js').then((m) => m.StaffCurationPage),
+);
 import type { AppServices } from './context.js';
 import { AppContext } from './context.js';
 import { MapPane } from './map-pane.js';
@@ -74,6 +78,7 @@ const PAGES: Record<RouteId, AnyComponent> = {
   accessibility: AccessibilityPage,
   signIn: SignInPage,
   signInContinue: SignInContinuePage,
+  staffCuration: StaffCurationPage,
 };
 
 function NavLink({ href, label }: { readonly href: string; readonly label: string }) {

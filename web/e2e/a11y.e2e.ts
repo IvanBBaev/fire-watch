@@ -539,6 +539,7 @@ const READY_SELECTOR: Record<RouteId, string> = {
   // neutral "not available" line — the state a deployment with auth off shows.
   signIn: '.auth-page[data-ready]',
   signInContinue: '.auth-page[data-ready]',
+  staffCuration: '.staff-curation[data-ready]',
 };
 
 /** One URL the sweep visits, under the name its findings are reported against. */
@@ -569,6 +570,7 @@ const SWEEP_VISITS: Record<RouteId, (route: AppRoute) => readonly Visit[]> = {
   accessibility: (route) => [{ name: 'accessibility statement', path: route.path }],
   signIn: (route) => [{ name: 'sign in', path: route.path }],
   signInContinue: (route) => [{ name: 'sign-in landing', path: route.path }],
+  staffCuration: (route) => [{ name: 'staff curation', path: route.path }],
 };
 
 /**

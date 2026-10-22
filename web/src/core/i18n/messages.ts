@@ -450,6 +450,114 @@ export interface Messages {
     readonly signedOut: string;
   };
   /**
+   * The WP6 admin/approval form for curated statements (TASKS L15; review 16 §5.10). Staff
+   * only; never linked from the public chrome. The statement-type labels avoid the official
+   * words on purpose (the never-send lint holds them out of our voice); the founder's
+   * normative Bulgarian wording replaces them.
+   */
+  readonly staffCuration: {
+    readonly title: string;
+    readonly draftNotice: string;
+    readonly intro: string;
+    readonly unavailable: string;
+    readonly openTitle: string;
+    readonly openLabel: string;
+    readonly open: string;
+    readonly formTitle: string;
+    readonly fields: {
+      readonly eventId: string;
+      readonly statementType: string;
+      readonly sourceLegend: string;
+      readonly secondSourceLegend: string;
+      readonly useSecondSource: string;
+      readonly tier: string;
+      readonly url: string;
+      readonly capture: string;
+      readonly statedAt: string;
+      readonly exception: string;
+      readonly justification: string;
+      readonly correctionText: string;
+    };
+    readonly type: {
+      readonly officially_contained: string;
+      readonly officially_extinguished: string;
+      readonly curated_correction: string;
+    };
+    readonly tier: {
+      readonly T1: string;
+      readonly T2: string;
+      readonly T3: string;
+      readonly T4: string;
+    };
+    readonly exception: {
+      readonly none: string;
+      readonly t1_de_escalation: string;
+      readonly life_safety_relay: string;
+      readonly own_correction: string;
+    };
+    readonly status: {
+      readonly draft: string;
+      readonly in_review: string;
+      readonly published: string;
+    };
+    readonly versionLabel: string;
+    readonly statusLabel: string;
+    readonly correctsLabel: string;
+    readonly youWrote: string;
+    readonly actions: {
+      readonly save: string;
+      readonly submit: string;
+      readonly approve: string;
+      readonly reject: string;
+      readonly correct: string;
+      readonly newStatement: string;
+    };
+    readonly working: string;
+    readonly outcome: {
+      readonly saved: string;
+      readonly submitted: string;
+      readonly published: string;
+      readonly returned: string;
+      readonly failed: string;
+    };
+    readonly refusal: {
+      readonly notSignedIn: string;
+      readonly forbidden: string;
+      readonly invalid: string;
+      readonly sourceUnverified: string;
+      readonly captureMissing: string;
+      readonly notFound: string;
+      readonly wrongStatus: string;
+      readonly selfReview: string;
+      readonly conflict: string;
+    };
+    readonly issuesTitle: string;
+    readonly issue: {
+      readonly event_id_invalid: string;
+      readonly statement_type_invalid: string;
+      readonly source_tier_invalid: string;
+      readonly source_unverified: string;
+      readonly source_url_invalid: string;
+      readonly capture_missing: string;
+      readonly stated_at_invalid: string;
+      readonly stated_at_in_future: string;
+      readonly journalistic_source_for_state: string;
+      readonly second_source_required: string;
+      readonly official_source_missing: string;
+      readonly second_source_unverified: string;
+      readonly second_source_not_independent: string;
+      readonly second_source_capture_missing: string;
+      readonly second_source_url_invalid: string;
+      readonly exception_invalid: string;
+      readonly exception_not_applicable: string;
+      readonly justification_missing: string;
+      readonly justification_not_one_line: string;
+      readonly correction_text_missing: string;
+      readonly correction_text_invalid: string;
+      readonly correction_text_not_allowed: string;
+    };
+  };
+  /**
    * "New since you last looked" (TASKS F): the header counter and its Settings sound
    * option. A situational-awareness cue about data that has arrived, never an alarm and
    * never a claim about how current the data is.

@@ -200,6 +200,14 @@ export const SIGN_IN_READING_BY_CODE: Readonly<Record<ProblemCode, SignInReading
   zone_sensitivity_invalid: 'status',
   zone_centre_invalid: 'status',
   zone_outside_area: 'status',
+  staff_forbidden: 'status',
+  statement_invalid: 'status',
+  statement_source_unverified: 'status',
+  statement_capture_missing: 'status',
+  statement_not_found: 'status',
+  statement_wrong_status: 'status',
+  statement_conflict: 'status',
+  statement_self_review: 'status',
 };
 
 const LINK_REFUSALS: ReadonlySet<SignInReading> = new Set<LinkRefusal>([

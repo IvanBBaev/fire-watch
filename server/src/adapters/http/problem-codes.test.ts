@@ -18,6 +18,7 @@ import { AUTH_REFUSALS, INVALID_BODY, ORIGIN_REFUSED } from './auth-route.js';
 import { CHANNEL_PROBLEMS, CHANNEL_REFUSALS } from './channel-opt-in-route.js';
 import { FALLBACK_PROBLEMS } from './problem.js';
 import { SES_FEEDBACK_PROBLEMS } from './ses-feedback-route.js';
+import { CURATION_REFUSALS, STAFF_CURATION_PROBLEMS } from './staff-curation-route.js';
 import { ZONE_REFUSALS, ZONES_PROBLEMS } from './zones-route.js';
 
 interface Emitted {
@@ -37,6 +38,8 @@ const EMITTED: readonly (readonly [string, readonly Emitted[]])[] = [
   ['zone refusals', Object.values(ZONE_REFUSALS)],
   ['zone routes', ZONES_PROBLEMS],
   ['SES feedback hook', SES_FEEDBACK_PROBLEMS],
+  ['staff curation routes', STAFF_CURATION_PROBLEMS],
+  ['staff curation refusals', Object.values(CURATION_REFUSALS)],
 ];
 
 describe('problem codes', () => {

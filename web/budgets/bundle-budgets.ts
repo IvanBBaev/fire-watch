@@ -85,6 +85,7 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // pages is a founder/ADR-005 decision). Listed by name: a page does not become lazy, and
   // leave the entry budget, just by being written as an `import()`.
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
+  { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
 ];
 
 /**

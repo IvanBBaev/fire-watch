@@ -22,6 +22,7 @@
     "dev:live": "pnpm --filter @fire-watch/server build && node server/dist/app/dev-live-cli.js",
     "fit": "pnpm --filter @fire-watch/server build && node server/dist/app/fit-cli.js",
     "constellation-replay": "pnpm --filter @fire-watch/server build && node server/dist/app/constellation-replay-cli.js",
+    "curation-rehearsal": "pnpm --filter @fire-watch/server build && node server/dist/app/curation-rehearsal-cli.js",
     "boundaries": "depcruise --config .dependency-cruiser.cjs packages server web",
     "audit": "pnpm audit --audit-level=high",
     "deploy-gate": "tsc --build infra/deploy-gate && node infra/deploy-gate/dist/cli.js",

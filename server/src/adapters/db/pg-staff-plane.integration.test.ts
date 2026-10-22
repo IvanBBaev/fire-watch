@@ -12,6 +12,7 @@
  */
 
 import { execFile, execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -20,6 +21,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { epochMsFromIso } from '../../core/ports/clock.js';
+import { runCurationRehearsal } from '../../core/staff/curation-rehearsal.js';
 import type { StaffSessionStore, StaffStore } from '../../core/ports/staff-stores.js';
 import type { IncidentEntryVersion } from '../../core/staff/incident-log-workflow.js';
 import { hashEntityState } from '../../core/staff/staff-audit.js';
@@ -753,6 +755,30 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
         );
       await insertDraft(2);
       await expect(insertDraft(3)).rejects.toThrow(/incident_log_versions_one_open/);
+    });
+
+    it('runs the curated_correction rehearsal on Postgres (TASKS L15)', async () => {
+      const log = createPgIncidentLogStore(pool);
+      const curator = await newMember(['editor']);
+      const reviewer = await newMember(['editor']);
+      const report = await runCurationRehearsal(
+        { log, newId: randomUUID },
+        {
+          curator: { staffId: curator, roles: ['editor'], secondFactorVerified: true },
+          reviewer: { staffId: reviewer, roles: ['editor'], secondFactorVerified: true },
+          startAt: AT,
+        },
+      );
+      expect(report.steps.filter((step) => !step.passed)).toEqual([]);
+      expect(report.passed).toBe(true);
+      expect(await auditActions(report.entryId ?? '')).toEqual([
+        'incident.draft',
+        'incident.submit',
+        'incident.publish',
+        'incident.edit',
+        'incident.submit',
+        'incident.publish',
+      ]);
     });
   });
 });

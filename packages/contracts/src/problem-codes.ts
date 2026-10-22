@@ -10,8 +10,8 @@
  *
  * **Scope.** Every problem document on the account surface — sign-in
  * (`/api/v1/auth/*`), the account itself (`/api/v1/account`, `/api/v1/account/export`),
- * watch zones (`/api/v1/zones`) and alert channels (`/api/v1/channels/*`) — carries a
- * code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
+ * watch zones (`/api/v1/zones`), alert channels (`/api/v1/channels/*`) and the staff
+ * plane's curated statements (`/api/v1/staff/curated-statements`) — carries a code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
  * on every route. The public data routes (snapshot, stream, client-config, overlays) are
  * status-driven by design (ADR-003 A1.3: "clients key off the status code, never the
  * problem body") and carry no code of their own.
@@ -57,6 +57,15 @@ export const PROBLEM_CODES = [
   'zone_sensitivity_invalid',
   'zone_centre_invalid',
   'zone_outside_area',
+  // The staff plane's curated statements (TASKS L15, review 16 §5.10).
+  'staff_forbidden',
+  'statement_invalid',
+  'statement_source_unverified',
+  'statement_capture_missing',
+  'statement_not_found',
+  'statement_wrong_status',
+  'statement_conflict',
+  'statement_self_review',
 ] as const;
 
 export type ProblemCode = (typeof PROBLEM_CODES)[number];

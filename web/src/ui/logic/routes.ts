@@ -59,6 +59,9 @@ const ROUTE_TABLE = [
   // `/sign-in/continue` is where boot moves a link's `#token=` (`core/auth/sign-in.ts`).
   { id: 'signIn', path: '/sign-in', surface: 'panel' },
   { id: 'signInContinue', path: '/sign-in/continue', surface: 'panel' },
+  // TASKS L15 — the staff-only curated-statement form (WP6). A lazy page (CI-12 role
+  // `page`), linked from nowhere public; its API is not served until the staff host exists.
+  { id: 'staffCuration', path: '/staff/curation', surface: 'panel' },
 ] as const satisfies readonly RouteSpec[];
 
 /**
