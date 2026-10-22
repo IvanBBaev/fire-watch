@@ -65,6 +65,7 @@
 
 import { fileURLToPath } from 'node:url';
 
+import axe from 'axe-core';
 import type { Browser, Page } from 'puppeteer-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
@@ -533,6 +534,7 @@ const READY_SELECTOR: Record<RouteId, string> = {
   about: '#data-freshness',
   credits: '.credits-list',
   privacy: '#disclaimer',
+  accessibility: '#accessibility-contact',
   // TASKS I1. The harness origin serves no auth routes, so both pages settle on their
   // neutral "not available" line — the state a deployment with auth off shows.
   signIn: '.auth-page[data-ready]',
@@ -564,6 +566,7 @@ const SWEEP_VISITS: Record<RouteId, (route: AppRoute) => readonly Visit[]> = {
   about: (route) => [{ name: 'about', path: route.path }],
   credits: (route) => [{ name: 'credits', path: route.path }],
   privacy: (route) => [{ name: 'privacy', path: route.path }],
+  accessibility: (route) => [{ name: 'accessibility statement', path: route.path }],
   signIn: (route) => [{ name: 'sign in', path: route.path }],
   signInContinue: (route) => [{ name: 'sign-in landing', path: route.path }],
 };
@@ -749,4 +752,124 @@ describe('CI-18 — the list view is reachable without the map', () => {
     // polling-only product CI-7 gates, measured rather than re-proved.
     expect(await page.eventSourceCount()).toBe(0);
   }, 120_000);
+});
+
+/**
+ * L-16 — axe-core reports zero serious or critical violations on the in-scope DOM (GATES.md
+ * §3 L-16; review 19 §5.9, Appendix A).
+ *
+ * CI-18 above measures the three layout floors axe cannot (it has no reading of reflow at
+ * a 200 % root, of a hit test under the bottom sheet, or of a 16 px floor). axe measures
+ * what CI-18 does not: names, roles, labels, contrast of the DOM text, landmark and ARIA
+ * validity. The two together are the automated half of L-16; the manual half is
+ * `docs/accessibility/manual-pass.md` and is not something a gate can do.
+ *
+ * Scope is review 19 Appendix A, exactly as CI-18 reads it: every route surface in the
+ * route table (so a new route is covered by the same `READY_SELECTOR`/`SWEEP_VISITS`
+ * entries that make it compile), plus the non-route states — the degradation banner, the
+ * first-launch overlay and the no-WebGL list. The map canvas is exempt-with-alternative,
+ * so `.map-pane` is excluded; its DOM controls live inside it and are covered by CI-18's
+ * target and keyboard checks instead.
+ *
+ * Two legs, one per locale: the Bulgarian copy at 320 px and the English copy at 360 px.
+ * axe's verdicts do not depend on the root font size, and the wide layout renders the same
+ * DOM as the narrow one, so the other two CI-18 legs would only repeat these.
+ *
+ * Only `serious` and `critical` fail the gate, which is L-16's wording. `minor` and
+ * `moderate` findings are printed, not asserted, so they reach the manual pass's triage
+ * instead of disappearing.
+ */
+const AXE_FAILING_IMPACTS: readonly string[] = ['serious', 'critical'];
+
+/** One axe finding, flattened the way a developer greps for it. */
+interface AxeFinding {
+  readonly surface: string;
+  readonly rule: string;
+  readonly impact: string;
+  readonly targets: readonly string[];
+}
+
+interface AxeRunResult {
+  readonly passes: readonly unknown[];
+  readonly violations: readonly {
+    readonly id: string;
+    readonly impact?: string | null;
+    readonly nodes: readonly { readonly target: readonly unknown[] }[];
+  }[];
+}
+
+/**
+ * Runs axe on the current document and returns its violations.
+ *
+ * A scan that checked nothing would report nothing, and an empty report is what this gate
+ * passes on — so a surface where axe passed no rule at all (the script did not load, the
+ * exclusion swallowed the document) throws instead of passing.
+ */
+async function axeScan(page: Page, surface: string): Promise<readonly AxeFinding[]> {
+  const loaded = await page.evaluate(() => 'axe' in window);
+  if (!loaded) await page.addScriptTag({ content: axe.source });
+  const result = await page.evaluate(
+    (exempt: string) =>
+      (window as unknown as { axe: { run: (...args: unknown[]) => Promise<unknown> } }).axe.run(
+        { exclude: [[exempt]] },
+        { resultTypes: ['violations'] },
+      ),
+    MAP_CANVAS_SCOPE,
+  );
+  const { passes, violations } = result as AxeRunResult;
+  if (passes.length === 0)
+    throw new Error(`axe passed no rule on ${surface}: the scan was vacuous`);
+  return violations.map((violation) => ({
+    surface,
+    rule: violation.id,
+    impact: violation.impact ?? 'unknown',
+    targets: violation.nodes.map((node) => node.target.map(String).join(' ')),
+  }));
+}
+
+describe.each([LEGS[0], LEGS[1]])('L-16 axe-core — $name', (leg: Leg | undefined) => {
+  if (leg === undefined) throw new Error('e2e: no leg to run axe on');
+
+  it('finds no serious or critical violation on any in-scope surface', async () => {
+    const found: AxeFinding[] = [];
+
+    const { origin, page } = await boot({ leg });
+    const tab = page.page;
+    // The production CSP forbids inline script, which is the point of it; axe is test
+    // tooling injected by the harness, not something the page loads.
+    await tab.setBypassCSP(true);
+    for (const surface of ROUTE_SURFACES) {
+      await tab.goto(origin.baseUrl + surface.path, { waitUntil: 'load' });
+      await tab.waitForSelector(surface.ready, { timeout: 15_000 });
+      if (await isVisible(tab, PANEL_TOGGLE_SELECTOR)) await tab.click(PANEL_TOGGLE_SELECTOR);
+      found.push(...(await axeScan(tab, surface.name)));
+    }
+
+    origin.setScenario('stale');
+    await tab.goto(origin.baseUrl + '/', { waitUntil: 'load' });
+    await tab.waitForSelector(BANNER_SELECTOR, { timeout: 15_000 });
+    found.push(...(await axeScan(tab, 'home list (degradation banner)')));
+
+    const first = await boot({ leg, showOnboarding: true });
+    await first.page.page.setBypassCSP(true);
+    await first.page.page.goto(first.origin.baseUrl + '/', { waitUntil: 'load' });
+    await first.page.page.waitForSelector(ONBOARDING_SELECTOR, { timeout: 15_000 });
+    found.push(...(await axeScan(first.page.page, 'first-launch onboarding')));
+
+    const noMap = await boot({ leg, denyWebGl: true });
+    await noMap.page.page.setBypassCSP(true);
+    await noMap.page.page.goto(noMap.origin.baseUrl + '/', { waitUntil: 'load' });
+    await noMap.page.page.waitForSelector(ROW_SELECTOR, { timeout: 15_000 });
+    found.push(...(await axeScan(noMap.page.page, 'home list (no WebGL)')));
+
+    const line = (finding: AxeFinding): string =>
+      `[${finding.surface}] ${finding.rule} (${finding.impact}) — ${finding.targets.join(', ')}`;
+    const advisory = found.filter((finding) => !AXE_FAILING_IMPACTS.includes(finding.impact));
+    if (advisory.length > 0) {
+      console.info(`axe advisory findings (${leg.name}):\n${advisory.map(line).join('\n')}`);
+    }
+    expect(
+      found.filter((finding) => AXE_FAILING_IMPACTS.includes(finding.impact)).map(line),
+    ).toEqual([]);
+  }, 180_000);
 });

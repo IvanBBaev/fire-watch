@@ -26,6 +26,7 @@ import { isMapRoute, selectedEventIdFrom } from './logic/layout.js';
 import type { RouteId } from './logic/routes.js';
 import { ROUTES } from './logic/routes.js';
 import { AboutPage } from './pages/about.js';
+import { AccessibilityPage } from './pages/accessibility.js';
 import { CreditsPage } from './pages/credits.js';
 import { EventPage } from './pages/event.js';
 import { HomePage } from './pages/home.js';
@@ -70,6 +71,7 @@ const PAGES: Record<RouteId, AnyComponent> = {
   about: AboutPage,
   credits: CreditsPage,
   privacy: PrivacyPage,
+  accessibility: AccessibilityPage,
   signIn: SignInPage,
   signInContinue: SignInContinuePage,
 };

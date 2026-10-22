@@ -384,6 +384,33 @@ export interface Messages {
     readonly alertsNote: string;
   };
   /**
+   * The accessibility statement (TASKS L16; GATES.md §3 L-16; review 19 §5.10.1, review 09
+   * §4.3): the target, the three scope classes, the alternative to the map, the known gaps,
+   * how it is tested, the legal position and how to report a barrier. Every string here is
+   * PENDING FOUNDER REVIEW and awaits legal review; the page renders
+   * {@link Messages.accessibility.draftNotice} above all of it, like the privacy page.
+   */
+  readonly accessibility: {
+    readonly title: string;
+    /** Says, above everything else, that this statement is a draft awaiting sign-off. */
+    readonly draftNotice: string;
+    /** The date line: when the statement was prepared and when it was last reviewed. */
+    readonly dated: string;
+    readonly target: PrivacySection;
+    /** The three scope classes of review 19 §5.2, one per paragraph. */
+    readonly scope: PrivacySection;
+    /** The equivalent alternative to the map canvas: the list and the event page. */
+    readonly alternative: PrivacySection;
+    /** What is known not to meet the target yet, one gap per paragraph. */
+    readonly knownGaps: PrivacySection;
+    readonly testing: PrivacySection;
+    /** The legal position (09 §4.3): the microenterprise exemption and the voluntary commitment. */
+    readonly legal: PrivacySection;
+    readonly contact: PrivacySection;
+    /** The link to the statement, placed on the About page. */
+    readonly linkLabel: string;
+  };
+  /**
    * Sign-in by email link (TASKS I1; review 05 §5.4.1 C1–C2): the request form, the
    * landing page that finishes signing in, and the Settings account section. Plain strings
    * only. All PENDING FOUNDER REVIEW. Shown only where the server serves sign-in.

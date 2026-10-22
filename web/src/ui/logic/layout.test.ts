@@ -14,6 +14,7 @@ describe('isMapRoute', () => {
     expect(isMapRoute('/about')).toBe(false);
     expect(isMapRoute('/credits')).toBe(false);
     expect(isMapRoute('/privacy')).toBe(false);
+    expect(isMapRoute('/accessibility')).toBe(false);
   });
 
   it('treats a trailing slash as the same route', () => {

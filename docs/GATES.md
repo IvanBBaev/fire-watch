@@ -101,6 +101,8 @@ CI-18 automates the three layout floors, but only as a desktop headless browser 
 state them. Three legs of WP4's accessibility commitment cannot be asserted there
 without the assertion being a lie; they are run by hand, dated, and their findings are
 what L-16 reads. Each run records device, OS version and build under test.
+The run checklist, the record template and the dated records live in
+[`docs/accessibility/`](accessibility/README.md) (TASKS L16).
 
 **Scope, shared with CI-18.** Everything inside `.map-pane` is exempt-with-alternative
 (19 App. A): the WebGL canvas and MapLibre's own attribution chrome are third-party DOM

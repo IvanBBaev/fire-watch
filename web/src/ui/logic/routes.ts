@@ -53,6 +53,7 @@ const ROUTE_TABLE = [
   { id: 'about', path: '/about', surface: 'panel' },
   { id: 'credits', path: '/credits', surface: 'panel' },
   { id: 'privacy', path: '/privacy', surface: 'panel' },
+  { id: 'accessibility', path: '/accessibility', surface: 'panel' },
   // TASKS I1 — sign-in. Rendered by lazy pages (one chunk, CI-12 role `page`); with auth
   // off server-side both render a neutral "not available" line and nothing links to them.
   // `/sign-in/continue` is where boot moves a link's `#token=` (`core/auth/sign-in.ts`).

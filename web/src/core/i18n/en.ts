@@ -425,6 +425,67 @@ const messages: Messages = {
       'Alerts are not available yet. When they are, delivery will be best effort: it depends on your device and its settings and can be delayed or fail. Do not rely on alerts as your only warning; in an emergency, call 112.',
   },
 
+  accessibility: {
+    title: 'Accessibility statement',
+    draftNotice:
+      'Draft: this statement has not yet been approved by the operator or reviewed by a lawyer, and the manual test with assistive technology described below has not been carried out yet. It describes Fire Watch as it works today.',
+    dated:
+      'Prepared on 22 October 2026. It will be reviewed after every manual accessibility test and at least once a year.',
+    target: {
+      title: 'Our target',
+      paragraphs: [
+        'We aim for Fire Watch to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at level AA, as set out in the European standard EN 301 549.',
+        'Fire Watch does not meet that target in full yet. The gaps we know about are listed below.',
+      ],
+    },
+    scope: {
+      title: 'What this statement covers',
+      paragraphs: [
+        'Covered: the list of satellite detections, the event pages, the filters, the settings (including alert settings once alerts are available), alert email, this page and the other information pages, and every error and degraded-service message.',
+        'Covered through an alternative: the interactive map. A map drawn on a canvas cannot be read by a screen reader, so everything it shows is also available as text in the list and on each event page.',
+        'Not covered for now: the internal tools used by the people who operate the service. They will be brought into scope before anyone outside the operating team uses them.',
+      ],
+    },
+    alternative: {
+      title: 'Using Fire Watch without the map',
+      paragraphs: [
+        'The list next to the map shows the same detections as the map, with the place, the sensor, the time the satellite passed and how long ago that was. Each item opens an event page with the same facts as text.',
+        'Fire Watch works with the map turned off and in browsers that cannot draw it: you are shown the list instead. Everything can be reached with a keyboard alone.',
+      ],
+    },
+    knownGaps: {
+      title: 'Known limitations',
+      paragraphs: [
+        'The map itself cannot be used with a screen reader or a keyboard beyond its buttons. Use the list and the event pages instead.',
+        'There is no "skip to content" link yet: with a keyboard, the first item in the list is about fifteen steps from the top of the page.',
+        'Some colours used for map layers do not yet reach the contrast we aim for, or are hard to tell apart for people with some forms of colour vision deficiency. The facts they show are also given as text.',
+        'The manual test with screen readers, keyboard-only use and enlarged text has not been carried out yet. Its results will be added to this page.',
+      ],
+    },
+    testing: {
+      title: 'How we test',
+      paragraphs: [
+        'Every change to Fire Watch is checked automatically: on four screen sizes for text size, reflow, target size and clipped content, and with an automated accessibility checker on every page.',
+        'Once per fire season a person tests the service by hand with TalkBack on Android, VoiceOver on iPhone and NVDA with Firefox on Windows, with keyboard alone, and with the largest text and display size the phone allows. Each test is dated and its findings are fixed or listed here.',
+      ],
+    },
+    legal: {
+      title: 'Legal position',
+      paragraphs: [
+        'Fire Watch is operated by a microenterprise. Under Directive (EU) 2019/882 (the European Accessibility Act) and the Bulgarian Act on the Accessibility Requirements for Products and Services, microenterprises that provide services are exempt from the accessibility requirements.',
+        'We do not rely on that exemption. We commit to the target above voluntarily, because people who cannot use the map need to know about fires near them as much as anyone.',
+      ],
+    },
+    contact: {
+      title: 'Reporting a barrier',
+      paragraphs: [
+        'If something in Fire Watch is hard or impossible for you to use, tell us what you were trying to do and on which device. The address for these reports will be published here before public launch.',
+        'Fire Watch is not an emergency service. In an emergency, call 112.',
+      ],
+    },
+    linkLabel: 'Accessibility statement',
+  },
+
   signIn: {
     title: 'Sign in',
     accountTitle: 'Account',

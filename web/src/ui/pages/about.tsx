@@ -26,6 +26,11 @@ export function AboutPage() {
           {messages.disclaimer.linkLabel}
         </a>
       </p>
+      <p>
+        <a class="disclaimer-link" href="/accessibility">
+          {messages.accessibility.linkLabel}
+        </a>
+      </p>
       <h2 id="data-freshness">{about.freshnessExplainerTitle}</h2>
       {about.freshnessExplainerParagraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>

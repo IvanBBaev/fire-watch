@@ -394,6 +394,27 @@ export const CATALOG_GOVERNANCE = {
   'disclaimer.linkLabel': { governance: 'own-voice', reason: 'chrome' },
   'disclaimer.alertsTitle': { governance: 'own-voice', reason: 'chrome' },
   'disclaimer.alertsNote': { governance: 'own-voice', reason: 'legal-notice' },
+  // TASKS L16 — the accessibility statement. Headings are chrome; what the product does and
+  // does not do for assistive technology is capability prose; the draft notice, the date,
+  // the legal position and the reporting route are legal-notice. All PENDING FOUNDER REVIEW.
+  'accessibility.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.draftNotice': { governance: 'own-voice', reason: 'legal-notice' },
+  'accessibility.dated': { governance: 'own-voice', reason: 'legal-notice' },
+  'accessibility.target.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.target.paragraphs': { governance: 'own-voice', reason: 'capability-prose' },
+  'accessibility.scope.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.scope.paragraphs': { governance: 'own-voice', reason: 'capability-prose' },
+  'accessibility.alternative.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.alternative.paragraphs': { governance: 'own-voice', reason: 'capability-prose' },
+  'accessibility.knownGaps.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.knownGaps.paragraphs': { governance: 'own-voice', reason: 'capability-prose' },
+  'accessibility.testing.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.testing.paragraphs': { governance: 'own-voice', reason: 'capability-prose' },
+  'accessibility.legal.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.legal.paragraphs': { governance: 'own-voice', reason: 'legal-notice' },
+  'accessibility.contact.title': { governance: 'own-voice', reason: 'chrome' },
+  'accessibility.contact.paragraphs': { governance: 'own-voice', reason: 'legal-notice' },
+  'accessibility.linkLabel': { governance: 'own-voice', reason: 'chrome' },
   // TASKS I1 — sign-in by email link. Labels and headings are chrome; what the flow can and
   // cannot do is capability prose; every outcome line is a client condition.
   'signIn.title': { governance: 'own-voice', reason: 'chrome' },
@@ -601,6 +622,13 @@ export const CATALOG_GOVERNANCE = {
  *   founder's call. The F17 cloud keys (`passes.cloud*`: the per-pass forecast cloud and
  *   its "may be missed under cloud" caveat) likewise — the three level words, the okta
  *   boundaries behind them (25 % / 75 %) and the caveat's wording are the founder's call.
+ * - `accessibility.*` — TASKS L16, the accessibility statement (review 19 §5.10.1, review 09
+ *   §4.3). Drafted by an implementer and needing **legal** review as well as the founder's:
+ *   the WCAG 2.1/2.2 target is an open founder decision, the microenterprise exemption is a
+ *   legal position, the reporting address does not exist yet, and the known-gaps list must
+ *   be refreshed from each dated manual pass. The page shows `accessibility.draftNotice`
+ *   above all of it; `accessibility-page.test.tsx` holds the notice there for as long as any
+ *   of these paths is still listed here.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -633,6 +661,24 @@ export const PENDING_FOUNDER_REVIEW = [
   'disclaimer.linkLabel',
   'disclaimer.alertsTitle',
   'disclaimer.alertsNote',
+  'accessibility.title',
+  'accessibility.draftNotice',
+  'accessibility.dated',
+  'accessibility.target.title',
+  'accessibility.target.paragraphs',
+  'accessibility.scope.title',
+  'accessibility.scope.paragraphs',
+  'accessibility.alternative.title',
+  'accessibility.alternative.paragraphs',
+  'accessibility.knownGaps.title',
+  'accessibility.knownGaps.paragraphs',
+  'accessibility.testing.title',
+  'accessibility.testing.paragraphs',
+  'accessibility.legal.title',
+  'accessibility.legal.paragraphs',
+  'accessibility.contact.title',
+  'accessibility.contact.paragraphs',
+  'accessibility.linkLabel',
   'mapControls.imagery',
   'signIn.title',
   'signIn.accountTitle',
