@@ -342,7 +342,7 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
       ).toEqual({ kind: 'written' });
       expect(
         await log.write({
-          expected: { version: 1, status: 'draft' },
+          expected: { version: 1, status: 'draft', editSeq: 0 },
           next: v(entry, 1, 'in_review', [editor]),
           action: 'incident.submit',
           context: { actorId: editor, at: AT },
@@ -351,7 +351,7 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
       const published = v(entry, 1, 'published', [editor]);
       expect(
         await log.write({
-          expected: { version: 1, status: 'in_review' },
+          expected: { version: 1, status: 'in_review', editSeq: 1 },
           next: published,
           action: 'incident.publish',
           context: { actorId: reviewer, at: AT + 60_000 },
@@ -376,7 +376,7 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
       const revised = { ...content, body: 'FIRMS was late by 4 h.' };
       expect(
         await log.write({
-          expected: { version: 1, status: 'published' },
+          expected: { version: 1, status: 'published', editSeq: 2 },
           next: v(entry, 2, 'draft', [reviewer]),
           content: revised,
           action: 'incident.edit',
@@ -411,13 +411,13 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
 
       const results = await Promise.all([
         log.write({
-          expected: { version: 1, status: 'draft' },
+          expected: { version: 1, status: 'draft', editSeq: 0 },
           next: v(entry, 1, 'in_review', [a]),
           action: 'incident.submit',
           context: { actorId: a, at: AT },
         }),
         log.write({
-          expected: { version: 1, status: 'draft' },
+          expected: { version: 1, status: 'draft', editSeq: 0 },
           next: v(entry, 1, 'draft', [a, b]),
           content: { t: 'y' },
           action: 'incident.edit',
@@ -426,6 +426,45 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
       ]);
       expect(results.map((r) => r.kind).sort()).toEqual(['conflict', 'written']);
       expect(await auditActions(entry)).toHaveLength(2);
+    });
+
+    it('refuses a submit decided from a draft that was edited since', async () => {
+      const log = createPgIncidentLogStore(pool);
+      const a = await newMember();
+      const b = await newMember();
+      const entry = await newEntryId();
+      await log.write({
+        expected: null,
+        next: v(entry, 1, 'draft', [a]),
+        content: { t: 'x' },
+        action: 'incident.edit',
+        context: { actorId: a, at: AT },
+      });
+      const seen = await log.findLatest(entry);
+      expect(seen?.editSeq).toBe(0);
+
+      expect(
+        await log.write({
+          expected: { version: 1, status: 'draft', editSeq: 0 },
+          next: v(entry, 1, 'draft', [a, b]),
+          content: { t: 'y' },
+          action: 'incident.edit',
+          context: { actorId: b, at: AT },
+        }),
+      ).toEqual({ kind: 'written' });
+      expect((await log.findLatest(entry))?.editSeq).toBe(1);
+
+      // Same number, same status — only the counter tells the submitter the text moved.
+      expect(
+        await log.write({
+          expected: { version: 1, status: 'draft', editSeq: 0 },
+          next: v(entry, 1, 'in_review', [a]),
+          action: 'incident.submit',
+          context: { actorId: a, at: AT },
+        }),
+      ).toEqual({ kind: 'conflict' });
+      expect((await log.findLatest(entry))?.version.status).toBe('draft');
+      expect(await auditActions(entry)).toEqual(['incident.edit', 'incident.edit']);
     });
 
     it('keeps contributors in first-touch order as they accumulate', async () => {
@@ -441,7 +480,7 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
         context: { actorId: b, at: AT },
       });
       await log.write({
-        expected: { version: 1, status: 'draft' },
+        expected: { version: 1, status: 'draft', editSeq: 0 },
         next: v(entry, 1, 'draft', [b, a]),
         content: { t: 1 },
         action: 'incident.edit',
@@ -462,13 +501,13 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
         context: { actorId: a, at: AT },
       });
       await log.write({
-        expected: { version: 1, status: 'draft' },
+        expected: { version: 1, status: 'draft', editSeq: 0 },
         next: v(entry, 1, 'in_review', [a]),
         action: 'incident.submit',
         context: { actorId: a, at: AT },
       });
       await log.write({
-        expected: { version: 1, status: 'in_review' },
+        expected: { version: 1, status: 'in_review', editSeq: 1 },
         next: v(entry, 1, 'published', [a]),
         action: 'incident.publish',
         context: { actorId: a, at: AT },

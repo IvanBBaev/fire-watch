@@ -150,6 +150,11 @@ export interface StaffStore {
 export interface StoredIncidentVersion {
   readonly version: IncidentEntryVersion;
   readonly content: Readonly<Record<string, unknown>>;
+  /**
+   * How many times this version row was updated in place (migration 028). An edit that
+   * keeps a draft a draft changes neither number nor status, so the CAS needs this too.
+   */
+  readonly editSeq: number;
   readonly updatedAt: EpochMs;
   readonly publishedAt: EpochMs | null;
 }
@@ -157,9 +162,14 @@ export interface StoredIncidentVersion {
 export interface IncidentVersionWrite {
   /**
    * The latest version the caller decided from, or null for a new entry. The write is a
-   * compare-and-set on it: if the entry has moved on, nothing is written.
+   * compare-and-set on it (number, status and `editSeq`, all as `findLatest` returned
+   * them): if the entry has moved on, nothing is written.
    */
-  readonly expected: { readonly version: number; readonly status: IncidentEntryStatus } | null;
+  readonly expected: {
+    readonly version: number;
+    readonly status: IncidentEntryStatus;
+    readonly editSeq: number;
+  } | null;
   /** The workflow's `next` (`incident-log-workflow.ts`). */
   readonly next: IncidentEntryVersion;
   /** Required when a version row is created; omitted keeps the stored text. */

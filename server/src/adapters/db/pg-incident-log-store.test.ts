@@ -47,6 +47,7 @@ function versionRow(version: number, status: string, contributors = [ED]) {
     triggers_notifications: false,
     major: false,
     content: { title: 'Outage' },
+    edit_seq: 0,
     updated_at: new Date(AT),
     published_at: status === 'published' ? new Date(AT) : null,
     contributor_ids: contributors,
@@ -115,7 +116,7 @@ describe('createPgIncidentLogStore', () => {
   it('updates an open version in place, guarded by the status the caller saw', async () => {
     const stub = stubPool({ findLatest: { rows: [versionRow(1, 'in_review')], rowCount: 1 } });
     const result = await createPgIncidentLogStore(stub.pool).write({
-      expected: { version: 1, status: 'in_review' },
+      expected: { version: 1, status: 'in_review', editSeq: 0 },
       next: next(1, 'published'),
       action: 'incident.publish',
       context: { actorId: REVIEWER, at: AT },
@@ -142,7 +143,7 @@ describe('createPgIncidentLogStore', () => {
   it('writes nothing when the latest version is not the one the caller decided from', async () => {
     const stub = stubPool({ findLatest: { rows: [versionRow(2, 'draft')], rowCount: 1 } });
     const result = await createPgIncidentLogStore(stub.pool).write({
-      expected: { version: 1, status: 'published' },
+      expected: { version: 1, status: 'published', editSeq: 0 },
       next: next(2, 'draft'),
       content: {},
       action: 'incident.edit',
@@ -152,13 +153,42 @@ describe('createPgIncidentLogStore', () => {
     expect(stub.trace()).toEqual(['BEGIN', 'lockEntry', 'findLatest', 'COMMIT']);
   });
 
+  it('reports a conflict when the draft was edited since the caller read it', async () => {
+    const stub = stubPool({
+      findLatest: { rows: [{ ...versionRow(1, 'draft'), edit_seq: 3 }], rowCount: 1 },
+    });
+    const result = await createPgIncidentLogStore(stub.pool).write({
+      expected: { version: 1, status: 'draft', editSeq: 2 },
+      next: next(1, 'in_review'),
+      action: 'incident.submit',
+      context: { actorId: ED, at: AT },
+    });
+    expect(result).toEqual({ kind: 'conflict' });
+    expect(stub.trace()).toEqual(['BEGIN', 'lockEntry', 'findLatest', 'COMMIT']);
+  });
+
+  it('guards the in-place update on the counter it read', async () => {
+    const stub = stubPool({
+      findLatest: { rows: [{ ...versionRow(1, 'draft'), edit_seq: 4 }], rowCount: 1 },
+    });
+    await createPgIncidentLogStore(stub.pool).write({
+      expected: { version: 1, status: 'draft', editSeq: 4 },
+      next: next(1, 'in_review'),
+      action: 'incident.submit',
+      context: { actorId: ED, at: AT },
+    });
+    const update = stub.queries.find((q) => q.text === SQL.updateVersion);
+    expect(update?.values[8]).toBe(4);
+    expect(SQL.updateVersion).toMatch(/edit_seq = edit_seq \+ 1/);
+  });
+
   it('reports a conflict when the guarded update matched no row', async () => {
     const stub = stubPool({
       findLatest: { rows: [versionRow(1, 'draft')], rowCount: 1 },
       updateVersion: { rows: [], rowCount: 0 },
     });
     const result = await createPgIncidentLogStore(stub.pool).write({
-      expected: { version: 1, status: 'draft' },
+      expected: { version: 1, status: 'draft', editSeq: 0 },
       next: next(1, 'in_review'),
       action: 'incident.submit',
       context: { actorId: ED, at: AT },
@@ -169,7 +199,7 @@ describe('createPgIncidentLogStore', () => {
   it('revises a published version as a new row and never updates the published one', async () => {
     const stub = stubPool({ findLatest: { rows: [versionRow(1, 'published')], rowCount: 1 } });
     await createPgIncidentLogStore(stub.pool).write({
-      expected: { version: 1, status: 'published' },
+      expected: { version: 1, status: 'published', editSeq: 0 },
       next: next(2, 'draft', [REVIEWER]),
       content: { title: 'Outage (corrected)' },
       action: 'incident.edit',
@@ -184,7 +214,7 @@ describe('createPgIncidentLogStore', () => {
     const stub = stubPool({ findLatest: { rows: [versionRow(1, 'published')], rowCount: 1 } });
     const store = createPgIncidentLogStore(stub.pool);
     const base = {
-      expected: { version: 1, status: 'published' as const },
+      expected: { version: 1, status: 'published' as const, editSeq: 0 },
       action: 'incident.edit' as const,
       context: { actorId: ED, at: AT },
     };
@@ -203,6 +233,7 @@ describe('createPgIncidentLogStore', () => {
     expect(latest).toEqual({
       version: next(1, 'draft', [REVIEWER, ED]),
       content: { title: 'Outage' },
+      editSeq: 0,
       updatedAt: AT,
       publishedAt: null,
     });

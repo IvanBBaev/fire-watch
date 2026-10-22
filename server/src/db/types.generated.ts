@@ -441,6 +441,7 @@ export interface IncidentLogVersionContributors {
 export interface IncidentLogVersions {
   content: Json;
   created_at: Timestamp;
+  edit_seq: Generated<number>;
   entry_id: string;
   major: boolean;
   published_at: Timestamp | null;

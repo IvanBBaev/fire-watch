@@ -4,7 +4,7 @@
  * The workflow (`core/staff/incident-log-workflow.ts`) decides; this store persists the
  * decision as a compare-and-set. A write names the latest version the caller decided from
  * (`expected`); the entry row is locked, the latest version re-read, and if it is not the
- * one the caller saw nothing is written and the result is `conflict`. Two editors racing on
+ * one the caller saw — number, status or edit counter (028) — nothing is written and the result is `conflict`. Two editors racing on
  * the same draft therefore cannot both win, and a review cannot publish text that changed
  * after the reviewer read it.
  *
@@ -41,7 +41,7 @@ import {
 
 const VERSION_COLUMNS = `
   v.entry_id::text AS entry_id, v.version, v.status, v.triggers_notifications, v.major,
-  v.content, v.updated_at, v.published_at,
+  v.content, v.edit_seq, v.updated_at, v.published_at,
   COALESCE(
     (SELECT array_agg(c.staff_id::text ORDER BY c.position)
      FROM incident_log_version_contributors c
@@ -77,16 +77,21 @@ VALUES ($1::uuid, $2::integer, $3::text, $4::boolean, $5::boolean, $6::jsonb,
         $7::timestamptz, $7::timestamptz,
         CASE WHEN $3::text = 'published' THEN $7::timestamptz END)`;
 
-/** `status = $3` is the CAS: the row must still be in the state the caller decided from. */
+/**
+ * `status = $3 AND edit_seq = $9` is the CAS: the row must still be in the state the
+ * caller decided from, and every in-place update moves the counter on.
+ */
 const UPDATE_VERSION = `
 UPDATE incident_log_versions
 SET status = $4::text,
+    edit_seq = edit_seq + 1,
     triggers_notifications = $5::boolean,
     major = $6::boolean,
     content = COALESCE($7::jsonb, content),
     updated_at = $8::timestamptz,
     published_at = CASE WHEN $4::text = 'published' THEN $8::timestamptz END
-WHERE entry_id = $1::uuid AND version = $2::integer AND status = $3::text`;
+WHERE entry_id = $1::uuid AND version = $2::integer AND status = $3::text
+  AND edit_seq = $9::integer`;
 
 /** Contributors only accumulate, in first-touch order, so existing rows keep their place. */
 const INSERT_CONTRIBUTORS = `
@@ -152,7 +157,11 @@ async function writeVersion(
     const [latestRow] = latestResult.rows;
     if (latestRow === undefined) return 'conflict';
     before = decodeVersion(latestRow);
-    if (before.version.version !== expected.version || before.version.status !== expected.status) {
+    if (
+      before.version.version !== expected.version ||
+      before.version.status !== expected.status ||
+      before.editSeq !== expected.editSeq
+    ) {
       return 'conflict';
     }
     if (expected.status === 'published') {
@@ -172,6 +181,7 @@ async function writeVersion(
         next.major,
         input.content === undefined ? null : JSON.stringify(input.content),
         atIso,
+        expected.editSeq,
       ]);
       if (updated.rowCount !== 1) return 'conflict';
     }
@@ -264,6 +274,7 @@ function decodeVersion(row: Record<string, unknown>): StoredIncidentVersion {
       major: boolean(field(row, 'major'), 'major'),
     },
     content: content as Record<string, unknown>,
+    editSeq: number(field(row, 'edit_seq'), 'edit_seq'),
     updatedAt: epochMs(field(row, 'updated_at'), 'updated_at'),
     publishedAt: publishedAt === null ? null : epochMs(publishedAt, 'published_at'),
   };
