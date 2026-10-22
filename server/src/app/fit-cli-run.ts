@@ -62,6 +62,7 @@ import {
   parseLedger,
   recordTouch,
   testSeasonKey,
+  type InputFile,
   type TestTouch,
 } from '../core/fit/test-season.js';
 import type { DetectionUidFn } from '../core/ports/firms-client.js';
@@ -127,11 +128,89 @@ export interface FitCliDeps {
   readonly cwd: string;
 }
 
-function describeDatasets(datasets: readonly DatasetStatus[]): string {
+export function describeDatasets(datasets: readonly DatasetStatus[]): string {
   return datasets
     .filter((d) => d.id !== 'DS-4' && d.problem !== null)
     .map((d) => `${d.id}: ${d.problem ?? ''}`)
     .join(', ');
+}
+
+export interface FitInputs {
+  readonly detections: readonly FitDetection[];
+  readonly geoDetections: readonly FitDetection[];
+  readonly perimeters: readonly LabelPerimeter[];
+  readonly intake: Readonly<Record<string, number>>;
+  readonly ds1Files: readonly InputFile[];
+  readonly ds3Files: readonly InputFile[];
+  readonly ds4Files: readonly InputFile[];
+}
+
+/**
+ * Reads and parses the fit input directory (DS-1, DS-3, optional DS-4) with the intake
+ * counts the report carries. Shared by the fit and the constellation replay (GATES L-14),
+ * so both read the same bytes the same way.
+ */
+export async function loadFitInputs(
+  inputDir: string,
+  detectionUid: DetectionUidFn,
+): Promise<FitInputs> {
+  const dir = await readFitInputDir(inputDir);
+  const intake: Record<string, number> = {
+    ds1_files: 0,
+    ds1_files_unknown_product: 0,
+    ds1_rows: 0,
+    ds1_rows_rejected: 0,
+    ds1_rows_duplicate: 0,
+    ds3_files: 0,
+    ds3_files_unrecognised: 0,
+    ds3_perimeters: 0,
+    ds4_rows: 0,
+  };
+  const bump = (key: string, by = 1): void => {
+    intake[key] = (intake[key] ?? 0) + by;
+  };
+  const detections: FitDetection[] = [];
+  const seen = new Set<string>();
+  const ds1Files: InputFile[] = [];
+  for (const file of dir.firms) {
+    const source = sourceOfProduct(file.product);
+    if (source === null) {
+      bump('ds1_files_unknown_product');
+      continue;
+    }
+    const counts = ingestFirmsCsv(file.text, source, detectionUid, seen, detections);
+    bump('ds1_files');
+    bump('ds1_rows', counts.rows - counts.duplicates);
+    bump('ds1_rows_rejected', counts.rejected);
+    bump('ds1_rows_duplicate', counts.duplicates);
+    ds1Files.push({ path: file.path, sha256: file.sha256 });
+  }
+  const perimeters: LabelPerimeter[] = [];
+  const ds3Files: InputFile[] = [];
+  for (const file of dir.effis) {
+    const year = effisLayerYear(file.fileName);
+    if (year === null) {
+      bump('ds3_files_unrecognised');
+      continue;
+    }
+    let collection: unknown;
+    try {
+      collection = JSON.parse(file.text) as unknown;
+    } catch (error) {
+      throw new Error(`${file.path} is not JSON: ${(error as Error).message}`, { cause: error });
+    }
+    const parsed = parseEffisPerimeters(String(year), collection);
+    perimeters.push(...parsed.perimeters);
+    bump('ds3_files');
+    bump('ds3_perimeters', parsed.perimeters.length);
+    for (const [reason, n] of Object.entries(parsed.rejected)) bump(`ds3_rejected_${reason}`, n);
+    ds3Files.push({ path: file.path, sha256: file.sha256 });
+  }
+  const ds4Files = dir.geo === null ? [] : [{ path: dir.geo.path, sha256: dir.geo.sha256 }];
+  const geoDetections =
+    dir.geo === null ? [] : parseGeoDetections(JSON.parse(dir.geo.text) as unknown, detectionUid);
+  bump('ds4_rows', geoDetections.length);
+  return { detections, geoDetections, perimeters, intake, ds1Files, ds3Files, ds4Files };
 }
 
 export async function runFitCli(argv: readonly string[], deps: FitCliDeps): Promise<number> {
@@ -166,64 +245,8 @@ export async function runFitCli(argv: readonly string[], deps: FitCliDeps): Prom
   });
 
   // 2. Inputs.
-  const dir = await readFitInputDir(args.inputDir);
-  const intake: Record<string, number> = {
-    ds1_files: 0,
-    ds1_files_unknown_product: 0,
-    ds1_rows: 0,
-    ds1_rows_rejected: 0,
-    ds1_rows_duplicate: 0,
-    ds3_files: 0,
-    ds3_files_unrecognised: 0,
-    ds3_perimeters: 0,
-    ds4_rows: 0,
-  };
-  const bump = (key: string, by = 1): void => {
-    intake[key] = (intake[key] ?? 0) + by;
-  };
-  const detections: FitDetection[] = [];
-  const seen = new Set<string>();
-  const ds1Files = [];
-  for (const file of dir.firms) {
-    const source = sourceOfProduct(file.product);
-    if (source === null) {
-      bump('ds1_files_unknown_product');
-      continue;
-    }
-    const counts = ingestFirmsCsv(file.text, source, deps.detectionUid, seen, detections);
-    bump('ds1_files');
-    bump('ds1_rows', counts.rows - counts.duplicates);
-    bump('ds1_rows_rejected', counts.rejected);
-    bump('ds1_rows_duplicate', counts.duplicates);
-    ds1Files.push({ path: file.path, sha256: file.sha256 });
-  }
-  const perimeters: LabelPerimeter[] = [];
-  const ds3Files = [];
-  for (const file of dir.effis) {
-    const year = effisLayerYear(file.fileName);
-    if (year === null) {
-      bump('ds3_files_unrecognised');
-      continue;
-    }
-    let collection: unknown;
-    try {
-      collection = JSON.parse(file.text) as unknown;
-    } catch (error) {
-      throw new Error(`${file.path} is not JSON: ${(error as Error).message}`, { cause: error });
-    }
-    const parsed = parseEffisPerimeters(String(year), collection);
-    perimeters.push(...parsed.perimeters);
-    bump('ds3_files');
-    bump('ds3_perimeters', parsed.perimeters.length);
-    for (const [reason, n] of Object.entries(parsed.rejected)) bump(`ds3_rejected_${reason}`, n);
-    ds3Files.push({ path: file.path, sha256: file.sha256 });
-  }
-  const ds4Files = dir.geo === null ? [] : [{ path: dir.geo.path, sha256: dir.geo.sha256 }];
-  const geoDetections =
-    dir.geo === null
-      ? []
-      : parseGeoDetections(JSON.parse(dir.geo.text) as unknown, deps.detectionUid);
-  bump('ds4_rows', geoDetections.length);
+  const { detections, geoDetections, perimeters, intake, ds1Files, ds3Files, ds4Files } =
+    await loadFitInputs(args.inputDir, deps.detectionUid);
 
   // 3. The touch-once lock.
   const ledgerKey = testSeasonKey(ds1Files, ds3Files);

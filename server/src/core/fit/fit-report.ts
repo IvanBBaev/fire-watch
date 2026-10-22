@@ -176,7 +176,7 @@ function viewsTable(views: readonly NamedView[]): string[] {
   ];
 }
 
-function splitSection(title: string, split: SplitResult): string[] {
+export function splitSection(title: string, split: SplitResult): string[] {
   return [
     `### ${title}`,
     '',
