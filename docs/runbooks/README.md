@@ -25,6 +25,7 @@ quantities; it points at them.
 | 03 | [Alert dispatch misfire](03-alert-dispatch-misfire.md) | Alerts storm, go out wrong, or stall in the outbox | RISKS R4 ("alerts fail closed"); ADR-004 outbox, kill switch and budget G; GATES L-8; OPERATIONS §3, §7 U-7 |
 | 04 | [Upstream overlay, quota or licence failure](04-upstream-overlay-quota-licence.md) | EFFIS/GIBS outage or a bad image, a CDSE/ArcGIS quota cliff, or a licence or attribution change | RISKS watchlist (GIBS/EFFIS no SLA, CDSE quota, ArcGIS cliff, NC-licence traps) + R5; review 14 minors; OPERATIONS §1.1(6), §11 |
 | 05 | [Traffic surge](05-traffic-surge.md) | A viral fire brings 100–1000× traffic; transport demotes to T1/T2 | review 04 RB-4 (§5.2.4 checklist); RISKS R1; OPERATIONS §7 ordering rule, §9.3 rule 4 |
+| 06 | [Staff off-boarding and a compromised staff account](06-staff-offboarding.md) | A staff member leaves, changes duties, loses a device, or their account is suspected compromised | 05 C3, §5.4.3; A3; OPERATIONS §8.2 rule 7; migrations 026, 029, 030 (TASKS I1) |
 
 The five classes are not invented. Review 04 seeds four runbooks (RB-1 pipeline
 stale, RB-2 VM loss, RB-3 DB restore, RB-4 spike). RB-2 and RB-3 share one recovery

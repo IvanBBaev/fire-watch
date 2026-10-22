@@ -12,24 +12,29 @@
  *      mail decision). The session is `pending_second_factor` and has no powers.
  *   2. `beginWebAuthn` stores a challenge on the session; `finishWebAuthnAssertion` takes
  *      it (once), verifies the assertion, advances the signature counter (the clone
- *      guard) and elevates the session with a fresh token. `useRecoveryCode` elevates
- *      with a recovery code instead.
+ *      guard) and elevates the session with a fresh token. `useTotpCode` elevates with a
+ *      TOTP code (RFC 6238, its step advanced by the store's CAS, the replay guard) and
+ *      `useRecoveryCode` with a recovery code instead. Wrong codes count against the
+ *      session; `STAFF_SESSION_POLICY.maxSecondFactorFailures` of them end it.
  *   3. A member with no second factor at all enrolls the first one from the pending
  *      session (`finishWebAuthnRegistration`): that enrollment prints the recovery codes
  *      and elevates the session. Later keys need a verified session.
  *   4. `authenticateStaffSession` reads the session on every request and slides its idle
  *      expiry; `signOutStaff` ends it.
  *
- * Removing a credential and changing a member go through `staff-session-policy.ts`'s
- * decisions first, then the store, which re-checks what only it can (the last factor).
+ * Removing a credential or the TOTP factor, changing a member and off-boarding one go
+ * through `staff-session-policy.ts`'s decisions first, then the store, which re-checks
+ * what only it can (the last factor).
  */
 
 import type { AuthTokens } from '../ports/auth-stores.js';
 import type { EpochMs } from '../ports/clock.js';
 import type {
   StaffRecoveryCodes,
+  StaffOffboardingCounts,
   StaffSessionStore,
   StaffStore,
+  StaffTotpCodes,
   StaffWebAuthnCeremonies,
   StoredStaffSession,
 } from '../ports/staff-stores.js';
@@ -196,7 +201,7 @@ async function elevate(
   deps: Pick<StaffSessionDeps, 'sessions' | 'tokens'>,
   session: StoredStaffSession,
   factor: {
-    readonly method: 'webauthn' | 'recovery_code';
+    readonly method: 'webauthn' | 'totp' | 'recovery_code';
     readonly credentialId: Uint8Array | null;
   },
   context: StaffRequestContext,
@@ -330,7 +335,61 @@ export async function finishWebAuthnRegistration(
   };
 }
 
-// ── Recovery code ────────────────────────────────────────────────────────────────────
+// ── Typed codes: TOTP and recovery ───────────────────────────────────────────────────
+
+/**
+ * Counts a wrong code against the session. A malformed one is not counted (it is a typo,
+ * not a guess); everything that could be a guess is. `session_ended` when this one hit the
+ * cap and the store revoked the session.
+ */
+async function refuseCode(
+  deps: Pick<StaffSessionDeps, 'sessions'>,
+  session: StoredStaffSession,
+  context: StaffRequestContext,
+): Promise<ElevationResult> {
+  const counted = await deps.sessions.recordSecondFactorFailure(
+    session.id,
+    STAFF_SESSION_POLICY.maxSecondFactorFailures,
+    { at: context.at, ...ipOf(context) },
+  );
+  if (counted === null || counted.revoked) return { kind: 'refused', reason: 'session_ended' };
+  return { kind: 'refused', reason: 'invalid_code' };
+}
+
+/**
+ * Elevates a pending session with the member's TOTP code. The verifier checks the code
+ * against the sealed secret and the stored last step; the store's CAS then advances the
+ * step, so of two requests racing with one code exactly one elevates.
+ */
+export async function useTotpCode(
+  deps: Pick<StaffSessionDeps, 'sessions' | 'staff' | 'tokens'> & {
+    readonly totp: StaffTotpCodes;
+  },
+  session: StoredStaffSession,
+  code: string,
+  context: StaffRequestContext,
+): Promise<ElevationResult> {
+  if (staffSessionState(session, context.at) !== 'pending_second_factor') {
+    return { kind: 'refused', reason: 'not_allowed' };
+  }
+  const factor = await deps.staff.findTotpFactor(session.staffId);
+  if (factor === null) return { kind: 'refused', reason: 'not_allowed' };
+  const verdict = deps.totp.verify({
+    staffId: session.staffId,
+    factor,
+    code,
+    at: context.at,
+  });
+  if (verdict.kind === 'refused') {
+    return verdict.reason === 'malformed'
+      ? { kind: 'refused', reason: 'invalid_code' }
+      : refuseCode(deps, session, context);
+  }
+  if (!(await deps.staff.advanceTotpStep(session.staffId, verdict.step))) {
+    return refuseCode(deps, session, context);
+  }
+  return elevate(deps, session, { method: 'totp', credentialId: null }, context);
+}
 
 export async function useRecoveryCode(
   deps: StaffSessionDeps,
@@ -347,7 +406,7 @@ export async function useRecoveryCode(
     at: context.at,
     ...ipOf(context),
   });
-  if (!consumed) return { kind: 'refused', reason: 'invalid_code' };
+  if (!consumed) return refuseCode(deps, session, context);
   return elevate(deps, session, { method: 'recovery_code', credentialId: null }, context);
 }
 
@@ -379,6 +438,49 @@ export async function removeWebAuthnCredential(
     ...ipOf(context),
   });
   return removed.kind === 'removed' ? removed : { kind: 'refused', reason: removed.kind };
+}
+
+/** Removes the member's TOTP factor under the same rule as a WebAuthn credential. */
+export async function removeStaffTotpFactor(
+  deps: Pick<StaffSessionDeps, 'staff'>,
+  actor: StaffPrincipal,
+  target: { readonly staffId: string },
+  context: StaffRequestContext,
+): Promise<StaffChangeResult<{ readonly kind: 'removed'; readonly sessionsRevoked: number }>> {
+  const decision = decideCredentialRemoval(actor, target.staffId);
+  if (decision.kind === 'refused') return decision;
+  const removed = await deps.staff.removeTotpFactor(target.staffId, {
+    actorId: actor.staffId,
+    at: context.at,
+    ...ipOf(context),
+  });
+  return removed.kind === 'removed' ? removed : { kind: 'refused', reason: removed.kind };
+}
+
+/**
+ * Off-boards a member (docs/runbooks/06-staff-offboarding.md): `staff.manage`, never on
+ * oneself, like disabling. Unlike disabling it also works on an already disabled member,
+ * so a member disabled in a hurry can be cleaned out afterwards.
+ */
+export async function offboardStaffMember(
+  deps: Pick<StaffSessionDeps, 'staff'>,
+  actor: StaffPrincipal,
+  targetStaffId: string,
+  context: StaffRequestContext,
+): Promise<
+  StaffChangeResult<
+    | ({ readonly kind: 'offboarded' } & StaffOffboardingCounts)
+    | { readonly kind: 'already_offboarded' }
+  >
+> {
+  const decision = decideMemberChange(actor, targetStaffId);
+  if (decision.kind === 'refused') return decision;
+  const done = await deps.staff.offboardMember(targetStaffId, {
+    actorId: actor.staffId,
+    at: context.at,
+    ...ipOf(context),
+  });
+  return done.kind === 'not_found' ? { kind: 'refused', reason: 'not_found' } : done;
 }
 
 export async function disableStaffMember(

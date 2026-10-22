@@ -581,6 +581,7 @@ export interface StaffSessions {
   revoked_at: Timestamp | null;
   second_factor_at: Timestamp | null;
   second_factor_credential_id: Buffer | null;
+  second_factor_failures: Generated<number>;
   second_factor_method: string | null;
   staff_id: string;
   token_hash: Buffer;

@@ -13,6 +13,11 @@
  * credential, so a removal of that credential either finishes first (and the elevation
  * finds no credential) or waits and then revokes the session it just elevated. The
  * `staff.sign_in` audit row is written in the same transaction.
+ *
+ * **Wrong codes are counted** (migration 030). {@link StaffSessionStore.recordSecondFactorFailure}
+ * increments `second_factor_failures` on a pending, unrevoked session and, when the new
+ * count reaches the limit, revokes it in the same UPDATE — the row lock serialises racing
+ * guesses, so the cap cannot be overshot by parallel requests. The lockout is audited.
  */
 
 import { isoFromEpochMs } from '../../core/ports/clock.js';
@@ -26,7 +31,7 @@ import {
   type StaffSecondFactorMethod,
   type StoredChallenge,
 } from '../../core/staff/staff-session-policy.js';
-import { epochMs, field, string } from './pg-rows.js';
+import { epochMs, field, number, string } from './pg-rows.js';
 import { inTransaction, insertAuditRecord, sha256Hex, type PgStaffPool } from './pg-staff-store.js';
 
 const INSERT_SESSION = `
@@ -101,6 +106,20 @@ SET revoked_at = $2::timestamptz, challenge = NULL, challenge_purpose = NULL,
 WHERE id = $1::uuid AND revoked_at IS NULL
 RETURNING staff_id::text AS staff_id, (second_factor_at IS NOT NULL) AS verified`;
 
+/** The count and the revocation are one statement; SET reads the pre-update row. */
+const RECORD_FAILURE = `
+UPDATE staff_sessions
+SET second_factor_failures = second_factor_failures + 1,
+    revoked_at = CASE WHEN second_factor_failures + 1 >= $2::integer THEN $3::timestamptz END,
+    challenge = CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge END,
+    challenge_purpose =
+      CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge_purpose END,
+    challenge_expires_at =
+      CASE WHEN second_factor_failures + 1 >= $2::integer THEN NULL ELSE challenge_expires_at END
+WHERE id = $1::uuid AND revoked_at IS NULL AND second_factor_at IS NULL
+RETURNING staff_id::text AS staff_id, second_factor_failures AS failures,
+          (revoked_at IS NOT NULL) AS revoked`;
+
 /** Exported for the tests that assert the statements' shape rather than their effect. */
 export const STAFF_SESSION_SQL = {
   insert: INSERT_SESSION,
@@ -110,6 +129,7 @@ export const STAFF_SESSION_SQL = {
   takeChallenge: TAKE_CHALLENGE,
   shareCredential: SHARE_CREDENTIAL,
   markSecondFactor: MARK_SECOND_FACTOR,
+  recordFailure: RECORD_FAILURE,
   revoke: REVOKE,
 } as const;
 
@@ -207,6 +227,41 @@ export function createPgStaffSessionStore(pool: PgStaffPool): StaffSessionStore 
           ),
         );
         return true;
+      }),
+
+    recordSecondFactorFailure: (sessionId, limit, context) =>
+      inTransaction(pool, async (client) => {
+        if (!Number.isSafeInteger(limit) || limit < 1) {
+          throw new RangeError('a second-factor failure limit is a positive integer');
+        }
+        const counted = await client.query(RECORD_FAILURE, [
+          sessionId,
+          limit,
+          isoFromEpochMs(context.at),
+        ]);
+        const [row] = counted.rows;
+        if (row === undefined) return null;
+        const failures = number(field(row, 'failures'), 'failures');
+        const revoked = field(row, 'revoked') === true;
+        if (revoked) {
+          // A pending session never signed in on the trail, but a lockout is evidence of
+          // guessing, so it is recorded.
+          await insertAuditRecord(
+            client,
+            buildStaffAuditRecord(
+              {
+                actorId: string(field(row, 'staff_id'), 'staff_id'),
+                action: 'staff.sign_out',
+                entity: { kind: 'staff_session', id: sessionId },
+                after: { reason: 'too_many_second_factor_failures', failures },
+                ...(context.ip === undefined ? {} : { ip: context.ip }),
+                at: context.at,
+              },
+              sha256Hex,
+            ),
+          );
+        }
+        return { failures, revoked };
       }),
 
     revoke: (sessionId, context) =>

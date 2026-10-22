@@ -183,6 +183,39 @@ export interface StaffStore {
   >;
 
   /**
+   * Removes `staffId`'s TOTP factor, ends the sessions it let in (`second_factor_method =
+   * 'totp'`) and audits `staff.second_factor_removed`, in one transaction under the
+   * member's row lock — the same rule as {@link removeWebAuthnCredential}: `not_found` when
+   * the live member has no TOTP factor, `last_second_factor` when it is their only one.
+   * The recovery codes stay: they are a fallback for whichever factor remains.
+   */
+  removeTotpFactor(
+    staffId: string,
+    context: StaffActionContext,
+  ): Promise<
+    | { readonly kind: 'removed'; readonly sessionsRevoked: number }
+    | { readonly kind: 'not_found' | 'last_second_factor' }
+  >;
+
+  /**
+   * Off-boarding (docs/runbooks/06-staff-offboarding.md): disables the member if still
+   * live, revokes every session, deletes every WebAuthn credential, the TOTP factor, the
+   * recovery codes and the role grants, and audits it all as one `staff.manage` row with
+   * the counts — one transaction under the member's row lock, whatever state it is in. The
+   * member row and the trail stay (026: members are never deleted).
+   * `already_offboarded` when there was nothing left to do (no audit row then);
+   * `not_found` for an unknown id.
+   */
+  offboardMember(
+    staffId: string,
+    context: StaffActionContext,
+  ): Promise<
+    | ({ readonly kind: 'offboarded' } & StaffOffboardingCounts)
+    | { readonly kind: 'already_offboarded' }
+    | { readonly kind: 'not_found' }
+  >;
+
+  /**
    * Replaces a live member's role set and audits the before/after sets as `staff.manage`.
    * Takes effect on the member's next request: sessions read roles live.
    */
@@ -193,6 +226,16 @@ export interface StaffStore {
   ): Promise<{ readonly kind: 'changed' | 'unchanged' | 'not_found' }>;
 
   appendAudit(record: StaffAuditRecord): Promise<void>;
+}
+
+/** What an off-boarding took away; the `staff.manage` audit row's `before`. */
+export interface StaffOffboardingCounts {
+  readonly wasLive: boolean;
+  readonly sessionsRevoked: number;
+  readonly webauthnRemoved: number;
+  readonly totpRemoved: number;
+  readonly recoveryCodesRemoved: number;
+  readonly rolesRemoved: readonly StaffRole[];
 }
 
 // ── Staff sessions (migration 029) ───────────────────────────────────────────────────
@@ -254,6 +297,18 @@ export interface StaffSessionStore {
     context: Omit<StaffActionContext, 'actorId'>,
   ): Promise<boolean>;
 
+  /**
+   * Counts one wrong TOTP or recovery code against a pending, unrevoked session (migration
+   * 030). When the count reaches `limit` the same UPDATE revokes the session, and the
+   * lockout is audited as `staff.sign_out` with its reason. Null when the session is not
+   * pending or already revoked (nothing counted).
+   */
+  recordSecondFactorFailure(
+    sessionId: string,
+    limit: number,
+    context: Omit<StaffActionContext, 'actorId'>,
+  ): Promise<{ readonly failures: number; readonly revoked: boolean } | null>;
+
   /** Revokes the row and audits `staff.sign_out`; false when it was already revoked. */
   revoke(sessionId: string, context: Omit<StaffActionContext, 'actorId'>): Promise<boolean>;
 }
@@ -279,6 +334,23 @@ export interface StaffWebAuthnCeremonies {
   }):
     | { readonly kind: 'accepted'; readonly signCount: number }
     | { readonly kind: 'refused'; readonly reason: string };
+}
+
+/**
+ * The TOTP check, bound to the secret's seal in the adapter: the core passes the stored
+ * (sealed) factor and the typed code and never sees the secret. Throws when the secret
+ * cannot be opened (a missing key or a tampered row) — that is an operator's problem, not
+ * a wrong code.
+ */
+export interface StaffTotpCodes {
+  verify(input: {
+    readonly staffId: string;
+    readonly factor: StoredTotpFactor;
+    readonly code: string;
+    readonly at: EpochMs;
+  }):
+    | { readonly kind: 'accepted'; readonly step: number }
+    | { readonly kind: 'refused'; readonly reason: 'malformed' | 'wrong_code' | 'replayed' };
 }
 
 export interface StaffRecoveryCodes {

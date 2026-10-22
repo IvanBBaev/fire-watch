@@ -565,3 +565,134 @@ describe('createPgStaffStore — removal and member changes', () => {
     expect(await createPgStaffStore(stub.pool).countSecondFactors(STAFF)).toBe(0);
   });
 });
+
+describe('createPgStaffStore — TOTP removal and off-boarding', () => {
+  const ctx = { actorId: ADMIN, ip: '192.0.2.1', at: AT };
+
+  it('removes the TOTP factor, ends the sessions it signed and audits it without the secret', async () => {
+    const stub = stubPool({
+      lockOwnTotp: { rows: [{ algorithm: 'sha1' }], rowCount: 1 },
+      countSecondFactors: { rows: [{ factors: 2 }], rowCount: 1 },
+      revokeSessionsByMethod: { rows: [], rowCount: 2 },
+    });
+    const result = await createPgStaffStore(stub.pool).removeTotpFactor(STAFF, ctx);
+    expect(result).toEqual({ kind: 'removed', sessionsRevoked: 2 });
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockLiveMember',
+      'lockOwnTotp',
+      'countSecondFactors',
+      'deleteTotp',
+      'revokeSessionsByMethod',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    const revoke = stub.queries.find((q) => q.text === STAFF_SQL.revokeSessionsByMethod);
+    expect(revoke?.values.slice(0, 2)).toEqual([STAFF, 'totp']);
+    expect(stub.trace()).not.toContain('deleteRecoveryCodes');
+    expect(auditValues(stub).slice(0, 4)).toEqual([
+      ADMIN,
+      'staff.second_factor_removed',
+      'staff_member',
+      STAFF,
+    ]);
+  });
+
+  it('refuses to remove the last second factor and reports a missing one as not found', async () => {
+    const last = stubPool({
+      lockOwnTotp: { rows: [{ algorithm: 'sha1' }], rowCount: 1 },
+      countSecondFactors: { rows: [{ factors: 1 }], rowCount: 1 },
+    });
+    expect(await createPgStaffStore(last.pool).removeTotpFactor(STAFF, ctx)).toEqual({
+      kind: 'last_second_factor',
+    });
+    expect(last.trace()).not.toContain('deleteTotp');
+    expect(last.trace()).not.toContain('insertAudit');
+    const none = stubPool({ lockOwnTotp: { rows: [], rowCount: 0 } });
+    expect(await createPgStaffStore(none.pool).removeTotpFactor(STAFF, ctx)).toEqual({
+      kind: 'not_found',
+    });
+  });
+
+  it('off-boards a live member: disable, sessions, every factor, codes and roles, one audit row', async () => {
+    const stub = stubPool({
+      lockAnyMember: { rows: [{ live: true }], rowCount: 1 },
+      revokeMemberSessions: { rows: [], rowCount: 2 },
+      deleteMemberWebAuthn: { rows: [], rowCount: 1 },
+      deleteTotp: { rows: [], rowCount: 1 },
+      deleteRecoveryCodes: { rows: [], rowCount: 10 },
+      deleteMemberRoles: { rows: [{ role: 'moderator' }, { role: 'editor' }], rowCount: 2 },
+    });
+    const result = await createPgStaffStore(stub.pool).offboardMember(STAFF, ctx);
+    expect(result).toEqual({
+      kind: 'offboarded',
+      wasLive: true,
+      sessionsRevoked: 2,
+      webauthnRemoved: 1,
+      totpRemoved: 1,
+      recoveryCodesRemoved: 10,
+      rolesRemoved: ['editor', 'moderator'],
+    });
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockAnyMember',
+      'disableMember',
+      'revokeMemberSessions',
+      'deleteMemberWebAuthn',
+      'deleteTotp',
+      'deleteRecoveryCodes',
+      'deleteMemberRoles',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    expect(auditValues(stub).slice(0, 2)).toEqual([ADMIN, 'staff.manage']);
+  });
+
+  it('finishes a disabled member and reports a clean one as already off-boarded', async () => {
+    const leftover = stubPool({
+      lockAnyMember: { rows: [{ live: false }], rowCount: 1 },
+      revokeMemberSessions: { rows: [], rowCount: 0 },
+      deleteMemberWebAuthn: { rows: [], rowCount: 1 },
+      deleteTotp: { rows: [], rowCount: 0 },
+      deleteRecoveryCodes: { rows: [], rowCount: 0 },
+      deleteMemberRoles: { rows: [], rowCount: 0 },
+    });
+    const finished = await createPgStaffStore(leftover.pool).offboardMember(STAFF, ctx);
+    expect(finished).toMatchObject({ kind: 'offboarded', wasLive: false, webauthnRemoved: 1 });
+    expect(leftover.trace()).not.toContain('disableMember');
+    expect(leftover.trace()).toContain('insertAudit');
+
+    const clean = stubPool({
+      lockAnyMember: { rows: [{ live: false }], rowCount: 1 },
+      revokeMemberSessions: { rows: [], rowCount: 0 },
+      deleteMemberWebAuthn: { rows: [], rowCount: 0 },
+      deleteTotp: { rows: [], rowCount: 0 },
+      deleteRecoveryCodes: { rows: [], rowCount: 0 },
+      deleteMemberRoles: { rows: [], rowCount: 0 },
+    });
+    expect(await createPgStaffStore(clean.pool).offboardMember(STAFF, ctx)).toEqual({
+      kind: 'already_offboarded',
+    });
+    expect(clean.trace()).not.toContain('insertAudit');
+
+    const unknown = stubPool({ lockAnyMember: { rows: [], rowCount: 0 } });
+    expect(await createPgStaffStore(unknown.pool).offboardMember(STAFF, ctx)).toEqual({
+      kind: 'not_found',
+    });
+  });
+});
+
+describe('migration 030', () => {
+  const sql = readFileSync(
+    new URL('../../../db/migrations/030_staff_totp_removal_and_offboarding.sql', import.meta.url),
+    'utf8',
+  );
+
+  it('grants the TOTP delete and the failure counter, and undoes both', () => {
+    const [up = '', down = ''] = sql.split('-- migrate:down');
+    expect(up).toMatch(/GRANT DELETE ON staff_totp_factors TO fire_watch_app/);
+    expect(up).toMatch(/second_factor_failures integer NOT NULL DEFAULT 0/);
+    expect(down).toMatch(/REVOKE DELETE ON staff_totp_factors FROM fire_watch_app/);
+    expect(down).toMatch(/DROP COLUMN IF EXISTS second_factor_failures/);
+  });
+});

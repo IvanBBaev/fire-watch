@@ -11,7 +11,12 @@
  *   * a verified session slides its idle expiry by thirty minutes on use, but never past
  *     an absolute twelve hours from sign-in — a working day, then sign in again;
  *   * a WebAuthn challenge is good for five minutes (WebAuthn §5.4's recommended
- *     ceremony timeout range is 5–10 minutes) and is answered at most once.
+ *     ceremony timeout range is 5–10 minutes) and is answered at most once;
+ *   * five wrong TOTP or recovery codes end a pending session (migration 030): a six-digit
+ *     code with a ±1 step window is a 1-in-333,333 guess, so five tries in a ten-minute
+ *     window keep a guesser near 1 in 66,000 per sign-in, which the primary sign-in's
+ *     own rate limit then multiplies (NIST SP 800-63B §5.2.2 asks for a cap of 100 or
+ *     fewer).
  *
  * Who may remove a credential and change a member are decisions here too, so the HTTP
  * plane (L-15) and any CLI apply the same rule.
@@ -28,6 +33,7 @@ export const STAFF_SESSION_POLICY = {
   idleMs: 30 * MINUTE_MS,
   absoluteMs: 12 * HOUR_MS,
   challengeTtlMs: 5 * MINUTE_MS,
+  maxSecondFactorFailures: 5,
 } as const;
 
 export const STAFF_SECOND_FACTOR_METHODS = ['webauthn', 'totp', 'recovery_code'] as const;

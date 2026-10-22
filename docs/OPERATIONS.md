@@ -596,7 +596,8 @@ operated service survives on a small surface.
 6. Every row in §8.1 has a **one-line rotation procedure** in the runbook and a named
    owner for its quota/expiry alarm (`EXTERNAL-ACCOUNTS.md` standing rule).
 7. **Rotation triggers:** suspected exposure, lost or stolen device, contributor
-   offboarding, provider breach notice, and the annual pre-season review.
+   offboarding, provider breach notice, and the annual pre-season review. Staff-plane
+   off-boarding inside the app: [runbook 06](runbooks/06-staff-offboarding.md).
 8. A secret that cannot be rotated without user-visible harm (VAPID) is a **design**
    constraint, not an ops one: the mitigating flow must exist before the secret is in
    production use.

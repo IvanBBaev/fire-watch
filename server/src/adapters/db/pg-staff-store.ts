@@ -20,6 +20,12 @@
  * lock and refuses to take the last one; it ends the sessions that credential let in.
  * Disabling a member ends all of their sessions in the same transaction.
  *
+ * Removing the TOTP factor (migration 030) follows the credential's rule under the same
+ * lock and ends the sessions TOTP let in. Off-boarding locks the member row whatever its
+ * state, disables it if live, ends every session and deletes every credential, the TOTP
+ * factor, the recovery codes and the role grants — one transaction, one `staff.manage`
+ * row carrying the counts (docs/runbooks/06-staff-offboarding.md).
+ *
  * A disabled member keeps their rows (the trail references them) but every second-factor
  * read and write refuses them, so disabling is enough to lock someone out.
  */
@@ -172,6 +178,27 @@ SET revoked_at = $3::timestamptz, challenge = NULL, challenge_purpose = NULL,
     challenge_expires_at = NULL
 WHERE staff_id = $1::uuid AND second_factor_credential_id = $2::bytea AND revoked_at IS NULL`;
 
+const LOCK_OWN_TOTP = `
+SELECT algorithm FROM staff_totp_factors WHERE staff_id = $1::uuid FOR UPDATE`;
+
+const DELETE_TOTP = `DELETE FROM staff_totp_factors WHERE staff_id = $1::uuid`;
+
+/** Ends the sessions a removed TOTP factor let in (migration 030). */
+const REVOKE_SESSIONS_BY_METHOD = `
+UPDATE staff_sessions
+SET revoked_at = $3::timestamptz, challenge = NULL, challenge_purpose = NULL,
+    challenge_expires_at = NULL
+WHERE staff_id = $1::uuid AND second_factor_method = $2::text AND revoked_at IS NULL`;
+
+/** Off-boarding's lock: any member, live or disabled. */
+const LOCK_ANY_MEMBER = `
+SELECT (disabled_at IS NULL) AS live FROM staff_members WHERE id = $1::uuid FOR UPDATE`;
+
+const DELETE_MEMBER_WEBAUTHN = `DELETE FROM staff_webauthn_credentials WHERE staff_id = $1::uuid`;
+
+const DELETE_MEMBER_ROLES = `
+DELETE FROM staff_role_grants WHERE staff_id = $1::uuid RETURNING role`;
+
 const DISABLE_MEMBER = `
 UPDATE staff_members SET disabled_at = $2::timestamptz
 WHERE id = $1::uuid AND disabled_at IS NULL`;
@@ -214,6 +241,12 @@ export const STAFF_SQL = {
   revokeSessionsByCredential: REVOKE_SESSIONS_BY_CREDENTIAL,
   disableMember: DISABLE_MEMBER,
   revokeMemberSessions: REVOKE_MEMBER_SESSIONS,
+  lockOwnTotp: LOCK_OWN_TOTP,
+  deleteTotp: DELETE_TOTP,
+  revokeSessionsByMethod: REVOKE_SESSIONS_BY_METHOD,
+  lockAnyMember: LOCK_ANY_MEMBER,
+  deleteMemberWebAuthn: DELETE_MEMBER_WEBAUTHN,
+  deleteMemberRoles: DELETE_MEMBER_ROLES,
   lockedRoles: LOCKED_ROLES,
   deleteRole: DELETE_ROLE,
   insertAudit: INSERT_AUDIT,
@@ -489,6 +522,105 @@ export function createPgStaffStore(
           ),
         );
         return { kind: 'removed', sessionsRevoked: revoked.rowCount ?? 0 } as const;
+      }),
+
+    removeTotpFactor: (staffId, context) =>
+      inTransaction(pool, async (client) => {
+        // The same lock as a credential removal: the count cannot be raced into zero.
+        const live = await client.query(LOCK_LIVE_MEMBER, [staffId]);
+        if (live.rowCount !== 1) return { kind: 'not_found' } as const;
+        const owned = await client.query(LOCK_OWN_TOTP, [staffId]);
+        const [factor] = owned.rows;
+        if (factor === undefined) return { kind: 'not_found' } as const;
+        const counted = await client.query(COUNT_SECOND_FACTORS, [staffId]);
+        const [countRow] = counted.rows;
+        const factors = countRow === undefined ? 0 : number(field(countRow, 'factors'), 'factors');
+        if (factors <= 1) return { kind: 'last_second_factor' } as const;
+        const atIso = isoFromEpochMs(context.at);
+        const deleted = await client.query(DELETE_TOTP, [staffId]);
+        if (deleted.rowCount !== 1) throw new Error('TOTP delete did not remove one row');
+        const revoked = await client.query(REVOKE_SESSIONS_BY_METHOD, [staffId, 'totp', atIso]);
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.second_factor_removed',
+              entity: { kind: 'staff_member', id: staffId },
+              // The method and its shape, never the secret.
+              before: {
+                method: 'totp',
+                algorithm: string(field(factor, 'algorithm'), 'algorithm'),
+              },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'removed', sessionsRevoked: revoked.rowCount ?? 0 } as const;
+      }),
+
+    offboardMember: (staffId, context) =>
+      inTransaction(pool, async (client) => {
+        const locked = await client.query(LOCK_ANY_MEMBER, [staffId]);
+        const [member] = locked.rows;
+        if (member === undefined) return { kind: 'not_found' } as const;
+        const wasLive = boolean(field(member, 'live'), 'live');
+        const atIso = isoFromEpochMs(context.at);
+        if (wasLive) {
+          const disabled = await client.query(DISABLE_MEMBER, [staffId, atIso]);
+          if (disabled.rowCount !== 1) throw new Error('member disable did not change one row');
+        }
+        const sessions = await client.query(REVOKE_MEMBER_SESSIONS, [staffId, atIso]);
+        const webauthn = await client.query(DELETE_MEMBER_WEBAUTHN, [staffId]);
+        const totp = await client.query(DELETE_TOTP, [staffId]);
+        const codes = await client.query(DELETE_RECOVERY_CODES, [staffId]);
+        const roles = (await client.query(DELETE_MEMBER_ROLES, [staffId])).rows
+          .map((row) => string(field(row, 'role'), 'role'))
+          .filter(isStaffRole)
+          .sort();
+        const counts = {
+          wasLive,
+          sessionsRevoked: sessions.rowCount ?? 0,
+          webauthnRemoved: webauthn.rowCount ?? 0,
+          totpRemoved: totp.rowCount ?? 0,
+          recoveryCodesRemoved: codes.rowCount ?? 0,
+          rolesRemoved: roles,
+        };
+        if (
+          !wasLive &&
+          counts.sessionsRevoked === 0 &&
+          counts.webauthnRemoved === 0 &&
+          counts.totpRemoved === 0 &&
+          counts.recoveryCodesRemoved === 0 &&
+          roles.length === 0
+        ) {
+          return { kind: 'already_offboarded' } as const;
+        }
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.manage',
+              entity: { kind: 'staff_member', id: staffId },
+              // Counts and role names, never a key, a secret or a code.
+              before: {
+                disabled: !wasLive,
+                webauthn: counts.webauthnRemoved,
+                totp: counts.totpRemoved,
+                recoveryCodes: counts.recoveryCodesRemoved,
+                roles,
+              },
+              after: { disabled: true, offboarded: true, sessionsRevoked: counts.sessionsRevoked },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'offboarded', ...counts } as const;
       }),
 
     disableMember: (staffId, context) =>
