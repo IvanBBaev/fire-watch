@@ -186,13 +186,29 @@ describe('computePasses', () => {
           for (const t of [pass.aosMs, pass.culminationMs, pass.losMs]) expect(t % 1000).toBe(0);
           expect(pass.maxElevationDeg).toBeGreaterThanOrEqual(0);
           expect(pass.maxElevationDeg).toBeLessThanOrEqual(90);
-          expect(pass.inSwath).toBe(pass.crossTrackKm <= platform.swathKm / 2 + 0.5);
+          expect(pass.inSwath).toBe(pass.crossTrackKm <= platform.swathKm / 2);
           if (previous !== null) expect(previous.losMs).toBeLessThan(pass.aosMs);
           previous = pass;
         }
       }),
       { numRuns: 40 },
     );
+  });
+
+  it('decides inSwath on the published whole-km distance (fast-check seed -202569486)', () => {
+    // Shrunk counterexample: S3A culminates 710.x km from this point, under a 1 420 km swath.
+    // Deciding on the unrounded distance published "710 km away" next to "not in the swath".
+    const satrec = satrecOf(OMM_S3A, 41335);
+    const from = CELESTRAK_FETCHED_AT_MS - 42 * HOUR;
+    const passes = computePasses(
+      satrec,
+      { lat: 39.25, lon: 24.216204356347248 },
+      { fromMs: from, toMs: from + 12 * HOUR },
+      1420,
+    );
+    const edge = passes.find((pass) => pass.crossTrackKm === 710);
+    expect(edge).toBeDefined();
+    expect(edge!.inSwath).toBe(true);
   });
 
   it('property: higher culmination means a closer ground track', () => {

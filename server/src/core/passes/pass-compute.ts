@@ -32,8 +32,11 @@
  *
  * "In the swath" compares the great-circle distance from the point to the sub-satellite
  * point at culmination (the closest approach of the ground track, to within the few km the
- * track moves across a second) with half the platform's across-track swath. Day or night is
- * the Sun's elevation at the point at culmination: above the horizon is day.
+ * track moves across a second) with half the platform's across-track swath. The comparison
+ * uses the whole-km distance the pass publishes, not the unrounded one: otherwise a pass at
+ * 710.3 km under a 1 420 km swath would read "710 km away, not in the swath" — sub-km
+ * precision is below what the culmination second resolves anyway. Day or night is the Sun's
+ * elevation at the point at culmination: above the horizon is day.
  */
 
 import {
@@ -217,13 +220,14 @@ function describePass(
 ): ComputedPass | null {
   const sub = subSatellitePoint(satrec, culminationMs);
   if (sub === null) return null;
-  const crossTrackKm = greatCircleKm(point, sub);
+  // Decided on the published whole-km figure, so `crossTrackKm` and `inSwath` never disagree.
+  const crossTrackKm = Math.round(greatCircleKm(point, sub));
   return {
     aosMs: wholeSecond(aosMs),
     culminationMs: wholeSecond(culminationMs),
     losMs: wholeSecond(losMs),
     maxElevationDeg: Math.round((elevation(culminationMs) / DEG) * 10) / 10,
-    crossTrackKm: Math.round(crossTrackKm),
+    crossTrackKm,
     inSwath: crossTrackKm <= swathKm / 2,
     daylight: sunElevationDeg(point, culminationMs) > 0 ? 'day' : 'night',
   };
