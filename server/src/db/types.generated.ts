@@ -426,6 +426,30 @@ export interface FireEventTransitions {
   transitioned_at: Timestamp;
 }
 
+export interface IncidentLogEntries {
+  created_at: Timestamp;
+  id: Generated<string>;
+}
+
+export interface IncidentLogVersionContributors {
+  entry_id: string;
+  position: number;
+  staff_id: string;
+  version: number;
+}
+
+export interface IncidentLogVersions {
+  content: Json;
+  created_at: Timestamp;
+  entry_id: string;
+  major: boolean;
+  published_at: Timestamp | null;
+  status: string;
+  triggers_notifications: boolean;
+  updated_at: Timestamp;
+  version: number;
+}
+
 export interface IngestBatches {
   already_present: number;
   anomaly_tripped: boolean;
@@ -510,6 +534,49 @@ export interface SourceStatus {
   updated_at: Generated<Timestamp>;
 }
 
+export interface StaffAuditLog {
+  action: string;
+  actor_id: string;
+  after_hash: string | null;
+  at: Timestamp;
+  before_hash: string | null;
+  entity_id: string;
+  entity_kind: string;
+  id: Generated<Int8>;
+  ip: string | null;
+  recorded_at: Generated<Timestamp>;
+}
+
+export interface StaffMembers {
+  created_at: Timestamp;
+  disabled_at: Timestamp | null;
+  display_name: string;
+  email: string;
+  id: Generated<string>;
+}
+
+export interface StaffRecoveryCodes {
+  code_hash: Buffer;
+  issued_at: Timestamp;
+  staff_id: string;
+  used_at: Timestamp | null;
+}
+
+export interface StaffRoleGrants {
+  granted_at: Timestamp;
+  role: string;
+  staff_id: string;
+}
+
+export interface StaffTotpFactors {
+  algorithm: string;
+  enrolled_at: Timestamp;
+  last_used_step: Int8 | null;
+  secret_ciphertext: Buffer;
+  secret_key_id: string;
+  staff_id: string;
+}
+
 export interface TableBackupClass {
   class: string;
   note: string | null;
@@ -555,6 +622,9 @@ export interface DB {
   events_shadow: EventsShadow;
   fire_event_transitions: FireEventTransitions;
   fire_events: FireEvents;
+  incident_log_entries: IncidentLogEntries;
+  incident_log_version_contributors: IncidentLogVersionContributors;
+  incident_log_versions: IncidentLogVersions;
   ingest_batches: IngestBatches;
   ingest_quarantine: IngestQuarantine;
   lifecycle_log_origin: LifecycleLogOrigin;
@@ -562,6 +632,11 @@ export interface DB {
   qa_weekly_reports: QaWeeklyReports;
   source_status: SourceStatus;
   sources: Sources;
+  staff_audit_log: StaffAuditLog;
+  staff_members: StaffMembers;
+  staff_recovery_codes: StaffRecoveryCodes;
+  staff_role_grants: StaffRoleGrants;
+  staff_totp_factors: StaffTotpFactors;
   table_backup_class: TableBackupClass;
   watch_zones: WatchZones;
 }

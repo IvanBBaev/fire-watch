@@ -15,25 +15,27 @@
 
 import { canonicalJson } from '../determinism/canonical-json.js';
 import { isoFromEpochMs, type EpochMs } from '../ports/clock.js';
-import type { StaffAction } from './staff-policy.js';
+import { STAFF_ACTIONS } from './staff-policy.js';
 
 /** Lower-case hex SHA-256 of the UTF-8 bytes of `text`. */
 export type Sha256Hex = (text: string) => string;
 
 /**
  * What a staff action did, named for the trail. Superset of the permissioned
- * {@link StaffAction}s: signing in and enrolling a factor are audited too, and they are
+ * `StaffAction`s: signing in and enrolling a factor are audited too, and they are
  * not permissions.
  */
-export type StaffAuditAction =
-  | StaffAction
-  | 'staff.sign_in'
-  | 'staff.sign_out'
-  | 'staff.second_factor_enrolled'
-  | 'staff.recovery_code_used'
-  | 'incident.edit'
-  | 'incident.submit'
-  | 'incident.reject';
+export const STAFF_AUDIT_ACTIONS = [
+  ...STAFF_ACTIONS,
+  'staff.sign_in',
+  'staff.sign_out',
+  'staff.second_factor_enrolled',
+  'staff.recovery_code_used',
+  'incident.edit',
+  'incident.submit',
+  'incident.reject',
+] as const;
+export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 
 export interface StaffAuditInput {
   readonly actorId: string;

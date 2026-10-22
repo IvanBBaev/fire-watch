@@ -21,7 +21,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { Client, Pool } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { ERASURE_PLAN } from '../../core/erasure/erasure-plan.js';
+import { ERASURE_PLAN, isAccountPersonalTable } from '../../core/erasure/erasure-plan.js';
 import type { OutboxRowDraft } from '../../core/ports/alert-outbox-store.js';
 import { createPgAccountErasureStore, createPgAccountEraser } from './pg-account-erasure.js';
 import { createPgAlertDispatchQueue } from './pg-alert-dispatch-queue.js';
@@ -543,6 +543,10 @@ describe.skipIf(!hasDocker)('account erasure', () => {
       "SELECT table_name FROM table_backup_class WHERE class = 'personal' ORDER BY table_name",
     );
     const ruled = new Set(ERASURE_PLAN.map((rule) => rule.table));
-    expect(rows.map((row) => row.table_name).filter((table) => !ruled.has(table))).toEqual([]);
+    expect(
+      rows
+        .map((row) => row.table_name)
+        .filter((table) => !ruled.has(table) && isAccountPersonalTable(table)),
+    ).toEqual([]);
   });
 });

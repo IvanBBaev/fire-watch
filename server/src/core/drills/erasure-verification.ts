@@ -43,6 +43,7 @@ import {
   ERASURE_PLAN,
   ERASURE_PLAN_VERSION,
   RETAINED_TEMPLATE_PARAM_KEYS,
+  isAccountPersonalTable,
   isCancelledByErasure,
   type TableErasureRule,
 } from '../erasure/erasure-plan.js';
@@ -215,7 +216,9 @@ function coverageCheck(
   plan: readonly TableErasureRule[],
 ): DrillCheck {
   const covered = new Set(plan.map((rule) => rule.table));
-  const uncovered = personalTables.filter((table) => !covered.has(table)).sort();
+  const uncovered = personalTables
+    .filter((table) => !covered.has(table) && isAccountPersonalTable(table))
+    .sort();
   if (personalTables.length === 0) {
     return check(
       'plan_covers_registry',

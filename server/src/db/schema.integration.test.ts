@@ -131,6 +131,9 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'events_shadow',
       'fire_event_transitions',
       'fire_events',
+      'incident_log_entries',
+      'incident_log_version_contributors',
+      'incident_log_versions',
       'ingest_batches',
       'ingest_quarantine',
       'lifecycle_log_origin',
@@ -138,6 +141,11 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'qa_weekly_reports',
       'source_status',
       'sources',
+      'staff_audit_log',
+      'staff_members',
+      'staff_recovery_codes',
+      'staff_role_grants',
+      'staff_totp_factors',
       'table_backup_class',
       'watch_zones',
     ]);
@@ -194,6 +202,56 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
         can_update: false,
         can_delete: false,
         class: 'personal',
+      });
+    });
+
+    it('keeps the staff audit log append-only for the runtime role (migration 026)', async () => {
+      const { rows } = await db.query<{
+        can_select: boolean;
+        can_insert: boolean;
+        can_update: boolean;
+        can_delete: boolean;
+        can_purge: boolean;
+        class: string | null;
+      }>(
+        `SELECT has_table_privilege('fire_watch_app', 'staff_audit_log', 'SELECT') AS can_select,
+                has_table_privilege('fire_watch_app', 'staff_audit_log', 'INSERT') AS can_insert,
+                has_table_privilege('fire_watch_app', 'staff_audit_log', 'UPDATE') AS can_update,
+                has_table_privilege('fire_watch_app', 'staff_audit_log', 'DELETE') AS can_delete,
+                has_function_privilege('fire_watch_app',
+                  'purge_staff_audit_log(timestamptz, integer)', 'EXECUTE') AS can_purge,
+                (SELECT class FROM table_backup_class
+                  WHERE table_name = 'staff_audit_log') AS class`,
+      );
+      // 05 §5.4.3: a trail the runtime could rewrite would not be evidence. Retention
+      // (24 months) goes through purge_staff_audit_log only.
+      expect(rows[0]).toEqual({
+        can_select: true,
+        can_insert: true,
+        can_update: false,
+        can_delete: false,
+        can_purge: true,
+        class: 'personal',
+      });
+    });
+
+    it('never lets the runtime role delete or rewrite a published incident log version (migration 026)', async () => {
+      const { rows } = await db.query<{
+        can_delete: boolean;
+        entries_class: string | null;
+        contributors_class: string | null;
+      }>(
+        `SELECT has_table_privilege('fire_watch_app', 'incident_log_versions', 'DELETE') AS can_delete,
+                (SELECT class FROM table_backup_class
+                  WHERE table_name = 'incident_log_versions') AS entries_class,
+                (SELECT class FROM table_backup_class
+                  WHERE table_name = 'incident_log_version_contributors') AS contributors_class`,
+      );
+      // The log is public content (main); who wrote it is staff personal data.
+      expect(rows[0]).toEqual({
+        can_delete: false,
+        entries_class: 'main',
+        contributors_class: 'personal',
       });
     });
 

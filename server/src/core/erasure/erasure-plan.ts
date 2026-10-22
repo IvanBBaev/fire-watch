@@ -189,6 +189,41 @@ export const ERASURE_PLAN: readonly TableErasureRule[] = [
   },
 ];
 
+/**
+ * Tables `table_backup_class` classes `personal` that account erasure does not reach,
+ * because no account owns their rows: they hold the staff plane's people (TASKS I1,
+ * migration 026). A staff member is not an account, so an account's erasure has nothing
+ * to select there, and the account export has nothing to read. They stay `personal` for
+ * the backup's sake (a main-only restore leaves them empty).
+ *
+ * The coverage checks (the drill's `plan_covers_registry`, and the erasure and export
+ * integration tests) accept a personal table only if the plan rules it or this list names
+ * it, so a new personal table still fails until someone decides which side it is on.
+ */
+export const ERASURE_OUT_OF_SCOPE: readonly { readonly table: string; readonly reason: string }[] =
+  [
+    {
+      table: 'staff_members',
+      reason: 'a staff member, not an account; off-boarding disables the row',
+    },
+    { table: 'staff_role_grants', reason: 'keyed by staff member' },
+    { table: 'staff_totp_factors', reason: 'keyed by staff member; sealed secret' },
+    { table: 'staff_recovery_codes', reason: 'keyed by staff member; code hashes only' },
+    {
+      table: 'staff_audit_log',
+      reason: 'staff actions; kept 24 months (05 §5.4.3) and removed by purge_staff_audit_log',
+    },
+    {
+      table: 'incident_log_version_contributors',
+      reason: 'which staff member wrote a public incident log version',
+    },
+  ];
+
+/** Whether account erasure is meant to reach `table` — false for the {@link ERASURE_OUT_OF_SCOPE} tables. */
+export function isAccountPersonalTable(table: string): boolean {
+  return !ERASURE_OUT_OF_SCOPE.some((entry) => entry.table === table);
+}
+
 /** Decisions this plan needed and does not make. Each one ships unarmed or fail-closed. */
 export const ERASURE_OPEN_ITEMS = [
   'A1.3 salted zone hash with a per-year salt: not built; watch_zone_id is set to NULL, which is the stronger form and what OPERATIONS §6.2 rule 7 already does for backups',
@@ -196,6 +231,7 @@ export const ERASURE_OPEN_ITEMS = [
   'restore replay: the ledger must survive a disaster independently of the database it describes (J2 runbook), otherwise an erasure after the restored night is resurrected',
   'erasure_requests backup class is personal (the fail-closed default); moving it to main is a founder decision',
   'grace period or confirmation step before erasure (UX); the route erases immediately',
+  'staff off-boarding has no erasure procedure yet: the ERASURE_OUT_OF_SCOPE tables are kept until one exists (TASKS I1)',
 ] as const;
 
 /** A1.3's cancel set as a predicate, so the core and its tests share one definition. */

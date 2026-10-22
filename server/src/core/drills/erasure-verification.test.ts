@@ -119,6 +119,15 @@ describe('verifyErasure', () => {
     });
   });
 
+  it('passes a staff table the plan names as out of scope, and nothing else', () => {
+    const checks = verifyErasure(
+      SEED,
+      OUTCOME,
+      observation({ personalTables: [...PERSONAL_TABLES, 'staff_audit_log'] }),
+    );
+    expect(checks[0]).toMatchObject({ status: 'pass' });
+  });
+
   it('fails a surviving row, a live outbox row and a missing tombstone', () => {
     const checks = verifyErasure(
       SEED,

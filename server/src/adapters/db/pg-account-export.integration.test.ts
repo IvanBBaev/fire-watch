@@ -27,6 +27,7 @@ import {
   EXPORT_COLUMNS,
   EXPORT_WITHHELD,
 } from '../../core/account-export/export-schema.js';
+import { isAccountPersonalTable } from '../../core/erasure/erasure-plan.js';
 import { createAesGcmZoneCipher } from '../crypto/aes-gcm-zone-cipher.js';
 import { createPgAccountEraser } from './pg-account-erasure.js';
 import { createPgAccountExporter } from './pg-account-export.js';
@@ -233,7 +234,9 @@ describe.skipIf(!hasDocker)('account export', () => {
     const { rows } = await db.query<{ table_name: string }>(
       `SELECT table_name FROM table_backup_class WHERE class = 'personal' ORDER BY table_name COLLATE "C"`,
     );
-    expect(rows.map((row) => row.table_name)).toEqual([...ACCOUNT_EXPORT_TABLES].sort());
+    expect(rows.map((row) => row.table_name).filter(isAccountPersonalTable)).toEqual(
+      [...ACCOUNT_EXPORT_TABLES].sort(),
+    );
   });
 
   it('an erased account exports nothing; an unknown one is missing', async () => {

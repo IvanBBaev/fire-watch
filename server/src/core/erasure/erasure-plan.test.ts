@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   ERASURE_CANCELLABLE_STATUSES,
   ERASURE_OPEN_ITEMS,
+  ERASURE_OUT_OF_SCOPE,
   ERASURE_PLAN,
   ERASURE_PLAN_VERSION,
+  isAccountPersonalTable,
   isCancelledByErasure,
   RETAINED_TEMPLATE_PARAM_KEYS,
   retainedTemplateParams,
@@ -80,6 +82,13 @@ describe('ERASURE_PLAN', () => {
 
   it('carries a version the ledger CHECK accepts', () => {
     expect(ERASURE_PLAN_VERSION).toMatch(/^[a-z0-9_]+_v[0-9]+$/);
+  });
+
+  it('never lists a table as both ruled and out of scope', () => {
+    const ruled = new Set(ERASURE_PLAN.map((rule) => rule.table));
+    expect(ERASURE_OUT_OF_SCOPE.filter((entry) => ruled.has(entry.table))).toEqual([]);
+    expect(ERASURE_OUT_OF_SCOPE.every((entry) => !isAccountPersonalTable(entry.table))).toBe(true);
+    expect(isAccountPersonalTable('accounts')).toBe(true);
   });
 
   it('names its open items', () => {
