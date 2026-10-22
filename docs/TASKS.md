@@ -46,7 +46,7 @@ GATES §3 launch gates with no TASKS item yet.
 | I-built | Built, committed and green parts of unticked I1, I2, I3, I4, I5, I6, I7 | TASKS.md Track I status notes | `done` | 30 |
 | J-built | Built, committed and green parts of unticked J1, J2, J3, J4, J5 | TASKS.md Track J status notes | `done` | 16.5 |
 | K-built | Built, committed and green parts of unticked K2 | TASKS.md Track K status notes | `done` | 4.2 |
-| L-built | Built, committed and green parts of L14 (constellation replay machinery, `pnpm constellation-replay`) | GATES.md §3 L-14 | `done` | 4 |
+| L-built | Built, committed and green parts of L14 (constellation replay machinery, `pnpm constellation-replay`) and L16 (accessibility statement draft, AT protocol in docs/accessibility/, axe-core sweep) | GATES.md §3 L-14, L-16 | `done` | 5.5 |
 | B8 | B8 remainder: real archive download — FIRMS MAP_KEY + archive host | TASKS.md:522 | `blocked-external` | 0.7 |
 | B9 | B9 remainder: first real VM run — Hetzner account + §9 delivery choice | TASKS.md:533 | `blocked-external` | 0.8 |
 | C1 | C1 remainder: run on deployed VM — MAP_KEY + VM | TASKS.md:549 | `blocked-external` | 0.2 |
@@ -112,7 +112,7 @@ GATES §3 launch gates with no TASKS item yet.
 | L13 | v1 score calibration: ECE ≤ 0.07, Platt, bucket thresholds | GATES.md §3 L-13 | `blocked-external` | 8 |
 | L14 | L14 remainder: real reduced-stream run on DS-1/DS-3 + NOAA-21/SLSTR archive entries — data; NOAA-20 proxy and test-season scope — founder | GATES.md §3 L-14 | `blocked-external` | 2 |
 | L15 | Editorial standard + WP6 admin/approval form + curated_correction rehearsal | GATES.md §3 L-15 | `open` | 12 |
-| L16 | Accessibility statement + dated manual AT pass (M-1..M-3) | GATES.md §3 L-16 | `open` | 4 |
+| L16 | L16 remainder: dated manual AT pass M-1..M-3 (human), WCAG 2.1/2.2 choice + statement legal sign-off + reporting address (founder), CI-16 parity, alert-path items (statement draft /accessibility, protocol docs/accessibility/, axe-core e2e sweep built 2026-10-22) | GATES.md §3 L-16 | `blocked-owner` | 2.5 |
 | L17 | Restore-proven single deploy path (no own task) | GATES.md §3 L-17 | `blocked-external` | 4 |
 
 ### History
