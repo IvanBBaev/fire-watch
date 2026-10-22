@@ -47,7 +47,7 @@ import type {
 } from '../../../server/src/core/ports/snapshot-reader.js';
 import { createStreamHub } from '../../../server/src/core/stream/stream-hub.js';
 import { createDemotionController } from '../../../server/src/core/transport/demotion.js';
-import { ROUTES, runScenario } from '../adapters/driver.js';
+import { markOf, ROUTES, runScenario } from '../adapters/driver.js';
 import { evaluate } from '../evaluate.js';
 import type { MetricsData } from '../metrics.js';
 import { buildReport, renderMarkdown } from '../report.js';
@@ -275,6 +275,19 @@ describe.skipIf(!loopback)('smoke: the driver against the in-process read path',
     servers.push(edge, t2);
     const edgeUrl = await listen(edge);
     t2Url = `${await listen(t2)}/snapshot.json`;
+
+    // Warm the edge for both snapshot keys (plain and cursor) the way a staging edge in
+    // steady state is warm. Cold, the cursor key's first miss waits on the first answer
+    // carrying an ETag; on a loaded runner that lands inside `steady`, and every request
+    // coalesced behind it is labelled MISS — a cold-start artefact, not the steady-state
+    // hit ratio the verdict judges.
+    const warm = await fetch(`${edgeUrl}${SNAPSHOT_PATH}`);
+    await warm.arrayBuffer();
+    const mark = markOf(warm.headers.get('etag') ?? '');
+    if (mark === null) throw new Error('the origin snapshot answered without a v1 ETag');
+    await (
+      await fetch(`${edgeUrl}${SNAPSHOT_PATH}?${SNAPSHOT_CURSOR_PARAM}=${mark}`)
+    ).arrayBuffer();
 
     scenario = buildScenario({
       baseline: {
