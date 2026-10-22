@@ -16,6 +16,10 @@
  * {@link StaffStore.advanceWebAuthnSignCount} repeats `signCountAdvances` as the UPDATE's
  * predicate, so of two assertions racing with one counter value exactly one lands.
  *
+ * Removing a credential (migration 029) counts the member's factors under the member's row
+ * lock and refuses to take the last one; it ends the sessions that credential let in.
+ * Disabling a member ends all of their sessions in the same transaction.
+ *
  * A disabled member keeps their rows (the trail references them) but every second-factor
  * read and write refuses them, so disabling is enough to lock someone out.
  */
@@ -146,6 +150,43 @@ FROM staff_members m
 WHERE c.credential_id = $1::bytea AND m.id = c.staff_id AND m.disabled_at IS NULL
   AND (c.sign_count < $2::bigint OR (c.sign_count = 0 AND $2::bigint = 0))`;
 
+const COUNT_SECOND_FACTORS = `
+SELECT ((SELECT count(*) FROM staff_webauthn_credentials c WHERE c.staff_id = m.id)
+      + (SELECT count(*) FROM staff_totp_factors f WHERE f.staff_id = m.id))::integer AS factors
+FROM staff_members m
+WHERE m.id = $1::uuid AND m.disabled_at IS NULL`;
+
+const LOCK_OWN_WEBAUTHN = `
+SELECT algorithm, backup_eligible
+FROM staff_webauthn_credentials
+WHERE credential_id = $1::bytea AND staff_id = $2::uuid
+FOR UPDATE`;
+
+const DELETE_WEBAUTHN = `
+DELETE FROM staff_webauthn_credentials WHERE credential_id = $1::bytea AND staff_id = $2::uuid`;
+
+/** Ends the sessions a removed credential let in (migration 029). */
+const REVOKE_SESSIONS_BY_CREDENTIAL = `
+UPDATE staff_sessions
+SET revoked_at = $3::timestamptz, challenge = NULL, challenge_purpose = NULL,
+    challenge_expires_at = NULL
+WHERE staff_id = $1::uuid AND second_factor_credential_id = $2::bytea AND revoked_at IS NULL`;
+
+const DISABLE_MEMBER = `
+UPDATE staff_members SET disabled_at = $2::timestamptz
+WHERE id = $1::uuid AND disabled_at IS NULL`;
+
+const REVOKE_MEMBER_SESSIONS = `
+UPDATE staff_sessions
+SET revoked_at = $2::timestamptz, challenge = NULL, challenge_purpose = NULL,
+    challenge_expires_at = NULL
+WHERE staff_id = $1::uuid AND revoked_at IS NULL`;
+
+const LOCKED_ROLES = `
+SELECT role FROM staff_role_grants WHERE staff_id = $1::uuid ORDER BY role FOR UPDATE`;
+
+const DELETE_ROLE = `DELETE FROM staff_role_grants WHERE staff_id = $1::uuid AND role = $2::text`;
+
 export const INSERT_AUDIT = `
 INSERT INTO staff_audit_log
   (actor_id, action, entity_kind, entity_id, before_hash, after_hash, ip, at)
@@ -167,6 +208,14 @@ export const STAFF_SQL = {
   listWebAuthn: LIST_WEBAUTHN,
   findWebAuthn: FIND_WEBAUTHN,
   advanceWebAuthnCount: ADVANCE_WEBAUTHN_COUNT,
+  countSecondFactors: COUNT_SECOND_FACTORS,
+  lockOwnWebAuthn: LOCK_OWN_WEBAUTHN,
+  deleteWebAuthn: DELETE_WEBAUTHN,
+  revokeSessionsByCredential: REVOKE_SESSIONS_BY_CREDENTIAL,
+  disableMember: DISABLE_MEMBER,
+  revokeMemberSessions: REVOKE_MEMBER_SESSIONS,
+  lockedRoles: LOCKED_ROLES,
+  deleteRole: DELETE_ROLE,
   insertAudit: INSERT_AUDIT,
 } as const;
 
@@ -394,6 +443,109 @@ export function createPgStaffStore(
       ]);
       return result.rowCount === 1;
     },
+
+    async countSecondFactors(staffId) {
+      const result = await pool.query(COUNT_SECOND_FACTORS, [staffId]);
+      const [row] = result.rows;
+      return row === undefined ? 0 : number(field(row, 'factors'), 'factors');
+    },
+
+    removeWebAuthnCredential: (staffId, credentialId, context) =>
+      inTransaction(pool, async (client) => {
+        if (credentialId.length === 0) return { kind: 'not_found' } as const;
+        // The member's row lock serialises every removal and enrollment for them, so the
+        // count below cannot be raced into zero by a concurrent removal.
+        const live = await client.query(LOCK_LIVE_MEMBER, [staffId]);
+        if (live.rowCount !== 1) return { kind: 'not_found' } as const;
+        const id = Buffer.from(credentialId);
+        const owned = await client.query(LOCK_OWN_WEBAUTHN, [id, staffId]);
+        const [credential] = owned.rows;
+        if (credential === undefined) return { kind: 'not_found' } as const;
+        const counted = await client.query(COUNT_SECOND_FACTORS, [staffId]);
+        const [countRow] = counted.rows;
+        const factors = countRow === undefined ? 0 : number(field(countRow, 'factors'), 'factors');
+        if (factors <= 1) return { kind: 'last_second_factor' } as const;
+        const atIso = isoFromEpochMs(context.at);
+        const deleted = await client.query(DELETE_WEBAUTHN, [id, staffId]);
+        if (deleted.rowCount !== 1) throw new Error('credential delete did not remove one row');
+        const revoked = await client.query(REVOKE_SESSIONS_BY_CREDENTIAL, [staffId, id, atIso]);
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.second_factor_removed',
+              entity: { kind: 'staff_member', id: staffId },
+              // The method and its shape, never the key.
+              before: {
+                method: 'webauthn',
+                algorithm: number(field(credential, 'algorithm'), 'algorithm'),
+                backupEligible: boolean(field(credential, 'backup_eligible'), 'backup_eligible'),
+              },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'removed', sessionsRevoked: revoked.rowCount ?? 0 } as const;
+      }),
+
+    disableMember: (staffId, context) =>
+      inTransaction(pool, async (client) => {
+        const atIso = isoFromEpochMs(context.at);
+        const disabled = await client.query(DISABLE_MEMBER, [staffId, atIso]);
+        if (disabled.rowCount !== 1) return { kind: 'not_found' } as const;
+        const revoked = await client.query(REVOKE_MEMBER_SESSIONS, [staffId, atIso]);
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.manage',
+              entity: { kind: 'staff_member', id: staffId },
+              before: { disabled: false },
+              after: { disabled: true },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'disabled', sessionsRevoked: revoked.rowCount ?? 0 } as const;
+      }),
+
+    setRoles: (staffId, roles, context) =>
+      inTransaction(pool, async (client) => {
+        const live = await client.query(LOCK_LIVE_MEMBER, [staffId]);
+        if (live.rowCount !== 1) return { kind: 'not_found' } as const;
+        const wanted = [...new Set(roles)].sort();
+        const held = (await client.query(LOCKED_ROLES, [staffId])).rows.map((row) =>
+          string(field(row, 'role'), 'role'),
+        );
+        const toAdd = wanted.filter((role) => !held.includes(role));
+        const toDrop = held.filter((role) => !(wanted as readonly string[]).includes(role));
+        if (toAdd.length === 0 && toDrop.length === 0) return { kind: 'unchanged' } as const;
+        const atIso = isoFromEpochMs(context.at);
+        for (const role of toDrop) await client.query(DELETE_ROLE, [staffId, role]);
+        for (const role of toAdd) await client.query(INSERT_ROLE, [staffId, role, atIso]);
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.manage',
+              entity: { kind: 'staff_member', id: staffId },
+              before: { roles: [...held].sort() },
+              after: { roles: wanted },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'changed' } as const;
+      }),
 
     appendAudit: (record) => insertAuditRecord(pool, record),
   };

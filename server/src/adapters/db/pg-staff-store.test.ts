@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { epochMsFromIso } from '../../core/ports/clock.js';
 import { STAFF_AUDIT_ACTIONS } from '../../core/staff/staff-audit.js';
 import { STAFF_ROLES } from '../../core/staff/staff-policy.js';
+import {
+  STAFF_CHALLENGE_PURPOSES,
+  STAFF_SECOND_FACTOR_METHODS,
+} from '../../core/staff/staff-session-policy.js';
 import { WEBAUTHN_ALGORITHMS } from '../crypto/webauthn.js';
 import { createPgStaffStore, STAFF_SQL, type PgStaffClient } from './pg-staff-store.js';
 
@@ -415,7 +419,149 @@ describe('migration 026', () => {
     expect(checkList('role').sort()).toEqual([...STAFF_ROLES].sort());
   });
 
+  it('allowed the actions the audit record carried before migration 029', () => {
+    const before029 = STAFF_AUDIT_ACTIONS.filter((a) => a !== 'staff.second_factor_removed');
+    expect(checkList('action').sort()).toEqual([...before029].sort());
+  });
+});
+
+describe('migration 029', () => {
+  const sql = readFileSync(
+    new URL('../../../db/migrations/029_staff_sessions.sql', import.meta.url),
+    'utf8',
+  );
+  const up = sql.slice(0, sql.indexOf('-- migrate:down'));
+
+  function quoted(list: string | undefined): string[] {
+    if (list === undefined) throw new Error('no CHECK list');
+    return [...list.matchAll(/'([^']+)'/g)].map((m) => m[1] ?? '');
+  }
+
   it('allows exactly the actions the audit record can carry', () => {
-    expect(checkList('action').sort()).toEqual([...STAFF_AUDIT_ACTIONS].sort());
+    const match = /staff_audit_log_action_check CHECK \(action IN \(([^)]*)\)\)/.exec(up);
+    expect(quoted(match?.[1]).sort()).toEqual([...STAFF_AUDIT_ACTIONS].sort());
+  });
+
+  it('allows exactly the second-factor methods and challenge purposes the policy knows', () => {
+    const methods =
+      /second_factor_method\s+text CHECK \(second_factor_method IN \(([^)]*)\)\)/.exec(up);
+    const purposes = /challenge_purpose\s+text CHECK \(challenge_purpose IN \(([^)]*)\)\)/.exec(up);
+    expect(quoted(methods?.[1]).sort()).toEqual([...STAFF_SECOND_FACTOR_METHODS].sort());
+    expect(quoted(purposes?.[1]).sort()).toEqual([...STAFF_CHALLENGE_PURPOSES].sort());
+  });
+});
+
+describe('createPgStaffStore — removal and member changes', () => {
+  const CREDENTIAL = new Uint8Array([1, 2, 3, 4]);
+  const ctx = { actorId: ADMIN, ip: '192.0.2.1', at: AT };
+
+  it('removes a credential, ends its sessions and audits the removal in one transaction', async () => {
+    const stub = stubPool({
+      lockOwnWebAuthn: { rows: [{ algorithm: -7, backup_eligible: true }], rowCount: 1 },
+      countSecondFactors: { rows: [{ factors: 2 }], rowCount: 1 },
+      revokeSessionsByCredential: { rows: [], rowCount: 3 },
+    });
+    const result = await createPgStaffStore(stub.pool).removeWebAuthnCredential(
+      STAFF,
+      CREDENTIAL,
+      ctx,
+    );
+    expect(result).toEqual({ kind: 'removed', sessionsRevoked: 3 });
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockLiveMember',
+      'lockOwnWebAuthn',
+      'countSecondFactors',
+      'deleteWebAuthn',
+      'revokeSessionsByCredential',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    const values = auditValues(stub);
+    expect(values.slice(0, 4)).toEqual([
+      ADMIN,
+      'staff.second_factor_removed',
+      'staff_member',
+      STAFF,
+    ]);
+    expect(values[4]).toMatch(/^[0-9a-f]{64}$/);
+    expect(values[5]).toBeNull();
+  });
+
+  it('refuses to remove the last factor and touches nothing', async () => {
+    const stub = stubPool({
+      lockOwnWebAuthn: { rows: [{ algorithm: -7, backup_eligible: false }], rowCount: 1 },
+      countSecondFactors: { rows: [{ factors: 1 }], rowCount: 1 },
+    });
+    const result = await createPgStaffStore(stub.pool).removeWebAuthnCredential(
+      STAFF,
+      CREDENTIAL,
+      ctx,
+    );
+    expect(result).toEqual({ kind: 'last_second_factor' });
+    expect(stub.trace()).not.toContain('deleteWebAuthn');
+    expect(stub.trace()).not.toContain('insertAudit');
+  });
+
+  it("reports another member's or an unknown credential as not found", async () => {
+    const stub = stubPool({ lockOwnWebAuthn: { rows: [], rowCount: 0 } });
+    const store = createPgStaffStore(stub.pool);
+    expect(await store.removeWebAuthnCredential(STAFF, CREDENTIAL, ctx)).toEqual({
+      kind: 'not_found',
+    });
+    const disabled = stubPool({ lockLiveMember: { rows: [], rowCount: 0 } });
+    expect(
+      await createPgStaffStore(disabled.pool).removeWebAuthnCredential(STAFF, CREDENTIAL, ctx),
+    ).toEqual({ kind: 'not_found' });
+    expect(disabled.trace()).not.toContain('lockOwnWebAuthn');
+  });
+
+  it('disables a member, ends every session and audits it', async () => {
+    const stub = stubPool({ revokeMemberSessions: { rows: [], rowCount: 2 } });
+    const result = await createPgStaffStore(stub.pool).disableMember(STAFF, ctx);
+    expect(result).toEqual({ kind: 'disabled', sessionsRevoked: 2 });
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'disableMember',
+      'revokeMemberSessions',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    expect(auditValues(stub).slice(0, 2)).toEqual([ADMIN, 'staff.manage']);
+  });
+
+  it('does not disable twice', async () => {
+    const stub = stubPool({ disableMember: { rows: [], rowCount: 0 } });
+    expect(await createPgStaffStore(stub.pool).disableMember(STAFF, ctx)).toEqual({
+      kind: 'not_found',
+    });
+    expect(stub.trace()).not.toContain('insertAudit');
+  });
+
+  it('diffs the role set and audits only a change', async () => {
+    const stub = stubPool({
+      lockedRoles: { rows: [{ role: 'editor' }, { role: 'moderator' }], rowCount: 2 },
+    });
+    const store = createPgStaffStore(stub.pool);
+    expect(await store.setRoles(STAFF, ['admin', 'editor'], ctx)).toEqual({ kind: 'changed' });
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockLiveMember',
+      'lockedRoles',
+      'deleteRole',
+      'insertRole',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    const same = stubPool({ lockedRoles: { rows: [{ role: 'editor' }], rowCount: 1 } });
+    expect(await createPgStaffStore(same.pool).setRoles(STAFF, ['editor', 'editor'], ctx)).toEqual({
+      kind: 'unchanged',
+    });
+    expect(same.trace()).not.toContain('insertAudit');
+  });
+
+  it('counts factors as zero for a disabled or unknown member', async () => {
+    const stub = stubPool({ countSecondFactors: { rows: [], rowCount: 0 } });
+    expect(await createPgStaffStore(stub.pool).countSecondFactors(STAFF)).toBe(0);
   });
 });

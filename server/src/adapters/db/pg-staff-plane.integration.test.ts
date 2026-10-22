@@ -20,10 +20,16 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { epochMsFromIso } from '../../core/ports/clock.js';
-import type { StaffStore } from '../../core/ports/staff-stores.js';
+import type { StaffSessionStore, StaffStore } from '../../core/ports/staff-stores.js';
 import type { IncidentEntryVersion } from '../../core/staff/incident-log-workflow.js';
 import { hashEntityState } from '../../core/staff/staff-audit.js';
+import {
+  challengeExpiry,
+  newStaffSessionExpiries,
+  staffSessionState,
+} from '../../core/staff/staff-session-policy.js';
 import { auditedState, createPgIncidentLogStore } from './pg-incident-log-store.js';
+import { createPgStaffSessionStore } from './pg-staff-session-store.js';
 import { createPgStaffStore, sha256Hex } from './pg-staff-store.js';
 
 const execFileAsync = promisify(execFile);
@@ -301,6 +307,224 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
           [Buffer.alloc(16, 0xee), id, Buffer.alloc(77, 1)],
         ),
       ).rejects.toThrow(/check constraint/);
+    });
+  });
+
+  describe('staff sessions and credential removal (migration 029)', () => {
+    let sessions: StaffSessionStore;
+    let seq = 0;
+    beforeAll(() => {
+      sessions = createPgStaffSessionStore(pool);
+    });
+
+    function key() {
+      seq += 1;
+      return {
+        // 33 bytes, so never equal to the 32-byte ids the WebAuthn tests use.
+        credentialId: new Uint8Array(33).fill(seq),
+        publicKeyCose: new Uint8Array(77).fill(0xa5),
+        algorithm: -7 as const,
+        signCount: 0,
+        backupEligible: false,
+        label: `Session key ${String(seq)}`,
+      };
+    }
+
+    function tokenHash(): Uint8Array {
+      seq += 1;
+      return new Uint8Array(32).fill(seq).map((byte, index) => (index === 0 ? 0x29 : byte));
+    }
+
+    async function newSession(staffId: string) {
+      const { rows } = await pool.query<{ id: string }>('SELECT gen_random_uuid()::text AS id');
+      const id = rows[0]?.id ?? '';
+      const hash = tokenHash();
+      await sessions.insert({
+        id,
+        tokenHash: hash,
+        staffId,
+        uaFamily: 'firefox',
+        at: AT,
+        ...newStaffSessionExpiries(AT),
+      });
+      return { id, hash };
+    }
+
+    const challenge = (fill: number) => ({
+      purpose: 'webauthn.authenticate' as const,
+      challenge: new Uint8Array(32).fill(fill),
+      expiresAt: challengeExpiry(AT),
+    });
+
+    it('reads a session with its live roles, and slides only within the absolute expiry', async () => {
+      const id = await newMember(['editor', 'admin']);
+      const s = await newSession(id);
+      const found = await sessions.findByTokenHash(s.hash);
+      expect(found).toMatchObject({
+        id: s.id,
+        staffId: id,
+        roles: ['admin', 'editor'],
+        memberDisabled: false,
+        secondFactorAt: null,
+        secondFactorMethod: null,
+        revokedAt: null,
+      });
+      expect(found && staffSessionState(found, AT)).toBe('pending_second_factor');
+      expect(await sessions.touch(s.id, AT + 1000, AT + 10 ** 12)).toBe(true);
+      expect((await sessions.findByTokenHash(s.hash))?.idleExpiresAt).toBe(
+        found?.absoluteExpiresAt,
+      );
+    });
+
+    it('hands a challenge to exactly one of two racing takers', async () => {
+      const id = await newMember();
+      const s = await newSession(id);
+      expect(await sessions.putChallenge(s.id, challenge(1), AT)).toBe(true);
+      // A second put replaces the first: one pending challenge per session.
+      expect(await sessions.putChallenge(s.id, challenge(2), AT)).toBe(true);
+      const taken = await Promise.all([sessions.takeChallenge(s.id), sessions.takeChallenge(s.id)]);
+      const won = taken.filter((t) => t !== null);
+      expect(won).toHaveLength(1);
+      expect(won[0]?.challenge).toEqual(new Uint8Array(32).fill(2));
+      expect(won[0]?.purpose).toBe('webauthn.authenticate');
+      expect(await sessions.takeChallenge(s.id)).toBeNull();
+      // No challenge on an expired or revoked session.
+      expect(await sessions.putChallenge(s.id, challenge(3), AT + 10 * 60_000)).toBe(false);
+      await sessions.revoke(s.id, { at: AT });
+      expect(await sessions.putChallenge(s.id, challenge(3), AT)).toBe(false);
+    });
+
+    it('elevates once, swaps the token and audits the sign-in in the same transaction', async () => {
+      const id = await newMember();
+      const k = key();
+      await staff.enrollWebAuthnCredential(id, k, null, { actorId: id, at: AT });
+      const s = await newSession(id);
+      const newHashes = [tokenHash(), tokenHash()];
+      const results = await Promise.all(
+        newHashes.map((newTokenHash) =>
+          sessions.markSecondFactor(
+            s.id,
+            {
+              method: 'webauthn',
+              credentialId: k.credentialId,
+              newTokenHash,
+              idleExpiresAt: AT + 60_000,
+            },
+            { at: AT + 1000, ip: '192.0.2.9' },
+          ),
+        ),
+      );
+      expect(results.filter(Boolean)).toHaveLength(1);
+      expect(await sessions.findByTokenHash(s.hash)).toBeNull();
+      const winner = results[0] === true ? newHashes[0] : newHashes[1];
+      const elevated = await sessions.findByTokenHash(winner ?? new Uint8Array());
+      expect(elevated).toMatchObject({
+        secondFactorMethod: 'webauthn',
+        secondFactorAt: AT + 1000,
+        idleExpiresAt: AT + 60_000,
+      });
+      expect(elevated?.secondFactorCredentialId).toEqual(k.credentialId);
+      expect(await auditActions(s.id)).toEqual(['staff.sign_in']);
+      expect(await sessions.revoke(s.id, { at: AT + 2000 })).toBe(true);
+      expect(await sessions.revoke(s.id, { at: AT + 2000 })).toBe(false);
+      expect(await auditActions(s.id)).toEqual(['staff.sign_in', 'staff.sign_out']);
+    });
+
+    it("refuses to elevate with another member's key or after expiry", async () => {
+      const a = await newMember();
+      const b = await newMember();
+      const k = key();
+      await staff.enrollWebAuthnCredential(b, k, null, { actorId: b, at: AT });
+      const s = await newSession(a);
+      const input = {
+        method: 'webauthn' as const,
+        credentialId: k.credentialId,
+        newTokenHash: tokenHash(),
+        idleExpiresAt: AT + 60_000,
+      };
+      expect(await sessions.markSecondFactor(s.id, input, { at: AT })).toBe(false);
+      const late = { ...input, method: 'recovery_code' as const, credentialId: null };
+      expect(await sessions.markSecondFactor(s.id, late, { at: AT + 10 * 60_000 })).toBe(false);
+      expect(await auditActions(s.id)).toEqual([]);
+    });
+
+    it('removes a key, ends the sessions it let in, and never the last factor', async () => {
+      const id = await newMember();
+      const first = key();
+      const second = key();
+      await staff.enrollWebAuthnCredential(id, first, null, { actorId: id, at: AT });
+      await staff.enrollWebAuthnCredential(id, second, null, { actorId: id, at: AT });
+      expect(await staff.countSecondFactors(id)).toBe(2);
+      const viaFirst = await newSession(id);
+      const viaSecond = await newSession(id);
+      for (const [s, k] of [
+        [viaFirst, first],
+        [viaSecond, second],
+      ] as const) {
+        await sessions.markSecondFactor(
+          s.id,
+          {
+            method: 'webauthn',
+            credentialId: k.credentialId,
+            newTokenHash: tokenHash(),
+            idleExpiresAt: AT + 60_000,
+          },
+          { at: AT },
+        );
+      }
+      const other = await newMember();
+      expect(
+        await staff.removeWebAuthnCredential(other, first.credentialId, { actorId: other, at: AT }),
+      ).toEqual({ kind: 'not_found' });
+
+      // Two racing removals of the member's two keys: the row lock lets exactly one through.
+      const raced = await Promise.all([
+        staff.removeWebAuthnCredential(id, first.credentialId, { actorId: id, at: AT + 1 }),
+        staff.removeWebAuthnCredential(id, second.credentialId, { actorId: id, at: AT + 1 }),
+      ]);
+      expect(raced.map((r) => r.kind).sort()).toEqual(['last_second_factor', 'removed']);
+      expect(raced.find((r) => r.kind === 'removed')).toEqual({
+        kind: 'removed',
+        sessionsRevoked: 1,
+      });
+      expect(await staff.countSecondFactors(id)).toBe(1);
+      const { rows } = await pool.query<{ id: string; revoked: boolean }>(
+        'SELECT id::text AS id, revoked_at IS NOT NULL AS revoked FROM staff_sessions WHERE staff_id = $1',
+        [id],
+      );
+      expect(rows.filter((r) => r.revoked)).toHaveLength(1);
+      expect(await auditActions(id)).toContain('staff.second_factor_removed');
+    });
+
+    it('disables a member and ends every session of theirs', async () => {
+      const admin = await newMember(['admin']);
+      const id = await newMember(['editor']);
+      const a = await newSession(id);
+      const b = await newSession(id);
+      expect(await staff.disableMember(id, { actorId: admin, at: AT + 1 })).toEqual({
+        kind: 'disabled',
+        sessionsRevoked: 2,
+      });
+      expect(await staff.disableMember(id, { actorId: admin, at: AT + 1 })).toEqual({
+        kind: 'not_found',
+      });
+      for (const s of [a, b]) {
+        expect((await sessions.findByTokenHash(s.hash))?.revokedAt).toBe(AT + 1);
+      }
+      expect(await staff.countSecondFactors(id)).toBe(0);
+    });
+
+    it('replaces a role set and audits only a change', async () => {
+      const admin = await newMember(['admin']);
+      const id = await newMember(['editor', 'moderator']);
+      expect(await staff.setRoles(id, ['admin', 'editor'], { actorId: admin, at: AT })).toEqual({
+        kind: 'changed',
+      });
+      expect((await staff.findMember(id))?.roles).toEqual(['admin', 'editor']);
+      expect(await staff.setRoles(id, ['editor', 'admin'], { actorId: admin, at: AT })).toEqual({
+        kind: 'unchanged',
+      });
+      expect(await auditActions(id)).toEqual(['staff.manage', 'staff.manage']);
     });
   });
 

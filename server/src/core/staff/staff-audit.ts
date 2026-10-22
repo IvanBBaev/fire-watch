@@ -30,6 +30,7 @@ export const STAFF_AUDIT_ACTIONS = [
   'staff.sign_in',
   'staff.sign_out',
   'staff.second_factor_enrolled',
+  'staff.second_factor_removed',
   'staff.recovery_code_used',
   'incident.edit',
   'incident.submit',

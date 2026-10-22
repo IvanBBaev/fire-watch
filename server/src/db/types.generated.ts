@@ -569,6 +569,24 @@ export interface StaffRoleGrants {
   staff_id: string;
 }
 
+export interface StaffSessions {
+  absolute_expires_at: Timestamp;
+  challenge: Buffer | null;
+  challenge_expires_at: Timestamp | null;
+  challenge_purpose: string | null;
+  created_at: Timestamp;
+  id: Generated<string>;
+  idle_expires_at: Timestamp;
+  last_seen_at: Timestamp;
+  revoked_at: Timestamp | null;
+  second_factor_at: Timestamp | null;
+  second_factor_credential_id: Buffer | null;
+  second_factor_method: string | null;
+  staff_id: string;
+  token_hash: Buffer;
+  ua_family: string;
+}
+
 export interface StaffTotpFactors {
   algorithm: string;
   enrolled_at: Timestamp;
@@ -649,6 +667,7 @@ export interface DB {
   staff_members: StaffMembers;
   staff_recovery_codes: StaffRecoveryCodes;
   staff_role_grants: StaffRoleGrants;
+  staff_sessions: StaffSessions;
   staff_totp_factors: StaffTotpFactors;
   staff_webauthn_credentials: StaffWebauthnCredentials;
   table_backup_class: TableBackupClass;

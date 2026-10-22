@@ -15,6 +15,11 @@
 import type { IncidentEntryStatus, IncidentEntryVersion } from '../staff/incident-log-workflow.js';
 import type { StaffAuditAction, StaffAuditRecord } from '../staff/staff-audit.js';
 import type { StaffRole } from '../staff/staff-policy.js';
+import type {
+  StaffSecondFactorMethod,
+  StaffSessionFacts,
+  StoredChallenge,
+} from '../staff/staff-session-policy.js';
 import type { EpochMs } from './clock.js';
 
 /** Who did it, from where, and when — the audit row's context for a store write. */
@@ -144,7 +149,143 @@ export interface StaffStore {
     at: EpochMs,
   ): Promise<boolean>;
 
+  /**
+   * How many second factors a live member holds: WebAuthn credentials plus a TOTP factor.
+   * Recovery codes are a fallback for a factor, not one. Zero for a disabled member.
+   */
+  countSecondFactors(staffId: string): Promise<number>;
+
+  /**
+   * Removes one of `staffId`'s credentials, ends the sessions it let in (migration 029) and
+   * audits `staff.second_factor_removed`, in one transaction under the member's row lock.
+   * `not_found` when the credential is not that live member's; `last_second_factor` when
+   * removing it would leave them with none (the count is taken under the same lock, so two
+   * racing removals cannot together remove the last two).
+   */
+  removeWebAuthnCredential(
+    staffId: string,
+    credentialId: Uint8Array,
+    context: StaffActionContext,
+  ): Promise<
+    | { readonly kind: 'removed'; readonly sessionsRevoked: number }
+    | { readonly kind: 'not_found' | 'last_second_factor' }
+  >;
+
+  /**
+   * Disables a member (026: never deleted) and revokes every session of theirs, audited as
+   * `staff.manage`, in one transaction. `not_found` for an unknown or already disabled one.
+   */
+  disableMember(
+    staffId: string,
+    context: StaffActionContext,
+  ): Promise<
+    { readonly kind: 'disabled'; readonly sessionsRevoked: number } | { readonly kind: 'not_found' }
+  >;
+
+  /**
+   * Replaces a live member's role set and audits the before/after sets as `staff.manage`.
+   * Takes effect on the member's next request: sessions read roles live.
+   */
+  setRoles(
+    staffId: string,
+    roles: readonly StaffRole[],
+    context: StaffActionContext,
+  ): Promise<{ readonly kind: 'changed' | 'unchanged' | 'not_found' }>;
+
   appendAudit(record: StaffAuditRecord): Promise<void>;
+}
+
+// ── Staff sessions (migration 029) ───────────────────────────────────────────────────
+
+export interface NewStaffSession {
+  readonly id: string;
+  /** SHA-256 of the cookie token (`AuthTokens`); the token itself is never stored. */
+  readonly tokenHash: Uint8Array;
+  readonly staffId: string;
+  readonly uaFamily: string;
+  readonly at: EpochMs;
+  readonly idleExpiresAt: EpochMs;
+  readonly absoluteExpiresAt: EpochMs;
+}
+
+export interface StoredStaffSession extends StaffSessionFacts {
+  readonly id: string;
+  readonly uaFamily: string;
+  readonly createdAt: EpochMs;
+  readonly lastSeenAt: EpochMs;
+  readonly secondFactorMethod: StaffSecondFactorMethod | null;
+  readonly secondFactorCredentialId: Uint8Array | null;
+}
+
+export interface StaffSessionStore {
+  insert(session: NewStaffSession): Promise<void>;
+
+  /** The session and its member's live roles and state; null for an unknown hash. */
+  findByTokenHash(tokenHash: Uint8Array): Promise<StoredStaffSession | null>;
+
+  /** Records a use and the slid idle expiry; false when the row is revoked. */
+  touch(sessionId: string, at: EpochMs, idleExpiresAt: EpochMs): Promise<boolean>;
+
+  /**
+   * Stores the session's one pending challenge, replacing any earlier one. False when the
+   * session is revoked or expired at `at`.
+   */
+  putChallenge(sessionId: string, challenge: StoredChallenge, at: EpochMs): Promise<boolean>;
+
+  /**
+   * Takes the pending challenge and clears it in one UPDATE, so of two requests answering
+   * one challenge exactly one gets it. Null when there is none.
+   */
+  takeChallenge(sessionId: string): Promise<StoredChallenge | null>;
+
+  /**
+   * The elevation: records the second factor, swaps the cookie's hash for a fresh one and
+   * sets the idle expiry, only if the session is still pending, unrevoked, unexpired and
+   * its member live — and audits `staff.sign_in` in the same transaction. False otherwise.
+   */
+  markSecondFactor(
+    sessionId: string,
+    input: {
+      readonly method: StaffSecondFactorMethod;
+      readonly credentialId: Uint8Array | null;
+      readonly newTokenHash: Uint8Array;
+      readonly idleExpiresAt: EpochMs;
+    },
+    context: Omit<StaffActionContext, 'actorId'>,
+  ): Promise<boolean>;
+
+  /** Revokes the row and audits `staff.sign_out`; false when it was already revoked. */
+  revoke(sessionId: string, context: Omit<StaffActionContext, 'actorId'>): Promise<boolean>;
+}
+
+// ── Second-factor ceremonies (adapters/crypto) ───────────────────────────────────────
+
+/** The relying party is bound in the adapter; the core passes bytes and the challenge. */
+export interface StaffWebAuthnCeremonies {
+  challenge(): Uint8Array;
+  verifyRegistration(input: {
+    readonly clientDataJSON: Uint8Array;
+    readonly attestationObject: Uint8Array;
+    readonly expectedChallenge: Uint8Array;
+  }):
+    | { readonly kind: 'accepted'; readonly credential: Omit<NewWebAuthnCredential, 'label'> }
+    | { readonly kind: 'refused'; readonly reason: string };
+  verifyAssertion(input: {
+    readonly clientDataJSON: Uint8Array;
+    readonly authenticatorData: Uint8Array;
+    readonly signature: Uint8Array;
+    readonly expectedChallenge: Uint8Array;
+    readonly credential: { readonly publicKeyCose: Uint8Array; readonly signCount: number };
+  }):
+    | { readonly kind: 'accepted'; readonly signCount: number }
+    | { readonly kind: 'refused'; readonly reason: string };
+}
+
+export interface StaffRecoveryCodes {
+  /** A fresh set: `display` is shown once, `hash` is what is stored. */
+  issue(): readonly { readonly display: string; readonly hash: Uint8Array }[];
+  /** SHA-256 of a typed code, or null when it cannot be one. */
+  hash(raw: string): Uint8Array | null;
 }
 
 export interface StoredIncidentVersion {
