@@ -95,7 +95,7 @@ GATES §3 launch gates with no TASKS item yet.
 | I5 | I5 remainder: 29 keys, legal review — lawyer + controller entity | TASKS.md:2469 | `blocked-owner` | 1 |
 | I6 | I6 remainder: sign-offs — lawyer, signed DPAs, ЕООД, DPO | TASKS.md:2484 | `blocked-owner` | 2.5 |
 | I7 | I7 remainder: staging drill run — staging host | TASKS.md:2500 | `blocked-external` | 0.6 |
-| J1 | J1 remainder: synthetic canary, meta-alert route (thresholds still founder) | TASKS.md:2506 | `open` | 2.8 |
+| J1 | J1 remainder: synthetic canary — operator channel through the gateway (founder); thresholds still founder; meta-alert route built 2026-10-22 | TASKS.md:2506 | `open` | 2.8 |
 | J2 | J2 remainder: real RTO runs — staging + R2 | TASKS.md:2517 | `blocked-external` | 0.8 |
 | J3 | J3 remainder: season-tested runbook revision — season experience | TASKS.md:2522 | `blocked-external` | 1.2 |
 | J4 | J4 remainder: real deploy step, secrets — production host | TASKS.md:2532 | `blocked-external` | 1.8 |
@@ -2556,6 +2556,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   The canary is a pure core + port only — it needs an operator channel, and
   `alert_outbox` accepts only user channels. `/api/health/meta` not registered (it reveals
   queue depth). Hysteresis state is in memory; no migration.*
+  *2026-10-22 — meta-alert route built (code only, unticked): `GET /api/health/meta` on the worker's internal metrics listener only (`adapters/http/metrics-server.ts`, registered only when a process hands in a verdict, behind the same bearer token as `/metrics`; the public server still 404s it). Verdict from the monitors loop's last run (`core/monitoring/meta-health.ts`, held by `createMonitorHealth` in `app/monitor-wiring.ts`): `200 ok`, `200 starting` (no run yet, never a 500 so a fresh worker cannot fail deploy smoke), `500 paging` (keys + readings), `500 failed` (last cycle threw; no error text in the body), `500 stale` (no run finished for 3 intervals — a code constant, not a design number). Runbooks 01/03 updated. No migration. Still open: the canary adapter — it needs the operator channel through the gateway (`alert_outbox` NOT NULL zone/event FKs and a user-only channel CHECK; the separate operator bot of OPERATIONS §3 rule 3 is unprovisioned) — a founder decision; every threshold but L-8's 600 s; persistent hysteresis.*
 - [ ] **J2 — Backup/restore + RTO drill.** Spec: A22. Needs: C6. Simulated VM
   loss recovered within documented RTO; erasure-aware retention. **Done when:**
   drill recorded.

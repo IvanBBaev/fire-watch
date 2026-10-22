@@ -21,11 +21,13 @@ import { createHealthchecksMetaPager } from '../adapters/monitoring/healthchecks
 import { activeWindowMs, CLUSTERING_PARAMS } from '../core/clustering/clustering-params.js';
 import { canonicalJson } from '../core/determinism/canonical-json.js';
 import { META_ALERT_RULES } from '../core/monitoring/meta-alert-params.js';
+import { evaluateMetaHealth, type MetaHealthVerdict } from '../core/monitoring/meta-health.js';
 import {
   createMonitorCycle,
   type MonitorCycle,
   type MonitorCycleReport,
 } from '../core/monitoring/monitor-cycle.js';
+import type { Clock } from '../core/ports/clock.js';
 import { noopMetaAlertPager, type MetaAlertPager } from '../core/ports/meta-alert-pager.js';
 import type { JobRun } from '../core/scheduler/repeating-job.js';
 import type { ServerConfig } from './config.js';
@@ -111,4 +113,27 @@ export function reportMonitorCycle(
       transitions.length === 0 ? { meta_alerts: rest } : { meta_alerts: rest, pages: transitions },
     ),
   );
+}
+
+export interface MonitorHealth {
+  /** Records a run; hand it to the monitors loop's report chain. Never throws. */
+  readonly observe: (run: JobRun<MonitorCycleReport>) => void;
+  /** The `/api/health/meta` verdict as of now, from the last recorded run. */
+  readonly verdict: () => MetaHealthVerdict;
+}
+
+/**
+ * The last monitors run, held for `/api/health/meta` on the worker's internal listener.
+ * The process start is taken when this is created, so a loop that never finishes a run
+ * goes `stale` instead of reading `starting` forever.
+ */
+export function createMonitorHealth(clock: Clock, intervalMs: number): MonitorHealth {
+  const startedAt = clock.now();
+  let last: JobRun<MonitorCycleReport> | null = null;
+  return {
+    observe: (run) => {
+      last = run;
+    },
+    verdict: () => evaluateMetaHealth({ last, startedAt, now: clock.now(), intervalMs }),
+  };
 }

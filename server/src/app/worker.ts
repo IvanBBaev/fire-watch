@@ -28,7 +28,8 @@
  * dispatch loop (H4/H5) is off unless FIRE_WATCH_ALERT_DISPATCH_ENABLED=true; it opens and
  * closes its own pool and joins the stats under `dispatch`. The J1 meta-alert loop runs
  * every minute on its own small pool and pages through the healthchecks `meta-alerts` check
- * when a heartbeat URL is configured. The E3 R2 mirror (T2) pushes the snapshot and checks
+ * when a heartbeat URL is configured; its last run is also answered as `/api/health/meta` on
+ * the internal metrics listener (never the public server). The E3 R2 mirror (T2) pushes the snapshot and checks
  * its public age every minute, only when the FIRE_WATCH_R2_* group is configured. The D8
  * loop checks hourly whether the last closed ISO week has a stored QA report and builds it
  * if not. The I4 erasure purge runs daily; every retention is unarmed until ratified, so
@@ -93,7 +94,12 @@ import { describeR2MirrorConfig, loadR2MirrorConfig } from './r2-mirror-config.j
 import { startR2MirrorLoops, wireR2Mirror } from './r2-mirror-wiring.js';
 import { startPassesLoops, wirePassesRefresh } from './passes-wiring.js';
 import { startLightningLoops, wireLightningRefresh } from './lightning-wiring.js';
-import { MONITOR_INTERVAL_MS, reportMonitorCycle, wireMonitors } from './monitor-wiring.js';
+import {
+  createMonitorHealth,
+  MONITOR_INTERVAL_MS,
+  reportMonitorCycle,
+  wireMonitors,
+} from './monitor-wiring.js';
 import { reportEffisRefresh, reportWeatherRefresh } from './refresh-reporter.js';
 import {
   EFFIS_REFRESH_INTERVAL_MS,
@@ -176,8 +182,14 @@ async function main(): Promise<number> {
     log.line(line);
   };
 
+  // J1: the last monitors run, answered as /api/health/meta on the internal listener only.
+  const monitorHealth = createMonitorHealth(systemClock, MONITOR_INTERVAL_MS);
+  const observeMonitors = monitorObserver(metrics);
+
   const metricsListener =
-    metricsConfig === null ? null : createMetricsListener(metricsConfig, metrics);
+    metricsConfig === null
+      ? null
+      : createMetricsListener(metricsConfig, metrics, { metaHealth: monitorHealth.verdict });
 
   try {
     await metricsListener?.listen();
@@ -274,7 +286,10 @@ async function main(): Promise<number> {
               reportMonitorCycle(run, { writeLine });
             },
             onMetricsError,
-            monitorObserver(metrics),
+            (run) => {
+              monitorHealth.observe(run);
+              observeMonitors(run);
+            },
           ),
         }),
       ],

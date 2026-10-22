@@ -53,6 +53,7 @@ import { noDeferrals } from '../core/alerts/outbox-enqueue.js';
 import type { TableGauge } from '../core/backup/table-gauges.js';
 import { evaluateFreshness } from '../core/health/freshness.js';
 import type { IngestCycleReport } from '../core/ingest/ingest-cycle.js';
+import type { MetaHealthVerdict } from '../core/monitoring/meta-health.js';
 import type { MonitorCycleReport } from '../core/monitoring/monitor-cycle.js';
 import {
   alertDeferralIncrements,
@@ -299,6 +300,8 @@ export interface MetricsListener {
 export interface MetricsListenerOptions {
   /** The event-loop lag sampler; the real one unless a test hands in its own. */
   readonly lagSampler?: () => Pick<EventLoopLagSampler, 'sampleP99Ms' | 'stop'>;
+  /** The worker's `/api/health/meta` verdict (TASKS J1); the API process has none. */
+  readonly metaHealth?: () => MetaHealthVerdict;
 }
 
 /**
@@ -314,7 +317,11 @@ export function createMetricsListener(
   registry: MetricsRegistry,
   options: MetricsListenerOptions = {},
 ): MetricsListener {
-  const app = createMetricsServer({ registry, bearerToken: config.bearerToken });
+  const app = createMetricsServer({
+    registry,
+    bearerToken: config.bearerToken,
+    metaHealth: options.metaHealth,
+  });
   let lag: Pick<EventLoopLagSampler, 'sampleP99Ms' | 'stop'> | null = null;
   registry.addCollector(() => eventLoopLagSamples(lag?.sampleP99Ms() ?? null));
   return {

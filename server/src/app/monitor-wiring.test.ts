@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { MonitorCycleReport } from '../core/monitoring/monitor-cycle.js';
 import type { JobRun } from '../core/scheduler/repeating-job.js';
 import { loadConfig, type Environment } from './config.js';
-import { MONITOR_INTERVAL_MS, reportMonitorCycle, wireMonitors } from './monitor-wiring.js';
+import { VirtualClock } from '../core/ports/clock.js';
+import {
+  createMonitorHealth,
+  MONITOR_INTERVAL_MS,
+  reportMonitorCycle,
+  wireMonitors,
+} from './monitor-wiring.js';
 
 // A closed port: the wiring must be buildable without anything being reachable.
 const ENV: Environment = {
@@ -81,5 +87,34 @@ describe('reportMonitorCycle', () => {
     expect(lines(run(undefined, new Error('db down')))).toEqual([
       '{"meta_alerts_failed":{"at":1000,"error":"db down"}}',
     ]);
+  });
+});
+
+describe('createMonitorHealth', () => {
+  it('starts, follows the last run and goes stale when the loop stops', () => {
+    const clock = new VirtualClock('2026-09-23T10:00:00Z');
+    const health = createMonitorHealth(clock, MONITOR_INTERVAL_MS);
+    expect(health.verdict()).toMatchObject({ statusCode: 200, body: { status: 'starting' } });
+
+    const t = clock.now();
+    health.observe({ startedAt: t, finishedAt: t, value: REPORT, error: null });
+    expect(health.verdict()).toMatchObject({
+      statusCode: 500,
+      body: { status: 'paging', paging: ['outbox_queue_oldest_seconds'] },
+    });
+
+    health.observe({ startedAt: t, finishedAt: t, value: undefined, error: new Error('x') });
+    expect(health.verdict().body.status).toBe('failed');
+
+    health.observe({
+      startedAt: t,
+      finishedAt: t,
+      value: { ...REPORT, transitions: [], paging: [] },
+      error: null,
+    });
+    expect(health.verdict()).toMatchObject({ statusCode: 200, body: { status: 'ok' } });
+
+    clock.advanceMs(3 * MONITOR_INTERVAL_MS + 1);
+    expect(health.verdict()).toMatchObject({ statusCode: 500, body: { status: 'stale' } });
   });
 });

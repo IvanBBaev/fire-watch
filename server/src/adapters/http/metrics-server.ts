@@ -1,6 +1,7 @@
 /**
- * The internal metrics server (TASKS C5; OPERATIONS §3): one route, `GET /metrics`, on its
- * own Fastify instance and its own port — never a route on the public health/API server.
+ * The internal metrics server (TASKS C5; OPERATIONS §3): `GET /metrics` — and, in the
+ * worker, `GET /api/health/meta` (TASKS J1) — on its own Fastify instance and its own port,
+ * never a route on the public health/API server.
  *
  * Why a separate instance rather than a route on `createHealthServer` behind a check:
  *
@@ -23,15 +24,25 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 
+import type { MetaHealthVerdict } from '../../core/monitoring/meta-health.js';
 import { PROMETHEUS_TEXT_CONTENT_TYPE } from '../../core/observability/prometheus-text.js';
 import type { MetricsRegistry } from '../metrics/metrics-registry.js';
 
 export const METRICS_PATH = '/metrics';
 
+/**
+ * The meta-alert verdict (TASKS J1; `core/monitoring/meta-health.ts`). Registered only when
+ * a process hands in {@link MetricsServerDeps.metaHealth} — the worker, which runs the
+ * monitors loop — and only ever on this listener, behind the same token as the scrape.
+ */
+export const META_HEALTH_PATH = '/api/health/meta';
+
 export interface MetricsServerDeps {
   readonly registry: MetricsRegistry;
   /** When set, a request must carry `Authorization: Bearer <token>`. */
   readonly bearerToken?: string | null | undefined;
+  /** The monitors loop's verdict, read per request; the route exists only when set. */
+  readonly metaHealth?: (() => MetaHealthVerdict) | undefined;
 }
 
 export function createMetricsServer(deps: MetricsServerDeps): FastifyInstance {
@@ -68,6 +79,14 @@ export function createMetricsServer(deps: MetricsServerDeps): FastifyInstance {
     const body = await deps.registry.render();
     return reply.header('content-type', PROMETHEUS_TEXT_CONTENT_TYPE).send(body);
   });
+
+  const metaHealth = deps.metaHealth;
+  if (metaHealth !== undefined) {
+    app.get(META_HEALTH_PATH, (_request, reply) => {
+      const verdict = metaHealth();
+      return reply.code(verdict.statusCode).send(verdict.body);
+    });
+  }
 
   return app;
 }

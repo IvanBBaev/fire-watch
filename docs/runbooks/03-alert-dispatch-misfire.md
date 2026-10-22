@@ -46,8 +46,12 @@ Gaps:
   before then. `NOT YET BUILT (C5)`: `reason="expired_unapproved"` has no producer (no sweeper
   closes an unapproved row at its deadline), and the Grafana leg is not deployed (no
   host, no Grafana Cloud stack).
-- `NOT YET BUILT (J1)`: the dispatch canary (`canary_round_trip_seconds` is `null`),
-  `/api/health/meta`, thresholds for every other monitor key (`outbox_pending_rows`,
+- `/api/health/meta` on the worker's internal metrics listener (`FIRE_WATCH_METRICS_PORT`,
+  same bearer token as `/metrics`, never the public server) answers the monitors loop's
+  last run: `200 ok`/`starting`, `500 paging` (keys in `paging`), `500 failed` (the cycle
+  threw; read `meta_alerts_failed`), `500 stale` (no run finished for 3 cycles).
+- `NOT YET BUILT (J1)`: the dispatch canary (`canary_round_trip_seconds` is `null`;
+  needs the operator channel, a founder decision), thresholds for every other monitor key (`outbox_pending_rows`,
   `outbox_claimed_rows`, `outbox_claimed_oldest_seconds`,
   `outbox_awaiting_approval_oldest_seconds`, `identity_pending_batches`,
   `identity_oldest_pending_seconds` are all unarmed), and persistent hysteresis (state

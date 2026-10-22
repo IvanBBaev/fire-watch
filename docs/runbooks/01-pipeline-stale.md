@@ -35,7 +35,8 @@ Gaps in detection:
   and `/healthz`, and the Grafana probe of `/api/health/freshness` are not
   provisioned. Nothing turns the 500 into a page today.
 - `NOT YET BUILT (J1)`: the end-to-end canary (`canary_round_trip_seconds` is `null`
-  in `core/monitoring/meta-alert-params.ts`) and `/api/health/meta`.
+  in `core/monitoring/meta-alert-params.ts`). `/api/health/meta` exists on the worker's
+  internal metrics listener only (see runbook 03).
 - `NOT YET BUILT (C5/J1)`: `fw_ingest_to_visible_seconds`, the freshness SLO metric
   in OPERATIONS §4, is not exposed.
 
