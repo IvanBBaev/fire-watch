@@ -577,6 +577,18 @@ export interface StaffTotpFactors {
   staff_id: string;
 }
 
+export interface StaffWebauthnCredentials {
+  algorithm: number;
+  backup_eligible: boolean;
+  credential_id: Buffer;
+  enrolled_at: Timestamp;
+  label: string;
+  last_used_at: Timestamp | null;
+  public_key_cose: Buffer;
+  sign_count: Int8;
+  staff_id: string;
+}
+
 export interface TableBackupClass {
   class: string;
   note: string | null;
@@ -637,6 +649,7 @@ export interface DB {
   staff_recovery_codes: StaffRecoveryCodes;
   staff_role_grants: StaffRoleGrants;
   staff_totp_factors: StaffTotpFactors;
+  staff_webauthn_credentials: StaffWebauthnCredentials;
   table_backup_class: TableBackupClass;
   watch_zones: WatchZones;
 }

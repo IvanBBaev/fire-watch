@@ -146,6 +146,7 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'staff_recovery_codes',
       'staff_role_grants',
       'staff_totp_factors',
+      'staff_webauthn_credentials',
       'table_backup_class',
       'watch_zones',
     ]);

@@ -4,6 +4,8 @@
  * re-enrollment voids the old set, disabling a member locks their second factor, every
  * write lands on the audit trail in its transaction, and the incident log's versions are a
  * compare-and-set whose published rows 026 freezes and whose open version is unique.
+ * WebAuthn credentials (027) are unique across the plane, and their signature counter is a
+ * compare-and-set too, so a racing or replayed assertion cannot advance it twice.
  *
  * Skipped when there is no Docker daemon, which is the normal state of a laptop here;
  * `FIRE_WATCH_REQUIRE_DOCKER=1` in CI turns that skip into a failure.
@@ -206,6 +208,100 @@ describe.skipIf(!hasDocker)('staff plane storage', () => {
       staff.enrollTotp(id, { sealed: SEALED, algorithm: 'sha1' }, [], { actorId: id, at: AT }),
     ).rejects.toThrow(/disabled/);
     expect((await staff.findMember(id))?.disabled).toBe(true);
+  });
+
+  describe('WebAuthn credentials (migration 027)', () => {
+    let keyCounter = 0;
+    function credential(signCount = 0) {
+      keyCounter += 1;
+      return {
+        credentialId: new Uint8Array(32).fill(keyCounter),
+        publicKeyCose: new Uint8Array(77).fill(0xa5),
+        algorithm: -7 as const,
+        signCount,
+        backupEligible: false,
+        label: `Key ${String(keyCounter)}`,
+      };
+    }
+
+    it('enrolls keys, refuses a credential id already held, and audits only the win', async () => {
+      const a = await newMember();
+      const b = await newMember();
+      const key = credential(5);
+      expect(
+        await staff.enrollWebAuthnCredential(a, key, [codeHash(9)], { actorId: a, at: AT }),
+      ).toEqual({ kind: 'enrolled' });
+      expect(
+        await staff.enrollWebAuthnCredential(b, key, [codeHash(10)], { actorId: b, at: AT }),
+      ).toEqual({ kind: 'credential_taken' });
+      expect(await auditActions(b)).toEqual(['staff.manage']);
+      // The losing enrollment left b's (empty) codes alone.
+      expect(await staff.consumeRecoveryCode(b, codeHash(10), { at: AT })).toBe(false);
+      expect(await staff.consumeRecoveryCode(a, codeHash(9), { at: AT })).toBe(true);
+
+      const found = await staff.findWebAuthnCredential(key.credentialId);
+      expect(found).toMatchObject({ staffId: a, signCount: 5, algorithm: -7, lastUsedAt: null });
+      expect(found?.publicKeyCose).toEqual(key.publicKeyCose);
+      await staff.enrollWebAuthnCredential(a, credential(), null, { actorId: a, at: AT });
+      expect((await staff.listWebAuthnCredentials(a)).map((c) => c.label)).toHaveLength(2);
+      expect(await auditActions(a)).toEqual([
+        'staff.manage',
+        'staff.second_factor_enrolled',
+        'staff.recovery_code_used',
+        'staff.second_factor_enrolled',
+      ]);
+    });
+
+    it('lets exactly one of two racing assertions advance the counter', async () => {
+      const id = await newMember();
+      const key = credential(7);
+      await staff.enrollWebAuthnCredential(id, key, null, { actorId: id, at: AT });
+      const results = await Promise.all([
+        staff.advanceWebAuthnSignCount(key.credentialId, 8, AT + 1000),
+        staff.advanceWebAuthnSignCount(key.credentialId, 8, AT + 1000),
+      ]);
+      expect(results.filter(Boolean)).toHaveLength(1);
+      expect(await staff.advanceWebAuthnSignCount(key.credentialId, 8, AT + 2000)).toBe(false);
+      expect(await staff.advanceWebAuthnSignCount(key.credentialId, 3, AT + 2000)).toBe(false);
+      expect(await staff.findWebAuthnCredential(key.credentialId)).toMatchObject({
+        signCount: 8,
+        lastUsedAt: AT + 1000,
+      });
+    });
+
+    it('keeps accepting a passkey whose counter stays at zero', async () => {
+      const id = await newMember();
+      const key = credential(0);
+      await staff.enrollWebAuthnCredential(id, key, null, { actorId: id, at: AT });
+      expect(await staff.advanceWebAuthnSignCount(key.credentialId, 0, AT + 1)).toBe(true);
+      expect(await staff.advanceWebAuthnSignCount(key.credentialId, 0, AT + 2)).toBe(true);
+    });
+
+    it('locks a disabled member out of their keys', async () => {
+      const id = await newMember();
+      const key = credential(1);
+      await staff.enrollWebAuthnCredential(id, key, null, { actorId: id, at: AT });
+      await pool.query('UPDATE staff_members SET disabled_at = now() WHERE id = $1', [id]);
+      expect(await staff.findWebAuthnCredential(key.credentialId)).toBeNull();
+      expect(await staff.listWebAuthnCredentials(id)).toEqual([]);
+      expect(await staff.advanceWebAuthnSignCount(key.credentialId, 2, AT)).toBe(false);
+      await expect(
+        staff.enrollWebAuthnCredential(id, credential(), null, { actorId: id, at: AT }),
+      ).rejects.toThrow(/disabled/);
+    });
+
+    it('refuses an algorithm the verifier does not accept', async () => {
+      const id = await newMember();
+      await expect(
+        pool.query(
+          `INSERT INTO staff_webauthn_credentials
+             (credential_id, staff_id, public_key_cose, algorithm, sign_count, backup_eligible,
+              label, enrolled_at)
+           VALUES ($1, $2, $3, -35, 0, false, 'k', now())`,
+          [Buffer.alloc(16, 0xee), id, Buffer.alloc(77, 1)],
+        ),
+      ).rejects.toThrow(/check constraint/);
+    });
   });
 
   describe('incident log', () => {

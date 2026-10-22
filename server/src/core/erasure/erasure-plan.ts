@@ -209,6 +209,7 @@ export const ERASURE_OUT_OF_SCOPE: readonly { readonly table: string; readonly r
     { table: 'staff_role_grants', reason: 'keyed by staff member' },
     { table: 'staff_totp_factors', reason: 'keyed by staff member; sealed secret' },
     { table: 'staff_recovery_codes', reason: 'keyed by staff member; code hashes only' },
+    { table: 'staff_webauthn_credentials', reason: 'keyed by staff member; public keys only' },
     {
       table: 'staff_audit_log',
       reason: 'staff actions; kept 24 months (05 §5.4.3) and removed by purge_staff_audit_log',

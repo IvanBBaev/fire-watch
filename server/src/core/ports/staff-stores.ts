@@ -8,7 +8,8 @@
  * the trail always took effect.
  *
  * Secrets cross these ports only as hashes (recovery codes) or sealed bytes (the TOTP
- * secret); the stores never see a code or a key.
+ * secret); the stores never see a code or a key. WebAuthn credentials (migration 027) are
+ * public keys and cross as the authenticator's own COSE bytes.
  */
 
 import type { IncidentEntryStatus, IncidentEntryVersion } from '../staff/incident-log-workflow.js';
@@ -44,6 +45,26 @@ export interface StoredTotpFactor {
   readonly algorithm: StoredTotpAlgorithm;
   /** The highest step accepted so far; null before the first use. */
   readonly lastUsedStep: number | null;
+}
+
+/** COSE algorithm of a stored credential: ES256, EdDSA or RS256 (`webauthn.ts`). */
+export type StoredWebAuthnAlgorithm = -7 | -8 | -257;
+
+/** A registered authenticator, as `verifyRegistration` accepted it. */
+export interface NewWebAuthnCredential {
+  readonly credentialId: Uint8Array;
+  readonly publicKeyCose: Uint8Array;
+  readonly algorithm: StoredWebAuthnAlgorithm;
+  readonly signCount: number;
+  readonly backupEligible: boolean;
+  /** The member's own name for the key, shown when choosing one. */
+  readonly label: string;
+}
+
+export interface StoredWebAuthnCredential extends NewWebAuthnCredential {
+  readonly staffId: string;
+  readonly enrolledAt: EpochMs;
+  readonly lastUsedAt: EpochMs | null;
 }
 
 export interface StaffStore {
@@ -91,6 +112,36 @@ export interface StaffStore {
     staffId: string,
     codeHash: Uint8Array,
     context: Omit<StaffActionContext, 'actorId'>,
+  ): Promise<boolean>;
+
+  /**
+   * Registers a WebAuthn credential and audits it in one transaction. `recoveryCodeHashes`
+   * replaces the member's recovery-code set when given (a member whose first factor is a
+   * passkey still gets codes printed at enrollment); null keeps the current set.
+   * `credential_taken` when the credential id is already registered to anyone.
+   */
+  enrollWebAuthnCredential(
+    staffId: string,
+    credential: NewWebAuthnCredential,
+    recoveryCodeHashes: readonly Uint8Array[] | null,
+    context: StaffActionContext,
+  ): Promise<{ readonly kind: 'enrolled' | 'credential_taken' }>;
+
+  /** A live member's credentials, oldest first; empty for a disabled member. */
+  listWebAuthnCredentials(staffId: string): Promise<readonly StoredWebAuthnCredential[]>;
+
+  /** The credential an assertion names, or null when unknown or its member is disabled. */
+  findWebAuthnCredential(credentialId: Uint8Array): Promise<StoredWebAuthnCredential | null>;
+
+  /**
+   * The clone guard's write: stores `signCount` and the use time only if the counter still
+   * advances (`signCountAdvances`). False when another assertion got there first, the
+   * counter went backwards, or the member is disabled — the caller must refuse then.
+   */
+  advanceWebAuthnSignCount(
+    credentialId: Uint8Array,
+    signCount: number,
+    at: EpochMs,
   ): Promise<boolean>;
 
   appendAudit(record: StaffAuditRecord): Promise<void>;

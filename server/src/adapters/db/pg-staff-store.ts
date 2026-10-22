@@ -12,6 +12,10 @@
  * two requests racing with the same code exactly one moves the step and the other updates
  * nothing. Recovery codes use the same shape (`used_at IS NULL`).
  *
+ * WebAuthn's signature counter (migration 027) is the same shape:
+ * {@link StaffStore.advanceWebAuthnSignCount} repeats `signCountAdvances` as the UPDATE's
+ * predicate, so of two assertions racing with one counter value exactly one lands.
+ *
  * A disabled member keeps their rows (the trail references them) but every second-factor
  * read and write refuses them, so disabling is enough to lock someone out.
  */
@@ -24,10 +28,12 @@ import type {
   StaffStore,
   StoredTotpAlgorithm,
   StoredTotpFactor,
+  StoredWebAuthnAlgorithm,
+  StoredWebAuthnCredential,
 } from '../../core/ports/staff-stores.js';
 import { buildStaffAuditRecord, type StaffAuditRecord } from '../../core/staff/staff-audit.js';
 import { isStaffRole, type StaffRole } from '../../core/staff/staff-policy.js';
-import { field, seqFrom, string } from './pg-rows.js';
+import { boolean, epochMs, field, number, seqFrom, string } from './pg-rows.js';
 
 /** The slice of `pg` this module uses. Redeclared rather than imported. */
 export interface PgStaffQueryable {
@@ -107,6 +113,39 @@ FROM staff_members m
 WHERE c.staff_id = $1::uuid AND c.code_hash = $2::bytea AND c.used_at IS NULL
   AND m.id = c.staff_id AND m.disabled_at IS NULL`;
 
+const INSERT_WEBAUTHN = `
+INSERT INTO staff_webauthn_credentials
+  (credential_id, staff_id, public_key_cose, algorithm, sign_count, backup_eligible, label,
+   enrolled_at)
+VALUES ($1::bytea, $2::uuid, $3::bytea, $4::integer, $5::bigint, $6::boolean, $7::text,
+        $8::timestamptz)
+ON CONFLICT (credential_id) DO NOTHING`;
+
+const WEBAUTHN_COLUMNS = `
+c.credential_id, c.staff_id::text AS staff_id, c.public_key_cose, c.algorithm,
+c.sign_count::text AS sign_count, c.backup_eligible, c.label, c.enrolled_at, c.last_used_at`;
+
+const LIST_WEBAUTHN = `
+SELECT ${WEBAUTHN_COLUMNS}
+FROM staff_webauthn_credentials c
+JOIN staff_members m ON m.id = c.staff_id
+WHERE c.staff_id = $1::uuid AND m.disabled_at IS NULL
+ORDER BY c.enrolled_at, c.credential_id`;
+
+const FIND_WEBAUTHN = `
+SELECT ${WEBAUTHN_COLUMNS}
+FROM staff_webauthn_credentials c
+JOIN staff_members m ON m.id = c.staff_id
+WHERE c.credential_id = $1::bytea AND m.disabled_at IS NULL`;
+
+/** The predicate is `signCountAdvances` (webauthn.ts), repeated as the clone guard. */
+const ADVANCE_WEBAUTHN_COUNT = `
+UPDATE staff_webauthn_credentials c
+SET sign_count = $2::bigint, last_used_at = $3::timestamptz
+FROM staff_members m
+WHERE c.credential_id = $1::bytea AND m.id = c.staff_id AND m.disabled_at IS NULL
+  AND (c.sign_count < $2::bigint OR (c.sign_count = 0 AND $2::bigint = 0))`;
+
 export const INSERT_AUDIT = `
 INSERT INTO staff_audit_log
   (actor_id, action, entity_kind, entity_id, before_hash, after_hash, ip, at)
@@ -124,8 +163,21 @@ export const STAFF_SQL = {
   findTotp: FIND_TOTP,
   advanceTotpStep: ADVANCE_TOTP_STEP,
   consumeRecoveryCode: CONSUME_RECOVERY_CODE,
+  insertWebAuthn: INSERT_WEBAUTHN,
+  listWebAuthn: LIST_WEBAUTHN,
+  findWebAuthn: FIND_WEBAUTHN,
+  advanceWebAuthnCount: ADVANCE_WEBAUTHN_COUNT,
   insertAudit: INSERT_AUDIT,
 } as const;
+
+/** WebAuthn §5.8.3's counter is an unsigned 32-bit integer. */
+const MAX_SIGN_COUNT = 0xffffffff;
+
+function checkSignCount(signCount: number): void {
+  if (!Number.isSafeInteger(signCount) || signCount < 0 || signCount > MAX_SIGN_COUNT) {
+    throw new RangeError('a WebAuthn signature counter is an unsigned 32-bit integer');
+  }
+}
 
 export async function insertAuditRecord(
   db: PgStaffQueryable,
@@ -269,6 +321,80 @@ export function createPgStaffStore(
         return true;
       }),
 
+    enrollWebAuthnCredential: (staffId, credential, recoveryCodeHashes, context) =>
+      inTransaction(pool, async (client) => {
+        checkSignCount(credential.signCount);
+        for (const hash of recoveryCodeHashes ?? []) {
+          if (hash.length !== 32) throw new TypeError('a recovery code hash is 32 bytes');
+        }
+        const live = await client.query(LOCK_LIVE_MEMBER, [staffId]);
+        if (live.rowCount !== 1)
+          throw new Error('cannot enroll a factor for an unknown or disabled member');
+        const atIso = isoFromEpochMs(context.at);
+        const inserted = await client.query(INSERT_WEBAUTHN, [
+          Buffer.from(credential.credentialId),
+          staffId,
+          Buffer.from(credential.publicKeyCose),
+          credential.algorithm,
+          String(credential.signCount),
+          credential.backupEligible,
+          credential.label,
+          atIso,
+        ]);
+        if (inserted.rowCount !== 1) return { kind: 'credential_taken' } as const;
+        if (recoveryCodeHashes !== null) {
+          await client.query(DELETE_RECOVERY_CODES, [staffId]);
+          await client.query(INSERT_RECOVERY_CODES, [
+            staffId,
+            recoveryCodeHashes.map((hash) => Buffer.from(hash)),
+            atIso,
+          ]);
+        }
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.second_factor_enrolled',
+              entity: { kind: 'staff_member', id: staffId },
+              // The method and its shape, never the key or a code.
+              after: {
+                method: 'webauthn',
+                algorithm: credential.algorithm,
+                backupEligible: credential.backupEligible,
+                recoveryCodes: recoveryCodeHashes?.length ?? null,
+              },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'enrolled' } as const;
+      }),
+
+    async listWebAuthnCredentials(staffId) {
+      const result = await pool.query(LIST_WEBAUTHN, [staffId]);
+      return result.rows.map(decodeWebAuthn);
+    },
+
+    async findWebAuthnCredential(credentialId) {
+      if (credentialId.length === 0) return null;
+      const result = await pool.query(FIND_WEBAUTHN, [Buffer.from(credentialId)]);
+      const [row] = result.rows;
+      return row === undefined ? null : decodeWebAuthn(row);
+    },
+
+    async advanceWebAuthnSignCount(credentialId, signCount, at) {
+      checkSignCount(signCount);
+      const result = await pool.query(ADVANCE_WEBAUTHN_COUNT, [
+        Buffer.from(credentialId),
+        String(signCount),
+        isoFromEpochMs(at),
+      ]);
+      return result.rowCount === 1;
+    },
+
     appendAudit: (record) => insertAuditRecord(pool, record),
   };
 }
@@ -329,5 +455,31 @@ function decodeTotp(row: Record<string, unknown>): StoredTotpFactor {
     },
     algorithm: algorithm as StoredTotpAlgorithm,
     lastUsedStep: step === null ? null : seqFrom(step, 'last_used_step'),
+  };
+}
+
+const WEBAUTHN_ALGORITHMS: readonly StoredWebAuthnAlgorithm[] = [-7, -8, -257];
+
+function bytes(value: unknown, name: string): Uint8Array {
+  if (!(value instanceof Uint8Array)) throw new Error(`${name} is not bytes`);
+  return new Uint8Array(value);
+}
+
+function decodeWebAuthn(row: Record<string, unknown>): StoredWebAuthnCredential {
+  const algorithm = number(field(row, 'algorithm'), 'algorithm');
+  if (!(WEBAUTHN_ALGORITHMS as readonly number[]).includes(algorithm)) {
+    throw new Error('algorithm holds a value outside the WebAuthn set');
+  }
+  const lastUsedAt = field(row, 'last_used_at');
+  return {
+    credentialId: bytes(field(row, 'credential_id'), 'credential_id'),
+    staffId: string(field(row, 'staff_id'), 'staff_id'),
+    publicKeyCose: bytes(field(row, 'public_key_cose'), 'public_key_cose'),
+    algorithm: algorithm as StoredWebAuthnAlgorithm,
+    signCount: seqFrom(field(row, 'sign_count'), 'sign_count'),
+    backupEligible: boolean(field(row, 'backup_eligible'), 'backup_eligible'),
+    label: string(field(row, 'label'), 'label'),
+    enrolledAt: epochMs(field(row, 'enrolled_at'), 'enrolled_at'),
+    lastUsedAt: lastUsedAt === null ? null : epochMs(lastUsedAt, 'last_used_at'),
   };
 }

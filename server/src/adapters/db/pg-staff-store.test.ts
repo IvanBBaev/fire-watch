@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { epochMsFromIso } from '../../core/ports/clock.js';
 import { STAFF_AUDIT_ACTIONS } from '../../core/staff/staff-audit.js';
 import { STAFF_ROLES } from '../../core/staff/staff-policy.js';
+import { WEBAUTHN_ALGORITHMS } from '../crypto/webauthn.js';
 import { createPgStaffStore, STAFF_SQL, type PgStaffClient } from './pg-staff-store.js';
 
 const AT = epochMsFromIso('2026-10-22T08:00:00Z');
@@ -245,6 +246,154 @@ describe('createPgStaffStore', () => {
     ).toBe(true);
     expect(fresh.trace()).toEqual(['BEGIN', 'consumeRecoveryCode', 'insertAudit', 'COMMIT']);
     expect(auditValues(fresh).slice(0, 2)).toEqual([STAFF, 'staff.recovery_code_used']);
+  });
+});
+
+describe('createPgStaffStore — WebAuthn', () => {
+  const CREDENTIAL = {
+    credentialId: new Uint8Array(16).fill(0xc1),
+    publicKeyCose: new Uint8Array(77).fill(0xa5),
+    algorithm: -7,
+    signCount: 0,
+    backupEligible: true,
+    label: 'Phone passkey',
+  } as const;
+
+  it('enrolls a credential and audits the method without the key', async () => {
+    const stub = stubPool();
+    const result = await createPgStaffStore(stub.pool).enrollWebAuthnCredential(
+      STAFF,
+      CREDENTIAL,
+      null,
+      { actorId: STAFF, ip: '192.0.2.9', at: AT },
+    );
+    expect(result).toEqual({ kind: 'enrolled' });
+    // null keeps the existing recovery codes.
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockLiveMember',
+      'insertWebAuthn',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    expect(auditValues(stub).slice(0, 3)).toEqual([
+      STAFF,
+      'staff.second_factor_enrolled',
+      'staff_member',
+    ]);
+    const insert = stub.queries.find((q) => q.text === STAFF_SQL.insertWebAuthn);
+    expect(insert?.values[4]).toBe('0');
+  });
+
+  it('replaces the recovery codes when given a set', async () => {
+    const stub = stubPool();
+    await createPgStaffStore(stub.pool).enrollWebAuthnCredential(
+      STAFF,
+      CREDENTIAL,
+      [new Uint8Array(32).fill(3)],
+      { actorId: STAFF, at: AT },
+    );
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockLiveMember',
+      'insertWebAuthn',
+      'deleteRecoveryCodes',
+      'insertRecoveryCodes',
+      'insertAudit',
+      'COMMIT',
+    ]);
+  });
+
+  it('reports a taken credential id without touching codes or the trail', async () => {
+    const stub = stubPool({ insertWebAuthn: { rows: [], rowCount: 0 } });
+    const result = await createPgStaffStore(stub.pool).enrollWebAuthnCredential(
+      STAFF,
+      CREDENTIAL,
+      [new Uint8Array(32)],
+      { actorId: STAFF, at: AT },
+    );
+    expect(result).toEqual({ kind: 'credential_taken' });
+    expect(stub.trace()).toEqual(['BEGIN', 'lockLiveMember', 'insertWebAuthn', 'COMMIT']);
+  });
+
+  it('refuses a disabled member and an out-of-range counter', async () => {
+    const disabled = stubPool({ lockLiveMember: { rows: [], rowCount: 0 } });
+    await expect(
+      createPgStaffStore(disabled.pool).enrollWebAuthnCredential(STAFF, CREDENTIAL, null, {
+        actorId: STAFF,
+        at: AT,
+      }),
+    ).rejects.toThrow(/disabled/);
+    expect(disabled.trace().at(-1)).toBe('ROLLBACK');
+
+    const stub = stubPool();
+    const store = createPgStaffStore(stub.pool);
+    await expect(
+      store.enrollWebAuthnCredential(STAFF, { ...CREDENTIAL, signCount: 2 ** 32 }, null, {
+        actorId: STAFF,
+        at: AT,
+      }),
+    ).rejects.toThrow(RangeError);
+    await expect(store.advanceWebAuthnSignCount(CREDENTIAL.credentialId, -1, AT)).rejects.toThrow(
+      RangeError,
+    );
+  });
+
+  it('decodes a stored credential', async () => {
+    const row = {
+      credential_id: Buffer.from([1, 2, 3]),
+      staff_id: STAFF,
+      public_key_cose: Buffer.from([4, 5]),
+      algorithm: -8,
+      sign_count: '42',
+      backup_eligible: false,
+      label: 'YubiKey',
+      enrolled_at: new Date('2026-10-22T08:00:00Z'),
+      last_used_at: null,
+    };
+    const stub = stubPool({
+      findWebAuthn: { rows: [row], rowCount: 1 },
+      listWebAuthn: { rows: [row, { ...row, algorithm: -35 }], rowCount: 2 },
+    });
+    const store = createPgStaffStore(stub.pool);
+    expect(await store.findWebAuthnCredential(new Uint8Array([1, 2, 3]))).toEqual({
+      credentialId: new Uint8Array([1, 2, 3]),
+      staffId: STAFF,
+      publicKeyCose: new Uint8Array([4, 5]),
+      algorithm: -8,
+      signCount: 42,
+      backupEligible: false,
+      label: 'YubiKey',
+      enrolledAt: AT,
+      lastUsedAt: null,
+    });
+    await expect(store.listWebAuthnCredentials(STAFF)).rejects.toThrow(/WebAuthn set/);
+    expect(await store.findWebAuthnCredential(new Uint8Array())).toBeNull();
+  });
+
+  it('advances the counter only through the guarded update', async () => {
+    const stub = stubPool({ advanceWebAuthnCount: { rows: [], rowCount: 0 } });
+    expect(
+      await createPgStaffStore(stub.pool).advanceWebAuthnSignCount(new Uint8Array([1]), 3, AT),
+    ).toBe(false);
+    expect(STAFF_SQL.advanceWebAuthnCount).toMatch(/sign_count < \$2::bigint/);
+    expect(STAFF_SQL.advanceWebAuthnCount).toMatch(/sign_count = 0 AND \$2::bigint = 0/);
+    expect(STAFF_SQL.advanceWebAuthnCount).toMatch(/disabled_at IS NULL/);
+    expect(STAFF_SQL.listWebAuthn).toMatch(/disabled_at IS NULL/);
+    expect(STAFF_SQL.findWebAuthn).toMatch(/disabled_at IS NULL/);
+  });
+});
+
+describe('migration 027', () => {
+  const sql = readFileSync(
+    new URL('../../../db/migrations/027_staff_webauthn_credentials.sql', import.meta.url),
+    'utf8',
+  );
+
+  it('allows exactly the algorithms the verifier accepts', () => {
+    const match = /algorithm\s+integer NOT NULL CHECK \(algorithm IN \(([^)]*)\)\)/.exec(sql);
+    const listed = (match?.[1] ?? '').split(',').map((v) => Number(v.trim()));
+    expect(listed.sort()).toEqual(Object.values(WEBAUTHN_ALGORITHMS).sort());
   });
 });
 
