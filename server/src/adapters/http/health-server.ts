@@ -24,6 +24,9 @@
  *                                F18 lightning before one event's first detection, only
  *                                with `eventLightningContext` deps. Its own per-IP limit.
  *
+ *   GET /api/v1/history          V2-A1 playback: archived detections over 24 h, 3 d or 7 d,
+ *                                only with `history` deps. Its own per-IP limit.
+ *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
  * UptimeRobot monitors have to be kept in agreement forever, and the day they disagree is
@@ -89,6 +92,7 @@ import {
   registerPassesRoute,
   type PassesRouteDeps,
 } from './passes-route.js';
+import { HISTORY_PATH, registerHistoryRoute, type HistoryRouteDeps } from './history-route.js';
 import { sendProblem, type CodedProblemSpec } from './problem.js';
 import {
   WIND_OVERLAY_PATH,
@@ -213,6 +217,11 @@ export interface HealthServerDeps {
   readonly lightningOverlay?: LightningOverlayRouteDeps | undefined;
   /** F18 per-event lightning context, with a database. Its own per-IP limit. */
   readonly eventLightningContext?: EventLightningContextRouteDeps | undefined;
+  /**
+   * V2-A1 playback history, with a database. Edge-cached per range and ten-minute window,
+   * with its own per-IP limit, so the hook exempts it from the probe limiter.
+   */
+  readonly history?: HistoryRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -271,7 +280,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === PASSES_PATH ||
       matched === PASS_SWATHS_PATH ||
       matched === LIGHTNING_OVERLAY_PATH ||
-      matched === EVENT_LIGHTNING_CONTEXT_PATH
+      matched === EVENT_LIGHTNING_CONTEXT_PATH ||
+      matched === HISTORY_PATH
     ) {
       done();
       return;
@@ -415,6 +425,13 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerEventLightningContextRoute(app, {
       ...deps.eventLightningContext,
       clientIpHeader: deps.eventLightningContext.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+
+  if (deps.history !== undefined) {
+    registerHistoryRoute(app, {
+      ...deps.history,
+      clientIpHeader: deps.history.clientIpHeader ?? deps.clientIpHeader,
     });
   }
 
