@@ -24,6 +24,7 @@ import { ageWindow, setAgeWindow } from './age-window.js';
 import { FilterBar } from './filter-bar.js';
 import { clearScopeFilters, regionFilter, regionIndex, sourceFamily } from './filters.js';
 import { useApp } from './context.js';
+import { DownloadMenu } from './export/download-menu.js';
 import { mapViewport } from './map-camera.js';
 import { useNow } from './use-now.js';
 import { useStoreState } from './use-store.js';
@@ -109,6 +110,15 @@ export function EventList({
             <EventRow key={event.id} event={event} nowMs={nowMs} />
           ))}
         </ul>
+      )}
+      {events.length > 0 && (
+        // V2-D1: exactly the rows above — same window, filters and viewport scope.
+        <div class="list-export">
+          <DownloadMenu
+            label={messages.dataExport.downloadList}
+            request={() => ({ kind: 'events', events })}
+          />
+        </div>
       )}
       {filtered.olderCount > 0 && (
         <p class="list-scope-note">

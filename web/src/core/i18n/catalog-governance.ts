@@ -284,6 +284,20 @@ export const CATALOG_GOVERNANCE = {
   'shareCard.observedAt': { governance: 'own-voice', reason: 'composed-value' },
   'shareCard.madeAt': { governance: 'own-voice', reason: 'composed-value' },
 
+  // V2-D1 — export. The controls name actions; the file's title names what it holds; the
+  // notice is our statement of what the data is and is not.
+  'dataExport.downloadList': { governance: 'own-voice', reason: 'chrome' },
+  'dataExport.downloadDetections': { governance: 'own-voice', reason: 'chrome' },
+  'dataExport.formatsLabel': { governance: 'own-voice', reason: 'chrome' },
+  'dataExport.preparing': { governance: 'own-voice', reason: 'client-condition' },
+  'dataExport.failed': { governance: 'own-voice', reason: 'client-condition' },
+  'dataExport.eventsTitle': { governance: 'own-voice', reason: 'chrome' },
+  'dataExport.detectionsTitle': { governance: 'own-voice', reason: 'composed-value' },
+  'dataExport.notice': { governance: 'own-voice', reason: 'capability-prose' },
+
+  // V2-D4 — og:image. Describes the image for a reader who cannot see it.
+  'ogImage.alt': { governance: 'own-voice', reason: 'composed-value' },
+
   'ageWindow.label': { governance: 'own-voice', reason: 'chrome' },
   'ageWindow.option.6h': { governance: 'own-voice', reason: 'chrome' },
   'ageWindow.option.24h': { governance: 'own-voice', reason: 'chrome' },
@@ -766,6 +780,12 @@ export const CATALOG_GOVERNANCE = {
  *   statement-type labels are placeholders that avoid the official words on purpose (the
  *   founder's normative Bulgarian wording replaces them), and the tier, exception and
  *   refusal wording follows the editorial standard draft, which awaits sign-off itself.
+ * - `dataExport.*` — TASKS V2-D1, the GeoJSON/KML/CSV download. Written by an implementer so
+ *   the control can render; the button words, the file titles, the "not confirmed fires"
+ *   caveat every file carries and the Bulgarian drafts are the founder's call — as is
+ *   whether exports belong to a paid tier at all (V2-Q3).
+ * - `ogImage.*` — TASKS V2-D4, the link-preview image's alt text. Written by an implementer;
+ *   the wording and the Bulgarian draft are the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -1065,6 +1085,17 @@ export const PENDING_FOUNDER_REVIEW = [
   'passes.cloudCloudy',
   'passes.cloudForecast',
   'passes.cloudCaveat',
+  // V2-D1 — export
+  'dataExport.downloadList',
+  'dataExport.downloadDetections',
+  'dataExport.formatsLabel',
+  'dataExport.preparing',
+  'dataExport.failed',
+  'dataExport.eventsTitle',
+  'dataExport.detectionsTitle',
+  'dataExport.notice',
+  // V2-D4 — og:image
+  'ogImage.alt',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

@@ -68,7 +68,7 @@ export interface ManifestChunk {
 
 export type Manifest = Readonly<Record<string, ManifestChunk>>;
 
-export type LazyRole = 'map' | 'locale' | 'page';
+export type LazyRole = 'map' | 'locale' | 'page' | 'action';
 
 /**
  * Every dynamic-import root in the web app, by role, keyed on the source module the
@@ -86,6 +86,11 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // leave the entry budget, just by being written as an `import()`.
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
   { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
+  // TASKS V2-D1: code that runs only when a reader presses a button, loaded at the press —
+  // the GeoJSON/KML/CSV serialisers behind "Download". Like a page, on neither the
+  // first-render nor the map path, so charged to no budget; listed by name for the same
+  // reason a page is.
+  { role: 'action', src: /^src\/ui\/export\/run-export\.ts$/ },
 ];
 
 /**
@@ -281,7 +286,7 @@ export function checkBuild(build: BuildDescription): BudgetReport {
     : new Set<string>();
 
   // --- Lazy roots, each claimed by exactly one role -------------------------------
-  const rootsByRole: Record<LazyRole, string[]> = { map: [], locale: [], page: [] };
+  const rootsByRole: Record<LazyRole, string[]> = { map: [], locale: [], page: [], action: [] };
   // Unclassified roots are already an error; keeping them out of the reachability check
   // below stops the same chunk being reported twice.
   const unclassifiedRoots: string[] = [];
@@ -316,6 +321,9 @@ export function checkBuild(build: BuildDescription): BudgetReport {
   const mapKeys = union(...rootsByRole.map.map((root) => staticClosure(manifest, root, errors)));
   const localeKeySets = rootsByRole.locale.map((root) => staticClosure(manifest, root, errors));
   const pageKeys = union(...rootsByRole.page.map((root) => staticClosure(manifest, root, errors)));
+  const actionKeys = union(
+    ...rootsByRole.action.map((root) => staticClosure(manifest, root, errors)),
+  );
 
   // --- Every chunk must be reachable from something budgeted ---------------------
   const reachable = union(
@@ -323,6 +331,7 @@ export function checkBuild(build: BuildDescription): BudgetReport {
     mapKeys,
     ...localeKeySets,
     pageKeys,
+    actionKeys,
     ...unclassifiedRoots.map((root) => staticClosure(manifest, root, [])),
   );
   for (const key of keys) {

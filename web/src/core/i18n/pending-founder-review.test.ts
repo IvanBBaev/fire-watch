@@ -342,6 +342,17 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'passes.cloudCloudy',
       'passes.cloudForecast',
       'passes.cloudCaveat',
+      // V2-D1 — export
+      'dataExport.downloadList',
+      'dataExport.downloadDetections',
+      'dataExport.formatsLabel',
+      'dataExport.preparing',
+      'dataExport.failed',
+      'dataExport.eventsTitle',
+      'dataExport.detectionsTitle',
+      'dataExport.notice',
+      // V2-D4 — og:image
+      'ogImage.alt',
     ]);
   });
 

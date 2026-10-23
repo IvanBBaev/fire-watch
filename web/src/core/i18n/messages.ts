@@ -120,6 +120,35 @@ export interface Messages {
   };
 
   /**
+   * V2-D1 — export: the Download control on the list and on the event page, and the words
+   * the downloaded file carries. Own voice; every key is implementer copy held in
+   * `PENDING_FOUNDER_REVIEW`. The file's column names are a machine schema, not copy.
+   */
+  readonly dataExport: {
+    /** The list's control: downloads exactly the events the list shows. */
+    readonly downloadList: string;
+    /** The event page's control: downloads that event's satellite detections. */
+    readonly downloadDetections: string;
+    /** Group label for the three file-format buttons. */
+    readonly formatsLabel: string;
+    readonly preparing: string;
+    /** The file could not be made — typically the detections file did not load. */
+    readonly failed: string;
+    /** Title inside the events file. */
+    readonly eventsTitle: string;
+    /** Title inside one event's detections file; `place` is the event's place name. */
+    readonly detectionsTitle: (place: string) => string;
+    /** The honest-label caveat every file carries: satellite detections, not confirmed fires. */
+    readonly notice: string;
+  };
+
+  /** V2-D4 — og:image: the link-preview image of a shared event. Pending founder review. */
+  readonly ogImage: {
+    /** `og:image:alt`; `place` is the event's place name. */
+    readonly alt: (place: string) => string;
+  };
+
+  /**
    * The time window the list is scoped to. Options are short enough to sit in a segmented
    * control; the group label is what carries the meaning for a screen reader. Like the
    * viewport scope, the window must state what it hides rather than just hiding it.

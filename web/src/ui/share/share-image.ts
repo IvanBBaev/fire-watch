@@ -46,7 +46,8 @@ export async function rasterizeSvg(svg: string, width: number, height: number): 
   }
 }
 
-function download(blob: Blob, fileName: string): void {
+/** Saves `blob` as `fileName` through a transient anchor — the browser's own download flow. */
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -81,7 +82,7 @@ export async function shareCardImage(request: ShareCardRequest): Promise<ShareOu
   try {
     png = await rasterizeSvg(request.svg, request.width, request.height);
   } catch {
-    download(new Blob([request.svg], { type: 'image/svg+xml' }), `${request.baseName}.svg`);
+    downloadBlob(new Blob([request.svg], { type: 'image/svg+xml' }), `${request.baseName}.svg`);
     return 'downloaded';
   }
 
@@ -96,6 +97,6 @@ export async function shareCardImage(request: ShareCardRequest): Promise<ShareOu
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
     }
   }
-  download(png, `${request.baseName}.png`);
+  downloadBlob(png, `${request.baseName}.png`);
   return 'downloaded';
 }

@@ -167,6 +167,29 @@ describe('checkBuild — classification', () => {
     });
   });
 
+  it('keeps an on-press action chunk, and what only it imports, out of every budget', () => {
+    const manifest: Manifest = {
+      ...MANIFEST,
+      'src/ui/export/run-export.ts': {
+        file: 'assets/run-export.js',
+        src: 'src/ui/export/run-export.ts',
+        isDynamicEntry: true,
+        imports: ['index.html', '_serialise.js'],
+      },
+      '_serialise.js': { file: 'assets/serialise.js' },
+    };
+    const report = checkBuild(
+      build({ manifest, sizes: { 'assets/run-export.js': 9_000, 'assets/serialise.js': 3_000 } }),
+    );
+    expect(report.errors).toStrictEqual([]);
+    expect(bytes(report)).toStrictEqual({
+      entry: 30_000 + 4_000,
+      map: 250_000,
+      criticalPath: 30_000 + 4_000 + 250_000,
+      css: 2_000,
+    });
+  });
+
   it('fails on a second entry point and on a chunk reachable from nothing', () => {
     const manifest: Manifest = {
       ...MANIFEST,
