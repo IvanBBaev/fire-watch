@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@fire-watch/contracts": "workspace:*",
-    "fastify": "^5.11.0",
+    "fastify": "^5.12.7",
     "h5wasm": "0.10.3",
     "kysely": "^0.29.4",
     "pg": "^8.22.0",
