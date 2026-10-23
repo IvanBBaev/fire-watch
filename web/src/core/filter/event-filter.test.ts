@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { RegionLookup } from './event-filter.js';
+import { SENSITIVITY_PRESETS } from './sensitivity.js';
 import {
   countFamilies,
+  countSensitivity,
   familiesOf,
   matchesFilter,
   partitionEvents,
@@ -132,5 +134,75 @@ describe('events whose sources this build cannot place (F12)', () => {
     ]);
     expect(familiesOf(served)).toStrictEqual(new Set(['v', 'm', 's', 'g']));
     expect(familiesOf(ev('none', 1, 5.5))).toBeNull();
+  });
+});
+
+describe('the sensitivity filter in the shared rule (V2-A2)', () => {
+  const strong = { ...ev('s', 1, 5.5, BOTH), scoreBucket: 'confirmed', detectionCount: 4 } as const;
+  const likelyOnce = {
+    ...ev('l', 1, 5.5, VIIRS),
+    scoreBucket: 'likely',
+    detectionCount: 1,
+  } as const;
+  const weak = { ...ev('w', 1, 5.5, VIIRS), scoreBucket: 'unverified', detectionCount: 1 } as const;
+  const legacy = ev('legacy', 1, 5.5); // a cached body with none of the fields
+  const old = { ...ev('o', 30, 5.5, VIIRS), scoreBucket: 'unverified', detectionCount: 1 } as const;
+  const items = [strong, likelyOnce, weak, legacy, old];
+
+  it('counts what it hides as filtered, never as older', () => {
+    const p = partitionEvents(
+      items,
+      {
+        cutoffMs: NOW - 24 * HOUR,
+        family: null,
+        oblast: null,
+        sensitivity: SENSITIVITY_PRESETS.balanced,
+      },
+      regionAt,
+    );
+    expect(p.visible.map((e) => e.id)).toEqual(['s', 'legacy']);
+    expect(p.filteredCount).toBe(3);
+    expect(p.olderCount).toBe(0);
+  });
+
+  it('gives the map a predicate only when a non-default sensitivity is set', () => {
+    expect(
+      scopePredicate(
+        { family: null, oblast: null, sensitivity: SENSITIVITY_PRESETS.all },
+        regionAt,
+      ),
+    ).toBeNull();
+    const predicate = scopePredicate(
+      { family: null, oblast: null, sensitivity: SENSITIVITY_PRESETS.multi },
+      regionAt,
+    )!;
+    expect(items.filter(predicate).map((e) => e.id)).toEqual(['s', 'legacy']);
+  });
+
+  it('counts each preset over the other filters, and the blind sensor passes', () => {
+    const counts = countSensitivity(
+      items,
+      {
+        cutoffMs: NOW - 24 * HOUR,
+        family: 'v',
+        oblast: 5,
+        sensitivity: SENSITIVITY_PRESETS.multi,
+      },
+      regionAt,
+    );
+    expect(counts.byPreset).toStrictEqual({ all: 4, balanced: 2, multi: 2 });
+    expect(counts.current).toBe(2);
+    expect(counts.sensorsUnreported).toBe(1);
+  });
+
+  it('narrows the sensor counts too', () => {
+    const counts = countFamilies(
+      items,
+      { cutoffMs: null, oblast: null, sensitivity: SENSITIVITY_PRESETS.balanced },
+      regionAt,
+    );
+    expect(counts.total).toBe(2);
+    expect(counts.byFamily.v).toBe(1);
+    expect(counts.unreported).toBe(1);
   });
 });

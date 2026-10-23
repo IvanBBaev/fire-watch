@@ -687,6 +687,20 @@ button {
   font-size: 1rem;
 }
 
+/* V2-A2: the sensitivity criteria behind the presets, folded away by default. The summary
+   is a full tap target; the three pickers wrap like the row above. */
+.filter-advanced > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.filter-advanced > .filter-selects {
+  padding-bottom: 0.25rem;
+}
+
 .place-search {
   position: relative;
   display: flex;

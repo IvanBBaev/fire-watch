@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseFilterHash, withFilterHash } from '../core/filter/filter-hash.js';
+import { SENSITIVITY_PRESETS } from '../core/filter/sensitivity.js';
 import { parseMapHash, withMapHash } from './hash.js';
 
 const VIEW = { zoom: 7.2, lat: 42.7, lon: 25.3 };
@@ -24,7 +25,12 @@ describe('withMapHash', () => {
   });
 
   it('round-trips with the filter writer in either order', () => {
-    const selection = { window: '12h', family: 'g', oblast: 9 } as const;
+    const selection = {
+      window: '12h',
+      family: 'g',
+      oblast: 9,
+      sensitivity: SENSITIVITY_PRESETS.multi,
+    } as const;
     const a = withFilterHash(withMapHash('', VIEW), selection);
     const b = withMapHash(withFilterHash('', selection), VIEW);
     for (const hash of [a, b]) {

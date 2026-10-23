@@ -342,6 +342,20 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'passes.cloudCloudy',
       'passes.cloudForecast',
       'passes.cloudCaveat',
+      // V2-A2 — sensitivity
+      'filters.sensitivityLabel',
+      'filters.sensitivityPreset.all',
+      'filters.sensitivityPreset.balanced',
+      'filters.sensitivityPreset.multi',
+      'filters.sensitivityCustom',
+      'filters.sensitivityOption',
+      'filters.sensitivityAdvanced',
+      'filters.sensitivityMinBand',
+      'filters.sensitivityMinDetections',
+      'filters.sensitivityMinSensors',
+      'filters.sensitivityAtLeast',
+      'filters.sensitivityHint',
+      'filters.sensitivityUnreported',
     ]);
   });
 

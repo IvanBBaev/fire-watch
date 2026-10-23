@@ -176,6 +176,26 @@ const messages: Messages = {
         : `Скрити са ${formatNumber(count, 'bg')} пожара от филтрите`,
     clear: 'Изчисти филтрите',
     emptyFiltered: 'Няма сателитни засичания, отговарящи на тези филтри.',
+    sensitivityLabel: 'Сигнали',
+    sensitivityPreset: {
+      all: 'Всички сигнали',
+      balanced: 'Балансирано',
+      multi: 'Засечени няколко пъти',
+    },
+    sensitivityCustom: 'Персонализирано',
+    sensitivityOption: (name, count) => `${name} (${formatNumber(count, 'bg')})`,
+    sensitivityAdvanced: 'Критерии за сигналите',
+    sensitivityMinBand: 'Най-ниска степен',
+    sensitivityMinDetections: 'Засичания',
+    sensitivityMinSensors: 'Спътници',
+    sensitivityAtLeast: (count) =>
+      count === 1 ? 'Без минимум' : `Поне ${formatNumber(count, 'bg')}`,
+    sensitivityHint:
+      'По-слабите сигнали са скрити. Скритият сигнал може все пак да е истински пожар.',
+    sensitivityUnreported: (count) =>
+      count === 1
+        ? 'За 1 пожар данните не казват колко спътника са го засекли; той се показва въпреки това.'
+        : `За ${formatNumber(count, 'bg')} пожара данните не казват колко спътника са ги засекли; те се показват въпреки това.`,
   },
 
   search: {

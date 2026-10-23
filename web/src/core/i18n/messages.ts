@@ -157,6 +157,21 @@ export interface Messages {
     readonly hiddenByFilters: (count: number) => string;
     readonly clear: string;
     readonly emptyFiltered: string;
+    /** V2-A2: the sensitivity picker — presets, their criteria, and the honesty notes. */
+    readonly sensitivityLabel: string;
+    readonly sensitivityPreset: Readonly<Record<'all' | 'balanced' | 'multi', string>>;
+    readonly sensitivityCustom: string;
+    readonly sensitivityOption: (name: string, count: number) => string;
+    readonly sensitivityAdvanced: string;
+    readonly sensitivityMinBand: string;
+    readonly sensitivityMinDetections: string;
+    readonly sensitivityMinSensors: string;
+    /** An option of the detection/sensor pickers; 1 means "no minimum". */
+    readonly sensitivityAtLeast: (count: number) => string;
+    /** Shown whenever signals are hidden: a hidden signal may still be a fire. */
+    readonly sensitivityHint: string;
+    /** Events passed by the sensor criterion only because the feed did not name sensors. */
+    readonly sensitivityUnreported: (count: number) => string;
   };
 
   /** Place search: settlements (GeoNames) and coordinates. */

@@ -23,7 +23,13 @@ import { cameraRequest } from './camera-request.js';
 import { useApp } from './context.js';
 import { MapControls } from './map-controls.js';
 import { initialCamera, publishViewport } from './map-camera.js';
-import { regionFilter, regionIndex, sourceFamily, startFilterUrlSync } from './filters.js';
+import {
+  regionFilter,
+  regionIndex,
+  sensitivityFilter,
+  sourceFamily,
+  startFilterUrlSync,
+} from './filters.js';
 import { imageryTilesUrl } from './imagery.js';
 import {
   browserOverlayLoader,
@@ -60,14 +66,15 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   const cutoffMs = ageCutoffMs(useNow(serverNow), ageWindow.value);
   const cutoffRef = useRef(cutoffMs);
   cutoffRef.current = cutoffMs;
-  // The source and region filters scope the map exactly as they scope the list. Read here
+  // The source, region and sensitivity filters scope the map exactly as they scope the list. Read here
   // so a change re-renders the pane; the predicate is rebuilt only when an input moves.
   const family = sourceFamily.value;
   const oblast = regionFilter.value;
+  const sensitivity = sensitivityFilter.value;
   const index = regionIndex.value;
   const predicate = useMemo(
-    () => scopePredicate({ family, oblast }, index?.regionAt ?? null),
-    [family, oblast, index],
+    () => scopePredicate({ family, oblast, sensitivity }, index?.regionAt ?? null),
+    [family, oblast, sensitivity, index],
   );
   const predicateRef = useRef(predicate);
   predicateRef.current = predicate;

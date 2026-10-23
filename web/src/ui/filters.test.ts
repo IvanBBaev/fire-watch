@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AgeWindowModule from './age-window.js';
 import type * as FiltersModule from './filters.js';
+import { DEFAULT_SENSITIVITY, SENSITIVITY_PRESETS } from '../core/filter/sensitivity.js';
 import { DEFAULT_AGE_WINDOW } from '../core/time/age-filter.js';
+
+const ALL = DEFAULT_SENSITIVITY;
 
 // `filters.ts` keeps a module-level load promise, so every test gets a fresh module.
 let ageWindow: typeof AgeWindowModule.ageWindow;
@@ -19,6 +22,8 @@ let regionFilter: typeof FiltersModule.regionFilter;
 let regionIndex: typeof FiltersModule.regionIndex;
 let regionIndexState: typeof FiltersModule.regionIndexState;
 let setRegionFilter: typeof FiltersModule.setRegionFilter;
+let sensitivityFilter: typeof FiltersModule.sensitivityFilter;
+let setSensitivity: typeof FiltersModule.setSensitivity;
 let setSourceFamily: typeof FiltersModule.setSourceFamily;
 let sourceFamily: typeof FiltersModule.sourceFamily;
 let startFilterUrlSync: typeof FiltersModule.startFilterUrlSync;
@@ -40,7 +45,9 @@ beforeEach(async () => {
     regionFilter,
     regionIndex,
     regionIndexState,
+    sensitivityFilter,
     setRegionFilter,
+    setSensitivity,
     setSourceFamily,
     sourceFamily,
     startFilterUrlSync,
@@ -52,19 +59,31 @@ afterEach(() => {
 });
 
 describe('scope filters', () => {
-  it('reads the three filters as one selection', () => {
+  it('reads the four filters as one selection', () => {
     ageWindow.value = '6h';
     setSourceFamily('v');
     regionFilter.value = 22;
-    expect(currentSelection()).toEqual({ window: '6h', family: 'v', oblast: 22 });
+    setSensitivity(SENSITIVITY_PRESETS.balanced);
+    expect(currentSelection()).toEqual({
+      window: '6h',
+      family: 'v',
+      oblast: 22,
+      sensitivity: SENSITIVITY_PRESETS.balanced,
+    });
   });
 
-  it('clearScopeFilters resets source and region but not the time window', () => {
+  it('clearScopeFilters resets source, region and sensitivity but not the time window', () => {
     ageWindow.value = '6h';
     sourceFamily.value = 'm';
     regionFilter.value = 3;
+    sensitivityFilter.value = SENSITIVITY_PRESETS.multi;
     clearScopeFilters();
-    expect(currentSelection()).toEqual({ window: '6h', family: null, oblast: null });
+    expect(currentSelection()).toEqual({
+      window: '6h',
+      family: null,
+      oblast: null,
+      sensitivity: ALL,
+    });
   });
 });
 
@@ -115,18 +134,30 @@ describe('applyFilterHash', () => {
     expect(ageWindow.value).toBe('6h');
     expect(sourceFamily.value).toBe('v');
     expect(regionFilter.value).toBe(22);
+    applyFilterHash('#sens=multi');
+    expect(sensitivityFilter.value).toStrictEqual(SENSITIVITY_PRESETS.multi);
   });
 
   it('leaves members the fragment does not mention as they are', () => {
     ageWindow.value = '12h';
     sourceFamily.value = 'm';
     applyFilterHash('#map=8.0/42.6977/23.3219');
-    expect(currentSelection()).toEqual({ window: '12h', family: 'm', oblast: null });
+    expect(currentSelection()).toEqual({
+      window: '12h',
+      family: 'm',
+      oblast: null,
+      sensitivity: ALL,
+    });
   });
 
   it('ignores unparseable values', () => {
-    applyFilterHash('#t=bogus&src=zz&r=99');
-    expect(currentSelection()).toEqual({ window: DEFAULT_AGE_WINDOW, family: null, oblast: null });
+    applyFilterHash('#t=bogus&src=zz&r=99&sens=q.1.1');
+    expect(currentSelection()).toEqual({
+      window: DEFAULT_AGE_WINDOW,
+      family: null,
+      oblast: null,
+      sensitivity: ALL,
+    });
   });
 
   it('never writes storage', () => {

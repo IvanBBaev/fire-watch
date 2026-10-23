@@ -133,6 +133,12 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   ],
   'filters.sourceUnreported': [[1], [N]],
   'filters.hiddenByFilters': [[1], [N]],
+  'filters.sensitivityOption': [
+    [T1, 0],
+    [T1, N],
+  ],
+  'filters.sensitivityAtLeast': [[1], [2], [N]],
+  'filters.sensitivityUnreported': [[1], [N]],
   'search.goToCoordinates': [[T1]],
   'search.resultCount': [[1], [N]],
   'newSignals.count': [[1], [N]],

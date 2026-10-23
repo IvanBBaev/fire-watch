@@ -174,6 +174,25 @@ const messages: Messages = {
         : `${formatNumber(count, 'en')} fires hidden by filters`,
     clear: 'Clear filters',
     emptyFiltered: 'No satellite detections match these filters.',
+    sensitivityLabel: 'Signals',
+    sensitivityPreset: {
+      all: 'All signals',
+      balanced: 'Balanced',
+      multi: 'Seen several times',
+    },
+    sensitivityCustom: 'Custom',
+    sensitivityOption: (name, count) => `${name} (${formatNumber(count, 'en')})`,
+    sensitivityAdvanced: 'Signal criteria',
+    sensitivityMinBand: 'Lowest tier',
+    sensitivityMinDetections: 'Detections',
+    sensitivityMinSensors: 'Satellites',
+    sensitivityAtLeast: (count) =>
+      count === 1 ? 'Any number' : `At least ${formatNumber(count, 'en')}`,
+    sensitivityHint: 'Weaker signals are hidden. A hidden signal may still be a real fire.',
+    sensitivityUnreported: (count) =>
+      count === 1
+        ? 'For 1 fire the feed does not say how many satellites saw it; it is shown anyway.'
+        : `For ${formatNumber(count, 'en')} fires the feed does not say how many satellites saw them; they are shown anyway.`,
   },
 
   search: {
