@@ -34,3 +34,4 @@ server/fixtures/effis-ba-candidates.json
 # Written by `pnpm run geodata:worldcover` (TASKS D10) with one tile and one candidate per
 # line; regenerated, never hand-edited.
 server/fixtures/worldcover-landcover.json
+.claude

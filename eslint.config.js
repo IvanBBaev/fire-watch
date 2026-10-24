@@ -12,6 +12,8 @@ export default tseslint.config(
       'data/**',
       'tiles/**',
       'tiles-dem/**',
+      // Local AI-harness files and agent worktrees: full repo copies, never this tree's source.
+      '.claude/**',
       // Seeded and removed by the boundary test; never real source.
       '**/__boundary-fixture.*.ts',
     ],
