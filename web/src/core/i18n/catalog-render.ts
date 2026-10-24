@@ -166,6 +166,7 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
     [N, 10, 3, 0.4],
   ],
   'eventDetail.lightningContextNone': [[10, 3]],
+  'eventDetail.cemsActivation': [['EMSR822']],
   'eventDetail.frpPeak': [[T1, T2, T3]],
   'eventDetail.frpChartLabel': [
     [1, T1, T2],

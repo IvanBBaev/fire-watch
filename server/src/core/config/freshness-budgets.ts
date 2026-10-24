@@ -191,6 +191,17 @@ const ROWS: readonly FreshnessBudget[] = [
     pages: false,
   },
 
+  // Copernicus EMS activations (V2-E3), polled hourly. Warn after two missed cycles plus
+  // slack; critical at the route's own six-hour staleness refusal, when the badge stops
+  // being served. Context only: never pages.
+  {
+    row: 'cems:activations',
+    nominalCadenceSeconds: 1 * HOUR,
+    warnSeconds: 3 * HOUR,
+    criticalSeconds: 6 * HOUR,
+    pages: false,
+  },
+
   // The snapshot push is the only job that 500s, and its warn budget is the one threshold
   // the client also has to know (GLOSSARY §3b trigger 1) — so it is imported, not repeated.
   {

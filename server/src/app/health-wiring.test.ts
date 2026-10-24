@@ -73,6 +73,7 @@ describe('expectedRows', () => {
       'weather:context',
       'celestrak:elements',
       'eumetsat:lightning',
+      'cems:activations',
       'effis-refresh',
     ]);
   });

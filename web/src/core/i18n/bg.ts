@@ -761,6 +761,7 @@ const messages: Messages = {
       `Мълнии наоколо: не са засечени светкавици в радиус ${formatNumber(radiusKm, 'bg')} км през ${formatNumber(hours, 'bg')}-те часа преди първото засичане. Сателитът пропуска част от светкавиците, така че това не изключва мълния.`,
     lightningContextNoData:
       'Мълнии наоколо: няма данни за мълнии за часовете преди първото засичане.',
+    cemsActivation: (code) => `Активиране на Copernicus EMS ${code}`,
   },
 };
 

@@ -67,6 +67,7 @@ GATE-v2 in 09 §1) and whenever a provider announces a policy change.
 | [`celestrak.md`](./celestrak.md) | CelesTrak — GP orbital elements for satellite-pass predictions | — (input to derived pass times) | None published (usage policy only; citation requested) | Fetch job + passes route landed (TASKS F15); terms open item |
 | [`eumetsat-mtg-li.md`](./eumetsat-mtg-li.md) | EUMETSAT MTG LI L2 Lightning Flashes (Data Store `EO:EUM:DAT:0691`) | — (context layer, no detection feed) | CC BY 4.0 (Core Data, EUMETSAT Data Policy 25 Nov 2025) | Adapter + decoder + route landed credential-gated (TASKS F18); no account yet, no real product fetched |
 | [`esa-worldcover.md`](./esa-worldcover.md) | ESA WorldCover 10 m 2021 v200 — land-cover class shares over the polling box (DS-7) | — (build-time asset) | CC BY 4.0 | Product built by `pnpm run geodata:worldcover` (TASKS D10); not rendered, no runtime consumer yet |
+| [`copernicus-ems.md`](./copernicus-ems.md) | Copernicus EMS Rapid Mapping — wildfire activation list and AOI extents (event-page badge) | — (context, no detection feed; freshness row `cems:activations`) | EU terms: reproduction and distribution allowed with the source cited per the Citation Guidelines | Poller + route + badge landed (TASKS V2-E3); API undocumented |
 
 Sources listed in `docs/DATA-SOURCES.md` as later waves — GIBS, Copernicus DEM GLO-30,
 Terrarium terrain, CLC+/CORINE, GHSL, CLMS SWI/SSM, GPM IMERG,

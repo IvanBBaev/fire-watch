@@ -23,6 +23,10 @@
  *   GET /api/v1/events/:publicId/lightning-context
  *                                F18 lightning before one event's first detection, only
  *                                with `eventLightningContext` deps. Its own per-IP limit.
+ *   GET /overlays/cems/activations.json
+ *                                the V2-E3 Copernicus EMS wildfire activations behind the
+ *                                event-page badge, only with `cemsOverlay` deps. Its own
+ *                                per-IP limit.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -73,6 +77,11 @@ import {
   registerEventDetectionsRoute,
   type EventDetectionsRouteDeps,
 } from './event-detections-route.js';
+import {
+  CEMS_OVERLAY_PATH,
+  registerCemsOverlayRoute,
+  type CemsOverlayRouteDeps,
+} from './cems-overlay-route.js';
 import {
   EVENT_LIGHTNING_CONTEXT_PATH,
   registerEventLightningContextRoute,
@@ -213,6 +222,11 @@ export interface HealthServerDeps {
   readonly lightningOverlay?: LightningOverlayRouteDeps | undefined;
   /** F18 per-event lightning context, with a database. Its own per-IP limit. */
   readonly eventLightningContext?: EventLightningContextRouteDeps | undefined;
+  /**
+   * V2-E3 Copernicus EMS activations, when this box holds the refresh state dir.
+   * Edge-cached, with its own per-IP limit, so the hook exempts it from the probe limiter.
+   */
+  readonly cemsOverlay?: CemsOverlayRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -271,7 +285,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === PASSES_PATH ||
       matched === PASS_SWATHS_PATH ||
       matched === LIGHTNING_OVERLAY_PATH ||
-      matched === EVENT_LIGHTNING_CONTEXT_PATH
+      matched === EVENT_LIGHTNING_CONTEXT_PATH ||
+      matched === CEMS_OVERLAY_PATH
     ) {
       done();
       return;
@@ -415,6 +430,12 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerEventLightningContextRoute(app, {
       ...deps.eventLightningContext,
       clientIpHeader: deps.eventLightningContext.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.cemsOverlay !== undefined) {
+    registerCemsOverlayRoute(app, {
+      ...deps.cemsOverlay,
+      clientIpHeader: deps.cemsOverlay.clientIpHeader ?? deps.clientIpHeader,
     });
   }
 

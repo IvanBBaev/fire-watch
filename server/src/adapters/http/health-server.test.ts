@@ -10,6 +10,7 @@ import type { DatabaseProbe, FreshnessReader } from '../../core/ports/freshness-
 import { createHealthServer, type HealthServerDeps } from './health-server.js';
 import { WIND_OVERLAY_PATH } from './wind-overlay-route.js';
 import { LIGHTNING_OVERLAY_PATH } from './lightning-overlay-route.js';
+import { CEMS_OVERLAY_PATH } from './cems-overlay-route.js';
 
 const NOW = '2026-08-02T12:00:00Z';
 const MINUTE = 60_000;
@@ -497,6 +498,30 @@ describe('the lightning overlay read path (F18)', () => {
         );
       }
       // No credentials, no document: the route's own 503, never the probe limiter's 429.
+      expect(statuses).toEqual([503, 503, 503]);
+      await app.close();
+    } finally {
+      rmSync(stateDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the CEMS activations read path (V2-E3)', () => {
+  it('is served only when wired, and is exempt from the probe limiter', async () => {
+    const unwired = await server().inject({ method: 'GET', url: CEMS_OVERLAY_PATH });
+    expect(unwired.statusCode).toBe(404);
+
+    const stateDir = mkdtempSync(join(tmpdir(), 'fire-watch-cems-health-'));
+    try {
+      const app = server({
+        rateLimit: { limit: 1, windowMs: 60_000 },
+        cemsOverlay: { stateDir, clock: new VirtualClock(NOW) },
+      });
+      const statuses: number[] = [];
+      for (let i = 0; i < 3; i += 1) {
+        statuses.push((await app.inject({ method: 'GET', url: CEMS_OVERLAY_PATH })).statusCode);
+      }
+      // No list recorded yet: the route's own 503, never the probe limiter's 429.
       expect(statuses).toEqual([503, 503, 503]);
       await app.close();
     } finally {

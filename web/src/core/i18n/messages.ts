@@ -700,6 +700,11 @@ export interface Messages {
     readonly lightningContextNone: (radiusKm: number, hours: number) => string;
     /** F18: the window was not covered (or not yet answered) — no data, not no lightning. */
     readonly lightningContextNoData: string;
+    /**
+     * V2-E3: the badge naming a Copernicus EMS Rapid Mapping activation that matches the
+     * event; it links to the activation page. Pending founder review.
+     */
+    readonly cemsActivation: (code: string) => string;
   };
 }
 

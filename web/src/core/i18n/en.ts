@@ -751,6 +751,7 @@ const messages: Messages = {
       `Lightning context: no flashes were recorded within ${formatNumber(radiusKm, 'en')} km in the ${formatNumber(hours, 'en')} hours before the first detection. The satellite misses some flashes, so this does not rule lightning out.`,
     lightningContextNoData:
       'Lightning context: no lightning data for the hours before the first detection.',
+    cemsActivation: (code) => `Copernicus EMS activation ${code}`,
   },
 };
 

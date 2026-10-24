@@ -670,6 +670,8 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.lightningContextFlashes': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.lightningContextNone': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.lightningContextNoData': { governance: 'own-voice', reason: 'capability-prose' },
+  // V2-E3 — the CEMS activation badge. Own voice, and PENDING FOUNDER REVIEW.
+  'eventDetail.cemsActivation': { governance: 'own-voice', reason: 'capability-prose' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -805,6 +807,9 @@ export const CATALOG_GOVERNANCE = {
  * - `measure.*` — V2-D3, the measure tool. Written by an implementer so the panel can
  *   render; the labels, the "nearest active fire" wording and the approximation note are
  *   the founder's call.
+ * - `eventDetail.cemsActivation` — V2-E3, the Copernicus EMS activation badge. Written by an
+ *   implementer so the badge can render; its wording, and the match rule behind it
+ *   (`@fire-watch/contracts` `CEMS_MATCH`), are the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -1136,6 +1141,8 @@ export const PENDING_FOUNDER_REVIEW = [
   'measure.nearestResult',
   'measure.nearestNone',
   'measure.approxNote',
+  // V2-E3 — CEMS badge
+  'eventDetail.cemsActivation',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

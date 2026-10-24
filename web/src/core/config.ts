@@ -75,6 +75,12 @@ export interface ClientConfig {
    */
   readonly lightningContextUrlTemplate?: string;
   /**
+   * The V2-E3 Copernicus EMS activation list behind the event page's badge: a committed
+   * (synthetic) fixture by default, the API's route in live mode. Optional; absent hides
+   * the badge.
+   */
+  readonly cemsActivationsUrl?: string;
+  /**
    * The F15 satellite-pass document for one grid cell: `{cell}` is replaced with the cell id.
    * The default is one committed fixture (no `{cell}`, so every cell reads the same file);
    * live mode is the API's route. Optional so older literal configs still type-check.
@@ -100,6 +106,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   passSwathsUrl: '/fixtures/passes/swaths.json',
   lightningOverlayUrl: '/fixtures/lightning/recent.json',
   lightningContextUrlTemplate: '/fixtures/lightning-context/{id}.json',
+  cemsActivationsUrl: '/fixtures/cems/activations.json',
   passesUrlTemplate: '/fixtures/passes/sample.json',
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
@@ -221,6 +228,7 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     passSwathsUrl: '/overlays/passes/swaths.json',
     lightningOverlayUrl: '/overlays/lightning/recent.json',
     lightningContextUrlTemplate: '/api/v1/events/{id}/lightning-context',
+    cemsActivationsUrl: '/overlays/cems/activations.json',
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
   };
 }

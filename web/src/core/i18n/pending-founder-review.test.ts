@@ -374,6 +374,8 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'measure.nearestResult',
       'measure.nearestNone',
       'measure.approxNote',
+      // V2-E3 — CEMS badge
+      'eventDetail.cemsActivation',
     ]);
   });
 

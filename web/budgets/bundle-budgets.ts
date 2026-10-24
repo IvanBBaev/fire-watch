@@ -90,6 +90,8 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   { role: 'page', src: /^src\/ui\/measure-panel\.tsx$/ },
   // V2-D3: the measure drawing's map layers, fetched by the map chunk when the tool opens.
   { role: 'page', src: /^src\/map\/measure-layer\.ts$/ },
+  // V2-E3: the CEMS activation badge, fetched by the event page when a source is configured.
+  { role: 'page', src: /^src\/ui\/event\/cems-badge\.tsx$/ },
   // TASKS F6: the share card's layout and rasterizer, fetched on the first share click.
   { role: 'page', src: /^src\/ui\/share\/share-action\.ts$/ },
 ];

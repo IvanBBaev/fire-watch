@@ -186,3 +186,24 @@ export {
   type StatementSource,
   type TwoSourceException,
 } from './curated-statement.js';
+
+export {
+  CEMS_ACTIVATION_PAGE_BASE,
+  CEMS_AOI_STATUSES,
+  CEMS_CITATION_GUIDELINES_URL,
+  CEMS_CODE_RE,
+  CEMS_MATCH,
+  CEMS_OVERLAY_SCHEMA_VERSION,
+  cemsActivationCitation,
+  cemsActivationUrl,
+  isCemsInstant,
+  matchCemsActivations,
+  parseCemsOverlay,
+  type CemsActivation,
+  type CemsAoiStatus,
+  type CemsBox,
+  type CemsMatchEvent,
+  type CemsMatchRules,
+  type CemsOverlayAttribution,
+  type CemsOverlayBody,
+} from './cems.js';
