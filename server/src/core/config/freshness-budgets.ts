@@ -190,6 +190,16 @@ const ROWS: readonly FreshnessBudget[] = [
     criticalSeconds: 3 * HOUR,
     pages: false,
   },
+  // V2-B3 MeteoAlarm warnings: polled every 15 minutes per country. Warn after an hour
+  // (four missed polls), critical after 3 h — a warning issued for this afternoon is not
+  // worth much by the evening. Context only: never pages.
+  {
+    row: 'meteoalarm:warnings',
+    nominalCadenceSeconds: 15 * MINUTE,
+    warnSeconds: 1 * HOUR,
+    criticalSeconds: 3 * HOUR,
+    pages: false,
+  },
 
   // The snapshot push is the only job that 500s, and its warn budget is the one threshold
   // the client also has to know (GLOSSARY §3b trigger 1) — so it is imported, not repeated.

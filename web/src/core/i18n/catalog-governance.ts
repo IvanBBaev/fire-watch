@@ -702,6 +702,20 @@ export const CATALOG_GOVERNANCE = {
   'passes.cloudCloudy': { governance: 'own-voice', reason: 'state-label' },
   'passes.cloudForecast': { governance: 'own-voice', reason: 'composed-value' },
   'passes.cloudCaveat': { governance: 'own-voice', reason: 'capability-prose' },
+  // V2-B3 — MeteoAlarm
+  'meteoalarm.title': { governance: 'own-voice', reason: 'chrome' },
+  'meteoalarm.note': { governance: 'own-voice', reason: 'capability-prose' },
+  'meteoalarm.checkedAt': { governance: 'own-voice', reason: 'composed-value' },
+  'meteoalarm.forestFire': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.highTemperature': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.level2': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.level3': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.level4': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.validFromTo': { governance: 'own-voice', reason: 'composed-value' },
+  'meteoalarm.validUntil': { governance: 'own-voice', reason: 'composed-value' },
+  'meteoalarm.officialLink': { governance: 'own-voice', reason: 'chrome' },
+  'meteoalarm.noneInForce': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.notChecked': { governance: 'own-voice', reason: 'composed-value' },
 } as const satisfies Record<CatalogPath, Governance>;
 
 /**
@@ -1077,6 +1091,20 @@ export const PENDING_FOUNDER_REVIEW = [
   'passes.cloudCloudy',
   'passes.cloudForecast',
   'passes.cloudCaveat',
+  // V2-B3 — MeteoAlarm
+  'meteoalarm.title',
+  'meteoalarm.note',
+  'meteoalarm.checkedAt',
+  'meteoalarm.forestFire',
+  'meteoalarm.highTemperature',
+  'meteoalarm.level2',
+  'meteoalarm.level3',
+  'meteoalarm.level4',
+  'meteoalarm.validFromTo',
+  'meteoalarm.validUntil',
+  'meteoalarm.officialLink',
+  'meteoalarm.noneInForce',
+  'meteoalarm.notChecked',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

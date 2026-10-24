@@ -348,6 +348,20 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'passes.cloudCloudy',
       'passes.cloudForecast',
       'passes.cloudCaveat',
+      // V2-B3 — MeteoAlarm
+      'meteoalarm.title',
+      'meteoalarm.note',
+      'meteoalarm.checkedAt',
+      'meteoalarm.forestFire',
+      'meteoalarm.highTemperature',
+      'meteoalarm.level2',
+      'meteoalarm.level3',
+      'meteoalarm.level4',
+      'meteoalarm.validFromTo',
+      'meteoalarm.validUntil',
+      'meteoalarm.officialLink',
+      'meteoalarm.noneInForce',
+      'meteoalarm.notChecked',
     ]);
   });
 

@@ -27,6 +27,9 @@
  *                                V2-B1 relayed GWIS FWI forecast at one snapped point,
  *                                days 0 … 9, only with `fwiForecast` deps. Its own per-IP
  *                                limit and a global upstream budget.
+ *   GET /overlays/meteoalarm/warnings.json
+ *                                V2-B3 MeteoAlarm forest-fire and heat warnings in force,
+ *                                only with `meteoalarmOverlay` deps. Its own per-IP limit.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -98,6 +101,11 @@ import {
   registerPassesRoute,
   type PassesRouteDeps,
 } from './passes-route.js';
+import {
+  METEOALARM_OVERLAY_PATH,
+  registerMeteoalarmOverlayRoute,
+  type MeteoalarmOverlayRouteDeps,
+} from './meteoalarm-overlay-route.js';
 import { sendProblem, type CodedProblemSpec } from './problem.js';
 import {
   WIND_OVERLAY_PATH,
@@ -211,6 +219,11 @@ export interface HealthServerDeps {
    */
   readonly windOverlay?: WindOverlayRouteDeps | undefined;
   /**
+   * V2-B3 MeteoAlarm warnings, when this box holds the refresh state dir. Edge-cached, with
+   * its own per-IP limit, so the hook exempts it from the probe limiter.
+   */
+  readonly meteoalarmOverlay?: MeteoalarmOverlayRouteDeps | undefined;
+  /**
    * F15 satellite passes, when this box holds the refresh state dir. Edge-cached per grid
    * cell and ten-minute bucket, so the hook exempts it like the other read paths.
    */
@@ -286,7 +299,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === PASS_SWATHS_PATH ||
       matched === LIGHTNING_OVERLAY_PATH ||
       matched === EVENT_LIGHTNING_CONTEXT_PATH ||
-      matched === FWI_FORECAST_PATH
+      matched === FWI_FORECAST_PATH ||
+      matched === METEOALARM_OVERLAY_PATH
     ) {
       done();
       return;
@@ -417,6 +431,12 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerWindOverlayRoute(app, {
       ...deps.windOverlay,
       clientIpHeader: deps.windOverlay.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.meteoalarmOverlay !== undefined) {
+    registerMeteoalarmOverlayRoute(app, {
+      ...deps.meteoalarmOverlay,
+      clientIpHeader: deps.meteoalarmOverlay.clientIpHeader ?? deps.clientIpHeader,
     });
   }
   if (deps.passes !== undefined) registerPassesRoute(app, deps.passes);

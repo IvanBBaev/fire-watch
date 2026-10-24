@@ -303,6 +303,24 @@ const messages: Messages = {
       'Облачността е прогноза на ECMWF за часа на всяко преминаване, не наблюдение. Пожар под облаци може да остане незасечен.',
   },
 
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  meteoalarm: {
+    title: 'Официални метеорологични предупреждения',
+    note: 'Предупреждения за горски пожари и горещини, в сила от националните метеорологични служби на България и съседите ѝ, предадени така, както ги публикуват чрез MeteoAlarm. Fire Watch не издава предупреждения: следвайте издаващата служба.',
+    checkedAt: (time) => `Емисиите с предупреждения са прочетени в ${time}.`,
+    forestFire: 'Опасност от горски пожари',
+    highTemperature: 'Високи температури',
+    level2: 'Жълт код',
+    level3: 'Оранжев код',
+    level4: 'Червен код',
+    validFromTo: (from, to) => `В сила от ${from} до ${to}`,
+    validUntil: (to) => `В сила до ${to}`,
+    officialLink: 'Официалното предупреждение',
+    noneInForce:
+      'Никоя от прочетените служби няма предупреждение за горски пожари или горещини в сила.',
+    notChecked: (countries) => `Не бяха прочетени при последната проверка: ${countries}.`,
+  },
+
   // Capability → limitation → action (07-product-ux P7/P13).
   onboarding: {
     card1Title: 'Сателитни засичания на пожари',

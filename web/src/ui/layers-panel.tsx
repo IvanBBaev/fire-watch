@@ -24,6 +24,7 @@ import { SwathLegend } from './pass-swaths-option.js';
 import { LightningLegend } from './lightning-legend.js';
 import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
+import { MeteoalarmWarnings } from './meteoalarm-warnings.js';
 import { SatellitePasses } from './satellite-passes.js';
 import { StaticSourcesOption } from './static-sources-option.js';
 import {
@@ -311,6 +312,7 @@ export function LayersPanel() {
         <p class="layers-credit">{eumetsatCreditText(clock, messages)}</p>
       ) : null}
       <SatellitePasses />
+      <MeteoalarmWarnings />
     </section>
   );
 }

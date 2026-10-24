@@ -175,6 +175,11 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   'layers.swathsPassAt': [[T1, T2]],
   'layers.lightningAsOf': [[T1]],
   'passes.computedFor': [[T1]],
+  // V2-B3: formatted times and a joined country list.
+  'meteoalarm.checkedAt': [[T1]],
+  'meteoalarm.validFromTo': [[T1, T2]],
+  'meteoalarm.validUntil': [[T1]],
+  'meteoalarm.notChecked': [[T1]],
   'passes.cloudForecast': [
     [T1, 0],
     [T1, N],

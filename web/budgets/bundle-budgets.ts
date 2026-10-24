@@ -86,6 +86,10 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // leave the entry budget, just by being written as an `import()`.
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
   { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
+  // V2-B3: the official-warnings section of the Layers panel (markup and parser), loaded
+  // the first time a reader opens the panel — on demand like a page, never before first
+  // render or the map, so likewise charged to no budget.
+  { role: 'page', src: /^src\/ui\/meteoalarm-view\.tsx$/ },
 ];
 
 /**

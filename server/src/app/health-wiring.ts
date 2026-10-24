@@ -372,6 +372,10 @@ export function wireHealthServer(
     ...(config.stateDir === null
       ? {}
       : { lightningOverlay: { stateDir: config.stateDir, clock: systemClock, onProblem } }),
+    // V2-B3: the worker's MeteoAlarm loop writes the warnings document under the same dir.
+    ...(config.stateDir === null
+      ? {}
+      : { meteoalarmOverlay: { stateDir: config.stateDir, clock: systemClock, onProblem } }),
     // V2-B1: the per-point FWI forecast relay, on the box that serves the EFFIS overlays.
     // It holds no state of its own; GWIS is asked only on a cache miss, within a budget.
     ...(config.stateDir === null
@@ -597,6 +601,7 @@ export function expectedRows(feedsRecorded: boolean): readonly FreshnessRowId[] 
     'weather:context',
     'celestrak:elements',
     'eumetsat:lightning',
+    'meteoalarm:warnings',
     'effis-refresh',
   ];
 }

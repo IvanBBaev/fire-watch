@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-14T12:00:00Z",
+  "countries": [
+    { "country": "BG", "checked_at": "2026-08-14T12:00:00Z", "ok": true },
+    { "country": "GR", "checked_at": "2026-08-14T12:00:00Z", "ok": true },
+    { "country": "MK", "checked_at": "2026-08-14T11:15:00Z", "ok": false },
+    { "country": "RS", "checked_at": "2026-08-14T12:00:00Z", "ok": true },
+    { "country": "RO", "checked_at": "2026-08-14T12:00:00Z", "ok": true }
+  ],
+  "warnings": [
+    {
+      "id": "synthetic-gr-forest-fire-4",
+      "country": "GR",
+      "region": "Evros (synthetic)",
+      "emma_id": null,
+      "kind": "forest-fire",
+      "level": 4,
+      "event": "Severe forest-fire warning (synthetic sample)",
+      "headline": null,
+      "onset": "2026-08-14T06:00:00Z",
+      "expires": "2026-08-14T21:00:00Z",
+      "sent": "2026-08-14T05:30:00Z",
+      "source_url": "https://meteoalarm.org?region=GR",
+      "issuer_url": null,
+      "cap_confirmed": true
+    },
+    {
+      "id": "synthetic-bg-forest-fire-3",
+      "country": "BG",
+      "region": "Haskovo (synthetic)",
+      "emma_id": null,
+      "kind": "forest-fire",
+      "level": 3,
+      "event": "Moderate forest-fire warning (synthetic sample)",
+      "headline": null,
+      "onset": "2026-08-14T09:00:00Z",
+      "expires": "2026-08-14T21:00:00Z",
+      "sent": "2026-08-14T07:00:00Z",
+      "source_url": "https://meteoalarm.org?region=BG",
+      "issuer_url": null,
+      "cap_confirmed": true
+    },
+    {
+      "id": "synthetic-bg-high-temperature-2",
+      "country": "BG",
+      "region": "Kardzhali (synthetic)",
+      "emma_id": null,
+      "kind": "high-temperature",
+      "level": 2,
+      "event": "High-temperature warning (synthetic sample)",
+      "headline": null,
+      "onset": "2026-08-14T10:00:00Z",
+      "expires": "2026-08-14T18:00:00Z",
+      "sent": "2026-08-14T07:00:00Z",
+      "source_url": null,
+      "issuer_url": "https://www.meteo.bg/",
+      "cap_confirmed": false
+    }
+  ],
+  "attribution": [
+    {
+      "id": "meteoalarm",
+      "source": "MeteoAlarm national warning feeds (forest-fire and heat warnings, V2-B3)",
+      "text": "Copyright © 2026 MeteoAlarm.Org. Licensed under terms equivalent to CC BY 4.0",
+      "href": "https://meteoalarm.org"
+    }
+  ]
+}

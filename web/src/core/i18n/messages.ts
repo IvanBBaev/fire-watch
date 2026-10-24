@@ -315,6 +315,39 @@ export interface Messages {
     readonly cloudCaveat: string;
   };
 
+  /**
+   * Official warnings (V2-B3), a section of the Layers panel: the forest-fire warnings, and
+   * high-temperature warnings as context, that national weather services have in force,
+   * relayed through MeteoAlarm. Own voice around relayed content; every key is implementer
+   * copy held in `PENDING_FOUNDER_REVIEW`. The copy never issues, rewords or grades a
+   * warning, and an empty list only ever means "none in force from the services read".
+   */
+  readonly meteoalarm: {
+    readonly title: string;
+    /** Whose warnings these are, and that Fire Watch issues none. */
+    readonly note: string;
+    /** When the feeds were last read, already formatted (the body's `generated_at`). */
+    readonly checkedAt: (time: string) => string;
+    /** The two warning kinds relayed. */
+    readonly forestFire: string;
+    readonly highTemperature: string;
+    /** MeteoAlarm's awareness levels by their official names: yellow, orange, red. */
+    readonly level2: string;
+    readonly level3: string;
+    readonly level4: string;
+    /** A warning's validity, both ends already formatted. */
+    readonly validFromTo: (from: string, to: string) => string;
+    /** A warning with no stated onset: only its end, already formatted. */
+    readonly validUntil: (to: string) => string;
+    /** The link to the warning's official page. */
+    readonly officialLink: string;
+    /** No warning of either kind in force from the services that were read. */
+    readonly noneInForce: string;
+    /** Countries whose feed could not be read on the last check, already joined. */
+    readonly notChecked: (countries: string) => string;
+    /** The polled countries' names. */
+  };
+
   /** Onboarding — exactly three cards, then the button (07-product-ux P7). */
   readonly onboarding: {
     readonly card1Title: string;

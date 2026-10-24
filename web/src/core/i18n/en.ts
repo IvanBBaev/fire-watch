@@ -300,6 +300,23 @@ const messages: Messages = {
       'Cloud is an ECMWF forecast for each pass time, not an observation. A fire under cloud may be missed.',
   },
 
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  meteoalarm: {
+    title: 'Official weather warnings',
+    note: 'Forest-fire and heat warnings in force from the national weather services of Bulgaria and its neighbours, relayed as they publish them through MeteoAlarm. Fire Watch does not issue warnings: follow the issuing service.',
+    checkedAt: (time) => `Warning feeds read at ${time}.`,
+    forestFire: 'Forest-fire danger',
+    highTemperature: 'High temperature',
+    level2: 'Yellow warning',
+    level3: 'Orange warning',
+    level4: 'Red warning',
+    validFromTo: (from, to) => `In force from ${from} to ${to}`,
+    validUntil: (to) => `In force until ${to}`,
+    officialLink: 'Official warning',
+    noneInForce: 'None of the services read has a forest-fire or heat warning in force.',
+    notChecked: (countries) => `Not read on the last check: ${countries}.`,
+  },
+
   // Capability → limitation → action (07-product-ux P7/P13).
   onboarding: {
     card1Title: 'Satellite fire detections',

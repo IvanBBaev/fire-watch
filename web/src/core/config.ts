@@ -80,6 +80,11 @@ export interface ClientConfig {
    * live mode is the API's route. Optional so older literal configs still type-check.
    */
   readonly passesUrlTemplate?: string;
+  /**
+   * V2-B3 MeteoAlarm forest-fire and heat warnings in force: a committed synthetic fixture
+   * by default, the API's route in live mode. Optional; absent hides the section.
+   */
+  readonly meteoalarmUrl?: string;
 }
 
 export const DEFAULT_CONFIG: ClientConfig = {
@@ -101,6 +106,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   lightningOverlayUrl: '/fixtures/lightning/recent.json',
   lightningContextUrlTemplate: '/fixtures/lightning-context/{id}.json',
   passesUrlTemplate: '/fixtures/passes/sample.json',
+  meteoalarmUrl: '/fixtures/meteoalarm/warnings.json',
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
     dark: 'https://tiles.openfreemap.org/styles/dark',
@@ -206,6 +212,9 @@ export const LIVE_DETECTIONS_URL_TEMPLATE = '/api/v1/events/{id}/detections';
 /** The API's satellite-pass route (`server/src/adapters/http/passes-route.ts`). */
 export const LIVE_PASSES_URL_TEMPLATE = '/api/v1/passes/{cell}';
 
+/** The API's MeteoAlarm warnings route (`server/src/adapters/http/meteoalarm-overlay-route.ts`). */
+export const LIVE_METEOALARM_URL = '/overlays/meteoalarm/warnings.json';
+
 /**
  * `config` pointed at the chosen data source. Live reads the API's snapshot and its
  * per-event detections route (both proxied in dev); the fixture template must never
@@ -222,5 +231,6 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     lightningOverlayUrl: '/overlays/lightning/recent.json',
     lightningContextUrlTemplate: '/api/v1/events/{id}/lightning-context',
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
+    meteoalarmUrl: LIVE_METEOALARM_URL,
   };
 }
