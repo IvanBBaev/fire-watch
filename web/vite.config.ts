@@ -218,5 +218,28 @@ export default defineConfig({
     // is the entry, what it imports statically, and which chunks load lazily. The
     // budget gate classifies from this graph, never from file names.
     manifest: true,
+    // CI-12: rolldown gives every set of chunks that share a module its own common chunk,
+    // so each lazy chunk that imports app code (the sign-in and staff pages, the V2-A1
+    // replay and its map layer) splits the first-render code into more small files, each
+    // with its own import/export glue and gzip window. One `shared` chunk holds every
+    // module two or more chunks need instead. Left out: MapLibre (laid out by
+    // `maplibreSharedModule()`), the locale catalogs (the `locale` role loads one), and
+    // `core/history-body.ts`, which only the two lazy replay chunks share and so stays off
+    // the first-render path.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'shared',
+              test: (id: string) =>
+                !id.includes('maplibre-gl') &&
+                !/\/i18n\/(bg|en)\.ts$|\/core\/history-body\.ts$/.test(id),
+              minShareCount: 2,
+            },
+          ],
+        },
+      },
+    },
   },
 });
