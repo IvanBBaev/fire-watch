@@ -70,6 +70,7 @@ import {
 import { buildMapReadyProbe, mapReadyProbeEnabled } from './map-ready-probe.js';
 import type { MapReadyProbe } from './map-ready-probe.js';
 import { installMapInspection } from './map-inspection.js';
+import type * as MeasureLayerModule from './measure-layer.js';
 import { resolveBasemapStyle } from './outdoor-style.js';
 import type { FrameScheduler } from './throttle.js';
 import { createFrameThrottle } from './throttle.js';
@@ -160,7 +161,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
    * The measure drawing's layer code, fetched the first time the tool opens: few readers
    * measure, and the map chunk is on the critical path (CI-12).
    */
-  let measureLayer: typeof import('./measure-layer.js') | null = null;
+  let measureLayer: typeof MeasureLayerModule | null = null;
   let measureLayerLoading = false;
   /** Show the current drawing, fetching the layer code first if a drawing needs it. */
   const drawMeasure = (): void => {

@@ -77,6 +77,7 @@ import type { AppRoute, RouteId } from '../src/ui/logic/routes.js';
 import { ROUTES } from '../src/ui/logic/routes.js';
 import { launchBrowser } from './harness/browser.js';
 import { loadFixtureSnapshot } from './harness/fixture.js';
+import { startLoadableBasemap } from './harness/map-inspect.js';
 import type { WireSnapshot } from './harness/fixture.js';
 import { startOrigin } from './harness/origin.js';
 import type { HarnessOrigin } from './harness/origin.js';
@@ -196,6 +197,11 @@ interface BootOptions {
   /** Leave the onboarding marker unset, so the first-launch overlay is the surface. */
   readonly showOnboarding?: boolean;
   readonly denyWebGl?: boolean;
+  /**
+   * Swap the blocked third-party basemap for the local stand-in, so the map loads and the
+   * controls that wait for its first frame (the measure tool) render.
+   */
+  readonly loadableBasemap?: boolean;
 }
 
 async function boot(options: BootOptions): Promise<Booted> {
@@ -212,8 +218,11 @@ async function boot(options: BootOptions): Promise<Booted> {
   const storage: Record<string, string> = { [LOCALE_STORAGE_KEY]: leg.locale };
   if (options.showOnboarding !== true) storage[ONBOARDING_STORAGE_KEY] = ONBOARDING_DONE_VALUE;
 
+  const loadable = options.loadableBasemap === true ? await startLoadableBasemap() : null;
+  if (loadable !== null) cleanups.push(() => loadable.basemap.close());
   const page = await openInstrumentedPage(browser, origin.baseUrl, storage, {
     denyWebGl: options.denyWebGl ?? false,
+    ...(loadable === null ? {} : loadable.pageOptions),
   });
   cleanups.push(() => page.close());
   await page.page.setViewport({ width: leg.width, height: leg.height, deviceScaleFactor: 1 });
@@ -273,6 +282,12 @@ const measure = (page: Page, exempt: string): Promise<Measurements> =>
     const skip = (el: Element): boolean => {
       if (el.closest(exemptSelector) !== null) return true;
       if (el.closest('[hidden], [aria-hidden="true"]') !== null) return true;
+      // A closed <details> renders only its summary; the rest keeps a layout box the
+      // browser never paints, so its controls would read as covered by what is below.
+      const closed = el.closest('details:not([open])');
+      if (closed !== null && closed.querySelector(':scope > summary')?.contains(el) !== true) {
+        return true;
+      }
       const style = window.getComputedStyle(el);
       return style.display === 'none' || style.visibility === 'hidden';
     };
@@ -300,6 +315,21 @@ const measure = (page: Page, exempt: string): Promise<Measurements> =>
       for (let node: Element | null = el; node !== null; node = node.parentElement) {
         const overflow = window.getComputedStyle(node).overflowX;
         if (overflow === 'auto' || overflow === 'scroll') return true;
+      }
+      return false;
+    };
+
+    // A control scrolled out of a scrolling ancestor's view is the same case as one below
+    // the fold: reachable by scrolling that ancestor, not covered. Only `auto` / `scroll`
+    // count — `overflow: hidden` clips for good, so a control it hides stays a finding.
+    const scrolledOutOfView = (el: Element, x: number, y: number): boolean => {
+      for (let node = el.parentElement; node !== null; node = node.parentElement) {
+        if (node === document.body || node === document.documentElement) break;
+        const style = window.getComputedStyle(node);
+        const scrolls = (value: string): boolean => value === 'auto' || value === 'scroll';
+        if (!scrolls(style.overflowX) && !scrolls(style.overflowY)) continue;
+        const clip = node.getBoundingClientRect();
+        if (x < clip.left || x > clip.right || y < clip.top || y > clip.bottom) return true;
       }
       return false;
     };
@@ -349,6 +379,7 @@ const measure = (page: Page, exempt: string): Promise<Measurements> =>
       const cx = box.left + box.width / 2;
       const cy = box.top + box.height / 2;
       if (cx < 0 || cy < 0 || cx > viewWidth || cy > viewHeight) continue;
+      if (scrolledOutOfView(hit, cx, cy)) continue;
       const atPoint = document.elementFromPoint(cx, cy);
       if (atPoint === null) continue;
       if (hit.contains(atPoint) || atPoint.contains(hit)) continue;
@@ -634,22 +665,30 @@ describe.each(LEGS)('CI-18 layout floors — $name', (leg: Leg) => {
 
       // The measure panel (V2-D3), open with an outline drawn from the keyboard path: three
       // "add the map centre" presses in area mode, so the result line holds its widest text.
-      const measureToggle = await tab.waitForSelector(MEASURE_TOGGLE_SELECTOR, {
+      // Its button waits for the map's first frame, which the blocked basemap never gives,
+      // so this surface is measured on a page whose basemap loads.
+      const mapped = await boot({ leg, loadableBasemap: true });
+      const mappedTab = mapped.page.page;
+      await mappedTab.goto(mapped.origin.baseUrl + '/', { waitUntil: 'load' });
+      await mappedTab.waitForSelector(ROW_SELECTOR, { timeout: 15_000 });
+      const measureToggle = await mappedTab.waitForSelector(MEASURE_TOGGLE_SELECTOR, {
         timeout: 15_000,
       });
       if (measureToggle === null) throw new Error('e2e: the measure control is missing');
       await measureToggle.click();
-      await tab.waitForSelector(`${MEASURE_PANEL_SELECTOR} .measure-actions`, { timeout: 15_000 });
-      await tab.click(`${MEASURE_PANEL_SELECTOR} input[value="area"]`);
+      await mappedTab.waitForSelector(`${MEASURE_PANEL_SELECTOR} .measure-actions`, {
+        timeout: 15_000,
+      });
+      await mappedTab.click(`${MEASURE_PANEL_SELECTOR} input[value="area"]`);
       for (let press = 0; press < 3; press += 1) {
-        await tab.click(`${MEASURE_PANEL_SELECTOR} .measure-actions button`);
+        await mappedTab.click(`${MEASURE_PANEL_SELECTOR} .measure-actions button`);
       }
-      await tab.waitForFunction(
+      await mappedTab.waitForFunction(
         (selector: string) => !document.querySelector(selector)?.hasAttribute('hidden'),
         { timeout: 15_000 },
         MEASURE_PANEL_SELECTOR,
       );
-      found.push(...(await sweep('home list (measure panel)', leg, tab)));
+      found.push(...(await sweep('home list (measure panel)', leg, mappedTab)));
 
       // The degradation banner, on the same page: an in-scope surface in Appendix A, and the
       // widest single line the shell ever renders above the fold.
