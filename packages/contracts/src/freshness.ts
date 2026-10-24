@@ -62,6 +62,9 @@ export const MONITORED_SOURCE_IDS = [
  *   per-event lightning context (DATA-SOURCES §F18). Context only, so it never pages. It
  *   needs EUMETSAT Data Store credentials; without them the row reads `disabled`, which
  *   says "not configured here", never "broken".
+ * - `cems:activations` — the Copernicus EMS Rapid Mapping wildfire activations behind the
+ *   event-page badge (TASKS V2-E3, DATA-SOURCES §V2-E3). Context only, so it never pages;
+ *   the row shows a stopped or refused activation poll before the badge's route turns 503.
  */
 export type MonitoredSourceId = (typeof MONITORED_SOURCE_IDS)[number];
 
@@ -72,6 +75,7 @@ export const UNREGISTERED_FEED_IDS = [
   'celestrak:elements',
   'eumetsat:lightning',
   'meteoalarm:warnings',
+  'cems:activations',
 ] as const;
 
 /** Everything with a freshness budget that is fetched from outside, in reporting order. */

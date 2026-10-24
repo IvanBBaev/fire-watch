@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_FILTERS, parseFilterHash } from '../core/filter/filter-hash.js';
+import { DEFAULT_SENSITIVITY } from '../core/filter/sensitivity.js';
 import { readFragmentMember } from '../core/url-fragment.js';
 import { parseMapHash } from '../map/hash.js';
 import { chosenOverlays } from './layers.js';
@@ -67,7 +68,7 @@ function fakeBrowser(initial: string) {
 
 const LOOKING_AT: AppFragmentState = {
   camera: { zoom: 8.04, lat: 42.69771, lon: 23.32194 },
-  filters: { window: '6h', family: 'v', oblast: 22 },
+  filters: { window: '6h', family: 'v', oblast: 22, sensitivity: DEFAULT_SENSITIVITY },
   overlays: ['ba', 'fwi'],
 };
 
@@ -85,6 +86,7 @@ describe('appFragmentMembers', () => {
       t: '6h',
       src: 'v',
       r: '22',
+      sens: null,
       ov: 'fwi,ba',
       pb: null,
     });
@@ -92,6 +94,7 @@ describe('appFragmentMembers', () => {
       t: null,
       src: null,
       r: null,
+      sens: null,
       ov: null,
       pb: null,
     });

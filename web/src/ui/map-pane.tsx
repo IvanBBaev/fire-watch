@@ -23,8 +23,15 @@ import { ageWindow } from './age-window.js';
 import { cameraRequest } from './camera-request.js';
 import { useApp } from './context.js';
 import { MapControls } from './map-controls.js';
+import { measureOverlay } from './measure-state.js';
 import { initialCamera, publishViewport } from './map-camera.js';
-import { regionFilter, regionIndex, sourceFamily, startFilterUrlSync } from './filters.js';
+import {
+  regionFilter,
+  regionIndex,
+  sensitivityFilter,
+  sourceFamily,
+  startFilterUrlSync,
+} from './filters.js';
 import { imageryTilesUrl } from './imagery.js';
 import {
   browserOverlayLoader,
@@ -65,14 +72,15 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   const cutoffMs = ageCutoffMs(useNow(serverNow), ageWindow.value);
   const cutoffRef = useRef(cutoffMs);
   cutoffRef.current = cutoffMs;
-  // The source and region filters scope the map exactly as they scope the list. Read here
+  // The source, region and sensitivity filters scope the map exactly as they scope the list. Read here
   // so a change re-renders the pane; the predicate is rebuilt only when an input moves.
   const family = sourceFamily.value;
   const oblast = regionFilter.value;
+  const sensitivity = sensitivityFilter.value;
   const index = regionIndex.value;
   const predicate = useMemo(
-    () => scopePredicate({ family, oblast }, index?.regionAt ?? null),
-    [family, oblast, index],
+    () => scopePredicate({ family, oblast, sensitivity }, index?.regionAt ?? null),
+    [family, oblast, sensitivity, index],
   );
   const predicateRef = useRef(predicate);
   predicateRef.current = predicate;
@@ -154,6 +162,7 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
         controller.setLightning(lightningDrawRef.current);
         controller.setFireOutlines(fireOutlineDrawRef.current);
         controller.setPlayback(playbackDrawRef.current);
+        controller.setMeasure(measureOverlay.peek());
         // The route may already name an event — a permalink opened cold.
         const selected = selectedIdRef.current;
         if (selected !== null) {
@@ -277,6 +286,15 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
       startPlaybackSync(
         browserPlaybackLoader(config.historyUrlTemplate ?? LIVE_HISTORY_URL_TEMPLATE),
       ),
+    [],
+  );
+  // V2-D3: the measure drawing, and where a map tap goes while the tool is open.
+  useEffect(
+    () =>
+      effect(() => {
+        const overlay = measureOverlay.value;
+        controllerRef.current?.setMeasure(overlay);
+      }),
     [],
   );
   // The fixtures build reads wind, swaths and lightning from committed files; live reads the API's routes.

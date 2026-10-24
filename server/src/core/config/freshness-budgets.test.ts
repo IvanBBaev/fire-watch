@@ -124,6 +124,7 @@ describe('the shipped table', () => {
       'celestrak:elements': { pages: false, criticalSeconds: 259_200 },
       'eumetsat:lightning': { pages: false, criticalSeconds: 10_800 },
       'meteoalarm:warnings': { pages: false, criticalSeconds: 10_800 },
+      'cems:activations': { pages: false, criticalSeconds: 21_600 },
       'snapshot-push': { pages: true, criticalSeconds: 900 },
       'nightly-backup': { pages: false, criticalSeconds: 180_000 },
       'wal-archive': { pages: false, criticalSeconds: 3_600 },

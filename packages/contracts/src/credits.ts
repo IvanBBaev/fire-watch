@@ -558,6 +558,23 @@ export const CREDITS: readonly Credit[] = [
     authority: 'MeteoAlarm legacy Atom feed <rights> element (read 2026-10-24)',
   },
   {
+    id: 'copernicus-ems',
+    source: 'Copernicus EMS Rapid Mapping activations (event-page badge, TASKS V2-E3)',
+    // The citation guidelines prescribe "Copernicus Emergency Management Service (© YEAR
+    // European Union), [activation code]" for a map or product; the badge itself carries
+    // that form with its code, and this line names what the rest of the product uses: the
+    // activation list (code, name, times, area-of-interest extents), never the maps.
+    text: `Copernicus Emergency Management Service (© ${YEAR_PLACEHOLDER} European Union), Rapid Mapping activation list`,
+    verbatim: `Copernicus Emergency Management Service (© ${YEAR_PLACEHOLDER} European Union)`,
+    href: 'https://mapping.emergency.copernicus.eu/',
+    surfaces: ['credits-page'],
+    condition: 'always',
+    required: true,
+    verified: true,
+    authority:
+      'Copernicus EMS citation guidelines (mapping.emergency.copernicus.eu/about/citation-guidelines/); Regulation (EU) 2021/696',
+  },
+  {
     id: 'derivation',
     source: 'Fire Watch — derivation sentence',
     // Satisfies CC BY "indicate changes" for every row above and keeps our output from

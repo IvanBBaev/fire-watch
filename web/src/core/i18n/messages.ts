@@ -186,6 +186,21 @@ export interface Messages {
     readonly hiddenByFilters: (count: number) => string;
     readonly clear: string;
     readonly emptyFiltered: string;
+    /** V2-A2: the sensitivity picker — presets, their criteria, and the honesty notes. */
+    readonly sensitivityLabel: string;
+    readonly sensitivityPreset: Readonly<Record<'all' | 'balanced' | 'multi', string>>;
+    readonly sensitivityCustom: string;
+    readonly sensitivityOption: (name: string, count: number) => string;
+    readonly sensitivityAdvanced: string;
+    readonly sensitivityMinBand: string;
+    readonly sensitivityMinDetections: string;
+    readonly sensitivityMinSensors: string;
+    /** An option of the detection/sensor pickers; 1 means "no minimum". */
+    readonly sensitivityAtLeast: (count: number) => string;
+    /** Shown whenever signals are hidden: a hidden signal may still be a fire. */
+    readonly sensitivityHint: string;
+    /** Events passed by the sensor criterion only because the feed did not name sensors. */
+    readonly sensitivityUnreported: (count: number) => string;
   };
 
   /** Place search: settlements (GeoNames) and coordinates. */
@@ -225,6 +240,29 @@ export interface Messages {
    * The Layers panel (TASKS G4): the basemap choice and the EFFIS context overlays. Own
    * voice; every key is implementer copy held in `PENDING_FOUNDER_REVIEW`.
    */
+  /** V2-D3: the measure tool — distance, area, and the distance to the nearest active fire. */
+  readonly measure: {
+    readonly toggle: string;
+    readonly panelLabel: string;
+    readonly modeLabel: string;
+    readonly mode: Readonly<Record<'distance' | 'area' | 'nearest', string>>;
+    /** What to do next while there are too few points for an answer. */
+    readonly hint: Readonly<Record<'distance' | 'area' | 'nearest', string>>;
+    readonly addCentre: string;
+    readonly undo: string;
+    readonly clear: string;
+    /** `length` is a pre-worded length ("1.2 km"). */
+    readonly distanceResult: (length: string) => string;
+    /** `area` is {@link Messages.areaBothUnits}' text, `perimeter` a pre-worded length. */
+    readonly areaResult: (area: string, perimeter: string) => string;
+    /** `length` is a pre-worded length, `place` the event's place name. */
+    readonly nearestResult: (length: string, place: string) => string;
+    /** Nothing to measure to: no active event passes the current window and filters. */
+    readonly nearestNone: string;
+    /** Straight lines on a sphere — approximate, and never a route. */
+    readonly approxNote: string;
+  };
+
   readonly layers: {
     /** The disclosure button over the map; doubles as its accessible name. */
     readonly toggle: string;
@@ -829,6 +867,11 @@ export interface Messages {
     readonly landCoverBare: string;
     readonly landCoverWater: string;
     readonly landCoverWetland: string;
+    /**
+     * V2-E3: the badge naming a Copernicus EMS Rapid Mapping activation that matches the
+     * event; it links to the activation page. Pending founder review.
+     */
+    readonly cemsActivation: (code: string) => string;
   };
 }
 

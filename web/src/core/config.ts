@@ -81,6 +81,12 @@ export interface ClientConfig {
    */
   readonly fireOutlineOverlayUrl?: string;
   /**
+   * The V2-E3 Copernicus EMS activation list behind the event page's badge: a committed
+   * (synthetic) fixture by default, the API's route in live mode. Optional; absent hides
+   * the badge.
+   */
+  readonly cemsActivationsUrl?: string;
+  /**
    * The F15 satellite-pass document for one grid cell: `{cell}` is replaced with the cell id.
    * The default is one committed fixture (no `{cell}`, so every cell reads the same file);
    * live mode is the API's route. Optional so older literal configs still type-check.
@@ -117,6 +123,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   lightningOverlayUrl: '/fixtures/lightning/recent.json',
   lightningContextUrlTemplate: '/fixtures/lightning-context/{id}.json',
   fireOutlineOverlayUrl: '/fixtures/outlines/active.json',
+  cemsActivationsUrl: '/fixtures/cems/activations.json',
   passesUrlTemplate: '/fixtures/passes/sample.json',
   historyUrlTemplate: '/fixtures/history/{range}.json',
   meteoalarmUrl: '/fixtures/meteoalarm/warnings.json',
@@ -246,6 +253,7 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     lightningOverlayUrl: '/overlays/lightning/recent.json',
     lightningContextUrlTemplate: '/api/v1/events/{id}/lightning-context',
     fireOutlineOverlayUrl: '/overlays/outlines/active.json',
+    cemsActivationsUrl: '/overlays/cems/activations.json',
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
     historyUrlTemplate: LIVE_HISTORY_URL_TEMPLATE,
     meteoalarmUrl: LIVE_METEOALARM_URL,

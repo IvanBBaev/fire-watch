@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "available_at": "2026-08-09T09:00:00Z",
+  "activations": [
+    {
+      "code": "EMSR000",
+      "name": "Synthetic fixture activation, not a real Copernicus EMS activation",
+      "event_time": "2026-08-07T13:00:00Z",
+      "activation_time": "2026-08-07T18:00:00Z",
+      "last_update": "2026-08-08T10:00:00Z",
+      "closed": false,
+      "countries": ["Bulgaria"],
+      "centroid": [25.9, 41.93],
+      "aois": [[25.85, 41.9, 25.95, 41.96]],
+      "aois_status": "public"
+    }
+  ],
+  "attribution": [
+    {
+      "id": "copernicus-ems",
+      "source": "Copernicus EMS Rapid Mapping activations (event-page badge, TASKS V2-E3)",
+      "text": "Copernicus Emergency Management Service (© 2026 European Union), Rapid Mapping activation list",
+      "href": "https://mapping.emergency.copernicus.eu/"
+    }
+  ]
+}

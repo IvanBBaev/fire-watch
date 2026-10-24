@@ -766,6 +766,46 @@ turned on in production (TASKS F18 done-when).
 
 **Attribution.** Row 7 below; licence record `docs/licenses/eumetsat-mtg-li.md`.
 
+### §V2-E3. Copernicus EMS Rapid Mapping activations — the event-page badge (TASKS V2-E3)
+
+**What for.** When the EU's Copernicus Emergency Management Service activates Rapid
+Mapping for a wildfire, it publishes damage and delineation maps for named areas of
+interest (AOIs). A reader on an event page wants to know that such maps exist. The event
+detail shows a badge "Copernicus EMS activation EMSRxxx" linking to the activation's public
+page whenever an in-coverage wildfire activation matches the event. It is a pointer to
+someone else's product, never a claim about our event.
+
+**Source.**
+
+| Field | Value |
+|---|---|
+| Endpoint | `https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations/?limit=50&offset=<n>` (list) and `…/public-activations/?code=<EMSR…>` (detail, AOI extents as WKT). **Undocumented**: the JSON API behind the public dashboard, recorded 2026-10-24, no published schema or stability promise |
+| Auth | None. Some activations answer the detail with 403 "Authentication credentials were not provided" — stored as `aois_status: 'restricted'`, an answer rather than a failure |
+| Cadence | List walked once an hour (`CEMS_REFRESH_INTERVAL_MS`), at most 10 pages of 50; at most 20 detail reads per cycle; a detail is re-read only when the activation's `lastUpdate` changes. Activations known to lie outside coverage at their current `lastUpdate` are remembered in `overlays/cems/outside.json` and not read again |
+| Filter | Category `Wildfire` only; centroid within 100 km of `polling_bbox_v1` to read the detail; kept when the centroid or any AOI box intersects the box; activations older than 730 days are dropped |
+| Stored | `overlays/cems/current.json` + sha256 sidecar in the state dir; no database table, no migration |
+| Served | `GET /overlays/cems/activations.json` — content-addressed `ETag`, `Cache-Control: public, max-age=300`, **503 once the last list read is older than 6 h** (a frozen list would read as "no activation") |
+| Freshness row | `cems:activations` (nominal 1 h, warn 3 h, critical 6 h; context only, never pages) |
+| Licence record | `docs/licenses/copernicus-ems.md` |
+
+**Matching (`cems_match_v1`, `packages/contracts/src/cems.ts`).** An activation matches an
+event when (a) the event's position lies within 5 km of any public AOI box, or, with no AOI
+boxes, within 15 km of the activation centroid; and (b) the activation's event time lies
+between 3 days before the event's first observation and 14 days after its last. Pure, in
+the shared package, planar (no trigonometry) so server and client agree byte for byte.
+
+**Attribution.** The citation guidelines prescribe, per activation, `Copernicus Emergency
+Management Service (© <activation year> European Union), <activation id>`; the badge's
+link title carries exactly that, and `/credits` carries row 28 below.
+
+**Founder decisions needed.**
+
+1. The badge copy `eventDetail.cemsActivation` (en/bg), in PENDING_FOUNDER_REVIEW.
+2. The match thresholds (`CEMS_MATCH`: 5 km AOI margin, 15 km centroid radius, 3 days lead,
+   14 days trail).
+3. The 730-day retention and the hourly cadence against an undocumented API.
+4. The credit's wording, `/credits`-only surface and `always` condition (row 28).
+
 ---
 
 ## Season-1 integration plan (consolidated ranking)
@@ -857,6 +897,7 @@ licence text plus its retrieval date into `docs/licenses/` (09 §2.3.5).
 | 25 | CelesTrak GP orbital elements (satellite-pass predictions, §F15) | `/credits` + the Layers panel's pass section + the swath layer (panel line and map corner, while it is on), render — **requested, not required** (no licence or terms page found; citation asked for) | `Orbital elements: CelesTrak (celestrak.org)` — hyperlinked to `https://celestrak.org/`; **our chosen form** (CelesTrak prescribes no sentence); `credits.ts` id `celestrak` | CelesTrak GP data documentation, `https://celestrak.org/NORAD/documentation/gp-data-formats.php` (retrieved 2026-09-30; `docs/licenses/celestrak.md`) |
 | 26 | ESA WorldCover 10 m 2021 v200 (land-cover class shares, DS-7, TASKS D10; event-detail land-cover note, V2-F4) | `/credits` (always: the event-detail note reads the grid on every opened event), render — **required** | `© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium` — hyperlinked to `https://doi.org/10.5281/zenodo.7254221`; `credits.ts` id `esa-worldcover` | WorldCover Product User Manual V2.0 §5.2, `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf` (retrieved 2026-10-10; `docs/licenses/esa-worldcover.md`) |
 | 27 | EEA Natura 2000 sites, release 2024 (protected-site layer and event note, V2-F1) | `/credits` (always: the event-detail note reads the sites whether or not the layer is drawn) + the Layers panel's protected-sites row (panel line, while it is on), render — **required** (EEA legal notice: "the EEA is always acknowledged as the original source") | `Natura 2000 sites © European Environment Agency (EEA), CC BY 4.0` — hyperlinked to `https://www.eea.europa.eu/data-and-maps/data/natura-12`; **our chosen form** (the EEA prescribes acknowledgement, not a sentence); `credits.ts` id `eea-natura2000` | EEA legal notice, `https://www.eea.europa.eu/en/legal-notice` (retrieved 2026-10-24; `docs/licenses/eea-natura2000.md`) |
+| 28 | Copernicus EMS Rapid Mapping activation list (event-page badge, §V2-E3) | `/credits` (always: the badge's data is fetched on every opened event), render — **required** (the Terms and Conditions require recipients be informed of the source per the Citation Guidelines); each badge's link title also carries the per-activation citation | `Copernicus Emergency Management Service (© [YEAR] European Union), Rapid Mapping activation list` — hyperlinked to `https://mapping.emergency.copernicus.eu/`; CI-13 asserts `Copernicus Emergency Management Service (© [YEAR] European Union)`, the guideline's own prefix; the trailing words are **ours** (the guideline names one activation, the credit names the list); `credits.ts` id `copernicus-ems` | Copernicus EMS citation guidelines, `https://mapping.emergency.copernicus.eu/about/citation-guidelines/` (retrieved 2026-10-24; `docs/licenses/copernicus-ems.md`) |
 
 Assembled map-corner line (09 §2.4, unchanged in substance; the DEM sentences live on
 `/credits` because they do not fit a map corner):

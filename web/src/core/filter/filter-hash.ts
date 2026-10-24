@@ -6,6 +6,8 @@
  * - `t`   time window id (`1h` … `48h`, `all`) — see `AGE_WINDOW_IDS`.
  * - `src` sensor family (`v` VIIRS, `m` MODIS, `s` SLSTR, `g` geostationary).
  * - `r`   oblast, the ISO 3166-2:BG number (1–28).
+ * - `sens` sensitivity (V2-A2): `bal`, `multi`, or custom `<band>.<detections>.<sensors>`
+ *          — see `sensitivity.ts`.
  *
  * A member is written only when it differs from the default, so an unfiltered view keeps
  * the short `#map=…` links that already exist in the wild, and those old links (event
@@ -20,21 +22,30 @@ import type { AgeWindowId } from '../time/age-filter.js';
 import { DEFAULT_AGE_WINDOW, parseAgeWindow } from '../time/age-filter.js';
 import { readFragmentMember, withFragmentMembers } from '../url-fragment.js';
 import { parseOblast } from './oblasts.js';
+import type { SensitivityCriteria } from './sensitivity.js';
+import { DEFAULT_SENSITIVITY, parseSensitivity, sensitivityHashValue } from './sensitivity.js';
 import type { SourceFamily } from './source-families.js';
 import { parseSourceFamily } from './source-families.js';
 
-export const FILTER_HASH_KEYS = { window: 't', family: 'src', oblast: 'r' } as const;
+export const FILTER_HASH_KEYS = {
+  window: 't',
+  family: 'src',
+  oblast: 'r',
+  sensitivity: 'sens',
+} as const;
 
 export interface FilterSelection {
   readonly window: AgeWindowId;
   readonly family: SourceFamily | null;
   readonly oblast: number | null;
+  readonly sensitivity: SensitivityCriteria;
 }
 
 export const DEFAULT_FILTERS: FilterSelection = {
   window: DEFAULT_AGE_WINDOW,
   family: null,
   oblast: null,
+  sensitivity: DEFAULT_SENSITIVITY,
 };
 
 /**
@@ -45,6 +56,7 @@ export interface FilterHashState {
   readonly window?: AgeWindowId;
   readonly family?: SourceFamily | null;
   readonly oblast?: number | null;
+  readonly sensitivity?: SensitivityCriteria;
 }
 
 export function parseFilterHash(hash: string): FilterHashState {
@@ -52,10 +64,12 @@ export function parseFilterHash(hash: string): FilterHashState {
   const rawFamily = readFragmentMember(hash, FILTER_HASH_KEYS.family);
   const family = parseSourceFamily(rawFamily);
   const oblast = parseOblast(readFragmentMember(hash, FILTER_HASH_KEYS.oblast));
+  const sensitivity = parseSensitivity(readFragmentMember(hash, FILTER_HASH_KEYS.sensitivity));
   return {
     ...(window === null ? {} : { window }),
     ...(family === null ? {} : { family }),
     ...(oblast === null ? {} : { oblast }),
+    ...(sensitivity === null ? {} : { sensitivity }),
   };
 }
 
@@ -66,6 +80,7 @@ export function filterHashMembers(selection: FilterSelection): Record<string, st
       selection.window === DEFAULT_FILTERS.window ? null : selection.window,
     [FILTER_HASH_KEYS.family]: selection.family,
     [FILTER_HASH_KEYS.oblast]: selection.oblast === null ? null : String(selection.oblast),
+    [FILTER_HASH_KEYS.sensitivity]: sensitivityHashValue(selection.sensitivity),
   };
 }
 

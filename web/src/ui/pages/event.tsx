@@ -16,8 +16,6 @@ import { eventPath, redirectTargetFor } from '../logic/event-resolution.js';
 import { lifecycleLine } from '../logic/lifecycle-line.js';
 import { placeName } from '../logic/place.js';
 import { applyMetaTags } from '../share/document-meta.js';
-import { buildShareCard, renderShareCardSvg } from '../share/share-card.js';
-import { shareCardImage } from '../share/share-image.js';
 import { shareMetaFor } from '../share/share-meta.js';
 import { useApp } from '../context.js';
 import { useNow } from '../use-now.js';
@@ -90,21 +88,23 @@ export function EventPage() {
     const madeAtMs = serverNow();
     const banner = pickBanner(state, madeAtMs);
     const permalinkUrl = window.location.origin + eventPath(event.id);
-    const card = buildShareCard({
+    const card = {
       event,
       messages,
       locale,
       nowMs: madeAtMs,
       staleSinceIso: banner?.kind === 'stale-sources' ? banner.sinceIso : null,
       permalinkUrl,
-    });
-    setSharing(true);
-    void shareCardImage({
-      ...renderShareCardSvg(card),
+    };
+    const target = {
       baseName: event.id,
       title: messages.eventNearPlace(placeName(event, locale)),
       url: permalinkUrl,
-    })
+    };
+    setSharing(true);
+    // The card's layout and rasterizer load on the first click, never with the page (CI-12).
+    void import('../share/share-action.js')
+      .then(({ shareEventCard }) => shareEventCard(card, target))
       .catch(() => {
         // Nothing to recover: the page itself still carries every fact the card would.
       })

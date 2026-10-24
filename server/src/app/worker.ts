@@ -101,6 +101,7 @@ import { startR2MirrorLoops, wireR2Mirror } from './r2-mirror-wiring.js';
 import { startMeteoalarmLoops, wireMeteoalarmRefresh } from './meteoalarm-wiring.js';
 import { startPassesLoops, wirePassesRefresh } from './passes-wiring.js';
 import { startLightningLoops, wireLightningRefresh } from './lightning-wiring.js';
+import { startCemsLoops, wireCemsRefresh } from './cems-wiring.js';
 import {
   createMonitorHealth,
   MONITOR_INTERVAL_MS,
@@ -465,6 +466,22 @@ async function main(): Promise<number> {
       loops.push(
         ...startMeteoalarmLoops(
           wireMeteoalarmRefresh(config.stateDir, systemClock),
+          {
+            clock: systemClock,
+            sleeper: systemSleeper,
+            writeLine,
+            observe: loopObserver(metrics, onMetricsError),
+          },
+          controller.signal,
+        ),
+      );
+    }
+
+    // V2-E3: the CEMS route reads what this writes, and is registered on the same condition.
+    if (config.stateDir !== null) {
+      loops.push(
+        ...startCemsLoops(
+          wireCemsRefresh(config.stateDir, systemClock),
           {
             clock: systemClock,
             sleeper: systemSleeper,

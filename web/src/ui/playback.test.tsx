@@ -15,6 +15,7 @@ import { DEFAULT_CONFIG, LIVE_HISTORY_URL_TEMPLATE } from '../core/config.js';
 import { PLAYBACK_AGE_CLASSES, parseHistoryBody } from '../core/history-body.js';
 import bg from '../core/i18n/bg.js';
 import en from '../core/i18n/en.js';
+import { DEFAULT_SENSITIVITY } from '../core/filter/sensitivity.js';
 import type { Messages } from '../core/i18n/messages.js';
 import {
   HISTORY_RANGES,
@@ -376,7 +377,7 @@ describe('the `pb=` member', () => {
     await settle();
     const state = {
       camera: null,
-      filters: { window: null, family: null, oblast: null },
+      filters: { window: null, family: null, oblast: null, sensitivity: DEFAULT_SENSITIVITY },
       overlays: [],
       playback: playbackParam.value,
     } as unknown as Parameters<typeof appFragmentMembers>[0];

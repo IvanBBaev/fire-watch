@@ -191,6 +191,25 @@ const messages: Messages = {
         : `${formatNumber(count, 'en')} fires hidden by filters`,
     clear: 'Clear filters',
     emptyFiltered: 'No satellite detections match these filters.',
+    sensitivityLabel: 'Signals',
+    sensitivityPreset: {
+      all: 'All signals',
+      balanced: 'Balanced',
+      multi: 'Seen several times',
+    },
+    sensitivityCustom: 'Custom',
+    sensitivityOption: (name, count) => `${name} (${formatNumber(count, 'en')})`,
+    sensitivityAdvanced: 'Signal criteria',
+    sensitivityMinBand: 'Lowest tier',
+    sensitivityMinDetections: 'Detections',
+    sensitivityMinSensors: 'Satellites',
+    sensitivityAtLeast: (count) =>
+      count === 1 ? 'Any number' : `At least ${formatNumber(count, 'en')}`,
+    sensitivityHint: 'Weaker signals are hidden. A hidden signal may still be a real fire.',
+    sensitivityUnreported: (count) =>
+      count === 1
+        ? 'For 1 fire the feed does not say how many satellites saw it; it is shown anyway.'
+        : `For ${formatNumber(count, 'en')} fires the feed does not say how many satellites saw them; they are shown anyway.`,
   },
 
   search: {
@@ -225,6 +244,30 @@ const messages: Messages = {
     coverageNote:
       'Coverage: Bulgaria plus a 100 km cross-border band. Neighbouring fires are shown because fires cross borders.',
     imagery: 'Satellite imagery',
+  },
+
+  measure: {
+    toggle: 'Measure',
+    panelLabel: 'Measure on the map',
+    modeLabel: 'What to measure',
+    mode: {
+      distance: 'Distance along a line',
+      area: 'Area of an outline',
+      nearest: 'Distance to the nearest active fire',
+    },
+    hint: {
+      distance: 'Tap the map or add the map centre: two points or more.',
+      area: 'Tap the map or add the map centre: three points or more around the outline.',
+      nearest: 'Tap the map or add the map centre to pick a place.',
+    },
+    addCentre: 'Add the map centre',
+    undo: 'Undo last point',
+    clear: 'Clear',
+    distanceResult: (length) => `Distance: ${length}`,
+    areaResult: (area, perimeter) => `Area: ${area}; perimeter ${perimeter}`,
+    nearestResult: (length, place) => `Nearest active fire: ${length}, near ${place}`,
+    nearestNone: 'No active satellite detection is on the map under the current filters.',
+    approxNote: 'Straight lines on the globe, approximate. Not a route and not a travel time.',
   },
 
   layers: {
@@ -805,6 +848,7 @@ const messages: Messages = {
     landCoverBare: 'bare ground',
     landCoverWater: 'water',
     landCoverWetland: 'wetland',
+    cemsActivation: (code) => `Copernicus EMS activation ${code}`,
   },
 };
 

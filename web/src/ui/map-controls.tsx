@@ -1,6 +1,7 @@
 /**
- * The two camera controls — back to the default frame, and to wherever the user is — and
- * the Layers and playback disclosures (`layers-panel.tsx`, `playback-panel.tsx`).
+ * The two camera controls — back to the default frame, and to wherever the user is — the
+ * Layers and playback disclosures (`layers-panel.tsx`, `playback-panel.tsx`) and the measure
+ * tool (`measure-control.tsx`, V2-D3).
  *
  * They sit over the map rather than in the header because they act on the map and nothing
  * else. Both are plain buttons with visible labels — a compass glyph would need a tooltip
@@ -20,6 +21,7 @@ import { useApp } from './context.js';
 import { LayersPanel, LayersToggle } from './layers-panel.js';
 import { HOME_CAMERA, shouldOfferLocation } from './map-camera.js';
 import { PlaybackPanel, PlaybackToggle } from './playback-panel.js';
+import { MeasurePanelHost, MeasureToggle } from './measure-control.js';
 
 export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) => void }) {
   const { messages, geolocator } = useApp();
@@ -89,9 +91,12 @@ export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) =
         <LayersToggle />
         {/* Fourth: the replay (V2-A1) comes after every existing control. */}
         <PlaybackToggle />
+        {/* Fifth: the measure tool (V2-D3), after the replay. */}
+        <MeasureToggle />
       </div>
       <LayersPanel />
       <PlaybackPanel />
+      <MeasurePanelHost />
       {/* Always rendered so a screen reader announces into an existing region. */}
       <p class="map-controls-status" role="status" aria-live="polite">
         {status}

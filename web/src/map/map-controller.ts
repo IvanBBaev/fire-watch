@@ -37,6 +37,7 @@ import type {
   FireEvent,
   MapController,
   MapControllerDeps,
+  MeasureOverlay,
   ThemeName,
 } from '../core/types.js';
 import type {
@@ -75,6 +76,7 @@ import {
 import { buildMapReadyProbe, mapReadyProbeEnabled } from './map-ready-probe.js';
 import type { MapReadyProbe } from './map-ready-probe.js';
 import { installMapInspection } from './map-inspection.js';
+import type * as MeasureLayerModule from './measure-layer.js';
 import { resolveBasemapStyle } from './outdoor-style.js';
 import type { FrameScheduler } from './throttle.js';
 import { createFrameThrottle } from './throttle.js';
@@ -174,6 +176,39 @@ export function createMapController(deps: MapControllerDeps): MapController {
     if (playbackLayer === null) return;
     try {
       playbackLayer.applyPlaybackLayer(map, playback);
+    } catch {
+      // Style not loaded yet.
+    }
+  };
+
+  /** The measure tool while it is open (V2-D3); `null` when the map selects fires as usual. */
+  let measure: MeasureOverlay | null = null;
+  /**
+   * The measure drawing's layer code, fetched the first time the tool opens: few readers
+   * measure, and the map chunk is on the critical path (CI-12).
+   */
+  let measureLayer: typeof MeasureLayerModule | null = null;
+  let measureLayerLoading = false;
+  /** Show the current drawing, fetching the layer code first if a drawing needs it. */
+  const drawMeasure = (): void => {
+    if (measureLayer === null) {
+      if (measure === null || measureLayerLoading) return;
+      measureLayerLoading = true;
+      import('./measure-layer.js').then(
+        (module) => {
+          measureLayer = module;
+          drawMeasure();
+        },
+        () => {
+          // A failed fetch is retried by the next change to the drawing.
+          measureLayerLoading = false;
+        },
+      );
+      return;
+    }
+    // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+    try {
+      measureLayer.applyMeasureLayer(map, measure?.collection ?? null);
     } catch {
       // Style not loaded yet.
     }
@@ -423,6 +458,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
     // And the V2-A1 replay, on top, hiding the live fire layers while it is on. Last, so the
     // fire layers re-added above are hidden again after a style swap.
     playbackLayer?.applyPlaybackLayer(map, playback);
+    // And the measure drawing (V2-D3), on top of everything.
+    drawMeasure();
   });
 
   map.once('idle', () => {
@@ -496,6 +533,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
   // that a single selection instead of a double route push.
   let lastHandledClick: unknown = null;
   const handleFireClick = (event: MapLayerMouseEvent): void => {
+    // While measuring, a tap places a point (the general handler below), never a selection.
+    if (measure !== null) return;
     if (event.originalEvent === lastHandledClick) return;
     const feature = event.features?.[0];
     if (feature === undefined) return;
@@ -514,12 +553,18 @@ export function createMapController(deps: MapControllerDeps): MapController {
   for (const layerId of INTERACTIVE_FIRE_LAYER_IDS) {
     map.on('click', layerId, handleFireClick);
     map.on('mouseenter', layerId, () => {
-      map.getCanvas().style.cursor = 'pointer';
+      if (measure === null) map.getCanvas().style.cursor = 'pointer';
     });
     map.on('mouseleave', layerId, () => {
-      map.getCanvas().style.cursor = '';
+      if (measure === null) map.getCanvas().style.cursor = '';
     });
   }
+  // The measure tool's picks: any tap on the map, fire or not, while the panel is open. A
+  // tap is a click in MapLibre (a drag is a pan and fires none), so touch works unchanged.
+  map.on('click', (event) => {
+    if (measure === null) return;
+    measure.onPick({ lon: event.lngLat.lng, lat: event.lngLat.lat });
+  });
 
   return {
     setTheme(theme: ThemeName): void {
@@ -695,7 +740,18 @@ export function createMapController(deps: MapControllerDeps): MapController {
       );
     },
 
+    setMeasure(overlay: MeasureOverlay | null): void {
+      if (overlay === measure) return;
+      const wasMeasuring = measure !== null;
+      measure = overlay;
+      if (wasMeasuring !== (overlay !== null)) {
+        map.getCanvas().style.cursor = overlay === null ? '' : 'crosshair';
+      }
+      drawMeasure();
+    },
+
     destroy(): void {
+      measure = null;
       destroyed = true;
       unsubscribe();
       throttle.dispose();

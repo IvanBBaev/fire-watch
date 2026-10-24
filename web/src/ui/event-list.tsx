@@ -12,7 +12,7 @@
  * fire went away".
  */
 
-import { countFamilies, partitionEvents } from '../core/filter/event-filter.js';
+import { countFamilies, countSensitivity, partitionEvents } from '../core/filter/event-filter.js';
 import { partitionByViewport } from '../core/geo/in-view.js';
 import { sortedEvents } from '../core/store/index.js';
 import { formatObservedStampSofia, relativeAgeFrom } from '../core/i18n/format.js';
@@ -22,7 +22,13 @@ import { eventPath } from './logic/event-resolution.js';
 import { placeName } from './logic/place.js';
 import { ageWindow, setAgeWindow } from './age-window.js';
 import { FilterBar } from './filter-bar.js';
-import { clearScopeFilters, regionFilter, regionIndex, sourceFamily } from './filters.js';
+import {
+  clearScopeFilters,
+  regionFilter,
+  regionIndex,
+  sensitivityFilter,
+  sourceFamily,
+} from './filters.js';
 import { useApp } from './context.js';
 import { DownloadMenu } from './export/download-menu.js';
 import { mapViewport } from './map-camera.js';
@@ -67,6 +73,7 @@ export function EventList({
   const windowId = ageWindow.value;
   const family = sourceFamily.value;
   const oblast = regionFilter.value;
+  const sensitivity = sensitivityFilter.value;
   const regionAt = regionIndex.value?.regionAt ?? null;
 
   if (state.lastSnapshotAt === null) {
@@ -77,11 +84,13 @@ export function EventList({
   // Time first, then space: the window is a statement about the world, the frame is a
   // statement about the screen, and "3 outside the view" should count only fires the
   // reader has actually asked to see.
-  // Source and region narrow the same set the window does, and the map obeys the same
+  // Source, region and sensitivity narrow the same set the window does, and the map obeys the same
   // rule (`map-pane.tsx`); what each one hides is counted separately below.
   const cutoffMs = ageCutoffMs(nowMs, windowId);
-  const filtered = partitionEvents(all, { cutoffMs, family, oblast }, regionAt);
-  const counts = countFamilies(all, { cutoffMs, oblast }, regionAt);
+  const filterState = { cutoffMs, family, oblast, sensitivity };
+  const filtered = partitionEvents(all, filterState, regionAt);
+  const counts = countFamilies(all, filterState, regionAt);
+  const sensitivityCounts = countSensitivity(all, filterState, regionAt);
   const scoped =
     inViewOnly && viewport !== null ? partitionByViewport(filtered.visible, viewport) : null;
   const events = scoped?.inView ?? filtered.visible;
@@ -90,7 +99,7 @@ export function EventList({
 
   return (
     <div class="event-list-wrap">
-      <FilterBar counts={counts} />
+      <FilterBar counts={counts} sensitivityCounts={sensitivityCounts} />
       {all.length === 0 ? (
         // GLOSSARY §3b empty_state: "no satellite detections", never "no fires".
         <p class="list-placeholder">{messages.status.emptyState}</p>

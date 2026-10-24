@@ -332,6 +332,38 @@ export const CATALOG_GOVERNANCE = {
   'filters.hiddenByFilters': { governance: 'own-voice', reason: 'composed-value' },
   'filters.clear': { governance: 'own-voice', reason: 'chrome' },
   'filters.emptyFiltered': { governance: 'own-voice', reason: 'client-condition' },
+  // V2-A2 — sensitivity. Own voice, and PENDING FOUNDER REVIEW with the preset thresholds.
+  'filters.sensitivityLabel': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityPreset.all': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityPreset.balanced': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityPreset.multi': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityCustom': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityOption': { governance: 'own-voice', reason: 'composed-value' },
+  'filters.sensitivityAdvanced': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityMinBand': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityMinDetections': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityMinSensors': { governance: 'own-voice', reason: 'chrome' },
+  'filters.sensitivityAtLeast': { governance: 'own-voice', reason: 'composed-value' },
+  'filters.sensitivityHint': { governance: 'own-voice', reason: 'capability-prose' },
+  'filters.sensitivityUnreported': { governance: 'own-voice', reason: 'capability-prose' },
+  // V2-D3 — measure. Own voice, and PENDING FOUNDER REVIEW.
+  'measure.toggle': { governance: 'own-voice', reason: 'chrome' },
+  'measure.panelLabel': { governance: 'own-voice', reason: 'chrome' },
+  'measure.modeLabel': { governance: 'own-voice', reason: 'chrome' },
+  'measure.mode.distance': { governance: 'own-voice', reason: 'chrome' },
+  'measure.mode.area': { governance: 'own-voice', reason: 'chrome' },
+  'measure.mode.nearest': { governance: 'own-voice', reason: 'chrome' },
+  'measure.hint.distance': { governance: 'own-voice', reason: 'chrome' },
+  'measure.hint.area': { governance: 'own-voice', reason: 'chrome' },
+  'measure.hint.nearest': { governance: 'own-voice', reason: 'chrome' },
+  'measure.addCentre': { governance: 'own-voice', reason: 'chrome' },
+  'measure.undo': { governance: 'own-voice', reason: 'chrome' },
+  'measure.clear': { governance: 'own-voice', reason: 'chrome' },
+  'measure.distanceResult': { governance: 'own-voice', reason: 'composed-value' },
+  'measure.areaResult': { governance: 'own-voice', reason: 'composed-value' },
+  'measure.nearestResult': { governance: 'own-voice', reason: 'composed-value' },
+  'measure.nearestNone': { governance: 'own-voice', reason: 'client-condition' },
+  'measure.approxNote': { governance: 'own-voice', reason: 'capability-prose' },
   'search.label': { governance: 'own-voice', reason: 'chrome' },
   'search.placeholder': { governance: 'own-voice', reason: 'chrome' },
   'search.loading': { governance: 'own-voice', reason: 'client-condition' },
@@ -667,6 +699,8 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.landCoverBare': { governance: 'own-voice', reason: 'chrome' },
   'eventDetail.landCoverWater': { governance: 'own-voice', reason: 'chrome' },
   'eventDetail.landCoverWetland': { governance: 'own-voice', reason: 'chrome' },
+  // V2-E3 — the CEMS activation badge. Own voice, and PENDING FOUNDER REVIEW.
+  'eventDetail.cemsActivation': { governance: 'own-voice', reason: 'capability-prose' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -851,6 +885,16 @@ export const CATALOG_GOVERNANCE = {
  *   whether exports belong to a paid tier at all (V2-Q3).
  * - `ogImage.*` — TASKS V2-D4, the link-preview image's alt text. Written by an implementer;
  *   the wording and the Bulgarian draft are the founder's call.
+ * - `filters.sensitivity*` — V2-A2, the sensitivity filter. Written by an implementer so the
+ *   picker can render; the preset names, the thresholds behind them
+ *   (`core/filter/sensitivity.ts` `SENSITIVITY_PRESETS`), and the "may still be a real
+ *   fire" note are the founder's call.
+ * - `measure.*` — V2-D3, the measure tool. Written by an implementer so the panel can
+ *   render; the labels, the "nearest active fire" wording and the approximation note are
+ *   the founder's call.
+ * - `eventDetail.cemsActivation` — V2-E3, the Copernicus EMS activation badge. Written by an
+ *   implementer so the badge can render; its wording, and the match rule behind it
+ *   (`@fire-watch/contracts` `CEMS_MATCH`), are the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -1229,6 +1273,40 @@ export const PENDING_FOUNDER_REVIEW = [
   'meteoalarm.officialLink',
   'meteoalarm.noneInForce',
   'meteoalarm.notChecked',
+  // V2-A2 — sensitivity
+  'filters.sensitivityLabel',
+  'filters.sensitivityPreset.all',
+  'filters.sensitivityPreset.balanced',
+  'filters.sensitivityPreset.multi',
+  'filters.sensitivityCustom',
+  'filters.sensitivityOption',
+  'filters.sensitivityAdvanced',
+  'filters.sensitivityMinBand',
+  'filters.sensitivityMinDetections',
+  'filters.sensitivityMinSensors',
+  'filters.sensitivityAtLeast',
+  'filters.sensitivityHint',
+  'filters.sensitivityUnreported',
+  // V2-D3 — measure
+  'measure.toggle',
+  'measure.panelLabel',
+  'measure.modeLabel',
+  'measure.mode.distance',
+  'measure.mode.area',
+  'measure.mode.nearest',
+  'measure.hint.distance',
+  'measure.hint.area',
+  'measure.hint.nearest',
+  'measure.addCentre',
+  'measure.undo',
+  'measure.clear',
+  'measure.distanceResult',
+  'measure.areaResult',
+  'measure.nearestResult',
+  'measure.nearestNone',
+  'measure.approxNote',
+  // V2-E3 — CEMS badge
+  'eventDetail.cemsActivation',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

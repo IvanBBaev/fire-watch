@@ -1,17 +1,17 @@
 /**
- * The reader's source and region filters, shared by the filter bar that sets them, the
+ * The reader's source, region and sensitivity filters, shared by the filter bar that sets them, the
  * list that obeys them and the map that draws them — signals for the same reason as the
  * time window (`age-window.ts`): the map is mounted above the router, and lifting the
  * state through the shell would re-render the map container on every change.
  *
- * **URL.** All three filters live in the fragment (`core/filter/filter-hash.ts`), so a
+ * **URL.** All four filters live in the fragment (`core/filter/filter-hash.ts`), so a
  * filtered view is a shareable link. At boot the fragment outranks storage, member by
  * member, and applying it never writes storage: opening someone else's link must not
  * overwrite the reader's own remembered window. Only a choice the reader makes writes
  * storage. A hand-edited fragment is picked up on `hashchange`.
  *
  * **Storage.** Only the time window is remembered across visits (`fw.age-window`, as
- * before). Source and region are deliberately not: a region narrowed last week and
+ * before). Source, region and sensitivity are deliberately not: a region narrowed last week and
  * silently re-applied today would hide fires the reader no longer knows are filtered
  * out. They survive a reload through the fragment, which the reader can see.
  *
@@ -26,12 +26,16 @@ import type { OblastIndex } from '../core/filter/oblasts.js';
 import { createOblastIndex, isRegionsAsset } from '../core/filter/oblasts.js';
 import type { FilterSelection } from '../core/filter/filter-hash.js';
 import { parseFilterHash, withFilterHash } from '../core/filter/filter-hash.js';
+import type { SensitivityCriteria } from '../core/filter/sensitivity.js';
+import { DEFAULT_SENSITIVITY } from '../core/filter/sensitivity.js';
 import type { SourceFamily } from '../core/filter/source-families.js';
 import oblastsUrl from '../assets/geodata/oblasts.json?url';
 import { ageWindow } from './age-window.js';
 
 export const sourceFamily = signal<SourceFamily | null>(null);
 export const regionFilter = signal<number | null>(null);
+/** V2-A2: hide weak signals. Default: every signal. */
+export const sensitivityFilter = signal<SensitivityCriteria>(DEFAULT_SENSITIVITY);
 
 export type RegionIndexState = 'idle' | 'loading' | 'ready' | 'failed';
 export const regionIndexState = signal<RegionIndexState>('idle');
@@ -46,14 +50,27 @@ export function setRegionFilter(next: number | null): void {
   if (next !== null) void loadRegionIndex();
 }
 
-/** Back to the defaults for source and region; the time window has its own "show older". */
+export function setSensitivity(next: SensitivityCriteria): void {
+  sensitivityFilter.value = next;
+}
+
+/**
+ * Back to the defaults for source, region and sensitivity; the time window has its own
+ * "show older".
+ */
 export function clearScopeFilters(): void {
   sourceFamily.value = null;
   regionFilter.value = null;
+  sensitivityFilter.value = DEFAULT_SENSITIVITY;
 }
 
 export function currentSelection(): FilterSelection {
-  return { window: ageWindow.value, family: sourceFamily.value, oblast: regionFilter.value };
+  return {
+    window: ageWindow.value,
+    family: sourceFamily.value,
+    oblast: regionFilter.value,
+    sensitivity: sensitivityFilter.value,
+  };
 }
 
 let regionLoad: Promise<void> | null = null;
@@ -87,6 +104,7 @@ export function applyFilterHash(hash: string): void {
   if (parsed.window !== undefined) ageWindow.value = parsed.window;
   if (parsed.family !== undefined) sourceFamily.value = parsed.family;
   if (parsed.oblast !== undefined) setRegionFilter(parsed.oblast);
+  if (parsed.sensitivity !== undefined) sensitivityFilter.value = parsed.sensitivity;
 }
 
 /**
@@ -102,11 +120,7 @@ export function startFilterUrlSync(): () => void {
   };
   window.addEventListener('hashchange', onHashChange);
   const stopEffect = effect(() => {
-    const selection: FilterSelection = {
-      window: ageWindow.value,
-      family: sourceFamily.value,
-      oblast: regionFilter.value,
-    };
+    const selection = currentSelection();
     const next = withFilterHash(location.hash, selection);
     const current = location.hash === '#' ? '' : location.hash;
     if (next === current) return;

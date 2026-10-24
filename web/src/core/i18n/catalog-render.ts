@@ -135,6 +135,15 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   ],
   'filters.sourceUnreported': [[1], [N]],
   'filters.hiddenByFilters': [[1], [N]],
+  'filters.sensitivityOption': [
+    [T1, 0],
+    [T1, N],
+  ],
+  'filters.sensitivityAtLeast': [[1], [2], [N]],
+  'filters.sensitivityUnreported': [[1], [N]],
+  'measure.distanceResult': [[T1]],
+  'measure.areaResult': [[T1, T2]],
+  'measure.nearestResult': [[T1, T2]],
   'search.goToCoordinates': [[T1]],
   'search.resultCount': [[1], [N]],
   'newSignals.count': [[1], [N]],
@@ -174,6 +183,7 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   // V2-F4: a list of two groups; one group at a rounded share.
   'eventDetail.landCover': [['forest 60%, grassland 30%']],
   'eventDetail.landCoverPart': [['forest', 60]],
+  'eventDetail.cemsActivation': [['EMSR822']],
   'eventDetail.frpPeak': [[T1, T2, T3]],
   'eventDetail.frpChartLabel': [
     [1, T1, T2],

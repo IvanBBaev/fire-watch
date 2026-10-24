@@ -193,6 +193,26 @@ const messages: Messages = {
         : `Скрити са ${formatNumber(count, 'bg')} пожара от филтрите`,
     clear: 'Изчисти филтрите',
     emptyFiltered: 'Няма сателитни засичания, отговарящи на тези филтри.',
+    sensitivityLabel: 'Сигнали',
+    sensitivityPreset: {
+      all: 'Всички сигнали',
+      balanced: 'Балансирано',
+      multi: 'Засечени няколко пъти',
+    },
+    sensitivityCustom: 'Персонализирано',
+    sensitivityOption: (name, count) => `${name} (${formatNumber(count, 'bg')})`,
+    sensitivityAdvanced: 'Критерии за сигналите',
+    sensitivityMinBand: 'Най-ниска степен',
+    sensitivityMinDetections: 'Засичания',
+    sensitivityMinSensors: 'Спътници',
+    sensitivityAtLeast: (count) =>
+      count === 1 ? 'Без минимум' : `Поне ${formatNumber(count, 'bg')}`,
+    sensitivityHint:
+      'По-слабите сигнали са скрити. Скритият сигнал може все пак да е истински пожар.',
+    sensitivityUnreported: (count) =>
+      count === 1
+        ? 'За 1 пожар данните не казват колко спътника са го засекли; той се показва въпреки това.'
+        : `За ${formatNumber(count, 'bg')} пожара данните не казват колко спътника са ги засекли; те се показват въпреки това.`,
   },
 
   search: {
@@ -227,6 +247,30 @@ const messages: Messages = {
     coverageNote:
       'Покритие: България плюс 100 км трансгранична ивица. Показваме и съседни пожари, защото пожарите преминават граници.',
     imagery: 'Сателитни изображения',
+  },
+
+  measure: {
+    toggle: 'Измерване',
+    panelLabel: 'Измерване на картата',
+    modeLabel: 'Какво да се измери',
+    mode: {
+      distance: 'Разстояние по линия',
+      area: 'Площ на контур',
+      nearest: 'Разстояние до най-близкия активен пожар',
+    },
+    hint: {
+      distance: 'Докоснете картата или добавете центъра ѝ: две или повече точки.',
+      area: 'Докоснете картата или добавете центъра ѝ: три или повече точки по контура.',
+      nearest: 'Докоснете картата или добавете центъра ѝ, за да изберете място.',
+    },
+    addCentre: 'Добави центъра на картата',
+    undo: 'Премахни последната точка',
+    clear: 'Изчисти',
+    distanceResult: (length) => `Разстояние: ${length}`,
+    areaResult: (area, perimeter) => `Площ: ${area}; периметър ${perimeter}`,
+    nearestResult: (length, place) => `Най-близък активен пожар: ${length}, край ${place}`,
+    nearestNone: 'При текущите филтри на картата няма активно сателитно засичане.',
+    approxNote: 'Прави линии върху земното кълбо, приблизително. Не е маршрут и не е време за път.',
   },
 
   layers: {
@@ -817,6 +861,7 @@ const messages: Messages = {
     landCoverBare: 'гола земя',
     landCoverWater: 'вода',
     landCoverWetland: 'влажни зони',
+    cemsActivation: (code) => `Активиране на Copernicus EMS ${code}`,
   },
 };
 

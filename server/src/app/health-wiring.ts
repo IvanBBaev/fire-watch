@@ -405,6 +405,11 @@ export function wireHealthServer(
             onProblem,
           },
         }),
+    // V2-E3: the worker's CEMS job writes under the same state dir; until its first list
+    // read the route answers 503.
+    ...(config.stateDir === null
+      ? {}
+      : { cemsOverlay: { stateDir: config.stateDir, clock: systemClock, onProblem } }),
   });
 
   // I1–I4, I6: registered only with FIRE_WATCH_AUTH_ENABLED and a complete mailer; the
@@ -617,6 +622,7 @@ export function expectedRows(feedsRecorded: boolean): readonly FreshnessRowId[] 
     'celestrak:elements',
     'eumetsat:lightning',
     'meteoalarm:warnings',
+    'cems:activations',
     'effis-refresh',
   ];
 }

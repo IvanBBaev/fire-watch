@@ -4,9 +4,11 @@
  * data carries; anything the detections file cannot support is left out and said so.
  *
  * GLOSSARY §5.2 ("no routing, ever"): the only outbound map link is an OpenStreetMap
- * *area* view at the rounded centre — no marker, no directions, no navigation apps.
+ * *area* view at the rounded centre — no marker, no directions, no navigation apps. (The
+ * V2-E3 Copernicus EMS badge links to an activation's page, not to a place.)
  */
 
+import type { FunctionComponent } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 
 import { relativePosition } from '../../core/geo/bearing.js';
@@ -20,6 +22,7 @@ import {
 import type { FireEvent } from '../../core/types.js';
 import { useApp } from '../context.js';
 import { eventPath } from '../logic/event-resolution.js';
+import type { CemsBadgeProps } from './cems-badge.js';
 import { copyText } from './clipboard.js';
 import type { FrpSummary, Overpass } from './detection-detail.js';
 import { distanceText, orbitText, pixelText, sensorLabel } from './event-format.js';
@@ -263,6 +266,33 @@ export interface EventDetailsProps {
   readonly detail: DetailState;
 }
 
+/**
+ * The V2-E3 Copernicus EMS badge, loaded on first use: its parser and matching stay off the
+ * critical path (CI-12). Renders nothing when no activation list is configured.
+ */
+function CemsBadgeHost({ event }: { readonly event: FireEvent }) {
+  const { config } = useApp();
+  const url = config.cemsActivationsUrl;
+  const [Badge, setBadge] = useState<FunctionComponent<CemsBadgeProps> | null>(null);
+  useEffect(() => {
+    if (url === undefined || Badge !== null) return undefined;
+    let live = true;
+    import('./cems-badge.js').then(
+      (module) => {
+        if (live) setBadge(() => module.CemsBadge);
+      },
+      () => {
+        // A failed chunk load leaves the page without the badge; nothing else depends on it.
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [url, Badge]);
+  if (url === undefined || Badge === null) return null;
+  return <Badge url={url} event={event} />;
+}
+
 export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
   const { messages, locale } = useApp();
   const t = messages.eventDetail;
@@ -310,6 +340,7 @@ export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
       />
       <LightningContextNote eventId={event.id} />
       <FireOutlineNote eventId={event.id} />
+      <CemsBadgeHost event={event} />
       <DetectionSections detail={detail} />
       <WhereSection event={event} />
     </>
