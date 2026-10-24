@@ -236,6 +236,10 @@ export interface Messages {
     readonly staticSources: string;
     /** What the mask is — and why a hotspot on it may not be a fire. */
     readonly staticSourcesNote: string;
+    /** V2-F1: the Natura 2000 protected-site layer toggle. */
+    readonly protectedSites: string;
+    /** What the sites are, whose data, and which countries the network leaves out. */
+    readonly protectedSitesNote: string;
     /** F15: the predicted satellite swath overlay toggle. */
     readonly swaths: string;
     /** What the swaths are — a prediction of where sensors look, never a detection promise. */
@@ -662,6 +666,17 @@ export interface Messages {
     readonly lightningContextNone: (radiusKm: number, hours: number) => string;
     /** F18: the window was not covered (or not yet answered) — no data, not no lightning. */
     readonly lightningContextNoData: string;
+    /** V2-F1: every detection (or the centre) lies inside this Natura 2000 site. */
+    readonly protectedSiteInside: (name: string, code: string) => string;
+    /** V2-F1: `inside` of the event's `total` detections lie inside this site. */
+    readonly protectedSiteInsideSome: (
+      inside: number,
+      total: number,
+      name: string,
+      code: string,
+    ) => string;
+    /** V2-F1: nothing inside; the nearest site's edge is `km` away (one decimal, ≤ 5 km). */
+    readonly protectedSiteNear: (km: number, name: string, code: string) => string;
   };
 }
 

@@ -31,6 +31,7 @@ import {
   loadOverlay,
   overlayStatus,
   parseOverlayParam,
+  parseProtectedSitesParam,
   parseStaticSourcesParam,
   resetOverlaysForTest,
   setLayersPanelOpen,
@@ -145,6 +146,16 @@ describe('overlay URL seam', () => {
     expect(formatLayersParam(['ba', 'fwi'], true)).toBe('fwi,ba,static');
     expect(formatLayersParam([], true)).toBe('static');
     expect(formatLayersParam(['ba'], false)).toBe('ba');
+  });
+  it('carries the Natura 2000 sites as their own token after the mask (V2-F1)', () => {
+    expect(parseOverlayParam('natura,fwi')).toEqual(['fwi']);
+    expect(parseStaticSourcesParam('natura')).toBe(false);
+    expect(parseProtectedSitesParam(null)).toBeNull();
+    expect(parseProtectedSitesParam('fwi,static')).toBe(false);
+    expect(parseProtectedSitesParam('fwi, natura')).toBe(true);
+    expect(formatLayersParam(['ba'], true, true)).toBe('ba,static,natura');
+    expect(formatLayersParam([], false, true)).toBe('natura');
+    expect(formatLayersParam([], false, false)).toBe('');
   });
 });
 

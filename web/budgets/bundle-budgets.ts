@@ -68,7 +68,7 @@ export interface ManifestChunk {
 
 export type Manifest = Readonly<Record<string, ManifestChunk>>;
 
-export type LazyRole = 'map' | 'locale' | 'page';
+export type LazyRole = 'map' | 'locale' | 'page' | 'data';
 
 /**
  * Every dynamic-import root in the web app, by role, keyed on the source module the
@@ -86,6 +86,10 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // leave the entry budget, just by being written as an `import()`.
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
   { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
+  // V2-F1: the code that reads an on-demand data file, imported together with it on the
+  // reader's action (event detail, a Layers toggle) and never on the first-render or map
+  // path. Charged to no budget, like the file it reads (`ON_DEMAND_DATA`); listed by name.
+  { role: 'data', src: /^src\/core\/geo\/protected-sites\.ts$/ },
 ];
 
 /**
@@ -99,6 +103,8 @@ export const ON_DEMAND_DATA: readonly RegExp[] = [
   /^src\/assets\/geodata\/(oblasts|settlements)\.json$/,
   // F16: the static hot-source mask, fetched on event detail or with its Layers toggle.
   /^src\/assets\/geodata\/static-sources\.json$/,
+  // V2-F1: the Natura 2000 sites, fetched on event detail or with their Layers toggle.
+  /^src\/assets\/geodata\/natura2000\.json$/,
 ];
 
 /** Where the HTML entry lives in the manifest, and where the manifest lives in dist. */
@@ -281,7 +287,12 @@ export function checkBuild(build: BuildDescription): BudgetReport {
     : new Set<string>();
 
   // --- Lazy roots, each claimed by exactly one role -------------------------------
-  const rootsByRole: Record<LazyRole, string[]> = { map: [], locale: [], page: [] };
+  const rootsByRole: Record<LazyRole, string[]> = {
+    map: [],
+    locale: [],
+    page: [],
+    data: [],
+  };
   // Unclassified roots are already an error; keeping them out of the reachability check
   // below stops the same chunk being reported twice.
   const unclassifiedRoots: string[] = [];
@@ -316,6 +327,7 @@ export function checkBuild(build: BuildDescription): BudgetReport {
   const mapKeys = union(...rootsByRole.map.map((root) => staticClosure(manifest, root, errors)));
   const localeKeySets = rootsByRole.locale.map((root) => staticClosure(manifest, root, errors));
   const pageKeys = union(...rootsByRole.page.map((root) => staticClosure(manifest, root, errors)));
+  const dataKeys = union(...rootsByRole.data.map((root) => staticClosure(manifest, root, errors)));
 
   // --- Every chunk must be reachable from something budgeted ---------------------
   const reachable = union(
@@ -323,6 +335,7 @@ export function checkBuild(build: BuildDescription): BudgetReport {
     mapKeys,
     ...localeKeySets,
     pageKeys,
+    dataKeys,
     ...unclassifiedRoots.map((root) => staticClosure(manifest, root, [])),
   );
   for (const key of keys) {

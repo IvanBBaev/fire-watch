@@ -638,6 +638,9 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.lightningContextFlashes': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.lightningContextNone': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.lightningContextNoData': { governance: 'own-voice', reason: 'capability-prose' },
+  'eventDetail.protectedSiteInside': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.protectedSiteInsideSome': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.protectedSiteNear': { governance: 'own-voice', reason: 'composed-value' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -664,6 +667,8 @@ export const CATALOG_GOVERNANCE = {
   'layers.windValidFor': { governance: 'own-voice', reason: 'composed-value' },
   'layers.staticSources': { governance: 'own-voice', reason: 'chrome' },
   'layers.staticSourcesNote': { governance: 'own-voice', reason: 'capability-prose' },
+  'layers.protectedSites': { governance: 'own-voice', reason: 'chrome' },
+  'layers.protectedSitesNote': { governance: 'own-voice', reason: 'capability-prose' },
   'layers.swaths': { governance: 'own-voice', reason: 'chrome' },
   'layers.swathsNote': { governance: 'own-voice', reason: 'capability-prose' },
   'layers.swathsNext': { governance: 'own-voice', reason: 'state-label' },
@@ -1065,6 +1070,12 @@ export const PENDING_FOUNDER_REVIEW = [
   'passes.cloudCloudy',
   'passes.cloudForecast',
   'passes.cloudCaveat',
+  // V2-F1 — Natura 2000
+  'layers.protectedSites',
+  'layers.protectedSitesNote',
+  'eventDetail.protectedSiteInside',
+  'eventDetail.protectedSiteInsideSome',
+  'eventDetail.protectedSiteNear',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

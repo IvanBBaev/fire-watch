@@ -239,6 +239,9 @@ const messages: Messages = {
     staticSources: 'Known heat sources',
     staticSourcesNote:
       'Solar parks, power plants, gas flares and heavy industry mapped in OpenStreetMap. Satellites can see their heat as a hotspot.',
+    protectedSites: 'Protected sites (Natura 2000)',
+    protectedSitesNote:
+      'Special Protection Areas for birds and Sites of Community Importance for habitats, from the European Environment Agency. Bulgaria, Greece and Romania only: North Macedonia, Serbia and Turkey are outside Natura 2000.',
     swaths: 'Satellite swaths (predicted)',
     swathsNote:
       'Where each fire-detecting satellite looked in the last 6 hours and should look in the next 12, predicted from its orbit. A swath is a chance to detect a fire, not a promise.',
@@ -708,6 +711,11 @@ const messages: Messages = {
       `Lightning context: no flashes were recorded within ${formatNumber(radiusKm, 'en')} km in the ${formatNumber(hours, 'en')} hours before the first detection. The satellite misses some flashes, so this does not rule lightning out.`,
     lightningContextNoData:
       'Lightning context: no lightning data for the hours before the first detection.',
+    protectedSiteInside: (name, code) => `Inside the Natura 2000 protected site ${name} (${code}).`,
+    protectedSiteInsideSome: (inside, total, name, code) =>
+      `${formatNumber(inside, 'en')} of ${formatNumber(total, 'en')} detections ${inside === 1 ? 'is' : 'are'} inside the Natura 2000 protected site ${name} (${code}).`,
+    protectedSiteNear: (km, name, code) =>
+      `About ${formatNumber(km, 'en')} km from the Natura 2000 protected site ${name} (${code}).`,
   },
 };
 

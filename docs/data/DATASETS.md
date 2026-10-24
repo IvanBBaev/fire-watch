@@ -229,3 +229,24 @@ in the land around it.
 **History**
 
 - 2026-10-10 — entry opened (TASKS D10, land-cover half). Fourteen tiles fetched and hashed, the product built, and the D5 S3 cross-check written into the asset. No S3 candidate reaches A6's 70 % cropland (TASKS D5 note). The cell size, the refresh rule and the runtime form (cache `.bin` or a committed lookup) are still open (founder).
+
+### DS-8 — EEA Natura 2000 sites, release 2024 (fetched 2026-10-24)
+
+The protected-site layer and event-detail note (V2-F1). A context input, not a fitted one:
+nothing is scored against it.
+
+| Field     | Value |
+| --------- | ----- |
+| Plan      | `pnpm run geodata:natura2000` — `infra/geodata/natura2000.ts` (pure transform: bbox clip, ring preparation, Douglas–Peucker simplification, 1e-3° quantisation, delta encoding) + `natura2000-cli.ts` (paged GeoJSON fetch from the EEA map service, cache in `data/natura2000-cache/`, write). `--refresh` refetches. |
+| Identity  | format `fire-watch/natura2000@1` · version `natura2000_2024` · release date 2025-01-25 · fetched pages sha256 `769f455c7c2212d475c2584a76ded6ba4e5c2d02c2d3ac8539e7ec0b6351c680` |
+| Source    | `https://bio.discomap.eea.europa.eu/arcgis/rest/services/ProtectedSites/Natura2000Sites/MapServer/0` (dataset page `https://www.eea.europa.eu/data-and-maps/data/natura-12`) |
+| Area      | bbox W20 S39 E31 N46 (the served box). Only Bulgaria, Greece and Romania have sites in it. |
+| Contents  | 847 sites: SPA 298, SCI 522, both 27. Dropped: 219 small parts, 651 holes (a hole in a site counts as the site). Code, name and type only. |
+| Asset     | `web/src/assets/geodata/natura2000.json` — 608,324 B raw, 195,765 B gzip -9; lazy (`ON_DEMAND_DATA` in `web/budgets/bundle-budgets.ts`) |
+| Licence   | CC BY 4.0 — EEA legal notice (`docs/licenses/eea-natura2000.md`; DATA-SOURCES attribution row 27) |
+| Consumers | web event-detail note (`protectedSiteRelation`, inside or within 5 km) · Layers-panel protected-sites layer (`ov=natura`) |
+| Refresh   | proposed: once a year, after the EEA publishes the next release (founder call). A new release is a new version string and a new DS-8.n line. |
+
+**History**
+
+- 2026-10-24 — entry opened with release 2024 (V2-F1).

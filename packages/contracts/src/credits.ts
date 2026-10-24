@@ -510,6 +510,22 @@ export const CREDITS: readonly Credit[] = [
     authority: 'CelesTrak GP data documentation — citation requested; our chosen form',
   },
   {
+    id: 'eea-natura2000',
+    source: 'EEA Natura 2000 sites (protected-site layer and event note, V2-F1)',
+    // CC BY 4.0 requires appropriate credit and a licence link but the EEA prescribes no
+    // sentence; this is our chosen form. Always owed: the event note reads the sites
+    // whether or not the layer is drawn. The derivation sentence indicates the changes
+    // (clipped to the served box, simplified).
+    text: 'Natura 2000 sites © European Environment Agency (EEA), CC BY 4.0',
+    verbatim: 'European Environment Agency',
+    href: 'https://www.eea.europa.eu/data-and-maps/data/natura-12',
+    surfaces: ['credits-page'],
+    condition: 'always',
+    required: true,
+    verified: true,
+    authority: 'EEA legal notice + CC BY 4.0 §3(a) — our chosen form',
+  },
+  {
     id: 'derivation',
     source: 'Fire Watch — derivation sentence',
     // Satisfies CC BY "indicate changes" for every row above and keeps our output from

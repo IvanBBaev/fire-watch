@@ -24,6 +24,7 @@ import type { StaticSourceMask } from '@fire-watch/contracts';
 
 import { boundsContain } from '../core/geo/viewport.js';
 import type { MapCamera, MapViewport } from '../core/geo/viewport.js';
+import type { ProtectedSitesGeoJson } from '../core/geo/protected-sites.js';
 import type { LightningDraw } from '../core/lightning.js';
 import type { PassSwathsDraw } from '../core/pass-swaths.js';
 import type { WindOverlayBody } from '../core/wind.js';
@@ -54,6 +55,7 @@ import { applyImageryLayer } from './imagery-layer.js';
 import { applyWindLayer } from './wind-layer.js';
 import { applyLightningLayer } from './lightning-layer.js';
 import { applyPassSwathsLayer } from './pass-swaths-layer.js';
+import { applyProtectedSitesLayer } from './protected-sites-layer.js';
 import { applyStaticSourcesLayer } from './static-sources-layer.js';
 import {
   FIRE_DETECTIONS_SOURCE_ID,
@@ -150,6 +152,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
   let windOverlay: WindOverlayBody | null = null;
   // The F16 static hot-source mask the shell asked for; none by default.
   let staticSources: StaticSourceMask | null = null;
+  // The V2-F1 Natura 2000 protected sites the shell asked for; none by default.
+  let protectedSites: ProtectedSitesGeoJson | null = null;
   // The F15 satellite swaths the shell asked for; none by default.
   let passSwaths: PassSwathsDraw | null = null;
   let lightning: LightningDraw | null = null;
@@ -386,6 +390,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
     applyPassSwathsLayer(map, passSwaths);
     // And the wind arrows, above the EFFIS overlays and below the fire layers.
     applyWindLayer(map, windOverlay);
+    // And the Natura 2000 sites, below the mask, the wind arrows and the fire layers.
+    applyProtectedSitesLayer(map, protectedSites);
     // And the static hot-source mask, above the EFFIS overlays and below the wind arrows.
     applyStaticSourcesLayer(map, staticSources);
     // And the lightning flashes (F18), directly below the fire layers.
@@ -589,6 +595,17 @@ export function createMapController(deps: MapControllerDeps): MapController {
       // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
       try {
         applyStaticSourcesLayer(map, staticSources);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
+    setProtectedSites(sites: ProtectedSitesGeoJson | null): void {
+      if (sites === protectedSites) return;
+      protectedSites = sites;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyProtectedSitesLayer(map, protectedSites);
       } catch {
         // Style not loaded yet.
       }

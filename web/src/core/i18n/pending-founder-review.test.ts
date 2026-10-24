@@ -342,6 +342,12 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'passes.cloudCloudy',
       'passes.cloudForecast',
       'passes.cloudCaveat',
+      // V2-F1 — Natura 2000
+      'layers.protectedSites',
+      'layers.protectedSitesNote',
+      'eventDetail.protectedSiteInside',
+      'eventDetail.protectedSiteInsideSome',
+      'eventDetail.protectedSiteNear',
     ]);
   });
 

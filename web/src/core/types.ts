@@ -17,6 +17,7 @@ import type {
 } from '@fire-watch/contracts';
 
 import type { MapCamera, MapViewport } from './geo/viewport.js';
+import type { ProtectedSitesGeoJson } from './geo/protected-sites.js';
 import type { LightningDraw } from './lightning.js';
 import type { PassSwathsDraw } from './pass-swaths.js';
 import type { WindOverlayBody } from './wind.js';
@@ -341,6 +342,11 @@ export interface MapController {
    * beneath the fire layers, or none for `null` (`map/static-sources-layer.ts`).
    */
   setStaticSources(mask: StaticSourceMask | null): void;
+  /**
+   * Draw the V2-F1 Natura 2000 protected sites, beneath the mask, the wind arrows and the
+   * fire layers, or none for `null` (`map/protected-sites-layer.ts`).
+   */
+  setProtectedSites(sites: ProtectedSitesGeoJson | null): void;
   /**
    * Draw the F15 satellite swaths (recent filled, next outlined), beneath the fire layers,
    * or none for `null` (`map/pass-swaths-layer.ts`). The shell fetches

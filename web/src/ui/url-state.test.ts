@@ -10,6 +10,7 @@ import { DEFAULT_FILTERS, parseFilterHash } from '../core/filter/filter-hash.js'
 import { readFragmentMember } from '../core/url-fragment.js';
 import { parseMapHash } from '../map/hash.js';
 import { chosenOverlays } from './layers.js';
+import { protectedSitesChosen, resetProtectedSitesForTest } from './protected-sites.js';
 import { resetStaticSourcesForTest, staticSourcesChosen } from './static-sources.js';
 import type { AppFragmentState, FragmentHistory, FragmentLocation } from './url-state.js';
 import {
@@ -73,6 +74,7 @@ const LOOKING_AT: AppFragmentState = {
 afterEach(() => {
   chosenOverlays.value = [];
   resetStaticSourcesForTest();
+  resetProtectedSitesForTest();
   vi.unstubAllGlobals();
 });
 
@@ -196,6 +198,33 @@ describe('overlays in the fragment', () => {
     expect(staticSourcesChosen.value).toBe(false);
     staticSourcesChosen.value = true;
     expect(browser.loc.hash).toBe('#map=7.0/42.0000/25.0000&ov=fwi,static');
+    stop();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it('carries the Natura 2000 sites as the `natura` token (V2-F1), storage untouched', () => {
+    const setItem = vi.fn();
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem, removeItem: setItem });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(() => undefined)),
+    );
+    expect(appFragmentMembers({ ...LOOKING_AT, protectedSites: true })['ov']).toBe('fwi,ba,natura');
+    expect(
+      appFragmentMembers({ ...LOOKING_AT, staticSources: true, protectedSites: true })['ov'],
+    ).toBe('fwi,ba,static,natura');
+
+    const browser = fakeBrowser('/#map=7.0/42.0000/25.0000&ov=natura');
+    const stop = startOverlayUrlSync(browser.loc, browser.hist, browser.events);
+    expect(chosenOverlays.value).toEqual([]);
+    expect(protectedSitesChosen.value).toBe(true);
+    expect(staticSourcesChosen.value).toBe(false);
+    expect(browser.writes).toEqual([]);
+
+    browser.editHash('#map=7.0/42.0000/25.0000&ov=ba');
+    expect(protectedSitesChosen.value).toBe(false);
+    protectedSitesChosen.value = true;
+    expect(browser.loc.hash).toBe('#map=7.0/42.0000/25.0000&ov=ba,natura');
     stop();
     expect(setItem).not.toHaveBeenCalled();
   });
