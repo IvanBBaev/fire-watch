@@ -37,6 +37,7 @@ import { startOverlayRevalidation } from './overlay-refresh.js';
 import { useFireOutlineDraw } from './fire-outlines.js';
 import { useLightningDraw } from './lightning.js';
 import { useSwathDraw } from './pass-swaths.js';
+import { protectedSitesDraw } from './protected-sites.js';
 import { staticSourcesDraw } from './static-sources.js';
 import { appliedTheme } from './theme.js';
 import { startOverlayUrlSync } from './url-state.js';
@@ -137,6 +138,7 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
         controller.setEffisOverlays(effisDrawRef.current());
         controller.setWindOverlay(windOverlayPayload.peek());
         controller.setStaticSources(staticSourcesDraw.peek());
+        controller.setProtectedSites(protectedSitesDraw.peek());
         controller.setPassSwaths(swathDrawRef.current);
         controller.setLightning(lightningDrawRef.current);
         controller.setFireOutlines(fireOutlineDrawRef.current);
@@ -232,6 +234,14 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
       effect(() => {
         const mask = staticSourcesDraw.value;
         controllerRef.current?.setStaticSources(mask);
+      }),
+    [],
+  );
+  useEffect(
+    () =>
+      effect(() => {
+        const sites = protectedSitesDraw.value;
+        controllerRef.current?.setProtectedSites(sites);
       }),
     [],
   );

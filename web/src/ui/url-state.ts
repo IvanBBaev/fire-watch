@@ -44,9 +44,11 @@ import {
   formatLayersParam,
   formatOverlayParam,
   parseOverlayParam,
+  parseProtectedSitesParam,
   parseStaticSourcesParam,
 } from './layers.js';
 import { mapViewport } from './map-camera.js';
+import { applyProtectedSitesFromLink, protectedSitesChosen } from './protected-sites.js';
 import { applyStaticSourcesFromLink, staticSourcesChosen } from './static-sources.js';
 
 export const OVERLAY_HASH_KEY = 'ov';
@@ -64,13 +66,15 @@ export interface FragmentHistory {
 
 /**
  * The `ov=` member for a choice; `null` (no member) when nothing is on. The static
- * hot-source mask (F16) rides in the same member as its own token, after the overlays.
+ * hot-source mask (F16) and the Natura 2000 sites (V2-F1) ride in the same member as their
+ * own tokens, after the overlays.
  */
 export function overlayHashMembers(
   ids: readonly OverlayId[],
   staticSources = false,
+  protectedSites = false,
 ): Record<string, string | null> {
-  const spelled = formatLayersParam(ids, staticSources);
+  const spelled = formatLayersParam(ids, staticSources, protectedSites);
   return { [OVERLAY_HASH_KEY]: spelled === '' ? null : spelled };
 }
 
@@ -84,6 +88,11 @@ export function parseStaticSourcesHash(hash: string): boolean | null {
   return parseStaticSourcesParam(readFragmentMember(hash, OVERLAY_HASH_KEY));
 }
 
+/** What the fragment says about the protected sites; `null` when it says nothing. */
+export function parseProtectedSitesHash(hash: string): boolean | null {
+  return parseProtectedSitesParam(readFragmentMember(hash, OVERLAY_HASH_KEY));
+}
+
 /** Everything the app would write into the fragment right now, `null` where nothing. */
 export interface AppFragmentState {
   /** `null` until the map has reported a frame — no camera is better than a guessed one. */
@@ -92,13 +101,19 @@ export interface AppFragmentState {
   readonly overlays: readonly OverlayId[];
   /** The static hot-source mask layer (F16); absent reads as off. */
   readonly staticSources?: boolean;
+  /** The Natura 2000 protected-site layer (V2-F1); absent reads as off. */
+  readonly protectedSites?: boolean;
 }
 
 export function appFragmentMembers(state: AppFragmentState): Record<string, string | null> {
   return {
     ...(state.camera === null ? {} : mapHashMembers(state.camera)),
     ...filterHashMembers(state.filters),
-    ...overlayHashMembers(state.overlays, state.staticSources ?? false),
+    ...overlayHashMembers(
+      state.overlays,
+      state.staticSources ?? false,
+      state.protectedSites ?? false,
+    ),
   };
 }
 
@@ -128,10 +143,11 @@ export function liveFragmentState(): AppFragmentState {
     filters: currentSelection(),
     overlays: chosenOverlays.peek(),
     staticSources: staticSourcesChosen.peek(),
+    protectedSites: protectedSitesChosen.peek(),
   };
 }
 
-/** Apply what a fragment says about overlays and the mask; never writes storage. */
+/** Apply what a fragment says about overlays, the mask and the sites; never writes storage. */
 export function applyOverlayHash(hash: string): void {
   const parsed = parseOverlayHash(hash);
   if (parsed === null) return;
@@ -139,6 +155,7 @@ export function applyOverlayHash(hash: string): void {
     chosenOverlays.value = parsed;
   }
   applyStaticSourcesFromLink(parseStaticSourcesHash(hash) === true);
+  applyProtectedSitesFromLink(parseProtectedSitesHash(hash) === true);
 }
 
 /**
@@ -156,7 +173,11 @@ export function startOverlayUrlSync(
   };
   events.addEventListener('hashchange', onHashChange);
   const stopEffect = effect(() => {
-    const members = overlayHashMembers(chosenOverlays.value, staticSourcesChosen.value);
+    const members = overlayHashMembers(
+      chosenOverlays.value,
+      staticSourcesChosen.value,
+      protectedSitesChosen.value,
+    );
     replaceHash(loc, hist, withFragmentMembers(loc.hash, members));
   });
   return () => {

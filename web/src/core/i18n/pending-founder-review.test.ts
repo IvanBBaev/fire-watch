@@ -362,6 +362,23 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'layers.outlinesNone',
       'eventDetail.fireOutlineArea',
       'eventDetail.fireOutlineCaveat',
+      // V2-F1 — Natura 2000
+      'layers.protectedSites',
+      'layers.protectedSitesNote',
+      'eventDetail.protectedSiteInside',
+      'eventDetail.protectedSiteInsideSome',
+      'eventDetail.protectedSiteNear',
+      // V2-F4 — land cover
+      'eventDetail.landCover',
+      'eventDetail.landCoverPart',
+      'eventDetail.landCoverTree',
+      'eventDetail.landCoverShrub',
+      'eventDetail.landCoverGrass',
+      'eventDetail.landCoverCrop',
+      'eventDetail.landCoverBuilt',
+      'eventDetail.landCoverBare',
+      'eventDetail.landCoverWater',
+      'eventDetail.landCoverWetland',
     ]);
   });
 

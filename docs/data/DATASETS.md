@@ -200,8 +200,9 @@ against. It is a cited input, not a fit corpus.
 | Product   | `data/worldcover-cache/worldcover-landcover-worldcover_2021_v200_0p005.bin` — 36,960,000 B, **not committed** (git-ignored cache). The layout is uint8, cell-major, `byte[(row * 2200 + col) * 12 + plane]`, where planes are classes 0, 10, 20 … 95, 100. Each cell's shares sum to 250 (largest remainder, ties to the lower plane). Row 0 is the northern edge. |
 | Asset     | `server/fixtures/worldcover-landcover.json` — 10,351 B, committed. It is the manifest: tile URLs, bytes and sha256s, the product sha256, box-wide shares, and the D5 S3 cross-check. Rebuilding with the same tiles reproduces the product sha256. |
 | Contents  | Box-wide shares: tree cover 34.6 %, cropland 23.9 %, grassland 16.0 %, permanent water 14.0 %, no data 8.1 %, built-up 1.8 %, shrubland 0.7 %, herbaceous wetland 0.7 %, bare/sparse 0.3 %. |
-| Licence   | CC BY 4.0 — "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium" (`docs/licenses/esa-worldcover.md`; DATA-SOURCES attribution row 26, not rendered yet) |
-| Consumers | none at run time. The D5 S3 cross-check reads it (in the asset). Expected: A6 `likely_agri_burn`, S3's real-data cut, and D10's mask-data half. |
+| Licence   | CC BY 4.0 — "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium" (`docs/licenses/esa-worldcover.md`; DATA-SOURCES attribution row 26, rendered on `/credits` since V2-F4) |
+| Consumers | the event-detail land-cover note (V2-F4), through the web grid below. The D5 S3 cross-check reads it (in the asset). Expected: A6 `likely_agri_burn`, S3's real-data cut, and D10's mask-data half. |
+| Web grid  | `web/src/assets/geodata/landcover.json` — version `worldcover_2021_v200_0p005_web_0p02_s10`, 619,877 B raw / ~154 KB gzip, committed. `pnpm run geodata:landcover-web` (`infra/geodata/landcover-web.ts` + `-cli.ts`) checks the product sha256 against the manifest, pools 4 × 4 product cells into 0.02° cells (550 × 350), folds the 11 classes into eight groups (tree, shrub, grass, crop, built, bare, water, wetland; no data dropped), and quantizes each cell to tenths (largest remainder). Rows are run-length encoded over a palette of 2,455 distinct mixes; 21,932 of 192,500 cells are empty (sea, the missing N42E030 tile). Fetched by the browser the first time an event is opened (CI-12 `ON_DEMAND_DATA`). |
 | Refresh   | proposed: re-derive only when ESA publishes a new epoch, never mid-season (founder call). A new epoch or a different cell size is a new version string and a new entry. |
 
 | Tile      | Bytes      | sha256                                                             |
@@ -229,3 +230,25 @@ in the land around it.
 **History**
 
 - 2026-10-10 — entry opened (TASKS D10, land-cover half). Fourteen tiles fetched and hashed, the product built, and the D5 S3 cross-check written into the asset. No S3 candidate reaches A6's 70 % cropland (TASKS D5 note). The cell size, the refresh rule and the runtime form (cache `.bin` or a committed lookup) are still open (founder).
+- 2026-10-24 — V2-F4: first runtime consumer. A committed 0.02° web grid (above) feeds the event-detail land-cover note, client-side; no migration. The 0.02° cell and the tenths are proposals (founder): 0.01° cells cost ~579 KB gzip, 5 % steps ~249 KB.
+
+### DS-8 — EEA Natura 2000 sites, release 2024 (fetched 2026-10-24)
+
+The protected-site layer and event-detail note (V2-F1). A context input, not a fitted one:
+nothing is scored against it.
+
+| Field     | Value |
+| --------- | ----- |
+| Plan      | `pnpm run geodata:natura2000` — `infra/geodata/natura2000.ts` (pure transform: bbox clip, ring preparation, Douglas–Peucker simplification, 1e-3° quantisation, delta encoding) + `natura2000-cli.ts` (paged GeoJSON fetch from the EEA map service, cache in `data/natura2000-cache/`, write). `--refresh` refetches. |
+| Identity  | format `fire-watch/natura2000@1` · version `natura2000_2024` · release date 2025-01-25 · fetched pages sha256 `769f455c7c2212d475c2584a76ded6ba4e5c2d02c2d3ac8539e7ec0b6351c680` |
+| Source    | `https://bio.discomap.eea.europa.eu/arcgis/rest/services/ProtectedSites/Natura2000Sites/MapServer/0` (dataset page `https://www.eea.europa.eu/data-and-maps/data/natura-12`) |
+| Area      | bbox W20 S39 E31 N46 (the served box). Only Bulgaria, Greece and Romania have sites in it. |
+| Contents  | 847 sites: SPA 298, SCI 522, both 27. Dropped: 219 small parts, 651 holes (a hole in a site counts as the site). Code, name and type only. |
+| Asset     | `web/src/assets/geodata/natura2000.json` — 608,324 B raw, 195,765 B gzip -9; lazy (`ON_DEMAND_DATA` in `web/budgets/bundle-budgets.ts`) |
+| Licence   | CC BY 4.0 — EEA legal notice (`docs/licenses/eea-natura2000.md`; DATA-SOURCES attribution row 27) |
+| Consumers | web event-detail note (`protectedSiteRelation`, inside or within 5 km) · Layers-panel protected-sites layer (`ov=natura`) |
+| Refresh   | proposed: once a year, after the EEA publishes the next release (founder call). A new release is a new version string and a new DS-8.n line. |
+
+**History**
+
+- 2026-10-24 — entry opened with release 2024 (V2-F1).

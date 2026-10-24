@@ -26,6 +26,7 @@ import { LightningLegend } from './lightning-legend.js';
 import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
 import { SatellitePasses } from './satellite-passes.js';
+import { ProtectedSitesOption } from './protected-sites-option.js';
 import { StaticSourcesOption } from './static-sources-option.js';
 import {
   FWI_CLASSES,
@@ -252,6 +253,7 @@ export function LayersPanel() {
           );
         })}
         <StaticSourcesOption />
+        <ProtectedSitesOption />
       </fieldset>
       {effisChosen.value ? <p class="layers-credit">{effisCreditText(clock, messages)}</p> : null}
       {/* F14: all five ECMWF components together, or none (the Terms owe them as a unit). */}

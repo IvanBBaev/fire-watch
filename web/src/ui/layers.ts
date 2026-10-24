@@ -109,13 +109,31 @@ export function parseStaticSourcesParam(raw: string | null): boolean | null {
   return raw.split(',').some((token) => token.trim() === STATIC_SOURCES_OVERLAY_TOKEN);
 }
 
-/** The whole `ov=` value: the overlays in canonical order, then the mask; `''` for none. */
-export function formatLayersParam(ids: readonly OverlayId[], staticSources: boolean): string {
-  const overlays = formatOverlayParam(ids);
-  if (!staticSources) return overlays;
-  return overlays === ''
-    ? STATIC_SOURCES_OVERLAY_TOKEN
-    : `${overlays},${STATIC_SOURCES_OVERLAY_TOKEN}`;
+/**
+ * The `ov=` token for the Natura 2000 protected sites (V2-F1) — a build asset like the
+ * mask, so not an {@link OverlayId}; its choice lives in `protected-sites.ts`.
+ */
+export const PROTECTED_SITES_OVERLAY_TOKEN = 'natura';
+
+/** What an `ov=` value says about the protected sites; `null` (no parameter) stays `null`. */
+export function parseProtectedSitesParam(raw: string | null): boolean | null {
+  if (raw === null) return null;
+  return raw.split(',').some((token) => token.trim() === PROTECTED_SITES_OVERLAY_TOKEN);
+}
+
+/**
+ * The whole `ov=` value: the overlays in canonical order, then the mask, then the
+ * protected sites; `''` for none.
+ */
+export function formatLayersParam(
+  ids: readonly OverlayId[],
+  staticSources: boolean,
+  protectedSites = false,
+): string {
+  const tokens = [formatOverlayParam(ids)];
+  if (staticSources) tokens.push(STATIC_SOURCES_OVERLAY_TOKEN);
+  if (protectedSites) tokens.push(PROTECTED_SITES_OVERLAY_TOKEN);
+  return tokens.filter((token) => token !== '').join(',');
 }
 
 // ── The choice ──────────────────────────────────────────────────────────────

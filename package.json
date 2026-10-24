@@ -32,6 +32,8 @@
     "geodata": "tsc --build infra/geodata && node infra/geodata/dist/cli.js",
     "geodata:static-sources": "tsc --build infra/geodata && node infra/geodata/dist/static-sources-cli.js",
     "geodata:effis-ba": "tsc --build infra/geodata && node infra/geodata/dist/effis-ba-candidates-cli.js",
+    "geodata:natura2000": "tsc --build infra/geodata && node infra/geodata/dist/natura2000-cli.js",
+    "geodata:landcover-web": "tsc --build infra/geodata && node infra/geodata/dist/landcover-web-cli.js",
     "geodata:worldcover": "tsc --build infra/geodata && node infra/geodata/dist/worldcover-cli.js",
     "status": "tsc --build infra/status && node infra/status/dist/cli.js"
   },

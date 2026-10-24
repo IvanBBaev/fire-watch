@@ -654,6 +654,19 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.lightningContextNoData': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.fireOutlineArea': { governance: 'own-voice', reason: 'composed-value' },
   'eventDetail.fireOutlineCaveat': { governance: 'own-voice', reason: 'capability-prose' },
+  'eventDetail.protectedSiteInside': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.protectedSiteInsideSome': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.protectedSiteNear': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.landCover': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.landCoverPart': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.landCoverTree': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverShrub': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverGrass': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverCrop': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverBuilt': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverBare': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverWater': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverWetland': { governance: 'own-voice', reason: 'chrome' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -680,6 +693,8 @@ export const CATALOG_GOVERNANCE = {
   'layers.windValidFor': { governance: 'own-voice', reason: 'composed-value' },
   'layers.staticSources': { governance: 'own-voice', reason: 'chrome' },
   'layers.staticSourcesNote': { governance: 'own-voice', reason: 'capability-prose' },
+  'layers.protectedSites': { governance: 'own-voice', reason: 'chrome' },
+  'layers.protectedSitesNote': { governance: 'own-voice', reason: 'capability-prose' },
   'layers.swaths': { governance: 'own-voice', reason: 'chrome' },
   'layers.swathsNote': { governance: 'own-voice', reason: 'capability-prose' },
   'layers.swathsNext': { governance: 'own-voice', reason: 'state-label' },
@@ -1113,6 +1128,23 @@ export const PENDING_FOUNDER_REVIEW = [
   'layers.outlinesNone',
   'eventDetail.fireOutlineArea',
   'eventDetail.fireOutlineCaveat',
+  // V2-F1 — Natura 2000
+  'layers.protectedSites',
+  'layers.protectedSitesNote',
+  'eventDetail.protectedSiteInside',
+  'eventDetail.protectedSiteInsideSome',
+  'eventDetail.protectedSiteNear',
+  // V2-F4 — land cover
+  'eventDetail.landCover',
+  'eventDetail.landCoverPart',
+  'eventDetail.landCoverTree',
+  'eventDetail.landCoverShrub',
+  'eventDetail.landCoverGrass',
+  'eventDetail.landCoverCrop',
+  'eventDetail.landCoverBuilt',
+  'eventDetail.landCoverBare',
+  'eventDetail.landCoverWater',
+  'eventDetail.landCoverWetland',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

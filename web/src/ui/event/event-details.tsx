@@ -27,6 +27,8 @@ import { geolocationAlreadyGranted } from './location-permission.js';
 import { sparklineGeometry } from './sparkline.js';
 import { FireOutlineNote } from './fire-outline-note.js';
 import { LightningContextNote } from './lightning-context-note.js';
+import { LandCoverNote } from './land-cover-note.js';
+import { ProtectedSiteNote } from './protected-site-note.js';
 import { StaticSourceNote } from './static-source-note.js';
 import type { DetailState } from './use-detection-summary.js';
 import { approximateCentre, coordinatesText, openStreetMapAreaUrl } from './where.js';
@@ -295,6 +297,14 @@ export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
         </dl>
       </section>
       <StaticSourceNote
+        event={event}
+        positions={detail.kind === 'ready' ? detail.summary.positions : null}
+      />
+      <ProtectedSiteNote
+        event={event}
+        positions={detail.kind === 'ready' ? detail.summary.positions : null}
+      />
+      <LandCoverNote
         event={event}
         positions={detail.kind === 'ready' ? detail.summary.positions : null}
       />

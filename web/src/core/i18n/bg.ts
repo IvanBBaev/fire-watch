@@ -258,6 +258,9 @@ const messages: Messages = {
     staticSources: 'Известни източници на топлина',
     staticSourcesNote:
       'Соларни паркове, електроцентрали, газови факли и тежка промишленост от OpenStreetMap. Сателитите може да засекат топлината им като огнище.',
+    protectedSites: 'Защитени зони (Натура 2000)',
+    protectedSitesNote:
+      'Защитени зони за птиците и за местообитанията по данни на Европейската агенция за околна среда. Само за България, Гърция и Румъния: Северна Македония, Сърбия и Турция не са част от Натура 2000.',
     swaths: 'Ивици на спътниците (прогноза)',
     swathsNote:
       'Къде всеки спътник за засичане на пожари е гледал през последните 6 часа и къде се очаква да гледа през следващите 12, по прогноза от орбитата му. Ивицата е шанс да се засече пожар, не обещание.',
@@ -745,6 +748,21 @@ const messages: Messages = {
       `Приблизително очертание по сателитни засичания: ${area}${low === null ? `, до ${high}` : ` (от ${low} до ${high})`}, по ${pixels === 1 ? '1 пиксел' : `${formatNumber(pixels, 'bg')} пиксела`}; ръбовете ±${formatNumber(edgeKm, 'bg')} км.`,
     fireOutlineCaveat:
       'Оценка, а не официален периметър на пожара, нито прогноза: пикселът е по-голям от пожара, който отчита, така че изгорялата площ може да е много по-малка.',
+    protectedSiteInside: (name, code) => `В защитената зона от Натура 2000 ${name} (${code}).`,
+    protectedSiteInsideSome: (inside, total, name, code) =>
+      `${formatNumber(inside, 'bg')} от ${formatNumber(total, 'bg')} засичания ${inside === 1 ? 'е' : 'са'} в защитената зона от Натура 2000 ${name} (${code}).`,
+    protectedSiteNear: (km, name, code) =>
+      `На около ${formatNumber(km, 'bg')} км от защитената зона от Натура 2000 ${name} (${code}).`,
+    landCover: (parts) => `Земно покритие (ESA WorldCover 2021): ${parts}.`,
+    landCoverPart: (label, percent) => `${label} ${formatNumber(percent, 'bg')} %`,
+    landCoverTree: 'гора',
+    landCoverShrub: 'храсти',
+    landCoverGrass: 'тревни площи',
+    landCoverCrop: 'обработваеми земи',
+    landCoverBuilt: 'застроени площи',
+    landCoverBare: 'гола земя',
+    landCoverWater: 'вода',
+    landCoverWetland: 'влажни зони',
   },
 };
 
