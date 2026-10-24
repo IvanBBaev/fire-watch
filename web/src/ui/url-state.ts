@@ -31,6 +31,7 @@ import { effect } from '@preact/signals';
 import type { FilterSelection } from '../core/filter/filter-hash.js';
 import { filterHashMembers } from '../core/filter/filter-hash.js';
 import type { MapCamera } from '../core/geo/viewport.js';
+import { PLAYBACK_HASH_KEY, parsePlaybackParam } from '../core/playback.js';
 import {
   readFragmentMember,
   withFragmentMembers,
@@ -49,6 +50,13 @@ import {
 } from './layers.js';
 import { mapViewport } from './map-camera.js';
 import { applyProtectedSitesFromLink, protectedSitesChosen } from './protected-sites.js';
+import {
+  playbackPanelOpen,
+  playbackParam,
+  playbackRange,
+  startPlayback,
+  stopPlayback,
+} from './playback.js';
 import { applyStaticSourcesFromLink, staticSourcesChosen } from './static-sources.js';
 
 export const OVERLAY_HASH_KEY = 'ov';
@@ -103,6 +111,8 @@ export interface AppFragmentState {
   readonly staticSources?: boolean;
   /** The Natura 2000 protected-site layer (V2-F1); absent reads as off. */
   readonly protectedSites?: boolean;
+  /** The replayed window's `pb=` spelling (V2-A1); absent or `null` reads as live. */
+  readonly playback?: string | null;
 }
 
 export function appFragmentMembers(state: AppFragmentState): Record<string, string | null> {
@@ -114,6 +124,7 @@ export function appFragmentMembers(state: AppFragmentState): Record<string, stri
       state.staticSources ?? false,
       state.protectedSites ?? false,
     ),
+    ...playbackHashMembers(state.playback ?? null),
   };
 }
 
@@ -144,6 +155,7 @@ export function liveFragmentState(): AppFragmentState {
     overlays: chosenOverlays.peek(),
     staticSources: staticSourcesChosen.peek(),
     protectedSites: protectedSitesChosen.peek(),
+    playback: playbackParam.peek(),
   };
 }
 
@@ -178,6 +190,57 @@ export function startOverlayUrlSync(
       staticSourcesChosen.value,
       protectedSitesChosen.value,
     );
+    replaceHash(loc, hist, withFragmentMembers(loc.hash, members));
+  });
+  return () => {
+    events.removeEventListener('hashchange', onHashChange);
+    stopEffect();
+  };
+}
+
+/** The `pb=` member for a replayed window; `null` (no member) in live mode. */
+export function playbackHashMembers(param: string | null): Record<string, string | null> {
+  return { [PLAYBACK_HASH_KEY]: param };
+}
+
+/**
+ * Apply what a fragment says about playback (V2-A1). A valid `pb=` replays that window,
+ * pinned where it says; a malformed one is ignored. With `absentMeansLive`, a fragment with
+ * no `pb=` at all is a link to now and ends any replay — the Back step out of a replay. At
+ * boot the page is live already, so the flag is off there.
+ */
+export function applyPlaybackHash(hash: string, absentMeansLive: boolean): void {
+  const raw = readFragmentMember(hash, PLAYBACK_HASH_KEY);
+  if (raw === null) {
+    if (absentMeansLive && playbackRange.peek() !== null) stopPlayback();
+    return;
+  }
+  // A valid member is its link's exact spelling, so an unchanged one compares as text.
+  const link = raw === playbackParam.peek() ? null : parsePlaybackParam(raw);
+  if (link !== null) startPlayback(link.range, link.atMs);
+}
+
+/**
+ * Start mirroring the replayed window into the fragment (`pb=24h`, `pb=3d@202608081240`),
+ * after applying the fragment the page opened with — the shape of `startOverlayUrlSync`.
+ * The member is written only while replaying, so live links keep their spelling and every
+ * link from before playback still opens live. A playing scrubber writes the bare window,
+ * so the URL does not churn on every tick. Returns the stop function.
+ */
+export function startPlaybackUrlSync(
+  loc: FragmentLocation = location,
+  hist: FragmentHistory = history,
+  events: Pick<Window, 'addEventListener' | 'removeEventListener'> = window,
+): () => void {
+  applyPlaybackHash(loc.hash, false);
+  // A link that opens a replay opens the scrubber with it, so "Back to live" is in reach.
+  if (playbackRange.peek() !== null) playbackPanelOpen.value = true;
+  const onHashChange = (): void => {
+    applyPlaybackHash(loc.hash, true);
+  };
+  events.addEventListener('hashchange', onHashChange);
+  const stopEffect = effect(() => {
+    const members = playbackHashMembers(playbackParam.value);
     replaceHash(loc, hist, withFragmentMembers(loc.hash, members));
   });
   return () => {

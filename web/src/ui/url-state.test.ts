@@ -86,12 +86,14 @@ describe('appFragmentMembers', () => {
       src: 'v',
       r: '22',
       ov: 'fwi,ba',
+      pb: null,
     });
     expect(appFragmentMembers({ camera: null, filters: DEFAULT_FILTERS, overlays: [] })).toEqual({
       t: null,
       src: null,
       r: null,
       ov: null,
+      pb: null,
     });
   });
 });

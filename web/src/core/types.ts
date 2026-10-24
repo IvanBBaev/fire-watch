@@ -20,6 +20,7 @@ import type { MapCamera, MapViewport } from './geo/viewport.js';
 import type { FireOutlineDraw } from './fire-outlines.js';
 import type { ProtectedSitesGeoJson } from './geo/protected-sites.js';
 import type { LightningDraw } from './lightning.js';
+import type { PlaybackDraw } from './playback.js';
 import type { PassSwathsDraw } from './pass-swaths.js';
 import type { WindOverlayBody } from './wind.js';
 
@@ -358,6 +359,11 @@ export interface MapController {
   setLightning(draw: LightningDraw | null): void;
   /** V2-A4: estimated outlines from satellite detections, or `null` to draw none. */
   setFireOutlines(draw: FireOutlineDraw | null): void;
+  /**
+   * V2-A1: replay one history window up to its cursor, hiding the live fire layers while it
+   * is on, or `null` to show the live layers again (`map/playback-layer.ts`).
+   */
+  setPlayback(draw: PlaybackDraw | null): void;
   destroy(): void;
 }
 

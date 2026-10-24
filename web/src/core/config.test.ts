@@ -64,6 +64,13 @@ describe('withDataSource', () => {
       '/api/v1/events/fw-2026-b2n5c/detections',
     );
   });
+
+  it('points the playback history at the API route in live mode (V2-A1)', () => {
+    expect(DEFAULT_CONFIG.historyUrlTemplate).toBe('/fixtures/history/{range}.json');
+    expect(withDataSource(DEFAULT_CONFIG, 'live').historyUrlTemplate).toBe(
+      '/api/v1/history?range={range}',
+    );
+  });
 });
 
 describe('local tiles (TASKS G3)', () => {

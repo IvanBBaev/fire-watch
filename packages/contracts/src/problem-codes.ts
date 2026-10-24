@@ -66,6 +66,8 @@ export const PROBLEM_CODES = [
   'statement_wrong_status',
   'statement_conflict',
   'statement_self_review',
+  // V2-A1 playback: `/api/v1/history` takes exactly one known range.
+  'history_range_invalid',
 ] as const;
 
 export type ProblemCode = (typeof PROBLEM_CODES)[number];

@@ -67,6 +67,7 @@ import { createPgChangeReader } from '../adapters/db/pg-change-reader.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgEventDetectionsReader } from '../adapters/db/pg-event-detections-reader.js';
 import { createPgFireOutlineStore } from '../adapters/db/pg-fire-outline-store.js';
+import { createPgHistoryReader } from '../adapters/db/pg-history-reader.js';
 import { createPgLightningContextStore } from '../adapters/db/pg-lightning-context-store.js';
 import { createPgSnapshotReader } from '../adapters/db/pg-snapshot-reader.js';
 import { createHealthServer } from '../adapters/http/health-server.js';
@@ -313,6 +314,13 @@ export function wireHealthServer(
     // timeout, and the route's own in-flight cap keeps it from starving the snapshot.
     eventDetections: {
       reader: createPgEventDetectionsReader(snapshotPool),
+      clock: systemClock,
+      onProblem,
+    },
+    // V2-A1 playback: the same pool and reasoning; its in-flight cap of two keeps a week's
+    // read from crowding the snapshot out of the pool's four connections.
+    history: {
+      reader: createPgHistoryReader(snapshotPool),
       clock: systemClock,
       onProblem,
     },

@@ -16,6 +16,7 @@ import { ACCOUNT_EXPORT_PROBLEMS } from './account-export-route.js';
 import { ACCOUNT_PROBLEMS } from './account-route.js';
 import { AUTH_REFUSALS, INVALID_BODY, ORIGIN_REFUSED } from './auth-route.js';
 import { CHANNEL_PROBLEMS, CHANNEL_REFUSALS } from './channel-opt-in-route.js';
+import { HISTORY_PROBLEMS } from './history-route.js';
 import { FALLBACK_PROBLEMS } from './problem.js';
 import { SES_FEEDBACK_PROBLEMS } from './ses-feedback-route.js';
 import { CURATION_REFUSALS, STAFF_CURATION_PROBLEMS } from './staff-curation-route.js';
@@ -40,6 +41,7 @@ const EMITTED: readonly (readonly [string, readonly Emitted[]])[] = [
   ['SES feedback hook', SES_FEEDBACK_PROBLEMS],
   ['staff curation routes', STAFF_CURATION_PROBLEMS],
   ['staff curation refusals', Object.values(CURATION_REFUSALS)],
+  ['playback history route', HISTORY_PROBLEMS],
 ];
 
 describe('problem codes', () => {

@@ -447,6 +447,41 @@ button {
   margin-top: 0.5rem;
 }
 
+/* V2-A1 playback: the scrubber shares the Layers panel's frame. The slider spans the panel
+   and is a full tap target tall; the buttons wrap at 360 px or 200 % text. */
+.playback-scrubber {
+  margin-top: 0.25rem;
+}
+
+.playback-slider {
+  display: block;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-height: var(--tap-target);
+  margin: 0;
+}
+
+.playback-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0.25rem 0;
+}
+
+.playback-cursor {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.playback-cursor span {
+  display: block;
+}
+
+.playback-live {
+  margin-top: 0.5rem;
+}
+
 /* F15 satellite passes: the panel's own neutrals and link blue — never fire's red band. */
 .passes {
   margin-top: 0.5rem;

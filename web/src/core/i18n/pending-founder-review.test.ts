@@ -379,6 +379,28 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'eventDetail.landCoverBare',
       'eventDetail.landCoverWater',
       'eventDetail.landCoverWetland',
+      // V2-A1 — playback
+      'playback.toggle',
+      'playback.title',
+      'playback.note',
+      'playback.rangeLabel',
+      'playback.ranges',
+      'playback.scrubberLabel',
+      'playback.play',
+      'playback.pause',
+      'playback.stepBack',
+      'playback.stepForward',
+      'playback.speed',
+      'playback.backToLive',
+      'playback.cursorAt',
+      'playback.shownCount',
+      'playback.loading',
+      'playback.unavailable',
+      'playback.empty',
+      'playback.truncated',
+      'playback.legendTitle',
+      'playback.ageClasses',
+      'playback.sizeNote',
     ]);
   });
 

@@ -95,6 +95,12 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // reader's action (event detail, a Layers toggle) and never on the first-render or map
   // path. Charged to no budget, like the file it reads (`ON_DEMAND_DATA`); listed by name.
   { role: 'data', src: /^src\/core\/geo\/(protected-sites|land-cover)\.ts$/ },
+  // V2-A1: the replay's parser, GeoJSON builder and scrubber panel, loaded only when a
+  // reader opens the playback panel (or a `pb=` link), and the replay's map layer, loaded
+  // the first time a replay is drawn. Neither is on the first-render or map path — the map
+  // stays live until both have loaded — so they take the on-demand pages' role and budget.
+  { role: 'page', src: /^src\/ui\/playback-replay\.tsx$/ },
+  { role: 'page', src: /^src\/map\/playback-layer\.ts$/ },
 ];
 
 /**
