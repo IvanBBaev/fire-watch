@@ -17,6 +17,7 @@ import type {
 } from '@fire-watch/contracts';
 
 import type { MapCamera, MapViewport } from './geo/viewport.js';
+import type { FireOutlineDraw } from './fire-outlines.js';
 import type { LightningDraw } from './lightning.js';
 import type { PassSwathsDraw } from './pass-swaths.js';
 import type { WindOverlayBody } from './wind.js';
@@ -349,6 +350,8 @@ export interface MapController {
   setPassSwaths(draw: PassSwathsDraw | null): void;
   /** F18: recent lightning flashes by age, or `null` to draw none. */
   setLightning(draw: LightningDraw | null): void;
+  /** V2-A4: estimated outlines from satellite detections, or `null` to draw none. */
+  setFireOutlines(draw: FireOutlineDraw | null): void;
   destroy(): void;
 }
 

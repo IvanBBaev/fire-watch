@@ -21,16 +21,24 @@ import { CREDITS, ecmwfComponents, renderCredit } from '@fire-watch/contracts';
 
 import type { Messages } from '../core/i18n/messages.js';
 import type { Clock } from '../core/ports.js';
+import { parseFireOutlineOverlay, type FireOutlineOverlayBody } from '../core/fire-outlines.js';
 import { parseLightningOverlay, type LightningOverlayBody } from '../core/lightning.js';
 import { parsePassSwaths, type PassSwathsDoc } from '../core/pass-swaths.js';
 import { parseWindOverlay, type WindOverlayBody } from '../core/wind.js';
 import { creditRenderContext } from './logic/credits.js';
 import { readStorage, writeStorage } from './storage.js';
 
-export type OverlayId = 'fwi' | 'ba' | 'wind' | 'swaths' | 'lightning';
+export type OverlayId = 'fwi' | 'ba' | 'wind' | 'swaths' | 'lightning' | 'outlines';
 
 /** Canonical order: the order the panel lists them and the URL spells them. */
-export const OVERLAY_IDS: readonly OverlayId[] = ['fwi', 'ba', 'wind', 'swaths', 'lightning'];
+export const OVERLAY_IDS: readonly OverlayId[] = [
+  'fwi',
+  'ba',
+  'wind',
+  'swaths',
+  'lightning',
+  'outlines',
+];
 
 /** The EFFIS overlays; `wind` (F14, ECMWF) and `swaths` (F15, CelesTrak) are not EFFIS's. */
 export const EFFIS_OVERLAY_IDS: readonly OverlayId[] = ['fwi', 'ba'];
@@ -45,6 +53,7 @@ export const OVERLAY_URLS: Readonly<Record<OverlayId, string>> = {
   wind: '/overlays/wind/latest.json',
   swaths: '/overlays/passes/swaths.json',
   lightning: '/overlays/lightning/recent.json',
+  outlines: '/overlays/outlines/active.json',
 };
 
 /**
@@ -143,6 +152,9 @@ export const swathsChosen = computed(() => chosenOverlays.value.includes('swaths
 /** Lightning chosen (F18) — the panel then prints the EUMETSAT credit, the map corner too. */
 export const lightningChosen = computed(() => chosenOverlays.value.includes('lightning'));
 
+/** Estimated outlines chosen (V2-A4) — the panel then prints the FIRMS credit beside them. */
+export const outlinesChosen = computed(() => chosenOverlays.value.includes('outlines'));
+
 /**
  * The five ECMWF components, rendered from the contracts registry. The Terms owe them
  * together, so the panel prints all five or none — never a partial credit.
@@ -211,20 +223,25 @@ export const overlayStatus = signal<Readonly<Record<OverlayId, OverlayStatus>>>(
   wind: IDLE,
   swaths: IDLE,
   lightning: IDLE,
+  outlines: IDLE,
 });
 
-const payloads = signal<{
+interface OverlayPayloads {
   readonly fwi: string | null;
   readonly ba: object | null;
   readonly wind: WindOverlayBody | null;
   readonly swaths: PassSwathsDoc | null;
   readonly lightning: LightningOverlayBody | null;
-}>({
+  readonly outlines: FireOutlineOverlayBody | null;
+}
+
+const payloads = signal<OverlayPayloads>({
   fwi: null,
   ba: null,
   wind: null,
   swaths: null,
   lightning: null,
+  outlines: null,
 });
 
 /** What the map draws: a chosen overlay with a usable copy, nothing else. */
@@ -251,6 +268,17 @@ export const passSwathsPayload = computed(() =>
 export const lightningOverlayPayload = computed(() =>
   chosenOverlays.value.includes('lightning') ? payloads.value.lightning : null,
 );
+
+/** The estimated outlines the map draws, or `null` (V2-A4). */
+export const fireOutlinesPayload = computed(() =>
+  chosenOverlays.value.includes('outlines') ? payloads.value.outlines : null,
+);
+
+/**
+ * The latest outlines body, chosen or not — the event panel reads its own event's area from
+ * it once anything loaded it. `null` until then, and after a failed or stale load.
+ */
+export const fireOutlinesBody = computed(() => payloads.value.outlines);
 
 /** The browser seams the loader uses; swapped in tests. */
 export interface OverlayLoaderDeps {
@@ -307,6 +335,10 @@ export async function loadOverlay(id: OverlayId, deps: OverlayLoaderDeps): Promi
   }
   if (id === 'lightning') {
     await loadLightning(deps);
+    return;
+  }
+  if (id === 'outlines') {
+    await loadOutlines(deps);
     return;
   }
   try {
@@ -414,31 +446,74 @@ export const LIGHTNING_RETRY_MS = 5 * 60 * 1000;
  * after each copy arrives. Every failure — including the proxy's 503 for a stopped
  * pipeline — ends as `unavailable`, never a throw.
  */
-async function loadLightning(deps: OverlayLoaderDeps): Promise<void> {
+/**
+ * A self-dating body that is dropped on any failure (lightning, outlines): its `validAt` is
+ * already past, so `overlay-refresh.ts` asks again `retryAfterMs` after each copy arrives.
+ * Every failure — including a route's 503 for a stopped or stale pipeline — drops the held
+ * copy and ends as `unavailable`, never a throw: what the pipeline no longer confirms must
+ * not stay on the map beside an "unavailable" panel.
+ */
+async function loadDropping<K extends 'lightning' | 'outlines'>(
+  id: K,
+  deps: OverlayLoaderDeps,
+  parse: (value: unknown) => OverlayPayloads[K] | null,
+  dates: (body: NonNullable<OverlayPayloads[K]>) => { availableAt: string; validAt: string },
+  retryAfterMs: number,
+): Promise<void> {
   try {
-    const response = await deps.fetch(deps.urls?.lightning ?? OVERLAY_URLS.lightning);
-    const body = response.ok ? parseLightningOverlay(await response.json()) : null;
-    if (body === null) {
-      // Unlike wind, the held copy is dropped: the proxy's 503 means the pipeline stopped,
-      // and flashes it last saw must not stay on the map beside an "unavailable" panel.
-      payloads.value = { ...payloads.peek(), lightning: null };
-      setStatus('lightning', { kind: 'unavailable' });
-      return;
-    }
-    payloads.value = { ...payloads.peek(), lightning: body };
-    setStatus('lightning', {
+    const response = await deps.fetch(deps.urls?.[id] ?? OVERLAY_URLS[id]);
+    const body = response.ok ? parse(await response.json()) : null;
+    if (body === null) throw new Error('unavailable');
+    payloads.value = { ...payloads.peek(), [id]: body };
+    setStatus(id, {
       kind: 'ready',
       state: 'current',
-      availableAt: body.available_at,
+      ...dates(body),
       validFor: null,
-      validAt: body.covered_through,
-      retryAfterMs: LIGHTNING_RETRY_MS,
+      retryAfterMs,
       fetchedAtMs: deps.now(),
     });
   } catch {
-    payloads.value = { ...payloads.peek(), lightning: null };
-    setStatus('lightning', { kind: 'unavailable' });
+    payloads.value = { ...payloads.peek(), [id]: null };
+    setStatus(id, { kind: 'unavailable' });
   }
+}
+
+/** Lightning dates itself by `covered_through`, the end of the newest product merged. */
+function loadLightning(deps: OverlayLoaderDeps): Promise<void> {
+  return loadDropping(
+    'lightning',
+    deps,
+    parseLightningOverlay,
+    (body) => ({ availableAt: body.available_at, validAt: body.covered_through }),
+    LIGHTNING_RETRY_MS,
+  );
+}
+
+/**
+ * How soon an outlines copy is asked for again. The worker redraws on the identity cadence
+ * and the proxy's `max-age` is 60 s; five minutes keeps an outline at most a few passes
+ * behind its detections without polling harder than they change.
+ */
+export const OUTLINES_RETRY_MS = 5 * 60 * 1000;
+
+/**
+ * The outlines body dates itself (`computed_at`, the pass that last confirmed it), like the
+ * lightning body: a fixture or a revalidated copy cannot relabel itself. `validAt` is that
+ * instant, already past, so `overlay-refresh.ts` asks again {@link OUTLINES_RETRY_MS} after
+ * each copy arrives. Every failure — including the route's 503 for a stopped or stale pass —
+ * drops the held copy and ends as `unavailable`, never a throw: an outline the pass no
+ * longer confirms must not stay on the map.
+ */
+export function loadOutlines(deps: OverlayLoaderDeps): Promise<void> {
+  setStatus('outlines', { kind: 'loading' });
+  return loadDropping(
+    'outlines',
+    deps,
+    parseFireOutlineOverlay,
+    (body) => ({ availableAt: body.computed_at, validAt: body.computed_at }),
+    OUTLINES_RETRY_MS,
+  );
 }
 
 /**
@@ -461,7 +536,21 @@ export function startOverlaySync(deps: OverlayLoaderDeps): () => void {
 /** Test seam: forget every copy and status. */
 export function resetOverlaysForTest(): void {
   chosenOverlays.value = [];
-  overlayStatus.value = { fwi: IDLE, ba: IDLE, wind: IDLE, swaths: IDLE, lightning: IDLE };
-  payloads.value = { fwi: null, ba: null, wind: null, swaths: null, lightning: null };
+  overlayStatus.value = {
+    fwi: IDLE,
+    ba: IDLE,
+    wind: IDLE,
+    swaths: IDLE,
+    lightning: IDLE,
+    outlines: IDLE,
+  };
+  payloads.value = {
+    fwi: null,
+    ba: null,
+    wind: null,
+    swaths: null,
+    lightning: null,
+    outlines: null,
+  };
   layersPanelOpen.value = false;
 }

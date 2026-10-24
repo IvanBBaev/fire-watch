@@ -18,6 +18,8 @@ import type { Messages } from '../core/i18n/messages.js';
 import type { Locale } from '../core/types.js';
 import { WIND_SPEED_CLASSES, type WindOverlayBody } from '../core/wind.js';
 import { useApp } from './context.js';
+import { FireOutlineLegend } from './fire-outline-legend.js';
+import { firmsCreditText } from './fire-outlines.js';
 import { BasemapChoice } from './imagery-toggle.js';
 import { SwathLegend } from './pass-swaths-option.js';
 import { LightningLegend } from './lightning-legend.js';
@@ -36,6 +38,7 @@ import {
   ecmwfCreditTexts,
   layersPanelOpen,
   lightningChosen,
+  outlinesChosen,
   overlayStatus,
   setLayersPanelOpen,
   swathsChosen,
@@ -64,6 +67,13 @@ export function LayersToggle() {
   );
 }
 
+/** A time today in Sofia, or a short date and time when it is not today. */
+function sofiaTime(iso: string, locale: Locale, todayIso: string): string {
+  return formatDateSofia(iso, locale) === formatDateSofia(todayIso, locale)
+    ? formatTimeSofia(iso, locale)
+    : formatShortDateTimeSofia(iso, locale);
+}
+
 function statusLines(
   id: OverlayId,
   status: OverlayStatus,
@@ -89,12 +99,11 @@ function statusLines(
       }
       // F18: flashes are "as of" the end of the newest product merged, never the fetch.
       if (id === 'lightning' && status.validAt !== undefined) {
-        const sameDay =
-          formatDateSofia(status.validAt, locale) === formatDateSofia(todayIso, locale);
-        const time = sameDay
-          ? formatTimeSofia(status.validAt, locale)
-          : formatShortDateTimeSofia(status.validAt, locale);
-        return [messages.layers.lightningAsOf(time)];
+        return [messages.layers.lightningAsOf(sofiaTime(status.validAt, locale, todayIso))];
+      }
+      // V2-A4: outlines are "as of" the pass that last confirmed them, never the fetch.
+      if (id === 'outlines' && status.validAt !== undefined) {
+        return [messages.layers.outlinesAsOf(sofiaTime(status.validAt, locale, todayIso))];
       }
       const lines: string[] = [];
       if (id === 'fwi' && status.validFor !== null) {
@@ -179,6 +188,7 @@ const OVERLAY_LABEL = {
   wind: 'wind',
   swaths: 'swaths',
   lightning: 'lightning',
+  outlines: 'outlines',
 } as const;
 const OVERLAY_NOTE = {
   fwi: 'fwiNote',
@@ -186,6 +196,7 @@ const OVERLAY_NOTE = {
   wind: 'windNote',
   swaths: 'swathsNote',
   lightning: 'lightningNote',
+  outlines: 'outlinesNote',
 } as const;
 
 export function LayersPanel() {
@@ -229,6 +240,7 @@ export function LayersPanel() {
               {on && id === 'wind' ? <WindLegend messages={messages} /> : null}
               {on && id === 'swaths' ? <SwathLegend /> : null}
               {on && id === 'lightning' ? <LightningLegend /> : null}
+              {on && id === 'outlines' ? <FireOutlineLegend /> : null}
               <p class="layers-status" aria-live="polite">
                 {on
                   ? statusLines(id, statuses[id], messages, locale, todayIso).map((line) => (
@@ -257,6 +269,10 @@ export function LayersPanel() {
       {/* F18: EUMETSAT Data Policy Art. 6.3 — the credit while the layer is on (CI-13). */}
       {lightningChosen.value ? (
         <p class="layers-credit">{eumetsatCreditText(clock, messages)}</p>
+      ) : null}
+      {/* V2-A4: the outlines are drawn from FIRMS detections (CI-13). */}
+      {outlinesChosen.value ? (
+        <p class="layers-credit">{firmsCreditText(clock, messages)}</p>
       ) : null}
       <SatellitePasses />
     </section>

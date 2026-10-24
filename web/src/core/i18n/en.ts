@@ -252,6 +252,13 @@ const messages: Messages = {
     lightningClasses: ['Under 15 minutes', '15 minutes to 1 hour', '1 to 6 hours'],
     lightningAsOf: (time) => `Flashes recorded up to ${time}`,
     lightningNone: 'No flashes recorded over the area in the last 6 hours.',
+    outlines: 'Estimated fire outlines',
+    outlinesNote:
+      'Estimated outline from satellite detections: the pixels that saw heat. Not an official perimeter or a forecast.',
+    outlinesLegend: 'Estimated outline',
+    outlinesAsOf: (time) => `Outlines redrawn as of ${time}`,
+    outlinesTruncated: 'Only the largest outlines.',
+    outlinesNone: 'No estimated outline on the map right now.',
   },
 
   // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
@@ -708,6 +715,10 @@ const messages: Messages = {
       `Lightning context: no flashes were recorded within ${formatNumber(radiusKm, 'en')} km in the ${formatNumber(hours, 'en')} hours before the first detection. The satellite misses some flashes, so this does not rule lightning out.`,
     lightningContextNoData:
       'Lightning context: no lightning data for the hours before the first detection.',
+    fireOutlineArea: (area, low, high, edgeKm, pixels) =>
+      `Estimated outline from satellite detections: ${area}${low === null ? `, up to ${high}` : ` (${low} to ${high})`}, from ${pixels === 1 ? '1 pixel' : `${formatNumber(pixels, 'en')} pixels`}; edges ±${formatNumber(edgeKm, 'en')} km.`,
+    fireOutlineCaveat:
+      'An estimate, not an official fire perimeter or a forecast: a pixel is larger than the fire it sees, so the burnt area may be much smaller.',
   },
 };
 

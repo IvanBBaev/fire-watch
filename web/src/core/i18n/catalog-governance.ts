@@ -638,6 +638,8 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.lightningContextFlashes': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.lightningContextNone': { governance: 'own-voice', reason: 'capability-prose' },
   'eventDetail.lightningContextNoData': { governance: 'own-voice', reason: 'capability-prose' },
+  'eventDetail.fireOutlineArea': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.fireOutlineCaveat': { governance: 'own-voice', reason: 'capability-prose' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -675,6 +677,12 @@ export const CATALOG_GOVERNANCE = {
   'layers.lightningClasses': { governance: 'own-voice', reason: 'state-label' },
   'layers.lightningAsOf': { governance: 'own-voice', reason: 'composed-value' },
   'layers.lightningNone': { governance: 'own-voice', reason: 'client-condition' },
+  'layers.outlines': { governance: 'own-voice', reason: 'chrome' },
+  'layers.outlinesNote': { governance: 'own-voice', reason: 'capability-prose' },
+  'layers.outlinesLegend': { governance: 'own-voice', reason: 'chrome' },
+  'layers.outlinesAsOf': { governance: 'own-voice', reason: 'composed-value' },
+  'layers.outlinesTruncated': { governance: 'own-voice', reason: 'client-condition' },
+  'layers.outlinesNone': { governance: 'own-voice', reason: 'client-condition' },
   'passes.title': { governance: 'own-voice', reason: 'chrome' },
   'passes.note': { governance: 'own-voice', reason: 'capability-prose' },
   'passes.forMapCentre': { governance: 'own-voice', reason: 'chrome' },
@@ -1065,6 +1073,15 @@ export const PENDING_FOUNDER_REVIEW = [
   'passes.cloudCloudy',
   'passes.cloudForecast',
   'passes.cloudCaveat',
+  // V2-A4 — estimated outlines
+  'layers.outlines',
+  'layers.outlinesNote',
+  'layers.outlinesLegend',
+  'layers.outlinesAsOf',
+  'layers.outlinesTruncated',
+  'layers.outlinesNone',
+  'eventDetail.fireOutlineArea',
+  'eventDetail.fireOutlineCaveat',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

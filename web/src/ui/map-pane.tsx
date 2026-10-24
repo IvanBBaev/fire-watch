@@ -34,6 +34,7 @@ import {
   startOverlaySync,
 } from './layers.js';
 import { startOverlayRevalidation } from './overlay-refresh.js';
+import { useFireOutlineDraw } from './fire-outlines.js';
 import { useLightningDraw } from './lightning.js';
 import { useSwathDraw } from './pass-swaths.js';
 import { staticSourcesDraw } from './static-sources.js';
@@ -87,6 +88,10 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   const lightningDraw = useLightningDraw();
   const lightningDrawRef = useRef(lightningDraw);
   lightningDrawRef.current = lightningDraw;
+  // The V2-A4 estimated outlines, drawn while chosen.
+  const fireOutlineDraw = useFireOutlineDraw();
+  const fireOutlineDrawRef = useRef(fireOutlineDraw);
+  fireOutlineDrawRef.current = fireOutlineDraw;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -134,6 +139,7 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
         controller.setStaticSources(staticSourcesDraw.peek());
         controller.setPassSwaths(swathDrawRef.current);
         controller.setLightning(lightningDrawRef.current);
+        controller.setFireOutlines(fireOutlineDrawRef.current);
         // The route may already name an event — a permalink opened cold.
         const selected = selectedIdRef.current;
         if (selected !== null) {
@@ -235,11 +241,15 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   useEffect(() => {
     controllerRef.current?.setLightning(lightningDraw);
   }, [lightningDraw]);
+  useEffect(() => {
+    controllerRef.current?.setFireOutlines(fireOutlineDraw);
+  }, [fireOutlineDraw]);
   // The fixtures build reads wind, swaths and lightning from committed files; live reads the API's routes.
   const overlayUrls = {
     wind: config.windOverlayUrl ?? OVERLAY_URLS.wind,
     swaths: config.passSwathsUrl ?? OVERLAY_URLS.swaths,
     lightning: config.lightningOverlayUrl ?? OVERLAY_URLS.lightning,
+    outlines: config.fireOutlineOverlayUrl ?? OVERLAY_URLS.outlines,
   };
   useEffect(() => startOverlaySync(browserOverlayLoader(clock, overlayUrls)), []);
   // A daily copy (FWI) is asked for again once its day is over by the server's clock.

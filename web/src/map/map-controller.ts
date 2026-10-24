@@ -24,6 +24,7 @@ import type { StaticSourceMask } from '@fire-watch/contracts';
 
 import { boundsContain } from '../core/geo/viewport.js';
 import type { MapCamera, MapViewport } from '../core/geo/viewport.js';
+import type { FireOutlineDraw } from '../core/fire-outlines.js';
 import type { LightningDraw } from '../core/lightning.js';
 import type { PassSwathsDraw } from '../core/pass-swaths.js';
 import type { WindOverlayBody } from '../core/wind.js';
@@ -52,6 +53,7 @@ import { parseMapHash, withMapHash } from './hash.js';
 import { NO_EFFIS_OVERLAYS, applyEffisOverlays } from './effis-overlays.js';
 import { applyImageryLayer } from './imagery-layer.js';
 import { applyWindLayer } from './wind-layer.js';
+import { applyFireOutlineLayer } from './fire-outline-layer.js';
 import { applyLightningLayer } from './lightning-layer.js';
 import { applyPassSwathsLayer } from './pass-swaths-layer.js';
 import { applyStaticSourcesLayer } from './static-sources-layer.js';
@@ -153,6 +155,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
   // The F15 satellite swaths the shell asked for; none by default.
   let passSwaths: PassSwathsDraw | null = null;
   let lightning: LightningDraw | null = null;
+  let fireOutlines: FireOutlineDraw | null = null;
 
   const setSourceData = (sourceId: string, data: SourceData): void => {
     const source = map.getSource<GeoJSONSource>(sourceId);
@@ -390,6 +393,9 @@ export function createMapController(deps: MapControllerDeps): MapController {
     applyStaticSourcesLayer(map, staticSources);
     // And the lightning flashes (F18), directly below the fire layers.
     applyLightningLayer(map, lightning);
+    // And the estimated outlines (V2-A4), directly below the fire layers: the dots inside
+    // an outline always draw over its faint fill and dashed edge.
+    applyFireOutlineLayer(map, fireOutlines);
   });
 
   map.once('idle', () => {
@@ -611,6 +617,17 @@ export function createMapController(deps: MapControllerDeps): MapController {
       // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
       try {
         applyLightningLayer(map, lightning);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
+    setFireOutlines(draw: FireOutlineDraw | null): void {
+      if (draw === fireOutlines) return;
+      fireOutlines = draw;
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyFireOutlineLayer(map, fireOutlines);
       } catch {
         // Style not loaded yet.
       }

@@ -425,6 +425,12 @@ button {
   border-radius: 0.125rem;
 }
 
+/* V2-A4: the estimated-outline swatch, in the map layer's own violet (FIRE_OUTLINE_COLOR). */
+.layers-swatch-outline {
+  background: transparent;
+  border: 2px dashed #a855f7;
+}
+
 /* F15 swaths: a swatch beside a legend title, and one pass per row (long platform names). */
 .layers-legend-item {
   display: flex;

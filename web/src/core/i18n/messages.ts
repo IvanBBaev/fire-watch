@@ -258,6 +258,18 @@ export interface Messages {
     readonly lightningAsOf: (time: string) => string;
     /** A current copy with no flash young enough to draw. */
     readonly lightningNone: string;
+    /** V2-A4: the estimated-outline layer toggle — never "perimeter", never a forecast. */
+    readonly outlines: string;
+    /** What an estimated outline is drawn from, and what it is not. */
+    readonly outlinesNote: string;
+    /** The legend row beside the dashed violet swatch. */
+    readonly outlinesLegend: string;
+    /** The honest "as of": when the outline pass last confirmed the set, already formatted. */
+    readonly outlinesAsOf: (time: string) => string;
+    /** The route capped the set: only the largest outlines are drawn. */
+    readonly outlinesTruncated: string;
+    /** A current copy in which no event on the map has an outline. */
+    readonly outlinesNone: string;
   };
 
   /**
@@ -662,6 +674,20 @@ export interface Messages {
     readonly lightningContextNone: (radiusKm: number, hours: number) => string;
     /** F18: the window was not covered (or not yet answered) — no data, not no lightning. */
     readonly lightningContextNoData: string;
+    /**
+     * V2-A4: the event's estimated outline. `area`, `low` and `high` are already formatted
+     * (`areaBothUnits`); `low` is `null` when the band reaches down to nothing. `edgeKm` is
+     * how far an edge may sit from where it is drawn; `pixels` the footprints joined.
+     */
+    readonly fireOutlineArea: (
+      area: string,
+      low: string | null,
+      high: string,
+      edgeKm: number,
+      pixels: number,
+    ) => string;
+    /** V2-A4: an estimate, not an official perimeter, not a forecast. */
+    readonly fireOutlineCaveat: string;
   };
 }
 

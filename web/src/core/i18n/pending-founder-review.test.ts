@@ -342,6 +342,15 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'passes.cloudCloudy',
       'passes.cloudForecast',
       'passes.cloudCaveat',
+      // V2-A4 — estimated outlines
+      'layers.outlines',
+      'layers.outlinesNote',
+      'layers.outlinesLegend',
+      'layers.outlinesAsOf',
+      'layers.outlinesTruncated',
+      'layers.outlinesNone',
+      'eventDetail.fireOutlineArea',
+      'eventDetail.fireOutlineCaveat',
     ]);
   });
 
