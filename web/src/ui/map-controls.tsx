@@ -1,6 +1,6 @@
 /**
  * The two camera controls — back to the default frame, and to wherever the user is — and
- * the Layers disclosure (`layers-panel.tsx`).
+ * the Layers and playback disclosures (`layers-panel.tsx`, `playback-panel.tsx`).
  *
  * They sit over the map rather than in the header because they act on the map and nothing
  * else. Both are plain buttons with visible labels — a compass glyph would need a tooltip
@@ -19,6 +19,7 @@ import type { MapCamera } from '../core/geo/viewport.js';
 import { useApp } from './context.js';
 import { LayersPanel, LayersToggle } from './layers-panel.js';
 import { HOME_CAMERA, shouldOfferLocation } from './map-camera.js';
+import { PlaybackPanel, PlaybackToggle } from './playback-panel.js';
 
 export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) => void }) {
   const { messages, geolocator } = useApp();
@@ -86,8 +87,11 @@ export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) =
         {/* Third on purpose: Home and Locate keep their positions. The basemap choice
             (imagery, ADR-001 A2.3) lives inside the panel (TASKS G4). */}
         <LayersToggle />
+        {/* Fourth: the replay (V2-A1) comes after every existing control. */}
+        <PlaybackToggle />
       </div>
       <LayersPanel />
+      <PlaybackPanel />
       {/* Always rendered so a screen reader announces into an existing region. */}
       <p class="map-controls-status" role="status" aria-live="polite">
         {status}

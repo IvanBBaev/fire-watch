@@ -293,6 +293,33 @@ const messages: Messages = {
       'Cloud is an ECMWF forecast for each pass time, not an observation. A fire under cloud may be missed.',
   },
 
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  playback: {
+    toggle: 'Replay',
+    title: 'Replay past detections',
+    note: 'Replays the hotspots satellites detected over the chosen window. A dot is a satellite detection, not a confirmed fire, and the replay shows only what was seen — it does not predict where anything goes next.',
+    rangeLabel: 'Window',
+    ranges: ['Last 24 hours', 'Last 3 days', 'Last 7 days'],
+    scrubberLabel: 'Replay time',
+    play: 'Play',
+    pause: 'Pause',
+    stepBack: 'Step back',
+    stepForward: 'Step forward',
+    speed: (factor) => `Speed ${formatNumber(factor, 'en')}×`,
+    backToLive: 'Back to live',
+    cursorAt: (time) => `Detections up to ${time}`,
+    shownCount: (count) =>
+      count === 1 ? '1 detection shown' : `${formatNumber(count, 'en')} detections shown`,
+    loading: 'Loading the window…',
+    unavailable: 'This window could not be loaded. The map still shows the live detections.',
+    empty:
+      'No satellite detections in this window. Satellites can miss a fire under cloud or smoke.',
+    truncated: 'This window holds more detections than can be shown; the oldest are left out.',
+    legendTitle: 'Age at the shown time',
+    ageClasses: ['Under 1 hour', '1 to 6 hours', '6 to 24 hours', 'Over 24 hours'],
+    sizeNote: 'A larger dot is a detection with higher fire radiative power (FRP).',
+  },
+
   // Capability → limitation → action (07-product-ux P7/P13).
   onboarding: {
     card1Title: 'Satellite fire detections',

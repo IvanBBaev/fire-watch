@@ -15,6 +15,7 @@ import { useLocation } from 'preact-iso';
 import type { MapCamera } from '../core/geo/viewport.js';
 import { scopePredicate } from '../core/filter/event-filter.js';
 import { ageCutoffMs } from '../core/time/age-filter.js';
+import { LIVE_HISTORY_URL_TEMPLATE } from '../core/config.js';
 import type { EffisOverlayDraw, MapController } from '../core/types.js';
 import { mapCornerAttribution } from './logic/credits.js';
 import { eventPath } from './logic/event-resolution.js';
@@ -36,9 +37,11 @@ import {
 import { startOverlayRevalidation } from './overlay-refresh.js';
 import { useLightningDraw } from './lightning.js';
 import { useSwathDraw } from './pass-swaths.js';
+import { playbackActive } from './playback.js';
+import { browserPlaybackLoader, startPlaybackSync, usePlaybackDraw } from './playback-loader.js';
 import { staticSourcesDraw } from './static-sources.js';
 import { appliedTheme } from './theme.js';
-import { startOverlayUrlSync } from './url-state.js';
+import { startOverlayUrlSync, startPlaybackUrlSync } from './url-state.js';
 import { useNow } from './use-now.js';
 
 export function MapPane({ selectedId }: { readonly selectedId: string | null }) {
@@ -79,12 +82,20 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   });
   const effisDrawRef = useRef(effisDraw);
   effisDrawRef.current = effisDraw;
+  // V2-A1: a replayed window, or `null` for live. While one is on screen the overlays whose
+  // meaning is "now" (swaths, lightning) step aside, so the map never mixes two times.
+  const playbackDraw = usePlaybackDraw();
+  const playbackDrawRef = useRef(playbackDraw);
+  playbackDrawRef.current = playbackDraw;
+  const replaying = playbackActive.value;
   // The F15 swaths, re-decided recent/next once a minute against the server clock.
-  const swathDraw = useSwathDraw();
+  const liveSwathDraw = useSwathDraw();
+  const swathDraw = replaying ? null : liveSwathDraw;
   const swathDrawRef = useRef(swathDraw);
   swathDrawRef.current = swathDraw;
   // The F18 lightning flashes, re-classed by age once a minute against the server clock.
-  const lightningDraw = useLightningDraw();
+  const liveLightningDraw = useLightningDraw();
+  const lightningDraw = replaying ? null : liveLightningDraw;
   const lightningDrawRef = useRef(lightningDraw);
   lightningDrawRef.current = lightningDraw;
 
@@ -134,6 +145,7 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
         controller.setStaticSources(staticSourcesDraw.peek());
         controller.setPassSwaths(swathDrawRef.current);
         controller.setLightning(lightningDrawRef.current);
+        controller.setPlayback(playbackDrawRef.current);
         // The route may already name an event — a permalink opened cold.
         const selected = selectedIdRef.current;
         if (selected !== null) {
@@ -235,6 +247,19 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   useEffect(() => {
     controllerRef.current?.setLightning(lightningDraw);
   }, [lightningDraw]);
+  useEffect(() => {
+    controllerRef.current?.setPlayback(playbackDraw);
+  }, [playbackDraw]);
+  // The replayed window (`pb=`) rides in the fragment, and the pane fetches whichever
+  // window is chosen: committed fixtures in the fixtures build, the API route live.
+  useEffect(() => startPlaybackUrlSync(), []);
+  useEffect(
+    () =>
+      startPlaybackSync(
+        browserPlaybackLoader(config.historyUrlTemplate ?? LIVE_HISTORY_URL_TEMPLATE),
+      ),
+    [],
+  );
   // The fixtures build reads wind, swaths and lightning from committed files; live reads the API's routes.
   const overlayUrls = {
     wind: config.windOverlayUrl ?? OVERLAY_URLS.wind,

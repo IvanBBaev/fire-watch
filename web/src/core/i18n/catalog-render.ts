@@ -184,6 +184,9 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
     [{ unit: 'days', days: 1, hours: 0, minutes: 0 } satisfies RelativeAge],
     [{ unit: 'days', days: 2, hours: 6, minutes: 23 } satisfies RelativeAge],
   ],
+  'playback.speed': [[1], [2], [4]],
+  'playback.cursorAt': [[T1]],
+  'playback.shownCount': [[1], [N]],
 };
 
 /** Raised when the walk meets a message the registry cannot render. */

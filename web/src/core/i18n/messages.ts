@@ -305,6 +305,48 @@ export interface Messages {
     readonly cloudCaveat: string;
   };
 
+  /**
+   * Playback (V2-A1): the time scrubber that replays one window of satellite detections
+   * over the last 24 hours, 3 days or 7 days. Own voice; every key is implementer copy held
+   * in `PENDING_FOUNDER_REVIEW`. The dots are hotspots a satellite saw, never confirmed
+   * fires, and nothing here predicts where anything will go.
+   */
+  readonly playback: {
+    /** The map-control button that opens the scrubber. */
+    readonly toggle: string;
+    readonly title: string;
+    /** What the replay is — and is not (detections, not confirmed fires; no prediction). */
+    readonly note: string;
+    readonly rangeLabel: string;
+    /** One label per window, in the order of `HISTORY_RANGES` in `core/playback.ts`. */
+    readonly ranges: readonly string[];
+    /** The slider's accessible name. */
+    readonly scrubberLabel: string;
+    readonly play: string;
+    readonly pause: string;
+    readonly stepBack: string;
+    readonly stepForward: string;
+    /** The speed button: the current factor (1, 2 or 4). */
+    readonly speed: (factor: number) => string;
+    readonly backToLive: string;
+    /** The instant the map is replayed up to, already formatted. */
+    readonly cursorAt: (time: string) => string;
+    /** How many detections the map shows at the cursor. */
+    readonly shownCount: (count: number) => string;
+    readonly loading: string;
+    /** The window could not be fetched or read; the map stays live. */
+    readonly unavailable: string;
+    /** A window with no detections — never "no fires". */
+    readonly empty: string;
+    /** The server capped the window; the oldest detections are left out. */
+    readonly truncated: string;
+    readonly legendTitle: string;
+    /** One label per age class, newest first — the order of `PLAYBACK_AGE_CLASSES`. */
+    readonly ageClasses: readonly string[];
+    /** What the dot size means. */
+    readonly sizeNote: string;
+  };
+
   /** Onboarding — exactly three cards, then the button (07-product-ux P7). */
   readonly onboarding: {
     readonly card1Title: string;

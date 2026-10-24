@@ -23,6 +23,7 @@ import { SwathLegend } from './pass-swaths-option.js';
 import { LightningLegend } from './lightning-legend.js';
 import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
+import { playbackPanelOpen } from './playback.js';
 import { SatellitePasses } from './satellite-passes.js';
 import { StaticSourcesOption } from './static-sources-option.js';
 import {
@@ -56,6 +57,8 @@ export function LayersToggle() {
       aria-expanded={open}
       aria-controls={LAYERS_PANEL_ID}
       onClick={() => {
+        // One panel hangs under the controls at a time (V2-A1).
+        if (!open) playbackPanelOpen.value = false;
         setLayersPanelOpen(!open);
       }}
     >
