@@ -89,7 +89,7 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // V2-F1: the code that reads an on-demand data file, imported together with it on the
   // reader's action (event detail, a Layers toggle) and never on the first-render or map
   // path. Charged to no budget, like the file it reads (`ON_DEMAND_DATA`); listed by name.
-  { role: 'data', src: /^src\/core\/geo\/protected-sites\.ts$/ },
+  { role: 'data', src: /^src\/core\/geo\/(protected-sites|land-cover)\.ts$/ },
 ];
 
 /**
@@ -105,6 +105,8 @@ export const ON_DEMAND_DATA: readonly RegExp[] = [
   /^src\/assets\/geodata\/static-sources\.json$/,
   // V2-F1: the Natura 2000 sites, fetched on event detail or with their Layers toggle.
   /^src\/assets\/geodata\/natura2000\.json$/,
+  // V2-F4: the WorldCover land-cover grid, fetched when an event is opened.
+  /^src\/assets\/geodata\/landcover\.json$/,
 ];
 
 /** Where the HTML entry lives in the manifest, and where the manifest lives in dist. */

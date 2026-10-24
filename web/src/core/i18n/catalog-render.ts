@@ -164,6 +164,9 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
     [2, N, 'Rila', 'BG0000495'],
   ],
   'eventDetail.protectedSiteNear': [[2.5, 'Rila', 'BG0000495']],
+  // V2-F4: a list of two groups; one group at a rounded share.
+  'eventDetail.landCover': [['forest 60%, grassland 30%']],
+  'eventDetail.landCoverPart': [['forest', 60]],
   'eventDetail.frpPeak': [[T1, T2, T3]],
   'eventDetail.frpChartLabel': [
     [1, T1, T2],

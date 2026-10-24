@@ -39,10 +39,13 @@ From §5.2 "Citation":
 
 ## Attribution we display
 
-None yet. Nothing renders WorldCover data. The product only feeds the D5 S3 cross-check, and
-no runtime consumer reads it. The string is pinned now so the PR that first shows a
-WorldCover-derived value carries it (`docs/DATA-SOURCES.md` attribution row 26, not
-rendered). That PR also adds a `credits.ts` entry and the CI-13 assertion:
+Since V2-F4 (2026-10-24) the event detail says which land cover lies under an event's
+detections, read from a 0.02° web grid derived from the product
+(`web/src/assets/geodata/landcover.json`, built by `pnpm run geodata:landcover-web`). The
+string renders on `/credits` always (`credits.ts` id `esa-worldcover`, hyperlinked to the
+DOI; `docs/DATA-SOURCES.md` attribution row 26), and the note itself names "ESA WorldCover
+2021". The derivation is a modification under CC BY 4.0 §3(a)(1)(B): 10 m classes pooled
+into 0.02° cells, grouped into eight classes and rounded to tenths.
 
 `© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium`
 

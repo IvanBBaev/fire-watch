@@ -641,6 +641,16 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.protectedSiteInside': { governance: 'own-voice', reason: 'composed-value' },
   'eventDetail.protectedSiteInsideSome': { governance: 'own-voice', reason: 'composed-value' },
   'eventDetail.protectedSiteNear': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.landCover': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.landCoverPart': { governance: 'own-voice', reason: 'composed-value' },
+  'eventDetail.landCoverTree': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverShrub': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverGrass': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverCrop': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverBuilt': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverBare': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverWater': { governance: 'own-voice', reason: 'chrome' },
+  'eventDetail.landCoverWetland': { governance: 'own-voice', reason: 'chrome' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -1076,6 +1086,17 @@ export const PENDING_FOUNDER_REVIEW = [
   'eventDetail.protectedSiteInside',
   'eventDetail.protectedSiteInsideSome',
   'eventDetail.protectedSiteNear',
+  // V2-F4 — land cover
+  'eventDetail.landCover',
+  'eventDetail.landCoverPart',
+  'eventDetail.landCoverTree',
+  'eventDetail.landCoverShrub',
+  'eventDetail.landCoverGrass',
+  'eventDetail.landCoverCrop',
+  'eventDetail.landCoverBuilt',
+  'eventDetail.landCoverBare',
+  'eventDetail.landCoverWater',
+  'eventDetail.landCoverWetland',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

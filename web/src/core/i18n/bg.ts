@@ -725,6 +725,16 @@ const messages: Messages = {
       `${formatNumber(inside, 'bg')} от ${formatNumber(total, 'bg')} засичания ${inside === 1 ? 'е' : 'са'} в защитената зона от Натура 2000 ${name} (${code}).`,
     protectedSiteNear: (km, name, code) =>
       `На около ${formatNumber(km, 'bg')} км от защитената зона от Натура 2000 ${name} (${code}).`,
+    landCover: (parts) => `Земно покритие (ESA WorldCover 2021): ${parts}.`,
+    landCoverPart: (label, percent) => `${label} ${formatNumber(percent, 'bg')} %`,
+    landCoverTree: 'гора',
+    landCoverShrub: 'храсти',
+    landCoverGrass: 'тревни площи',
+    landCoverCrop: 'обработваеми земи',
+    landCoverBuilt: 'застроени площи',
+    landCoverBare: 'гола земя',
+    landCoverWater: 'вода',
+    landCoverWetland: 'влажни зони',
   },
 };
 

@@ -677,6 +677,19 @@ export interface Messages {
     ) => string;
     /** V2-F1: nothing inside; the nearest site's edge is `km` away (one decimal, ≤ 5 km). */
     readonly protectedSiteNear: (km: number, name: string, code: string) => string;
+    /** V2-F4: the land cover around the detections (the mean over their cells); `parts` is a list of `landCoverPart`. */
+    readonly landCover: (parts: string) => string;
+    /** V2-F4: one group and its share, rounded to tens of percent. */
+    readonly landCoverPart: (label: string, percent: number) => string;
+    /** V2-F4: WorldCover group names (lower case, inside the sentence). */
+    readonly landCoverTree: string;
+    readonly landCoverShrub: string;
+    readonly landCoverGrass: string;
+    readonly landCoverCrop: string;
+    readonly landCoverBuilt: string;
+    readonly landCoverBare: string;
+    readonly landCoverWater: string;
+    readonly landCoverWetland: string;
   };
 }
 

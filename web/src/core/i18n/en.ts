@@ -716,6 +716,16 @@ const messages: Messages = {
       `${formatNumber(inside, 'en')} of ${formatNumber(total, 'en')} detections ${inside === 1 ? 'is' : 'are'} inside the Natura 2000 protected site ${name} (${code}).`,
     protectedSiteNear: (km, name, code) =>
       `About ${formatNumber(km, 'en')} km from the Natura 2000 protected site ${name} (${code}).`,
+    landCover: (parts) => `Land cover (ESA WorldCover 2021): ${parts}.`,
+    landCoverPart: (label, percent) => `${label} ${formatNumber(percent, 'en')}%`,
+    landCoverTree: 'forest',
+    landCoverShrub: 'shrubland',
+    landCoverGrass: 'grassland',
+    landCoverCrop: 'cropland',
+    landCoverBuilt: 'built-up land',
+    landCoverBare: 'bare ground',
+    landCoverWater: 'water',
+    landCoverWetland: 'wetland',
   },
 };
 
