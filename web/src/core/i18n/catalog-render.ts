@@ -124,6 +124,8 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   observedShort: [[T1, T2]],
   'shareCard.observedAt': [[T1]],
   'shareCard.madeAt': [[T1]],
+  'dataExport.detectionsTitle': [[T1]],
+  'ogImage.alt': [[T1]],
   'ageWindow.olderHidden': [[1], [N]],
   'listInView.outsideView': [[1], [N]],
   'filters.sourceAll': [[0], [1], [N]],

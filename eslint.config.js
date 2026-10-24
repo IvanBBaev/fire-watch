@@ -68,6 +68,8 @@ export default tseslint.config(
       '**/*.test.tsx',
       'packages/contracts/src/**/*.ts',
       'web/e2e/**/*.ts',
+      // Pages Functions (TASKS V2-D4) are the edge adapter: they own the wall clock.
+      'web/functions/**/*.ts',
     ],
     rules: { 'no-restricted-syntax': 'off' },
   },

@@ -880,6 +880,45 @@ button {
   cursor: pointer;
 }
 
+/* ---------- Download (V2-D1) ---------- */
+
+.list-export {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.download-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+}
+
+.download-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.download-menu > summary:focus-visible,
+.download-formats > button:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.download-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.download-status {
+  margin: 0.5rem 0 0;
+  color: var(--color-text-muted);
+}
+
+.download-status:empty {
+  display: none;
+}
+
 /* ---------- Settings ---------- */
 
 .settings-group {

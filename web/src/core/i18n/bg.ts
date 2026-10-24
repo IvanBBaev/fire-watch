@@ -131,6 +131,23 @@ const messages: Messages = {
     observedAt: (dateTime) => `Последно сателитно наблюдение: ${dateTime} (българско време)`,
     madeAt: (dateTime) => `Изображението е създадено на ${dateTime}`,
   },
+  // V2-D1 — export. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  dataExport: {
+    downloadList: 'Изтегли списъка',
+    downloadDetections: 'Изтегли засичанията',
+    formatsLabel: 'Формат на файла',
+    preparing: 'Файлът се подготвя…',
+    failed: 'Файлът не можа да бъде подготвен. Опитайте отново.',
+    eventsTitle: 'Fire Watch: сателитно засечени пожари',
+    detectionsTitle: (place) => `Fire Watch: сателитни засичания на пожара край ${place}`,
+    notice:
+      'Сателитни засичания, а не потвърдени пожари: спътникът може да пропусне пожар или да засече топлина, която не е пожар. ' +
+      'score_bucket е степен на сателитната оценка, а не потвърждение на място. Всички часове са в UTC.',
+  },
+  // V2-D4 — og:image. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  ogImage: {
+    alt: (place) => `Картичка на Fire Watch за сателитно засечения пожар край ${place}`,
+  },
 
   ageWindow: {
     label: 'Период',

@@ -132,6 +132,23 @@ const messages: Messages = {
     observedAt: (dateTime) => `Last satellite observation: ${dateTime} (Bulgarian time)`,
     madeAt: (dateTime) => `Image created ${dateTime}`,
   },
+  // V2-D1 — export. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  dataExport: {
+    downloadList: 'Download list',
+    downloadDetections: 'Download detections',
+    formatsLabel: 'File format',
+    preparing: 'Preparing the file…',
+    failed: 'The file could not be prepared. Try again.',
+    eventsTitle: 'Fire Watch: satellite-detected fire events',
+    detectionsTitle: (place) => `Fire Watch: satellite detections of the fire near ${place}`,
+    notice:
+      'Satellite detections, not confirmed fires: a satellite can miss a fire or detect heat that is not one. ' +
+      'score_bucket is a satellite score band, not a confirmation on the ground. All times are UTC.',
+  },
+  // V2-D4 — og:image. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  ogImage: {
+    alt: (place) => `Fire Watch card for the satellite-detected fire near ${place}`,
+  },
 
   ageWindow: {
     label: 'Time window',

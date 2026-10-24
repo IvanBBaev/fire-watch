@@ -10,7 +10,8 @@ import { useLocation, useRoute } from 'preact-iso';
 import { resolveEvent } from '../../core/store/index.js';
 import { FreshnessChip, pickBanner } from '../status/index.js';
 import { EventDetails, EventIdentity } from '../event/event-details.js';
-import { useDetectionSummary } from '../event/use-detection-summary.js';
+import { detectionsUrl, useDetectionSummary } from '../event/use-detection-summary.js';
+import { DownloadMenu } from '../export/download-menu.js';
 import { eventPath, redirectTargetFor } from '../logic/event-resolution.js';
 import { lifecycleLine } from '../logic/lifecycle-line.js';
 import { placeName } from '../logic/place.js';
@@ -153,6 +154,14 @@ export function EventPage() {
           {messages.shareCard.share}
         </button>
       </p>
+      <DownloadMenu
+        label={messages.dataExport.downloadDetections}
+        request={() => ({
+          kind: 'detections',
+          event,
+          url: detectionsUrl(config.detectionsUrlTemplate, event.id),
+        })}
+      />
       {/* The short disclaimer layer at the moment of reliance (07 §5.6.3, 09 §3.4), linked to
           the full layer on the privacy page (TASKS I5). */}
       <footer class="panel-footer">

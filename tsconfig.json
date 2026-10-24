@@ -4,6 +4,7 @@
     { "path": "./packages/contracts" },
     { "path": "./server" },
     { "path": "./web" },
+    { "path": "./web/functions" },
     { "path": "./web/e2e" },
     { "path": "./web/budgets" },
     { "path": "./infra/deploy-gate" },
