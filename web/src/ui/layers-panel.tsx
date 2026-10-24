@@ -9,7 +9,8 @@
  * DOM, `hidden` when closed, so `aria-controls` never points at nothing.
  *
  * Every date shown is the data's own: FWI says which day the index is *for* (and says so
- * when that is not today in Sofia), burnt areas say when EFFIS made the copy available.
+ * when that is not today in Sofia, or for a forecast day ahead, not the day picked — the
+ * date always comes from the proxy's header, never from the picker), burnt areas say when EFFIS made the copy available.
  * Neither ever shows the time we fetched it — that would make a week-old copy look fresh.
  */
 
@@ -26,11 +27,14 @@ import { LightningLegend } from './lightning-legend.js';
 import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
 import { playbackPanelOpen } from './playback.js';
+import { MeteoalarmWarnings } from './meteoalarm-warnings.js';
 import { SatellitePasses } from './satellite-passes.js';
 import { ProtectedSitesOption } from './protected-sites-option.js';
 import { StaticSourcesOption } from './static-sources-option.js';
 import {
   FWI_CLASSES,
+  FWI_FORECAST_DAYS,
+  type FwiForecastDay,
   type OverlayId,
   type OverlayStatus,
   OVERLAY_IDS,
@@ -38,10 +42,15 @@ import {
   effisChosen,
   effisCreditText,
   ecmwfCreditTexts,
+  expectedFwiDate,
+  fwiDay,
+  gwisChosen,
+  gwisCreditText,
   layersPanelOpen,
   lightningChosen,
   outlinesChosen,
   overlayStatus,
+  setFwiDay,
   setLayersPanelOpen,
   swathsChosen,
   toggleOverlay,
@@ -84,6 +93,7 @@ function statusLines(
   messages: Messages,
   locale: Locale,
   todayIso: string,
+  day: FwiForecastDay,
 ): readonly string[] {
   switch (status.kind) {
     case 'idle':
@@ -110,7 +120,14 @@ function statusLines(
         return [messages.layers.outlinesAsOf(sofiaTime(status.validAt, locale, todayIso))];
       }
       const lines: string[] = [];
-      if (id === 'fwi' && status.validFor !== null) {
+      if (id === 'fwi' && status.validFor !== null && day > 0) {
+        // V2-B1: a relayed forecast, dated by the copy itself; flagged when the proxy has
+        // not yet refreshed it to the day the reader picked.
+        lines.push(messages.layers.fwiForecastFor(formatDateSofia(status.validFor, locale)));
+        if (status.validFor !== expectedFwiDate(todayIso, day)) {
+          lines.push(messages.layers.fwiForecastBehind);
+        }
+      } else if (id === 'fwi' && status.validFor !== null) {
         const validFor = formatDateSofia(status.validFor, locale);
         lines.push(messages.layers.fwiValidFor(validFor));
         if (validFor !== formatDateSofia(todayIso, locale)) lines.push(messages.layers.fwiNotToday);
@@ -142,6 +159,39 @@ function FwiLegend({ messages }: { readonly messages: Messages }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** V2-B1: today's EFFIS index or a GWIS forecast day ahead; the day is never persisted. */
+function FwiDayPicker({ messages }: { readonly messages: Messages }) {
+  const selectId = `${LAYERS_PANEL_ID}-fwi-day`;
+  const noteId = `${LAYERS_PANEL_ID}-fwi-day-note`;
+  return (
+    <div class="layers-fwi-day">
+      <label for={selectId} class="layers-legend-title">
+        {messages.layers.fwiDayLabel}
+      </label>
+      <select
+        id={selectId}
+        class="filter-select"
+        aria-describedby={noteId}
+        value={String(fwiDay.value)}
+        onChange={(event) => {
+          const picked = Number(event.currentTarget.value);
+          const day = FWI_FORECAST_DAYS.find((entry) => entry === picked);
+          if (day !== undefined) setFwiDay(day);
+        }}
+      >
+        {FWI_FORECAST_DAYS.map((day) => (
+          <option key={day} value={String(day)}>
+            {messages.layers.fwiDayOption(day)}
+          </option>
+        ))}
+      </select>
+      <p id={noteId} class="layers-note">
+        {messages.layers.fwiForecastNote}
+      </p>
     </div>
   );
 }
@@ -241,15 +291,16 @@ export function LayersPanel() {
                 {messages.layers[OVERLAY_NOTE[id]]}
               </p>
               {on && id === 'fwi' ? <FwiLegend messages={messages} /> : null}
+              {on && id === 'fwi' ? <FwiDayPicker messages={messages} /> : null}
               {on && id === 'wind' ? <WindLegend messages={messages} /> : null}
               {on && id === 'swaths' ? <SwathLegend /> : null}
               {on && id === 'lightning' ? <LightningLegend /> : null}
               {on && id === 'outlines' ? <FireOutlineLegend /> : null}
               <p class="layers-status" aria-live="polite">
                 {on
-                  ? statusLines(id, statuses[id], messages, locale, todayIso).map((line) => (
-                      <span key={line}>{line}</span>
-                    ))
+                  ? statusLines(id, statuses[id], messages, locale, todayIso, fwiDay.value).map(
+                      (line) => <span key={line}>{line}</span>,
+                    )
                   : null}
               </p>
             </div>
@@ -259,6 +310,8 @@ export function LayersPanel() {
         <ProtectedSitesOption />
       </fieldset>
       {effisChosen.value ? <p class="layers-credit">{effisCreditText(clock, messages)}</p> : null}
+      {/* V2-B1: a forecast day ahead is GWIS's raster, relayed — its credit while shown. */}
+      {gwisChosen.value ? <p class="layers-credit">{gwisCreditText(clock, messages)}</p> : null}
       {/* F14: all five ECMWF components together, or none (the Terms owe them as a unit). */}
       {windChosen.value
         ? ecmwfCreditTexts(clock, messages).map((text) => (
@@ -280,6 +333,7 @@ export function LayersPanel() {
         <p class="layers-credit">{firmsCreditText(clock, messages)}</p>
       ) : null}
       <SatellitePasses />
+      <MeteoalarmWarnings />
     </section>
   );
 }

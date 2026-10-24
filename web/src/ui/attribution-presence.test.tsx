@@ -89,7 +89,7 @@ import { AppContext } from './context.js';
 import type { AppServices } from './context.js';
 import type { CreditSessionState } from './logic/credits.js';
 import { activeCreditConditions, mapCornerAttribution } from './logic/credits.js';
-import { effisCreditText, setOverlays } from './layers.js';
+import { effisCreditText, setFwiDay, setOverlays } from './layers.js';
 import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
 import { AboutPage } from './pages/about.js';
@@ -301,6 +301,9 @@ function probeMapCorner(
       attribution: effisCreditText(clock, CATALOGS[locale]),
     });
   }
+  // A forecast day ahead draws through the same FWI raster source: the day is the reader's
+  // choice, so the probe records it for `drawnConditions` (V2-B1).
+  drawnForecastDay = session.effisOn === true && session.gwisOn === true;
   // And `windOverlayPayload` once the wind layer is chosen and loaded (TASKS F14).
   if (session.windOn === true) controller.setWindOverlay(WIND_BODY);
   // And the predicted swaths (TASKS F15), when the dedicated case below draws them.
@@ -324,6 +327,9 @@ function probeMapCorner(
   return Promise.resolve(readHtml(lines.join('\n')));
 }
 
+/** The last map-corner probe drew an FWI forecast day ahead (GWIS), not today's index. */
+let drawnForecastDay = false;
+
 /** The sources of every style document the controller loaded (none for a style URL). */
 function styleSources(): unknown[] {
   return recorded.styles.flatMap((style) =>
@@ -341,6 +347,7 @@ function styleSources(): unknown[] {
  */
 function drawnConditions(): readonly CreditCondition[] {
   const drawn = new Set<CreditCondition>();
+  if (drawnForecastDay) drawn.add('layer:gwis');
   for (const style of recorded.styles) {
     if (typeof style === 'string') {
       if (style.includes('openfreemap')) drawn.add('basemap:openfreemap');
@@ -369,10 +376,12 @@ const PROBES = {
       ...(session.effisOn === true ? (['fwi'] as const) : []),
       ...(session.windOn === true ? (['wind'] as const) : []),
     ]);
+    if (session.gwisOn === true) setFwiDay(3);
     try {
       return await renderPage(CreditsPage, config, locale);
     } finally {
       setOverlays([]);
+      setFwiDay(0);
     }
   },
   about: (config, locale) => renderPage(AboutPage, config, locale),
@@ -430,6 +439,8 @@ const IMAGERY = {
   'effis-on': { effisOn: true },
   // The wind context layer chosen in the Layers panel (TASKS F14).
   'wind-on': { windOn: true },
+  // An FWI forecast day ahead picked in the Layers panel: the GWIS raster (V2-B1).
+  'gwis-on': { effisOn: true, gwisOn: true },
 } as const satisfies Record<string, CreditSessionState>;
 
 type BasemapKey = keyof typeof BASEMAPS;
@@ -475,7 +486,8 @@ const CONTEXTS = {
   'layer:gibs': { reachable: false, why: NO_SHIPPED_LAYER },
   // Reached by the reader choosing an EFFIS overlay in the Layers panel (TASKS G4).
   'layer:effis': { reachable: true, via: 'neutral-url/effis-on' },
-  'layer:gwis': { reachable: false, why: NO_SHIPPED_LAYER },
+  // Reached by the reader picking an FWI forecast day ahead in the Layers panel (V2-B1).
+  'layer:gwis': { reachable: true, via: 'neutral-url/gwis-on' },
   // The outdoor style's Terrarium hillshade, drawn when a DEM mirror is configured (G3).
   'layer:terrain': { reachable: true, via: 'outdoor+terrain/imagery-off' },
   'layer:landsat': { reachable: false, why: NO_SHIPPED_LAYER },
@@ -520,10 +532,12 @@ const KNOWN_FINDINGS = [
       'openfreemap/imagery-on',
       'openfreemap/effis-on',
       'openfreemap/wind-on',
+      'openfreemap/gwis-on',
       'outdoor-fallback/imagery-off',
       'outdoor-fallback/imagery-on',
       'outdoor-fallback/effis-on',
       'outdoor-fallback/wind-on',
+      'outdoor-fallback/gwis-on',
     ],
     'map-corner',
     'openfreemap text',
@@ -536,6 +550,7 @@ const KNOWN_FINDINGS = [
       'outdoor+terrain/imagery-on',
       'outdoor+terrain/effis-on',
       'outdoor+terrain/wind-on',
+      'outdoor+terrain/gwis-on',
     ],
     'map-corner',
     'terrarium-short text',

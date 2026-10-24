@@ -543,6 +543,21 @@ export const CREDITS: readonly Credit[] = [
     authority: 'WorldCover PUM V2.0 §5.2',
   },
   {
+    id: 'meteoalarm',
+    source: 'MeteoAlarm national warning feeds (forest-fire and heat warnings, V2-B3)',
+    // The legacy Atom feeds carry this sentence in their <rights> element. The warnings
+    // themselves stay the national services' own: we relay level, area and validity and
+    // link back to MeteoAlarm, never rewording a warning as ours.
+    text: `Copyright © ${YEAR_PLACEHOLDER} MeteoAlarm.Org. Licensed under terms equivalent to CC BY 4.0`,
+    verbatim: 'MeteoAlarm',
+    href: 'https://meteoalarm.org',
+    surfaces: ['credits-page'],
+    condition: 'always',
+    required: true,
+    verified: true,
+    authority: 'MeteoAlarm legacy Atom feed <rights> element (read 2026-10-24)',
+  },
+  {
     id: 'derivation',
     source: 'Fire Watch — derivation sentence',
     // Satisfies CC BY "indicate changes" for every row above and keeps our output from

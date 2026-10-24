@@ -98,6 +98,7 @@ import {
 import { QA_REPORT_INTERVAL_MS, reportQaWeekly, wireQaReport } from './qa-report-wiring.js';
 import { describeR2MirrorConfig, loadR2MirrorConfig } from './r2-mirror-config.js';
 import { startR2MirrorLoops, wireR2Mirror } from './r2-mirror-wiring.js';
+import { startMeteoalarmLoops, wireMeteoalarmRefresh } from './meteoalarm-wiring.js';
 import { startPassesLoops, wirePassesRefresh } from './passes-wiring.js';
 import { startLightningLoops, wireLightningRefresh } from './lightning-wiring.js';
 import {
@@ -448,6 +449,22 @@ async function main(): Promise<number> {
       loops.push(
         ...startPassesLoops(
           wirePassesRefresh(config.stateDir, systemClock),
+          {
+            clock: systemClock,
+            sleeper: systemSleeper,
+            writeLine,
+            observe: loopObserver(metrics, onMetricsError),
+          },
+          controller.signal,
+        ),
+      );
+    }
+
+    // V2-B3: MeteoAlarm warnings; the overlay route is registered on the same condition.
+    if (config.stateDir !== null) {
+      loops.push(
+        ...startMeteoalarmLoops(
+          wireMeteoalarmRefresh(config.stateDir, systemClock),
           {
             clock: systemClock,
             sleeper: systemSleeper,

@@ -71,6 +71,7 @@ export const UNREGISTERED_FEED_IDS = [
   'weather:context',
   'celestrak:elements',
   'eumetsat:lightning',
+  'meteoalarm:warnings',
 ] as const;
 
 /** Everything with a freshness budget that is fetched from outside, in reporting order. */

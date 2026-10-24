@@ -7,7 +7,7 @@
 import { creditsFor, renderCredit } from '@fire-watch/contracts';
 import { activeCreditConditions, creditRenderContext } from '../logic/credits.js';
 import { useApp } from '../context.js';
-import { effisChosen, windChosen } from '../layers.js';
+import { effisChosen, gwisChosen, windChosen } from '../layers.js';
 import { passesCloudOn } from '../pass-cloud.js';
 
 export function CreditsPage() {
@@ -18,6 +18,7 @@ export function CreditsPage() {
     'credits-page',
     activeCreditConditions(config, {
       effisOn: effisChosen.value,
+      gwisOn: gwisChosen.value,
       windOn: windChosen.value,
       cloudOn: passesCloudOn.value,
     }),

@@ -243,6 +243,16 @@ export interface Messages {
     readonly fwiValidFor: (date: string) => string;
     /** Shown when the newest copy is for another day than today in Sofia. */
     readonly fwiNotToday: string;
+    /** V2-B1: the forecast-day picker's label. */
+    readonly fwiDayLabel: string;
+    /** V2-B1: one picker option — 0 is today, 1 … 9 the days ahead. */
+    readonly fwiDayOption: (leadDays: number) => string;
+    /** V2-B1: what a day ahead is — a relayed GWIS forecast, never ours. */
+    readonly fwiForecastNote: string;
+    /** V2-B1: the UTC date a forecast copy is for, already formatted; relayed, attributed. */
+    readonly fwiForecastFor: (date: string) => string;
+    /** V2-B1: the proxy's copy is for another date than the day picked (not refreshed yet). */
+    readonly fwiForecastBehind: string;
     readonly ba: string;
     readonly baNote: string;
     /** When EFFIS made the shown copy available, already formatted. */
@@ -390,6 +400,38 @@ export interface Messages {
     readonly ageClasses: readonly string[];
     /** What the dot size means. */
     readonly sizeNote: string;
+  };
+
+  /**
+   * Official warnings (V2-B3), a section of the Layers panel: the forest-fire warnings, and
+   * high-temperature warnings as context, that national weather services have in force,
+   * relayed through MeteoAlarm. Own voice around relayed content; every key is implementer
+   * copy held in `PENDING_FOUNDER_REVIEW`. The copy never issues, rewords or grades a
+   * warning, and an empty list only ever means "none in force from the services read".
+   */
+  readonly meteoalarm: {
+    readonly title: string;
+    /** Whose warnings these are, and that Fire Watch issues none. */
+    readonly note: string;
+    /** When the feeds were last read, already formatted (the body's `generated_at`). */
+    readonly checkedAt: (time: string) => string;
+    /** The two warning kinds relayed. */
+    readonly forestFire: string;
+    readonly highTemperature: string;
+    /** MeteoAlarm's awareness levels by their official names: yellow, orange, red. */
+    readonly level2: string;
+    readonly level3: string;
+    readonly level4: string;
+    /** A warning's validity, both ends already formatted. */
+    readonly validFromTo: (from: string, to: string) => string;
+    /** A warning with no stated onset: only its end, already formatted. */
+    readonly validUntil: (to: string) => string;
+    /** The link to the warning's official page. */
+    readonly officialLink: string;
+    /** No warning of either kind in force from the services that were read. */
+    readonly noneInForce: string;
+    /** Countries whose feed could not be read on the last check, already joined. */
+    readonly notChecked: (countries: string) => string;
   };
 
   /** Onboarding — exactly three cards, then the button (07-product-ux P7). */

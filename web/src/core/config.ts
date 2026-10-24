@@ -91,6 +91,11 @@ export interface ClientConfig {
    * fixtures by default, the API's route in live mode. Optional; absent uses the API's route.
    */
   readonly historyUrlTemplate?: string;
+  /**
+   * V2-B3 MeteoAlarm forest-fire and heat warnings in force: a committed synthetic fixture
+   * by default, the API's route in live mode. Optional; absent hides the section.
+   */
+  readonly meteoalarmUrl?: string;
 }
 
 export const DEFAULT_CONFIG: ClientConfig = {
@@ -114,6 +119,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   fireOutlineOverlayUrl: '/fixtures/outlines/active.json',
   passesUrlTemplate: '/fixtures/passes/sample.json',
   historyUrlTemplate: '/fixtures/history/{range}.json',
+  meteoalarmUrl: '/fixtures/meteoalarm/warnings.json',
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
     dark: 'https://tiles.openfreemap.org/styles/dark',
@@ -221,6 +227,8 @@ export const LIVE_PASSES_URL_TEMPLATE = '/api/v1/passes/{cell}';
 
 /** The API's playback history route (`server/src/adapters/http/history-route.ts`). */
 export const LIVE_HISTORY_URL_TEMPLATE = '/api/v1/history?range={range}';
+/** The API's MeteoAlarm warnings route (`server/src/adapters/http/meteoalarm-overlay-route.ts`). */
+export const LIVE_METEOALARM_URL = '/overlays/meteoalarm/warnings.json';
 
 /**
  * `config` pointed at the chosen data source. Live reads the API's snapshot and its
@@ -240,5 +248,6 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     fireOutlineOverlayUrl: '/overlays/outlines/active.json',
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
     historyUrlTemplate: LIVE_HISTORY_URL_TEMPLATE,
+    meteoalarmUrl: LIVE_METEOALARM_URL,
   };
 }

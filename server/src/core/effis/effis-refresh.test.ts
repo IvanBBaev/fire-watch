@@ -8,7 +8,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { EFFIS_LAYERS, type EffisLayerSpec } from '../config/effis-layers.js';
+import {
+  EFFIS_LAYERS,
+  type EffisLayerSpec,
+  type EffisLayersValues,
+} from '../config/effis-layers.js';
+import { defineConfig } from '../config/versioned-config.js';
 import { VirtualClock, epochMsFromIso } from '../ports/clock.js';
 import type { EffisClient, EffisLayerFetch } from '../ports/effis-client.js';
 import type { FeedAttempt, FeedStatusStore } from '../ports/feed-status-store.js';
@@ -26,6 +31,16 @@ import { encodePng, storedInflate, type PngSpec } from './png-testkit.js';
 
 const FWI = specOf('fwi');
 const BA = specOf('ba');
+
+/**
+ * The two EFFIS layers alone: the poisoning acceptance is about one daily raster and one
+ * "latest" vector, and the nine GWIS forecast days (V2-B1, same layer name, judged by the
+ * same rules) have their own tests below.
+ */
+const TODAY_LAYERS = defineConfig<EffisLayersValues>('effis_layers', 'effis_layers_test_v1', {
+  ...EFFIS_LAYERS.values,
+  layers: [FWI, BA],
+});
 
 function specOf(id: string): EffisLayerSpec {
   const spec = EFFIS_LAYERS.values.layers.find((layer) => layer.id === id);
@@ -170,7 +185,14 @@ function harness(): Harness {
     clock,
     payloads,
     feedStatus,
-    deps: (client) => ({ client, payloads, feedStatus, clock, inflate: storedInflate }),
+    deps: (client) => ({
+      client,
+      payloads,
+      feedStatus,
+      clock,
+      inflate: storedInflate,
+      layersConfig: TODAY_LAYERS,
+    }),
   };
 }
 
@@ -211,7 +233,7 @@ describe('runEffisRefresh', () => {
     expect(parsed['raster']).toMatchObject({ width: 1100, height: 700, uniform: false });
     expect(parsed['sha256']).toBe(fakeSha(goodPng()));
     expect(parsed['available_at']).toBe('2026-08-13T10:15:00Z');
-    expect(parsed['effis_layers_version']).toBe('effis_layers_v2');
+    expect(parsed['effis_layers_version']).toBe(TODAY_LAYERS.version);
     // A daily layer is asked for the refresh's own UTC date, and the sidecar says so.
     expect(parsed['valid_for']).toBe('2026-08-13');
     expect((parsed['query'] as Record<string, string>)['TIME']).toBe('2026-08-13');
@@ -461,6 +483,78 @@ describe('runEffisRefresh', () => {
     expect(report.jobStatusError).toContain('unwritable');
     // Layers landed, but the evidence chain broke: the heartbeat must not say "fine".
     expect(effisRefreshFailed(report)).toBe(true);
+  });
+});
+
+describe('runEffisRefresh — the FWI forecast days (V2-B1)', () => {
+  /** A blank 1100×700 raster: what GWIS answers for a day past its forecast horizon. */
+  const BLANK_PNG = encodePng({
+    ...FWI_RASTER,
+    pixel: () => [0],
+  });
+
+  it('asks GWIS for each forecast day by its own date and records that date as valid_for', async () => {
+    const h = harness();
+    const asked: { layer: string; endpoint: string | undefined; time: string | undefined }[] = [];
+    const at = h.clock.now();
+    const client: EffisClient = {
+      fetchLayer: (request) => {
+        asked.push({
+          layer: request.layer,
+          endpoint: request.endpoint,
+          time: request.query['TIME'],
+        });
+        if (request.layer === BA.layerName) {
+          return Promise.resolve(
+            fetched(textBytes(EMPTY_FEATURE_COLLECTION), 'application/json', at),
+          );
+        }
+        // The horizon: GWIS has D0 … D8 for this run, D9 is still a transparent raster.
+        const blank = request.query['TIME'] === '2026-08-22';
+        return Promise.resolve(fetched(blank ? BLANK_PNG.slice() : goodPng(), 'image/png', at));
+      },
+    };
+
+    const report = await runEffisRefresh({ ...h.deps(client), layersConfig: EFFIS_LAYERS });
+
+    expect(asked).toEqual([
+      { layer: 'mf010.fwi', endpoint: 'effis', time: '2026-08-13' },
+      { layer: 'modis.ba.poly.week', endpoint: 'effis', time: undefined },
+      ...[14, 15, 16, 17, 18, 19, 20, 21, 22].map((day) => ({
+        layer: 'ecmwf.fwi',
+        endpoint: 'gwis',
+        time: `2026-08-${String(day)}`,
+      })),
+    ]);
+    expect(report.layers.map((layer) => `${layer.layer}:${layer.outcome}`)).toEqual([
+      'fwi:stored',
+      'ba:stored',
+      'fwi-d1:stored',
+      'fwi-d2:stored',
+      'fwi-d3:stored',
+      'fwi-d4:stored',
+      'fwi-d5:stored',
+      'fwi-d6:stored',
+      'fwi-d7:stored',
+      'fwi-d8:stored',
+      'fwi-d9:suspect',
+    ]);
+    expect(report.layers.at(-1)?.sanityRule).toBe('png_fully_transparent');
+
+    const d3 = JSON.parse(
+      h.payloads.texts.get('overlays/effis/fwi-d3/current.meta.json') ?? '',
+    ) as Record<string, unknown>;
+    expect(d3['valid_for']).toBe('2026-08-16');
+    expect(d3['endpoint']).toBe('gwis');
+    expect(d3['layer_name']).toBe('ecmwf.fwi');
+    // A beyond-horizon day is never served as good: no `current`, only the A2.2 shelf.
+    expect(h.payloads.payloads.has('overlays/effis/fwi-d9/current.png')).toBe(false);
+
+    // The feed row stays strict: a forecast day that did not land is a gap it reports.
+    expect(h.feedStatus.attempts).toEqual([
+      expect.objectContaining({ row: 'effis:layers', succeeded: false, hadData: true }),
+      expect.objectContaining({ row: 'effis-refresh', succeeded: true, hadData: true }),
+    ]);
   });
 });
 

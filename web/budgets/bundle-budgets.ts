@@ -101,6 +101,10 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // stays live until both have loaded — so they take the on-demand pages' role and budget.
   { role: 'page', src: /^src\/ui\/playback-replay\.tsx$/ },
   { role: 'page', src: /^src\/map\/playback-layer\.ts$/ },
+  // V2-B3: the official-warnings section of the Layers panel (markup and parser), loaded
+  // the first time a reader opens the panel — on demand like a page, never before first
+  // render or the map, so likewise charged to no budget.
+  { role: 'page', src: /^src\/ui\/meteoalarm-view\.tsx$/ },
 ];
 
 /**

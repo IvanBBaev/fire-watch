@@ -319,6 +319,12 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'layers.lightningClasses',
       'layers.lightningAsOf',
       'layers.lightningNone',
+      // V2-B1 — FWI forecast
+      'layers.fwiDayLabel',
+      'layers.fwiDayOption',
+      'layers.fwiForecastNote',
+      'layers.fwiForecastFor',
+      'layers.fwiForecastBehind',
       // TASKS F15 — the satellite-pass section of the Layers panel.
       'passes.title',
       'passes.note',
@@ -401,6 +407,20 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'playback.legendTitle',
       'playback.ageClasses',
       'playback.sizeNote',
+      // V2-B3 — MeteoAlarm
+      'meteoalarm.title',
+      'meteoalarm.note',
+      'meteoalarm.checkedAt',
+      'meteoalarm.forestFire',
+      'meteoalarm.highTemperature',
+      'meteoalarm.level2',
+      'meteoalarm.level3',
+      'meteoalarm.level4',
+      'meteoalarm.validFromTo',
+      'meteoalarm.validUntil',
+      'meteoalarm.officialLink',
+      'meteoalarm.noneInForce',
+      'meteoalarm.notChecked',
     ]);
   });
 

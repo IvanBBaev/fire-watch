@@ -77,6 +77,29 @@ export const FWI_CLASSES = [
   { color: '#3a0015', upper: null },
 ] as const;
 
+/**
+ * The FWI forecast day the reader picked (V2-B1): 0 is today's EFFIS index, 1 … 9 the
+ * days ahead from the GWIS `ecmwf.fwi` forecast, relayed by the proxy as published. The
+ * proxy serves one allow-listed file per day; the browser never names a date.
+ */
+export const FWI_FORECAST_DAYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+export type FwiForecastDay = (typeof FWI_FORECAST_DAYS)[number];
+
+/** The proxy path for a forecast day: today's file, or `fwi-d<n>.png` for a day ahead. */
+export function fwiOverlayUrl(day: FwiForecastDay): string {
+  return day === 0 ? OVERLAY_URLS.fwi : `/overlays/effis/fwi-d${String(day)}.png`;
+}
+
+/**
+ * The UTC date (`YYYY-MM-DD`) a forecast day should be for, counted from `todayIso`'s UTC
+ * date — the date the proxy's `valid_for` names when its copy is up to date.
+ */
+export function expectedFwiDate(todayIso: string, day: FwiForecastDay): string | null {
+  const start = Date.parse(`${todayIso.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(start)) return null;
+  return new Date(start + day * 86_400_000).toISOString().slice(0, 10);
+}
+
 // ── URL seam ────────────────────────────────────────────────────────────────
 
 /**
@@ -172,6 +195,40 @@ export const lightningChosen = computed(() => chosenOverlays.value.includes('lig
 
 /** Estimated outlines chosen (V2-A4) — the panel then prints the FIRMS credit beside them. */
 export const outlinesChosen = computed(() => chosenOverlays.value.includes('outlines'));
+
+/**
+ * The forecast day on screen. Per session, never persisted: a remembered "+3" would be a
+ * different date on the next visit, and the reader who comes back expects today's index.
+ */
+export const fwiDay = signal<FwiForecastDay>(0);
+
+/** A forecast copy is GWIS's — the credits page then owes the GWIS credit (`layer:gwis`). */
+export const gwisChosen = computed(() => chosenOverlays.value.includes('fwi') && fwiDay.value > 0);
+
+/**
+ * A raster of the day the reader left: dropped from the map at once, its object URL
+ * revoked the next time the loader runs (the loader owns the revoke seam).
+ */
+let orphanedFwiUrl: string | null = null;
+
+/** Pick a forecast day. The previous day's raster leaves the map; the sync loads the new one. */
+export function setFwiDay(day: FwiForecastDay): void {
+  if (day === fwiDay.peek()) return;
+  const held = payloads.peek().fwi;
+  if (held !== null) orphanedFwiUrl = held;
+  payloads.value = { ...payloads.peek(), fwi: null };
+  setStatus('fwi', IDLE);
+  fwiDay.value = day;
+}
+
+/** The GWIS credit, rendered from the contracts registry exactly as `/credits` renders it. */
+export function gwisCreditText(
+  clock: Pick<Clock, 'epochNow'>,
+  messages: Pick<Messages, 'appTitle'>,
+): string {
+  const credit = CREDITS.find((entry) => entry.id === 'gwis');
+  return credit === undefined ? '' : renderCredit(credit, creditRenderContext(clock, messages));
+}
 
 /**
  * The five ECMWF components, rendered from the contracts registry. The Terms owe them
@@ -359,8 +416,15 @@ export async function loadOverlay(id: OverlayId, deps: OverlayLoaderDeps): Promi
     await loadOutlines(deps);
     return;
   }
+  const day = fwiDay.peek();
+  if (id === 'fwi' && orphanedFwiUrl !== null) {
+    deps.revokeObjectURL(orphanedFwiUrl);
+    orphanedFwiUrl = null;
+  }
   try {
-    const response = await deps.fetch(OVERLAY_URLS[id]);
+    const response = await deps.fetch(id === 'fwi' ? fwiOverlayUrl(day) : OVERLAY_URLS[id]);
+    // The reader picked another day while this one was in flight: its load owns the status.
+    if (id === 'fwi' && fwiDay.peek() !== day) return;
     const availableAt = headerDate(response, 'x-fire-watch-overlay-available-at');
     const state = response.headers.get('x-fire-watch-overlay-state');
     if (!response.ok || availableAt === null || (state !== 'current' && state !== 'suspect')) {
@@ -369,7 +433,9 @@ export async function loadOverlay(id: OverlayId, deps: OverlayLoaderDeps): Promi
     }
     const validFor = response.headers.get('x-fire-watch-overlay-valid-for');
     if (id === 'fwi') {
-      const url = deps.createObjectURL(await response.blob());
+      const blob = await response.blob();
+      if (fwiDay.peek() !== day) return;
+      const url = deps.createObjectURL(blob);
       const previous = payloads.peek().fwi;
       payloads.value = { ...payloads.peek(), fwi: url };
       if (previous !== null) deps.revokeObjectURL(previous);
@@ -389,7 +455,7 @@ export async function loadOverlay(id: OverlayId, deps: OverlayLoaderDeps): Promi
       fetchedAtMs: deps.now(),
     });
   } catch {
-    setStatus(id, { kind: 'unavailable' });
+    if (id !== 'fwi' || fwiDay.peek() === day) setStatus(id, { kind: 'unavailable' });
   }
 }
 
@@ -540,6 +606,8 @@ export function loadOutlines(deps: OverlayLoaderDeps): Promise<void> {
  */
 export function startOverlaySync(deps: OverlayLoaderDeps): () => void {
   return effect(() => {
+    // A new forecast day resets the FWI status to idle, so reading it here reloads.
+    void fwiDay.value;
     for (const id of chosenOverlays.value) {
       const status = overlayStatus.peek()[id];
       if (status.kind === 'loading') continue;
@@ -571,4 +639,6 @@ export function resetOverlaysForTest(): void {
     outlines: null,
   };
   layersPanelOpen.value = false;
+  fwiDay.value = 0;
+  orphanedFwiUrl = null;
 }

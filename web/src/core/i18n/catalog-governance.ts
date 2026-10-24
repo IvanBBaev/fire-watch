@@ -680,6 +680,12 @@ export const CATALOG_GOVERNANCE = {
   'layers.fwiClasses': { governance: 'own-voice', reason: 'state-label' },
   'layers.fwiValidFor': { governance: 'own-voice', reason: 'composed-value' },
   'layers.fwiNotToday': { governance: 'own-voice', reason: 'client-condition' },
+  // V2-B1 — FWI forecast
+  'layers.fwiDayLabel': { governance: 'own-voice', reason: 'chrome' },
+  'layers.fwiDayOption': { governance: 'own-voice', reason: 'composed-value' },
+  'layers.fwiForecastNote': { governance: 'own-voice', reason: 'capability-prose' },
+  'layers.fwiForecastFor': { governance: 'own-voice', reason: 'composed-value' },
+  'layers.fwiForecastBehind': { governance: 'own-voice', reason: 'client-condition' },
   'layers.ba': { governance: 'own-voice', reason: 'chrome' },
   'layers.baNote': { governance: 'own-voice', reason: 'capability-prose' },
   'layers.copyDated': { governance: 'own-voice', reason: 'composed-value' },
@@ -755,6 +761,20 @@ export const CATALOG_GOVERNANCE = {
   'playback.legendTitle': { governance: 'own-voice', reason: 'chrome' },
   'playback.ageClasses': { governance: 'own-voice', reason: 'state-label' },
   'playback.sizeNote': { governance: 'own-voice', reason: 'capability-prose' },
+  // V2-B3 — MeteoAlarm
+  'meteoalarm.title': { governance: 'own-voice', reason: 'chrome' },
+  'meteoalarm.note': { governance: 'own-voice', reason: 'capability-prose' },
+  'meteoalarm.checkedAt': { governance: 'own-voice', reason: 'composed-value' },
+  'meteoalarm.forestFire': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.highTemperature': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.level2': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.level3': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.level4': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.validFromTo': { governance: 'own-voice', reason: 'composed-value' },
+  'meteoalarm.validUntil': { governance: 'own-voice', reason: 'composed-value' },
+  'meteoalarm.officialLink': { governance: 'own-voice', reason: 'chrome' },
+  'meteoalarm.noneInForce': { governance: 'own-voice', reason: 'state-label' },
+  'meteoalarm.notChecked': { governance: 'own-voice', reason: 'composed-value' },
 } as const satisfies Record<CatalogPath, Governance>;
 
 /**
@@ -1109,6 +1129,12 @@ export const PENDING_FOUNDER_REVIEW = [
   'layers.lightningClasses',
   'layers.lightningAsOf',
   'layers.lightningNone',
+  // V2-B1 — FWI forecast
+  'layers.fwiDayLabel',
+  'layers.fwiDayOption',
+  'layers.fwiForecastNote',
+  'layers.fwiForecastFor',
+  'layers.fwiForecastBehind',
   'passes.title',
   'passes.note',
   'passes.forMapCentre',
@@ -1189,6 +1215,20 @@ export const PENDING_FOUNDER_REVIEW = [
   'playback.legendTitle',
   'playback.ageClasses',
   'playback.sizeNote',
+  // V2-B3 — MeteoAlarm
+  'meteoalarm.title',
+  'meteoalarm.note',
+  'meteoalarm.checkedAt',
+  'meteoalarm.forestFire',
+  'meteoalarm.highTemperature',
+  'meteoalarm.level2',
+  'meteoalarm.level3',
+  'meteoalarm.level4',
+  'meteoalarm.validFromTo',
+  'meteoalarm.validUntil',
+  'meteoalarm.officialLink',
+  'meteoalarm.noneInForce',
+  'meteoalarm.notChecked',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

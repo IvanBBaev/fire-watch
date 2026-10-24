@@ -17,6 +17,8 @@ export interface CreditSessionState {
   readonly imageryOn?: boolean;
   /** An EFFIS overlay is chosen in the Layers panel (`effisChosen` in `ui/layers.ts`, G4). */
   readonly effisOn?: boolean;
+  /** An FWI forecast day ahead is on screen (`gwisChosen` in `ui/layers.ts`, V2-B1). */
+  readonly gwisOn?: boolean;
   /** The F14 wind layer is chosen (`windChosen` in `ui/layers.ts`). */
   readonly windOn?: boolean;
   /** F17 forecast cloud is shown in the satellite-pass section (`passesCloudOn`). */
@@ -57,6 +59,8 @@ export function activeCreditConditions(
   if (session.imageryOn === true) conditions.push('toggle:esri');
   // The same for the EFFIS overlays: off by default, owed from the moment one is chosen.
   if (session.effisOn === true) conditions.push('layer:effis');
+  // A forecast day ahead is the GWIS `ecmwf.fwi` raster, relayed as published (V2-B1).
+  if (session.gwisOn === true) conditions.push('layer:gwis');
   // And the wind layer: all five ECMWF components, owed while it is chosen (F14).
   // The F17 per-pass cloud forecast is ECMWF-derived too: the same five, never twice.
   if (session.windOn === true || session.cloudOn === true) conditions.push('derived:ecmwf');

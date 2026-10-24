@@ -240,6 +240,13 @@ const messages: Messages = {
     fwiClasses: ['Low', 'Moderate', 'High', 'Very high', 'Extreme', 'Very extreme'],
     fwiValidFor: (date) => `For ${date}`,
     fwiNotToday: "Not today's index.",
+    fwiDayLabel: 'Forecast day',
+    fwiDayOption: (leadDays) =>
+      leadDays === 0 ? 'Today' : leadDays === 1 ? '+1 day' : `+${String(leadDays)} days`,
+    fwiForecastNote:
+      'Days ahead are the GWIS fire-weather forecast (ECMWF model), relayed as EFFIS publishes it, in the same danger levels. It forecasts the weather, not fires.',
+    fwiForecastFor: (date) => `EFFIS/GWIS forecast for ${date}, relayed as published`,
+    fwiForecastBehind: 'Not the day you picked: the newer forecast copy has not arrived yet.',
     ba: 'Burnt areas (last 7 days)',
     baNote:
       'EFFIS burnt-area polygons mapped from satellite imagery. A new burnt area appears days after the fire.',
@@ -345,6 +352,23 @@ const messages: Messages = {
     legendTitle: 'Age at the shown time',
     ageClasses: ['Under 1 hour', '1 to 6 hours', '6 to 24 hours', 'Over 24 hours'],
     sizeNote: 'A larger dot is a detection with higher fire radiative power (FRP).',
+  },
+
+  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  meteoalarm: {
+    title: 'Official weather warnings',
+    note: 'Forest-fire and heat warnings in force from the national weather services of Bulgaria and its neighbours, relayed as they publish them through MeteoAlarm. Fire Watch does not issue warnings: follow the issuing service.',
+    checkedAt: (time) => `Warning feeds read at ${time}.`,
+    forestFire: 'Forest-fire danger',
+    highTemperature: 'High temperature',
+    level2: 'Yellow warning',
+    level3: 'Orange warning',
+    level4: 'Red warning',
+    validFromTo: (from, to) => `In force from ${from} to ${to}`,
+    validUntil: (to) => `In force until ${to}`,
+    officialLink: 'Official warning',
+    noneInForce: 'None of the services read has a forest-fire or heat warning in force.',
+    notChecked: (countries) => `Not read on the last check: ${countries}.`,
   },
 
   // Capability → limitation → action (07-product-ux P7/P13).

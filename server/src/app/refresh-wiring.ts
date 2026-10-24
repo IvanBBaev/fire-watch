@@ -48,7 +48,11 @@ export function wireRefreshJobs(config: ServerConfig): RefreshWiring | null {
 
   return {
     effisDeps: {
-      client: createEffisHttpClient({ clock: systemClock, baseUrl: config.effisBaseUrl }),
+      client: createEffisHttpClient({
+        clock: systemClock,
+        baseUrl: config.effisBaseUrl,
+        gwisBaseUrl: config.gwisBaseUrl,
+      }),
       payloads,
       feedStatus,
       clock: systemClock,

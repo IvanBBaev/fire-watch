@@ -30,6 +30,18 @@
 
   --color-overlay: rgba(31, 36, 40, 0.55);
 
+  /* V2-B3 official-warning levels (yellow, orange, red by name) — a violet ramp on purpose:
+     fire owns the red–orange band (CI-14), and the chip always spells the level out. */
+  --warning-level-2-bg: #efeafd;
+  --warning-level-2-border: #9a86e0;
+  --warning-level-2-text: #3d2a86;
+  --warning-level-3-bg: #d9cff9;
+  --warning-level-3-border: #6a4fcf;
+  --warning-level-3-text: #2f1e72;
+  --warning-level-4-bg: #3f2a8f;
+  --warning-level-4-border: #3f2a8f;
+  --warning-level-4-text: #ffffff;
+
   --tap-target: 2.75rem; /* 44px at 16px root */
 }
 
@@ -52,6 +64,16 @@
     --color-badge-stale-text: #dde1e5;
 
     --color-overlay: rgba(0, 0, 0, 0.65);
+
+    --warning-level-2-bg: #2a2445;
+    --warning-level-2-border: #7d6fc4;
+    --warning-level-2-text: #d9d1fa;
+    --warning-level-3-bg: #3b2f74;
+    --warning-level-3-border: #a493ee;
+    --warning-level-3-text: #ece7fd;
+    --warning-level-4-bg: #c9bdf7;
+    --warning-level-4-border: #c9bdf7;
+    --warning-level-4-text: #1d1442;
   }
 }
 
@@ -73,6 +95,16 @@
   --color-badge-stale-text: #dde1e5;
 
   --color-overlay: rgba(0, 0, 0, 0.65);
+
+  --warning-level-2-bg: #2a2445;
+  --warning-level-2-border: #7d6fc4;
+  --warning-level-2-text: #d9d1fa;
+  --warning-level-3-bg: #3b2f74;
+  --warning-level-3-border: #a493ee;
+  --warning-level-3-text: #ece7fd;
+  --warning-level-4-bg: #c9bdf7;
+  --warning-level-4-border: #c9bdf7;
+  --warning-level-4-text: #1d1442;
 }
 
 /* ---------- Base ---------- */
@@ -416,6 +448,15 @@ button {
   gap: 0.375rem;
 }
 
+/* V2-B1: the FWI forecast-day picker sits under the legend, its label above the select. */
+.layers-fwi-day {
+  margin: 0 0 0.25rem;
+}
+
+.layers-fwi-day label {
+  display: block;
+}
+
 /* The provider's palette, bordered so the palest class still reads on a light panel. */
 .layers-swatch {
   flex: none;
@@ -571,6 +612,93 @@ button {
 
 .passes-credit + .pass-cloud-credit {
   margin-top: 0;
+}
+
+/* V2-B3 official warnings: the panel's neutrals, and the violet level ramp for the chip. */
+.meteoalarm {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.meteoalarm-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.meteoalarm-note,
+.meteoalarm-status,
+.meteoalarm-checked,
+.meteoalarm-caveat,
+.meteoalarm-credit,
+.meteoalarm-head,
+.meteoalarm-region,
+.meteoalarm-validity {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+}
+
+.meteoalarm-note,
+.meteoalarm-status,
+.meteoalarm-checked,
+.meteoalarm-caveat,
+.meteoalarm-credit,
+.meteoalarm-validity {
+  color: var(--color-text-muted);
+}
+
+.meteoalarm-credit {
+  margin-top: 0.5rem;
+}
+
+.meteoalarm-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.meteoalarm-warning {
+  padding: 0.25rem 0;
+}
+
+.meteoalarm-warning + .meteoalarm-warning {
+  border-top: 1px solid var(--color-border);
+}
+
+.meteoalarm-region {
+  overflow-wrap: anywhere;
+}
+
+.meteoalarm-kind {
+  font-weight: 600;
+}
+
+.meteoalarm-level {
+  padding: 0 0.375rem;
+  border: 1px solid var(--warning-level-2-border);
+  border-radius: 0.25rem;
+  background: var(--warning-level-2-bg);
+  color: var(--warning-level-2-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.meteoalarm-level[data-level='3'] {
+  border-color: var(--warning-level-3-border);
+  background: var(--warning-level-3-bg);
+  color: var(--warning-level-3-text);
+}
+
+.meteoalarm-level[data-level='4'] {
+  border-color: var(--warning-level-4-border);
+  background: var(--warning-level-4-bg);
+  color: var(--warning-level-4-text);
+}
+
+.meteoalarm-link {
+  display: inline-block;
+  font-size: 0.875rem;
 }
 
 /* Narrow: the panel is a bottom sheet over the map, its toggle the peeking handle. */
