@@ -96,7 +96,10 @@ function staleSince(
  * errors renders `offline`; a feed that simply stops answering renders a perfectly normal
  * map of yesterday's fires, and silence there reads as "nothing is burning".
  */
-function staleSnapshotSince(lastSnapshotAt: string | null, serverNowMs: number): string | null {
+export function staleSnapshotSince(
+  lastSnapshotAt: string | null,
+  serverNowMs: number,
+): string | null {
   if (lastSnapshotAt === null) return null;
   const snapshotMs = Date.parse(lastSnapshotAt);
   // Same honesty rule as the source branch: no verdict from garbage, and none from a stamp

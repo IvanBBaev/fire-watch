@@ -21,8 +21,9 @@
  * What the card deliberately does not show:
  * - **No map, no pin.** GLOSSARY §5.2 allows an OG card the event's footprint, never a
  *   pinned coordinate; the text-only card shows neither, so it owes no tile attribution
- *   either (the credits registry has no share-card surface). A footprint thumbnail is the
- *   v2 server-rendered og:image, not this.
+ *   either (the credits registry has no share-card surface). The server-rendered og:image
+ *   (TASKS V2-D4, `web/src/edge/og/`) rasterises this same card; a footprint thumbnail is
+ *   still future work.
  * - **No fire colour.** The palette is the app's dark chrome, all neutral: red is owned by
  *   fire on the map (CI-14), and a card is not a map.
  * - **No webfont.** Text is set in the system sans-serif stack the app itself uses (CI-12

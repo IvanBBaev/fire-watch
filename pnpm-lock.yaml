@@ -94,6 +94,9 @@ importers:
       '@preact/signals':
         specifier: ^2.10.0
         version: 2.10.0(preact@10.29.7)
+      '@resvg/resvg-wasm':
+        specifier: 2.6.2
+        version: 2.6.2
       maplibre-gl:
         specifier: 6.4.1
         version: 6.4.1
@@ -376,6 +379,10 @@ packages:
         optional: true
       yauzl:
         optional: true
+
+  '@resvg/resvg-wasm@2.6.2':
+    resolution: {integrity: sha512-FqALmHI8D4o6lk/LRWDnhw95z5eO+eAa6ORjVg09YRR7BkcM6oPHU9uyC0gtQG5vpFLvgpeU4+zEAz2H8APHNw==}
+    engines: {node: '>= 10'}
 
   '@rolldown/binding-android-arm64@1.1.5':
     resolution: {integrity: sha512-lZg8fqIv2v7FF237bwMgzGZEJvGL79/s5knJ/i6FmsGF4XXlzccZ4jb+TrFIxtSSxFtIpdsgrPZeMk1I9AFcyQ==}
@@ -2447,6 +2454,8 @@ snapshots:
     dependencies:
       modern-tar: 0.7.7
       yargs: 18.1.0
+
+  '@resvg/resvg-wasm@2.6.2': {}
 
   '@rolldown/binding-android-arm64@1.1.5':
     optional: true

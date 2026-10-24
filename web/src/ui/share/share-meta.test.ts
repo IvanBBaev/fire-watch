@@ -83,4 +83,32 @@ describe('shareMetaFor', () => {
 
     expect(shareMetaFor(input)).toEqual(shareMetaFor(input));
   });
+
+  it('names the rendered card, with its size and alt text, when the edge serves one (V2-D4)', () => {
+    const image = {
+      url: 'https://firewatch.example/og/event/fw-2026-q7f3d.png?lang=bg',
+      width: 1200,
+      height: 630,
+    };
+    const tags = shareMetaFor({
+      event: EVENT,
+      messages: bg,
+      locale: 'bg',
+      permalinkUrl: URL_,
+      image,
+    });
+
+    expect(content(tags, 'og:image')).toBe(image.url);
+    expect(content(tags, 'og:image:type')).toBe('image/png');
+    expect(content(tags, 'og:image:width')).toBe('1200');
+    expect(content(tags, 'og:image:height')).toBe('630');
+    expect(content(tags, 'og:image:alt')).toBe(bg.ogImage.alt('Сакар'));
+    expect(content(tags, 'twitter:card')).toBe('summary_large_image');
+    expect(content(tags, 'twitter:image')).toBe(image.url);
+    expect(content(tags, 'twitter:image:alt')).toBe(content(tags, 'og:image:alt'));
+    for (const tag of tags) {
+      expect(tag.attribute).toBe(tag.key.startsWith('og:') ? 'property' : 'name');
+    }
+    expect(new Set(tags.map((tag) => tag.key)).size).toBe(tags.length);
+  });
 });
