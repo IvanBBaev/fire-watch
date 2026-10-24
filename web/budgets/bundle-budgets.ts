@@ -109,6 +109,10 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   { role: 'page', src: /^src\/ui\/measure-panel\.tsx$/ },
   // V2-D3: the measure drawing's map layers, fetched by the map chunk when the tool opens.
   { role: 'page', src: /^src\/map\/measure-layer\.ts$/ },
+  // The opt-in overlays' map layers — satellite swaths (F15), lightning (F18) and estimated
+  // outlines (V2-A4) — fetched by the map chunk the first time a reader switches one on.
+  // Every overlay starts off, so none of them is on the first-render or map path.
+  { role: 'page', src: /^src\/map\/(pass-swaths|lightning|fire-outline)-layer\.ts$/ },
   // V2-E3: the CEMS activation badge, fetched by the event page when a source is configured.
   { role: 'page', src: /^src\/ui\/event\/cems-badge\.tsx$/ },
   // TASKS F6: the share card's layout and rasterizer, fetched on the first share click.

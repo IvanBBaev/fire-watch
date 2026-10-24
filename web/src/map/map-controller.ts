@@ -56,10 +56,7 @@ import { parseMapHash, withMapHash } from './hash.js';
 import { NO_EFFIS_OVERLAYS, applyEffisOverlays } from './effis-overlays.js';
 import { applyImageryLayer } from './imagery-layer.js';
 import { applyWindLayer } from './wind-layer.js';
-import { applyFireOutlineLayer } from './fire-outline-layer.js';
-import { applyLightningLayer } from './lightning-layer.js';
 import type * as PlaybackLayer from './playback-layer.js';
-import { applyPassSwathsLayer } from './pass-swaths-layer.js';
 import { applyProtectedSitesLayer } from './protected-sites-layer.js';
 import { applyStaticSourcesLayer } from './static-sources-layer.js';
 import {
@@ -108,6 +105,45 @@ type SourceData = FireEventsCollection | DetectionsCollection | DetectionCellsCo
 
 // Module scope: set once when the lazy chunk evaluates, before any Map spins up workers.
 setWorkerUrl(maplibreWorkerUrl);
+
+/**
+ * An opt-in overlay whose layer code is fetched the first time the shell asks to draw it
+ * (CI-12): every such overlay starts off, and the map chunk is on the critical path. Until
+ * the code arrives there is nothing on the map to clear, so only a wanted draw fetches it.
+ * Returns the function that applies `current()` — call it after every change and on
+ * 'style.load'; a style not yet loaded is left to 'style.load', like `setImagery`.
+ */
+function lazyOverlay<D>(
+  map: MapLibreMap,
+  current: () => D | null,
+  load: () => Promise<(host: MapLibreMap, draw: D | null) => void>,
+): () => void {
+  let apply: ((host: MapLibreMap, draw: D | null) => void) | null = null;
+  let loading = false;
+  const draw = (): void => {
+    if (apply === null) {
+      if (current() === null || loading) return;
+      loading = true;
+      load().then(
+        (loaded) => {
+          apply = loaded;
+          draw();
+        },
+        () => {
+          // A failed fetch is retried by the next change to the overlay.
+          loading = false;
+        },
+      );
+      return;
+    }
+    try {
+      apply(map, current());
+    } catch {
+      // Style not loaded yet.
+    }
+  };
+  return draw;
+}
 
 export function createMapController(deps: MapControllerDeps): MapController {
   // The fragment wins over whatever the shell proposes; garbage in it loses silently.
@@ -165,6 +201,21 @@ export function createMapController(deps: MapControllerDeps): MapController {
   let lightning: LightningDraw | null = null;
   let fireOutlines: FireOutlineDraw | null = null;
   let playback: PlaybackDraw | null = null;
+  const drawPassSwaths = lazyOverlay(
+    map,
+    () => passSwaths,
+    async () => (await import('./pass-swaths-layer.js')).applyPassSwathsLayer,
+  );
+  const drawLightning = lazyOverlay(
+    map,
+    () => lightning,
+    async () => (await import('./lightning-layer.js')).applyLightningLayer,
+  );
+  const drawFireOutlines = lazyOverlay(
+    map,
+    () => fireOutlines,
+    async () => (await import('./fire-outline-layer.js')).applyFireOutlineLayer,
+  );
   // V2-A1: the replay layer is its own chunk, imported the first time a replay is drawn
   // (CI-12). Until then there is nothing to hide or draw, so live mode needs none of it.
   let playbackLayer: typeof PlaybackLayer | null = null;
@@ -443,7 +494,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
     // And the EFFIS overlays, which sit between the imagery and the fire layers.
     applyEffisOverlays(map, effisOverlays);
     // And the satellite swaths, above the EFFIS overlays and below the wind arrows.
-    applyPassSwathsLayer(map, passSwaths);
+    drawPassSwaths();
     // And the wind arrows, above the EFFIS overlays and below the fire layers.
     applyWindLayer(map, windOverlay);
     // And the Natura 2000 sites, below the mask, the wind arrows and the fire layers.
@@ -451,10 +502,10 @@ export function createMapController(deps: MapControllerDeps): MapController {
     // And the static hot-source mask, above the EFFIS overlays and below the wind arrows.
     applyStaticSourcesLayer(map, staticSources);
     // And the lightning flashes (F18), directly below the fire layers.
-    applyLightningLayer(map, lightning);
+    drawLightning();
     // And the estimated outlines (V2-A4), directly below the fire layers: the dots inside
     // an outline always draw over its faint fill and dashed edge.
-    applyFireOutlineLayer(map, fireOutlines);
+    drawFireOutlines();
     // And the V2-A1 replay, on top, hiding the live fire layers while it is on. Last, so the
     // fire layers re-added above are hidden again after a style swap.
     playbackLayer?.applyPlaybackLayer(map, playback);
@@ -686,34 +737,19 @@ export function createMapController(deps: MapControllerDeps): MapController {
     setPassSwaths(draw: PassSwathsDraw | null): void {
       if (draw === passSwaths) return;
       passSwaths = draw;
-      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
-      try {
-        applyPassSwathsLayer(map, passSwaths);
-      } catch {
-        // Style not loaded yet.
-      }
+      drawPassSwaths();
     },
 
     setLightning(draw: LightningDraw | null): void {
       if (draw === lightning) return;
       lightning = draw;
-      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
-      try {
-        applyLightningLayer(map, lightning);
-      } catch {
-        // Style not loaded yet.
-      }
+      drawLightning();
     },
 
     setFireOutlines(draw: FireOutlineDraw | null): void {
       if (draw === fireOutlines) return;
       fireOutlines = draw;
-      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
-      try {
-        applyFireOutlineLayer(map, fireOutlines);
-      } catch {
-        // Style not loaded yet.
-      }
+      drawFireOutlines();
     },
 
     setPlayback(draw: PlaybackDraw | null): void {

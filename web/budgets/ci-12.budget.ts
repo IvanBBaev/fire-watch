@@ -33,6 +33,11 @@ const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
 // candidate fix in the bundle: the `source` and `authority` fields of `CREDITS` are
 // provenance the web never renders, yet they ship in the entry (~985 B gzip); moving them
 // out of the shipped array would clear this with room to spare.
+//
+// After v2 wave 1 merged (V2-A1, A2, A4, B1, B3, D3, E3, F1, F4), ~2.4 KB over at 360,767 B,
+// with the opt-in overlays' map layers (swaths, lightning, outlines) already lazy. Moving the
+// credit provenance out (~1.15 KB) no longer clears it alone; the rest has to come from the
+// bg catalog's strings for on-demand features or from a lazy Layers-panel body. Founder call.
 const KNOWN_OVER_BUDGET: readonly BudgetName[] = ['criticalPath'];
 
 describe('CI-12 bundle budgets (ADR-005 D3)', () => {

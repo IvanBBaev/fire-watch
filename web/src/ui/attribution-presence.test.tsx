@@ -267,7 +267,7 @@ let swathsDraw: PassSwathsDraw | null = null;
 /** The same for the lightning flashes (TASKS F18): set only by the dedicated EUMETSAT case. */
 let lightningDraw: LightningDraw | null = null;
 
-function probeMapCorner(
+async function probeMapCorner(
   config: ClientConfig,
   locale: Locale,
   session: CreditSessionState,
@@ -310,6 +310,12 @@ function probeMapCorner(
   if (swathsDraw !== null) controller.setPassSwaths(swathsDraw);
   // And the lightning flashes (TASKS F18), when the dedicated case below draws them.
   if (lightningDraw !== null) controller.setLightning(lightningDraw);
+  // Both layers are fetched the first time one is drawn (CI-12), so their sources — and the
+  // credits on them — reach the map only once that import settles.
+  if (swathsDraw !== null || lightningDraw !== null) {
+    await Promise.all([import('../map/pass-swaths-layer.js'), import('../map/lightning-layer.js')]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
   // Only what reached the map counts: a control built and never added credits no one.
   const lines = recorded.controls.flatMap((control) => {
     const custom = (control as { options?: { customAttribution?: string | string[] } }).options
@@ -324,7 +330,7 @@ function probeMapCorner(
     if (typeof attribution === 'string') lines.push(attribution);
   }
   // MapLibre sets the custom attribution as HTML, so it is read as HTML.
-  return Promise.resolve(readHtml(lines.join('\n')));
+  return readHtml(lines.join('\n'));
 }
 
 /** The last map-corner probe drew an FWI forecast day ahead (GWIS), not today's index. */
