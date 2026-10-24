@@ -25,6 +25,7 @@ import type { StaticSourceMask } from '@fire-watch/contracts';
 import { boundsContain } from '../core/geo/viewport.js';
 import type { MapCamera, MapViewport } from '../core/geo/viewport.js';
 import type { LightningDraw } from '../core/lightning.js';
+import type { PlaybackDraw } from '../core/playback.js';
 import type { PassSwathsDraw } from '../core/pass-swaths.js';
 import type { WindOverlayBody } from '../core/wind.js';
 import { isWithinCutoff } from '../core/time/age-filter.js';
@@ -53,6 +54,7 @@ import { NO_EFFIS_OVERLAYS, applyEffisOverlays } from './effis-overlays.js';
 import { applyImageryLayer } from './imagery-layer.js';
 import { applyWindLayer } from './wind-layer.js';
 import { applyLightningLayer } from './lightning-layer.js';
+import type * as PlaybackLayer from './playback-layer.js';
 import { applyPassSwathsLayer } from './pass-swaths-layer.js';
 import { applyStaticSourcesLayer } from './static-sources-layer.js';
 import {
@@ -153,6 +155,22 @@ export function createMapController(deps: MapControllerDeps): MapController {
   // The F15 satellite swaths the shell asked for; none by default.
   let passSwaths: PassSwathsDraw | null = null;
   let lightning: LightningDraw | null = null;
+  let playback: PlaybackDraw | null = null;
+  // V2-A1: the replay layer is its own chunk, imported the first time a replay is drawn
+  // (CI-12). Until then there is nothing to hide or draw, so live mode needs none of it.
+  let playbackLayer: typeof PlaybackLayer | null = null;
+  let playbackLayerLoading = false;
+  let destroyed = false;
+
+  /** Apply the wanted replay state; a style not yet loaded is left to 'style.load'. */
+  const applyPlayback = (): void => {
+    if (playbackLayer === null) return;
+    try {
+      playbackLayer.applyPlaybackLayer(map, playback);
+    } catch {
+      // Style not loaded yet.
+    }
+  };
 
   const setSourceData = (sourceId: string, data: SourceData): void => {
     const source = map.getSource<GeoJSONSource>(sourceId);
@@ -390,6 +408,9 @@ export function createMapController(deps: MapControllerDeps): MapController {
     applyStaticSourcesLayer(map, staticSources);
     // And the lightning flashes (F18), directly below the fire layers.
     applyLightningLayer(map, lightning);
+    // And the V2-A1 replay, on top, hiding the live fire layers while it is on. Last, so the
+    // fire layers re-added above are hidden again after a style swap.
+    playbackLayer?.applyPlaybackLayer(map, playback);
   });
 
   map.once('idle', () => {
@@ -616,7 +637,32 @@ export function createMapController(deps: MapControllerDeps): MapController {
       }
     },
 
+    setPlayback(draw: PlaybackDraw | null): void {
+      if (draw === playback) return;
+      playback = draw;
+      if (playbackLayer !== null || draw === null) {
+        // Same reasoning as `setImagery`: 'style.load' applies the wanted state if it throws.
+        applyPlayback();
+        return;
+      }
+      if (playbackLayerLoading) return;
+      playbackLayerLoading = true;
+      // A failed import leaves the map live; the next replay tries again.
+      void import('./playback-layer.js').then(
+        (module) => {
+          playbackLayerLoading = false;
+          if (destroyed) return;
+          playbackLayer = module;
+          applyPlayback();
+        },
+        () => {
+          playbackLayerLoading = false;
+        },
+      );
+    },
+
     destroy(): void {
+      destroyed = true;
       unsubscribe();
       throttle.dispose();
       uninstallInspection();

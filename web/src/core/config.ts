@@ -80,6 +80,11 @@ export interface ClientConfig {
    * live mode is the API's route. Optional so older literal configs still type-check.
    */
   readonly passesUrlTemplate?: string;
+  /**
+   * V2-A1 playback: one history window, `{range}` being `24h`, `3d` or `7d`. Committed
+   * fixtures by default, the API's route in live mode. Optional; absent uses the API's route.
+   */
+  readonly historyUrlTemplate?: string;
 }
 
 export const DEFAULT_CONFIG: ClientConfig = {
@@ -101,6 +106,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   lightningOverlayUrl: '/fixtures/lightning/recent.json',
   lightningContextUrlTemplate: '/fixtures/lightning-context/{id}.json',
   passesUrlTemplate: '/fixtures/passes/sample.json',
+  historyUrlTemplate: '/fixtures/history/{range}.json',
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
     dark: 'https://tiles.openfreemap.org/styles/dark',
@@ -206,6 +212,9 @@ export const LIVE_DETECTIONS_URL_TEMPLATE = '/api/v1/events/{id}/detections';
 /** The API's satellite-pass route (`server/src/adapters/http/passes-route.ts`). */
 export const LIVE_PASSES_URL_TEMPLATE = '/api/v1/passes/{cell}';
 
+/** The API's playback history route (`server/src/adapters/http/history-route.ts`). */
+export const LIVE_HISTORY_URL_TEMPLATE = '/api/v1/history?range={range}';
+
 /**
  * `config` pointed at the chosen data source. Live reads the API's snapshot and its
  * per-event detections route (both proxied in dev); the fixture template must never
@@ -222,5 +231,6 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     lightningOverlayUrl: '/overlays/lightning/recent.json',
     lightningContextUrlTemplate: '/api/v1/events/{id}/lightning-context',
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
+    historyUrlTemplate: LIVE_HISTORY_URL_TEMPLATE,
   };
 }

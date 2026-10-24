@@ -18,6 +18,7 @@ import type {
 
 import type { MapCamera, MapViewport } from './geo/viewport.js';
 import type { LightningDraw } from './lightning.js';
+import type { PlaybackDraw } from './playback.js';
 import type { PassSwathsDraw } from './pass-swaths.js';
 import type { WindOverlayBody } from './wind.js';
 
@@ -349,6 +350,11 @@ export interface MapController {
   setPassSwaths(draw: PassSwathsDraw | null): void;
   /** F18: recent lightning flashes by age, or `null` to draw none. */
   setLightning(draw: LightningDraw | null): void;
+  /**
+   * V2-A1: replay one history window up to its cursor, hiding the live fire layers while it
+   * is on, or `null` to show the live layers again (`map/playback-layer.ts`).
+   */
+  setPlayback(draw: PlaybackDraw | null): void;
   destroy(): void;
 }
 
