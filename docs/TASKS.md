@@ -2611,6 +2611,23 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 
 ---
 
+## Track V2 — v2.0 wave 1 (`V2-FEATURES.md` §5, §7)
+
+Each item: spec in `V2-FEATURES.md` §3; done when its founder decisions (§7) are recorded, copy
+reviewed in both locales, CI-7/12/13/14/18 green.
+
+- [ ] **V2-A1 — Playback.** *2026-10-24 — built, unticked (8315aa6). Founder: 21 keys. Gap: only FIRMS detections replay.*
+- [ ] **V2-A2 — Sensitivity filter.** *2026-10-24 — built, unticked (171cf4c). Founder: presets, copy.*
+- [ ] **V2-A4 — Estimated fire outlines.** *2026-10-24 — built, unticked (3e985be, migration 032). Founder: parameters, limits, styling, 8 keys, V2-Q1 wording.*
+- [ ] **V2-B1 — FWI forecast relay.** *2026-10-24 — built, unticked (56c3dcc). Founder: model mix, GWIS credit, 120 lookups/h.*
+- [ ] **V2-B3 — MeteoAlarm warnings.** *2026-10-24 — built, unticked (56c3dcc). Founder: heat warnings, colours, 13 keys, staleness. Gaps: BG OET codes unverified, Turkey 404, synthetic fixtures, in-memory cache, no map drawing, lazy chunk unbudgeted.*
+- [ ] **V2-D1 — Export GeoJSON/KML/CSV.** *2026-10-24 — built, unticked (394544b). Founder: V2-Q3, copy keys.*
+- [ ] **V2-D3 — Measure tool.** *2026-10-24 — built, unticked (171cf4c, f27d290 200 % text fix). Founder: 17 keys.*
+- [ ] **V2-D4 — Open Graph card.** *2026-10-24 — built, unticked (394544b). Founder: Pages deploy + `FW_SNAPSHOT_URL`, wasm size, Noto licence, copy. Gaps: no ETag / PNG cache, no perimeters on the card.*
+- [ ] **V2-E3 — CEMS badge.** *2026-10-24 — built, unticked (171cf4c). Founder: match window, retention, poll, credit. Gaps: synthetic EMSR fixture, undocumented API, heuristic e2e wait.*
+- [ ] **V2-F1 — Natura 2000 proximity.** *2026-10-24 — built, unticked (a12902f). Founder: 10 keys, grid, credit placement, cadence, MK/RS/TR coverage.*
+- [ ] **V2-F4 — Land cover note.** *2026-10-24 — built, unticked (a12902f). Founder: 165 kB asset unbudgeted, copy.*
+
 ## Coverage note
 
 Every item of review 13 §3.1–3.6 and every H/M/minor of review 14 maps to at

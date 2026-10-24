@@ -1,7 +1,8 @@
 # Fire Watch v2.0 — software-only feature analysis
 
 Status: proposal, 2026-10-24. Nothing here is committed scope until the founder ticks it into
-`TASKS.md`.
+`TASKS.md`. Wave 1 (§5) is built on `main`, unticked, pending founder decisions — see §7 and
+`TASKS.md` Track V2.
 
 ## 1. Scope rule
 
@@ -192,3 +193,27 @@ None of the competitors reviewed combine these for the Balkans.
   published.
 - **V2-Q5:** Which expansion country goes first (H1). Greece has the highest demand but also local
   competitors.
+
+## 7. Implementation status
+
+*2026-10-24 — wave 1 built on `main` (all gates green locally), every item unticked in `TASKS.md`
+Track V2 until its founder decisions land.*
+
+| ID | Merge | Built | Waiting on |
+|---|---|---|---|
+| D1 | 394544b | GeoJSON / KML / CSV export of the listed events and an event's detections | V2-Q3 (free or paid), copy keys |
+| D4 | 394544b | Open Graph meta + rendered og:image card on event permalinks | Pages deploy + `FW_SNAPSHOT_URL`, wasm size, Noto licence note, copy keys |
+| A4 | 3e985be | Estimated outlines from VIIRS/MODIS pixel footprints (migration 032), route, map layer, area | Hull parameters and limits, styling, 8 copy keys, V2-Q1 wording |
+| F1 | a12902f | Natura 2000 proximity note on the event detail | 10 copy keys, grid, credit placement, refresh cadence, MK/RS/TR coverage |
+| F4 | a12902f | ESA WorldCover land-cover note | Unbudgeted 165 kB on-demand asset, copy keys |
+| A1 | 8315aa6 | Playback scrubber 24 h / 3 d / 7 d, `pb=` permalink, lazy replay layer | 21 copy keys; only FIRMS detections are replayed |
+| B1 | 56c3dcc | Relayed FWI forecast | Model mix, GWIS credit wording, 120 lookups/h limit |
+| B3 | 56c3dcc | MeteoAlarm forest-fire and heat warnings for BG + neighbours | Heat warnings in or out, colours, BG OET codes unverified, Turkey feed 404, 13 copy keys, staleness 15 min / 1 h; fixtures synthetic, cache in memory, no map drawing |
+| A2 | 171cf4c | Sensitivity filter with presets | Preset values and copy |
+| D3 | 171cf4c | Distance / area measure tool | 17 copy keys |
+| E3 | 171cf4c | Copernicus EMS activation badge | `CEMS_MATCH` 5/15 km and −3/+14 days, 730-day retention, hourly poll, credit wording; EMSR fixture synthetic, CEMS API undocumented |
+
+CI-12: the first-load `criticalPath` is 360,767 B against 358,400 B after wave 1 and is recorded in
+`KNOWN_OVER_BUDGET` — closing it needs a founder call (trim credit provenance, split the bg
+catalog's on-demand strings, or lazy-load the Layers panel body).
+
