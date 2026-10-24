@@ -50,6 +50,8 @@ export function createMetricsServer(deps: MetricsServerDeps): FastifyInstance {
     logger: false,
     // A scrape is a GET with no body; nothing larger than this is a scraper.
     bodyLimit: 1024,
+    // As the health server: a stuck scraper's socket must not hold shutdown open.
+    forceCloseConnections: true,
   });
 
   const expected = deps.bearerToken == null ? null : digest(`Bearer ${deps.bearerToken}`);

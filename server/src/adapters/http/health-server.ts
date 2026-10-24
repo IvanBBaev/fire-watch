@@ -223,6 +223,10 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     // No `trustProxy`, on purpose: `request.ip` stays the socket peer, and the real client
     // identity travels only in the edge-owned header — see {@link HealthServerDeps}.
     bodyLimit: MAX_BODY_BYTES,
+    // `close()` ends every socket still open, not only the idle ones. The wiring drains the
+    // stream hub first, so nothing it cares about is cut; without this a held SSE socket
+    // keeps `close()` pending. Fastify 5.11 did this for its 'idle' default; 5.12 stopped.
+    forceCloseConnections: true,
     routerOptions: {
       // A probe URL is short. Refusing a long one costs nothing and removes a class of
       // request that only ever arrives from a scanner. (Top-level `maxParamLength` is
