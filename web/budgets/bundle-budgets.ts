@@ -88,6 +88,8 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
   // V2-D3: the measure panel and its maths, loaded when a reader first opens the tool.
   { role: 'page', src: /^src\/ui\/measure-panel\.tsx$/ },
+  // TASKS F6: the share card's layout and rasterizer, fetched on the first share click.
+  { role: 'page', src: /^src\/ui\/share\/share-action\.ts$/ },
 ];
 
 /**
