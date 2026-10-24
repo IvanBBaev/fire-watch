@@ -16,7 +16,7 @@
  * road or a drive time (GLOSSARY §5.2 "No routing, ever").
  */
 
-import { distanceKm, type LonLat } from './bearing.js';
+import type { LonLat } from './bearing.js';
 
 export type { LonLat } from './bearing.js';
 
@@ -35,9 +35,19 @@ function isFinitePoint(point: LonLat): boolean {
   return Number.isFinite(point.lon) && Number.isFinite(point.lat) && Math.abs(point.lat) <= 90;
 }
 
-/** Great-circle distance between two points, in metres. */
+/**
+ * Great-circle distance between two points, in metres (haversine). The same formula as
+ * `bearing.ts`'s `distanceKm`, written out here on purpose: this module loads only with the
+ * lazy measure panel, and sharing one function with the entry chunk would split a shared
+ * chunk off the critical path's bytes (CI-12).
+ */
 export function distanceMeters(from: LonLat, to: LonLat): number {
-  return distanceKm(from, to) * 1000;
+  const phi1 = toRadians(from.lat);
+  const phi2 = toRadians(to.lat);
+  const a =
+    Math.sin((phi2 - phi1) / 2) ** 2 +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(toRadians(to.lon - from.lon) / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
 /** The length of the path through `points` in order, in metres; 0 for fewer than two. */

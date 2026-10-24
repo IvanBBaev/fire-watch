@@ -17,7 +17,6 @@
 
 import { useEffect, useMemo, useState } from 'preact/hooks';
 
-import { partitionEvents } from '../core/filter/event-filter.js';
 import {
   addMeasurePoint,
   lengthForDisplay,
@@ -33,19 +32,10 @@ import {
 } from '../core/geo/measure.js';
 import { formatNumber } from '../core/i18n/format.js';
 import type { Messages } from '../core/i18n/messages.js';
-import { sortedEvents } from '../core/store/index.js';
-import { ageCutoffMs } from '../core/time/age-filter.js';
-import type { Locale } from '../core/types.js';
-import { ageWindow } from './age-window.js';
+import type { Locale, MeasureOverlay } from '../core/types.js';
 import { useApp } from './context.js';
-import { regionFilter, regionIndex, sensitivityFilter, sourceFamily } from './filters.js';
-import { placeName } from './logic/place.js';
-import { mapViewport } from './map-camera.js';
-import { MEASURE_PANEL_ID, measureOverlay, measurePanelOpen } from './measure-state.js';
-import { useNow } from './use-now.js';
-import { useStoreState } from './use-store.js';
 
-interface Candidate extends NearestCandidate {
+export interface MeasureCandidate extends NearestCandidate {
   readonly place: string;
 }
 
@@ -83,35 +73,36 @@ export function resultText(
   }
 }
 
-export function MeasurePanel() {
-  const { messages, locale, store, serverNow } = useApp();
+const NO_CANDIDATES: readonly MeasureCandidate[] = [];
+
+/**
+ * What the panel needs of the app's state comes in through its props, from
+ * `measure-control.tsx` in the entry chunk. Of the app's own modules the panel imports only
+ * the measure maths, the number formatter and the app context — the same shared set the
+ * other lazy pages import — so loading it splits no module out of the entry chunk (CI-12).
+ */
+export interface MeasurePanelProps {
+  readonly id: string;
+  readonly open: boolean;
+  /** The map's centre, or `null` while there is no frame. */
+  readonly centre: LonLat | null;
+  /** Active events that pass the reader's window and filters, with their place names. */
+  readonly candidates: readonly MeasureCandidate[];
+  /** Hands the map its drawing and its tap handler; `null` takes them away. */
+  readonly onDrawing: (overlay: MeasureOverlay | null) => void;
+}
+
+export function MeasurePanel({
+  id: panelId,
+  open,
+  centre,
+  candidates: visibleActive,
+  onDrawing,
+}: MeasurePanelProps) {
+  const { messages, locale } = useApp();
   const [mode, setMode] = useState<MeasureMode>('distance');
   const [points, setPoints] = useState<readonly LonLat[]>([]);
-  const state = useStoreState(store);
-  const nowMs = useNow(serverNow);
-  const open = measurePanelOpen.value;
-
-  const cutoffMs = ageCutoffMs(nowMs, ageWindow.value);
-  const family = sourceFamily.value;
-  const oblast = regionFilter.value;
-  const sensitivity = sensitivityFilter.value;
-  const regionAt = regionIndex.value?.regionAt ?? null;
-  const candidates = useMemo((): readonly Candidate[] => {
-    if (mode !== 'nearest') return [];
-    const visible = partitionEvents(
-      sortedEvents(state),
-      { cutoffMs, family, oblast, sensitivity },
-      regionAt,
-    ).visible;
-    return visible
-      .filter((event) => event.status === 'active')
-      .map((event) => ({
-        id: event.id,
-        lon: event.lon,
-        lat: event.lat,
-        place: placeName(event, locale),
-      }));
-  }, [mode, state, cutoffMs, family, oblast, sensitivity, regionAt, locale]);
+  const candidates = mode === 'nearest' ? visibleActive : NO_CANDIDATES;
 
   const result = measureResult(mode, points, candidates);
   const places = useMemo(
@@ -122,25 +113,24 @@ export function MeasurePanel() {
   // The drawing follows the points; a tap on the map comes back here through `onPick`.
   useEffect(() => {
     if (!open) return;
-    measureOverlay.value = {
+    onDrawing({
       collection: measureCollection(mode, points, result),
       onPick: (point) => {
         setPoints((current) => addMeasurePoint(mode, current, point));
       },
-    };
+    });
   }, [open, mode, points, result.kind === 'nearest' ? result.target.id : null]);
   useEffect(
     () => () => {
-      measureOverlay.value = null;
+      onDrawing(null);
     },
     [],
   );
 
-  const viewport = mapViewport.value;
-  const groupName = `${MEASURE_PANEL_ID}-mode`;
+  const groupName = `${panelId}-mode`;
   return (
     <section
-      id={MEASURE_PANEL_ID}
+      id={panelId}
       class="measure-panel"
       aria-label={messages.measure.panelLabel}
       hidden={!open}
@@ -167,12 +157,10 @@ export function MeasurePanel() {
         <button
           type="button"
           class="map-control"
-          disabled={viewport === null}
+          disabled={centre === null}
           onClick={() => {
-            if (viewport === null) return;
-            setPoints((current) =>
-              addMeasurePoint(mode, current, { lon: viewport.lon, lat: viewport.lat }),
-            );
+            if (centre === null) return;
+            setPoints((current) => addMeasurePoint(mode, current, centre));
           }}
         >
           {messages.measure.addCentre}

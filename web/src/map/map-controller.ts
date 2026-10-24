@@ -54,7 +54,6 @@ import { NO_EFFIS_OVERLAYS, applyEffisOverlays } from './effis-overlays.js';
 import { applyImageryLayer } from './imagery-layer.js';
 import { applyWindLayer } from './wind-layer.js';
 import { applyLightningLayer } from './lightning-layer.js';
-import { applyMeasureLayer } from './measure-layer.js';
 import { applyPassSwathsLayer } from './pass-swaths-layer.js';
 import { applyStaticSourcesLayer } from './static-sources-layer.js';
 import {
@@ -157,6 +156,36 @@ export function createMapController(deps: MapControllerDeps): MapController {
   let lightning: LightningDraw | null = null;
   /** The measure tool while it is open (V2-D3); `null` when the map selects fires as usual. */
   let measure: MeasureOverlay | null = null;
+  /**
+   * The measure drawing's layer code, fetched the first time the tool opens: few readers
+   * measure, and the map chunk is on the critical path (CI-12).
+   */
+  let measureLayer: typeof import('./measure-layer.js') | null = null;
+  let measureLayerLoading = false;
+  /** Show the current drawing, fetching the layer code first if a drawing needs it. */
+  const drawMeasure = (): void => {
+    if (measureLayer === null) {
+      if (measure === null || measureLayerLoading) return;
+      measureLayerLoading = true;
+      import('./measure-layer.js').then(
+        (module) => {
+          measureLayer = module;
+          drawMeasure();
+        },
+        () => {
+          // A failed fetch is retried by the next change to the drawing.
+          measureLayerLoading = false;
+        },
+      );
+      return;
+    }
+    // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+    try {
+      measureLayer.applyMeasureLayer(map, measure?.collection ?? null);
+    } catch {
+      // Style not loaded yet.
+    }
+  };
 
   const setSourceData = (sourceId: string, data: SourceData): void => {
     const source = map.getSource<GeoJSONSource>(sourceId);
@@ -395,7 +424,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
     // And the lightning flashes (F18), directly below the fire layers.
     applyLightningLayer(map, lightning);
     // And the measure drawing (V2-D3), on top of everything.
-    applyMeasureLayer(map, measure?.collection ?? null);
+    drawMeasure();
   });
 
   map.once('idle', () => {
@@ -637,12 +666,7 @@ export function createMapController(deps: MapControllerDeps): MapController {
       if (wasMeasuring !== (overlay !== null)) {
         map.getCanvas().style.cursor = overlay === null ? '' : 'crosshair';
       }
-      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
-      try {
-        applyMeasureLayer(map, measure?.collection ?? null);
-      } catch {
-        // Style not loaded yet.
-      }
+      drawMeasure();
     },
 
     destroy(): void {
