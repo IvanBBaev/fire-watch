@@ -167,6 +167,9 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   'eventDetail.kilometres': [[T1]],
   'eventDetail.distance': [[T1, T2]],
   'layers.fwiValidFor': [[T1]],
+  // V2-B1: today, one day ahead, and the plural form.
+  'layers.fwiDayOption': [[0], [1], [9]],
+  'layers.fwiForecastFor': [[T1]],
   'layers.copyDated': [[T1]],
   'layers.windValidFor': [[T1, T2]],
   'layers.swathsPassAt': [[T1, T2]],

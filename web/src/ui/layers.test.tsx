@@ -26,13 +26,19 @@ import {
   effisChosen,
   effisCreditText,
   effisOverlayPayload,
+  expectedFwiDate,
   formatLayersParam,
+  fwiDay,
+  fwiOverlayUrl,
+  gwisChosen,
+  gwisCreditText,
   formatOverlayParam,
   loadOverlay,
   overlayStatus,
   parseOverlayParam,
   parseStaticSourcesParam,
   resetOverlaysForTest,
+  setFwiDay,
   setLayersPanelOpen,
   setOverlays,
   startOverlaySync,
@@ -347,5 +353,102 @@ describe('LayersPanel', () => {
     );
     setOverlays(['ba']);
     expect(await renderPanel()).toContain('Not available right now.');
+  });
+});
+
+describe('the FWI forecast day (V2-B1)', () => {
+  const png = (validFor: string): Response =>
+    proxyResponse(new Blob([new Uint8Array([137, 80, 78, 71])]), { validFor });
+
+  it('names one allow-listed proxy file per day, never a date or a query', () => {
+    expect(fwiOverlayUrl(0)).toBe(OVERLAY_URLS.fwi);
+    expect(fwiOverlayUrl(1)).toBe('/overlays/effis/fwi-d1.png');
+    expect(fwiOverlayUrl(9)).toBe('/overlays/effis/fwi-d9.png');
+  });
+
+  it('counts the expected date from the UTC day', () => {
+    expect(expectedFwiDate('2026-09-28T23:30:00.000Z', 0)).toBe('2026-09-28');
+    expect(expectedFwiDate('2026-09-28T23:30:00.000Z', 4)).toBe('2026-10-02');
+    expect(expectedFwiDate('nonsense', 1)).toBeNull();
+  });
+
+  it('starts at today and owes the GWIS credit only for a day ahead', () => {
+    expect(fwiDay.value).toBe(0);
+    setOverlays(['fwi']);
+    expect(gwisChosen.value).toBe(false);
+    setFwiDay(3);
+    expect(gwisChosen.value).toBe(true);
+    setOverlays(['ba']);
+    expect(gwisChosen.value).toBe(false);
+    expect(activeCreditConditions(DEFAULT_CONFIG, { gwisOn: true })).toContain('layer:gwis');
+    expect(activeCreditConditions(DEFAULT_CONFIG, { effisOn: true })).not.toContain('layer:gwis');
+  });
+
+  it('reloads on a new day, dropping the old raster from the map at once', async () => {
+    const deps = fakeDeps((url) => png(url === OVERLAY_URLS.fwi ? '2026-09-28' : '2026-10-01'));
+    const stop = startOverlaySync(deps);
+    setOverlays(['fwi']);
+    await flush();
+    expect(effisOverlayPayload.value.fwiImageUrl).toBe('blob:fwi-1');
+
+    setFwiDay(3);
+    expect(effisOverlayPayload.value.fwiImageUrl).toBeNull();
+    await flush();
+    stop();
+    expect(deps.requested).toEqual([OVERLAY_URLS.fwi, '/overlays/effis/fwi-d3.png']);
+    expect(deps.revoked).toEqual(['blob:fwi-1']);
+    expect(effisOverlayPayload.value.fwiImageUrl).toBe('blob:fwi-2');
+    expect(overlayStatus.value.fwi).toMatchObject({ kind: 'ready', validFor: '2026-10-01' });
+  });
+
+  it('never lets a slower answer for the day the reader left overwrite the new one', async () => {
+    let releaseToday: (response: Response) => void = () => {};
+    const deps = fakeDeps((url) =>
+      url === OVERLAY_URLS.fwi
+        ? new Promise<Response>((resolve) => {
+            releaseToday = resolve;
+          })
+        : png('2026-09-30'),
+    );
+    const stop = startOverlaySync(deps);
+    setOverlays(['fwi']);
+    await flush();
+    setFwiDay(2);
+    await flush();
+    releaseToday(png('2026-09-28'));
+    await flush();
+    stop();
+    expect(overlayStatus.value.fwi).toMatchObject({ kind: 'ready', validFor: '2026-09-30' });
+    expect(effisOverlayPayload.value.fwiImageUrl).toBe('blob:fwi-1');
+  });
+
+  it('dates a day ahead by the copy, says it is relayed, and credits GWIS', async () => {
+    setLayersPanelOpen(true);
+    setOverlays(['fwi']);
+    setFwiDay(2);
+    await loadOverlay(
+      'fwi',
+      fakeDeps(() => png('2026-09-30')),
+    );
+    const html = await renderPanel();
+    expect(html).toContain('Forecast day');
+    expect(html).toContain('+2 days');
+    expect(html).toContain('EFFIS/GWIS forecast for 30/09/2026, relayed as published');
+    expect(html).not.toContain(en.layers.fwiForecastBehind);
+    expect(html).not.toContain("Not today's index.");
+    expect(html).toContain(gwisCreditText({ epochNow: () => NOW }, en));
+    expect(html).toContain('Global Wildfire Information System (GWIS)');
+    expect(await renderPanel(bg)).toContain('Прогноза на EFFIS/GWIS за 30.09.2026');
+  });
+
+  it('flags a forecast copy the proxy has not yet moved to the picked date', async () => {
+    setLayersPanelOpen(true);
+    setOverlays(['fwi']);
+    setFwiDay(2);
+    await loadOverlay(
+      'fwi',
+      fakeDeps(() => png('2026-09-29')),
+    );
+    expect(await renderPanel()).toContain(en.layers.fwiForecastBehind);
   });
 });

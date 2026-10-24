@@ -319,6 +319,12 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'layers.lightningClasses',
       'layers.lightningAsOf',
       'layers.lightningNone',
+      // V2-B1 — FWI forecast
+      'layers.fwiDayLabel',
+      'layers.fwiDayOption',
+      'layers.fwiForecastNote',
+      'layers.fwiForecastFor',
+      'layers.fwiForecastBehind',
       // TASKS F15 — the satellite-pass section of the Layers panel.
       'passes.title',
       'passes.note',

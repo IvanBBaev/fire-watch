@@ -416,6 +416,15 @@ button {
   gap: 0.375rem;
 }
 
+/* V2-B1: the FWI forecast-day picker sits under the legend, its label above the select. */
+.layers-fwi-day {
+  margin: 0 0 0.25rem;
+}
+
+.layers-fwi-day label {
+  display: block;
+}
+
 /* The provider's palette, bordered so the palest class still reads on a light panel. */
 .layers-swatch {
   flex: none;

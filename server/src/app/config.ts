@@ -21,7 +21,7 @@ import {
 } from '@fire-watch/contracts';
 import { isAbsolute } from 'node:path';
 
-import { EFFIS_BASE_URL } from '../adapters/effis/effis-http-client.js';
+import { EFFIS_BASE_URL, GWIS_BASE_URL } from '../adapters/effis/effis-http-client.js';
 import { FIRMS_BASE_URL } from '../adapters/firms/firms-http-client.js';
 import { FIRMS_KEYLESS_BASE_URL } from '../adapters/firms/firms-keyless-client.js';
 import { assertPingBaseUrl } from '../adapters/monitoring/healthchecks-heartbeat.js';
@@ -105,6 +105,8 @@ export interface ServerConfig {
   readonly stateDir: string | null;
   /** Overridable so a smoke test can point the refresh at a stub; production leaves it unset. */
   readonly effisBaseUrl: string;
+  /** The GWIS mapserver (V2-B1 FWI forecast days and the per-point FWI lookup). */
+  readonly gwisBaseUrl: string;
   readonly ecmwfBaseUrl: string;
   /**
    * The alert providers this deployment can reach. Each is `null` when its variables are
@@ -352,6 +354,11 @@ export function loadConfig(env: Environment, applicationName = 'fire-watch'): Se
       env['FIRE_WATCH_EFFIS_BASE_URL']?.trim(),
       'FIRE_WATCH_EFFIS_BASE_URL',
       EFFIS_BASE_URL,
+    ),
+    gwisBaseUrl: readHttpBaseUrl(
+      env['FIRE_WATCH_GWIS_BASE_URL']?.trim(),
+      'FIRE_WATCH_GWIS_BASE_URL',
+      GWIS_BASE_URL,
     ),
     ecmwfBaseUrl: readHttpBaseUrl(
       env['FIRE_WATCH_ECMWF_BASE_URL']?.trim(),
@@ -896,6 +903,7 @@ export function describeConfig(config: ServerConfig): Record<string, string> {
     // FWI layer stale" needs answered from the logs.
     state_dir: config.stateDir ?? '<not configured>',
     effis_base_url: config.effisBaseUrl,
+    gwis_base_url: config.gwisBaseUrl,
     ecmwf_base_url: config.ecmwfBaseUrl,
     // Whether each channel has a provider — the question "why did nothing go out" starts
     // with. The public key is the one value here that is public, and it is what the

@@ -223,6 +223,13 @@ const messages: Messages = {
     fwiClasses: ['Low', 'Moderate', 'High', 'Very high', 'Extreme', 'Very extreme'],
     fwiValidFor: (date) => `For ${date}`,
     fwiNotToday: "Not today's index.",
+    fwiDayLabel: 'Forecast day',
+    fwiDayOption: (leadDays) =>
+      leadDays === 0 ? 'Today' : leadDays === 1 ? '+1 day' : `+${String(leadDays)} days`,
+    fwiForecastNote:
+      'Days ahead are the GWIS fire-weather forecast (ECMWF model), relayed as EFFIS publishes it, in the same danger levels. It forecasts the weather, not fires.',
+    fwiForecastFor: (date) => `EFFIS/GWIS forecast for ${date}, relayed as published`,
+    fwiForecastBehind: 'Not the day you picked: the newer forecast copy has not arrived yet.',
     ba: 'Burnt areas (last 7 days)',
     baNote:
       'EFFIS burnt-area polygons mapped from satellite imagery. A new burnt area appears days after the fire.',

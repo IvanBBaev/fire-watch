@@ -28,8 +28,8 @@ import type { BoundingBox } from '../config/polling-bbox.js';
 import { POLLING_BBOX } from '../config/polling-bbox.js';
 import {
   EFFIS_LAYERS,
+  effisLayerDate,
   effisLayerQuery,
-  effisUtcDate,
   type EffisLayerId,
   type EffisLayerSpec,
   type EffisLayersValues,
@@ -195,9 +195,10 @@ async function refreshLayer(
   layersConfig: VersionedConfig<EffisLayersValues>,
   bboxConfig: VersionedConfig<BoundingBox>,
 ): Promise<EffisLayerResult> {
-  // A daily layer is asked for the refresh's own UTC date; that date is what the payload
-  // is valid for, and the sidecar says so (`valid_for`) so the proxy can tell the reader.
-  const validFor = spec.time === 'daily' ? effisUtcDate(deps.clock.now()) : null;
+  // A daily layer is asked for the refresh's own UTC date plus its lead days (0 for today,
+  // 1 … 9 for a forecast day); that date is what the payload is valid for, and the sidecar
+  // says so (`valid_for`) so the proxy can tell the reader.
+  const validFor = effisLayerDate(spec, deps.clock.now());
   const query = effisLayerQuery(
     spec,
     layersConfig.values,
@@ -208,7 +209,11 @@ async function refreshLayer(
 
   let fetched: EffisLayerFetch;
   try {
-    fetched = await deps.client.fetchLayer({ layer: spec.layerName, query });
+    fetched = await deps.client.fetchLayer({
+      layer: spec.layerName,
+      endpoint: spec.endpoint,
+      query,
+    });
   } catch (error: unknown) {
     // The port promises error values, but a client that throws anyway must not take the
     // other layer and the freshness rows down with it.
@@ -358,6 +363,7 @@ function effisPayloadMeta(input: MetaInput): string {
   return `${canonicalJson({
     feed: 'effis:layers',
     layer: input.spec.id,
+    endpoint: input.spec.endpoint,
     service: input.spec.service,
     layer_name: input.spec.layerName,
     query: input.query,

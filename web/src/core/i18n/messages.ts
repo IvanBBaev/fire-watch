@@ -214,6 +214,16 @@ export interface Messages {
     readonly fwiValidFor: (date: string) => string;
     /** Shown when the newest copy is for another day than today in Sofia. */
     readonly fwiNotToday: string;
+    /** V2-B1: the forecast-day picker's label. */
+    readonly fwiDayLabel: string;
+    /** V2-B1: one picker option — 0 is today, 1 … 9 the days ahead. */
+    readonly fwiDayOption: (leadDays: number) => string;
+    /** V2-B1: what a day ahead is — a relayed GWIS forecast, never ours. */
+    readonly fwiForecastNote: string;
+    /** V2-B1: the UTC date a forecast copy is for, already formatted; relayed, attributed. */
+    readonly fwiForecastFor: (date: string) => string;
+    /** V2-B1: the proxy's copy is for another date than the day picked (not refreshed yet). */
+    readonly fwiForecastBehind: string;
     readonly ba: string;
     readonly baNote: string;
     /** When EFFIS made the shown copy available, already formatted. */

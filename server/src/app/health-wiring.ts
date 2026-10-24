@@ -68,6 +68,7 @@ import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgEventDetectionsReader } from '../adapters/db/pg-event-detections-reader.js';
 import { createPgLightningContextStore } from '../adapters/db/pg-lightning-context-store.js';
 import { createPgSnapshotReader } from '../adapters/db/pg-snapshot-reader.js';
+import { createGwisPointClient } from '../adapters/effis/gwis-point-client.js';
 import { createHealthServer } from '../adapters/http/health-server.js';
 import type { ProblemLogEntry } from '../adapters/http/problem.js';
 import { createFsFeedStatusStore } from '../adapters/storage/fs-feed-status-store.js';
@@ -84,6 +85,7 @@ import {
   type SseRejectReason,
   type TransportReading,
 } from '../core/observability/metric-catalog.js';
+import { createFwiForecastService } from '../core/effis/fwi-point.js';
 import type { FreshnessObservation } from '../core/health/freshness.js';
 import { createImageryMeter, type ImageryMeter } from '../core/imagery/imagery-meter.js';
 import type { FreshnessReader } from '../core/ports/freshness-reader.js';
@@ -370,6 +372,20 @@ export function wireHealthServer(
     ...(config.stateDir === null
       ? {}
       : { lightningOverlay: { stateDir: config.stateDir, clock: systemClock, onProblem } }),
+    // V2-B1: the per-point FWI forecast relay, on the box that serves the EFFIS overlays.
+    // It holds no state of its own; GWIS is asked only on a cache miss, within a budget.
+    ...(config.stateDir === null
+      ? {}
+      : {
+          fwiForecast: {
+            service: createFwiForecastService({
+              client: createGwisPointClient({ baseUrl: config.gwisBaseUrl }),
+              clock: systemClock,
+            }),
+            clock: systemClock,
+            onProblem,
+          },
+        }),
   });
 
   // I1–I4, I6: registered only with FIRE_WATCH_AUTH_ENABLED and a complete mailer; the

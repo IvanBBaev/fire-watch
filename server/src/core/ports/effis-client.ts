@@ -11,11 +11,14 @@
  * EFFIS sent it, and the cycle is what refuses it.
  */
 
+import type { EffisEndpoint } from '../config/effis-layers.js';
 import type { EpochMs } from './clock.js';
 
 export interface EffisLayerRequest {
   /** The WMS/WFS layer name, for error messages and logs. */
   readonly layer: string;
+  /** Which Copernicus mapserver to ask; `effis` when absent. The adapter owns the URLs. */
+  readonly endpoint?: EffisEndpoint;
   /** The full query string as ordered key/value pairs; the adapter only serializes it. */
   readonly query: Readonly<Record<string, string>>;
 }

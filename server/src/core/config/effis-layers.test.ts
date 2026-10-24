@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { EFFIS_LAYERS, effisLayerQuery, effisUtcDate } from './effis-layers.js';
+import {
+  EFFIS_LAYERS,
+  FWI_FORECAST_LEAD_DAYS,
+  effisLayerDate,
+  effisLayerQuery,
+  effisUtcDate,
+} from './effis-layers.js';
 
 const layer = (id: string) => {
   const found = EFFIS_LAYERS.values.layers.find((spec) => spec.id === id);
@@ -19,7 +25,7 @@ describe('EFFIS_LAYERS', () => {
   });
 
   it('is versioned so the provenance sidecars can cite it', () => {
-    expect(EFFIS_LAYERS.version).toBe('effis_layers_v2');
+    expect(EFFIS_LAYERS.version).toBe('effis_layers_v3');
     expect(EFFIS_LAYERS.digest).toMatch(/^[0-9a-f]{8}$/);
   });
 
@@ -86,5 +92,38 @@ describe('effisLayerQuery', () => {
         '2026-09-28',
       ),
     ).toThrow();
+  });
+});
+
+describe('the FWI forecast days (V2-B1)', () => {
+  it('publishes +1 … +9 from the GWIS ECMWF layer, one fixed file name per day', () => {
+    const forecast = EFFIS_LAYERS.values.layers.filter((spec) => spec.leadDays > 0);
+    expect(forecast.map((spec) => spec.id)).toEqual(
+      FWI_FORECAST_LEAD_DAYS.map((day) => `fwi-d${String(day)}`),
+    );
+    for (const spec of forecast) {
+      expect(spec).toMatchObject({
+        endpoint: 'gwis',
+        service: 'wms',
+        layerName: 'ecmwf.fwi',
+        extension: 'png',
+        servedMediaType: 'image/png',
+        time: 'daily',
+      });
+    }
+    expect(layer('fwi')).toMatchObject({ endpoint: 'effis', leadDays: 0 });
+    expect(layer('ba')).toMatchObject({ endpoint: 'effis', leadDays: 0, time: null });
+  });
+
+  it('dates each layer from the refresh clock, never from anything a reader sends', () => {
+    const at = Date.UTC(2026, 9, 24, 23, 59);
+    expect(effisLayerDate(layer('fwi'), at)).toBe('2026-10-24');
+    expect(effisLayerDate(layer('fwi-d1'), at)).toBe('2026-10-25');
+    // Across a month end.
+    expect(effisLayerDate(layer('fwi-d9'), at)).toBe('2026-11-02');
+    expect(effisLayerDate(layer('ba'), at)).toBeNull();
+    const query = effisLayerQuery(layer('fwi-d9'), undefined, undefined, '2026-11-02');
+    expect(query['LAYERS']).toBe('ecmwf.fwi');
+    expect(query['TIME']).toBe('2026-11-02');
   });
 });

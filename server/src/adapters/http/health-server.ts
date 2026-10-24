@@ -23,6 +23,10 @@
  *   GET /api/v1/events/:publicId/lightning-context
  *                                F18 lightning before one event's first detection, only
  *                                with `eventLightningContext` deps. Its own per-IP limit.
+ *   GET /api/v1/fwi-forecast/:lat/:lon
+ *                                V2-B1 relayed GWIS FWI forecast at one snapped point,
+ *                                days 0 … 9, only with `fwiForecast` deps. Its own per-IP
+ *                                limit and a global upstream budget.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -78,6 +82,11 @@ import {
   registerEventLightningContextRoute,
   type EventLightningContextRouteDeps,
 } from './event-lightning-context-route.js';
+import {
+  FWI_FORECAST_PATH,
+  registerFwiForecastRoute,
+  type FwiForecastRouteDeps,
+} from './fwi-forecast-route.js';
 import {
   LIGHTNING_OVERLAY_PATH,
   registerLightningOverlayRoute,
@@ -213,6 +222,11 @@ export interface HealthServerDeps {
   readonly lightningOverlay?: LightningOverlayRouteDeps | undefined;
   /** F18 per-event lightning context, with a database. Its own per-IP limit. */
   readonly eventLightningContext?: EventLightningContextRouteDeps | undefined;
+  /**
+   * V2-B1 per-point FWI forecast relay. Edge-cached per point, with its own per-IP limit
+   * and upstream budget, so the hook exempts it from the probe limiter.
+   */
+  readonly fwiForecast?: FwiForecastRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -271,7 +285,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === PASSES_PATH ||
       matched === PASS_SWATHS_PATH ||
       matched === LIGHTNING_OVERLAY_PATH ||
-      matched === EVENT_LIGHTNING_CONTEXT_PATH
+      matched === EVENT_LIGHTNING_CONTEXT_PATH ||
+      matched === FWI_FORECAST_PATH
     ) {
       done();
       return;
@@ -415,6 +430,12 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerEventLightningContextRoute(app, {
       ...deps.eventLightningContext,
       clientIpHeader: deps.eventLightningContext.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.fwiForecast !== undefined) {
+    registerFwiForecastRoute(app, {
+      ...deps.fwiForecast,
+      clientIpHeader: deps.fwiForecast.clientIpHeader ?? deps.clientIpHeader,
     });
   }
 

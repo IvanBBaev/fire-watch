@@ -1,5 +1,5 @@
 /**
- * `effis_layers_v2` — which EFFIS layers we proxy and how each one is judged
+ * `effis_layers_v3` — which EFFIS layers we proxy and how each one is judged
  * (TASKS C4; DATA-SOURCES §D1; ADR-001 A1.2/A2.2).
  *
  * v2 (2026-09-28) replaces the v1 layer names, which the live mapserver no longer routes:
@@ -16,6 +16,16 @@
  * says per-layer, calibrated against real minimal responses) must be a visible version
  * bump, not a silent edit that makes yesterday's "suspect" today's "good".
  *
+ * v3 (2026-10-24, V2-B1) adds the FWI forecast days +1 … +9 (`fwi-d1` … `fwi-d9`). The
+ * EFFIS mapserver's `mf010.fwi` only reaches three days ahead (a later `TIME` answers a
+ * fully transparent 3065-byte PNG, verified 2026-10-23), so the forecast days come from
+ * the same Copernicus service's GWIS mapserver (`…/gwis`, layer `ecmwf.fwi`), which carries
+ * the ECMWF-driven FWI forecast for D0 … D9 and paints it with a legend byte-identical to
+ * `mf010.fwi`'s (same six classes, same colours). Each forecast day is its own layer with
+ * a fixed `leadDays`, so the `TIME` it is asked for is decided here from the refresh's
+ * clock — the file name a reader asks for is the whole allow-list; no reader-supplied
+ * date or parameter ever reaches the upstream.
+ *
  * The A2.2 knobs live *here* per layer because the two layers fail differently: a
  * one-colour FWI PNG compresses to almost nothing, and an empty burnt-area
  * FeatureCollection outside the season is a few dozen bytes of legitimate JSON — one
@@ -25,10 +35,26 @@
 import { POLLING_BBOX, assertBoundingBox, type BoundingBox } from './polling-bbox.js';
 import { defineConfig, type VersionedConfig } from './versioned-config.js';
 
-export type EffisLayerId = 'fwi' | 'ba';
+/** The forecast lead days the proxy publishes: +1 … +9 (V2-B1). */
+export const FWI_FORECAST_LEAD_DAYS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+
+export type FwiForecastLeadDay = (typeof FWI_FORECAST_LEAD_DAYS)[number];
+
+/** `fwi-d1` … `fwi-d9`: the FWI forecast for the UTC day `leadDays` after the refresh. */
+export type FwiForecastLayerId = `fwi-d${FwiForecastLeadDay}`;
+
+export type EffisLayerId = 'fwi' | 'ba' | FwiForecastLayerId;
+
+/**
+ * Which Copernicus mapserver answers a layer: `effis` (the EFFIS viewer's) or `gwis` (the
+ * Global Wildfire Information System's, same operator and terms, which carries the
+ * ten-day FWI forecast). The adapter owns the base URLs; the config only names the one.
+ */
+export type EffisEndpoint = 'effis' | 'gwis';
 
 export interface EffisLayerSpec {
   readonly id: EffisLayerId;
+  readonly endpoint: EffisEndpoint;
   readonly service: 'wms' | 'wfs';
   /** The layer name as the EFFIS mapserver knows it (DATA-SOURCES §D1). */
   readonly layerName: string;
@@ -54,6 +80,11 @@ export interface EffisLayerSpec {
    * payload is valid for. `null` for a layer that is simply "the latest".
    */
   readonly time: 'daily' | null;
+  /**
+   * For a `daily` layer: how many UTC days after the refresh's own date the `TIME` is
+   * (0 for "today", 1 … 9 for the forecast days). Always 0 for a "latest" layer.
+   */
+  readonly leadDays: number;
 }
 
 export interface EffisLayersValues {
@@ -66,15 +97,37 @@ export interface EffisLayersValues {
   readonly layers: readonly EffisLayerSpec[];
 }
 
+/**
+ * One forecast day over GWIS `ecmwf.fwi`. Same A2.2 knobs as today's `fwi`: the real
+ * forecast rasters over the polling bbox are 12–20 KB, and the beyond-horizon answer is a
+ * fully transparent PNG the `png_fully_transparent` rule calls suspect, never good.
+ */
+function forecastDay(leadDays: FwiForecastLeadDay): EffisLayerSpec {
+  return {
+    id: `fwi-d${leadDays}`,
+    endpoint: 'gwis',
+    service: 'wms',
+    layerName: 'ecmwf.fwi',
+    requestFormat: 'image/png',
+    acceptedMediaTypes: ['image/png'],
+    byteFloorBytes: 1024,
+    extension: 'png',
+    servedMediaType: 'image/png',
+    time: 'daily',
+    leadDays,
+  };
+}
+
 export const EFFIS_LAYERS: VersionedConfig<EffisLayersValues> = defineConfig(
   'effis_layers',
-  'effis_layers_v2',
+  'effis_layers_v3',
   {
     wmsWidth: 1100,
     wmsHeight: 700,
     layers: [
       {
         id: 'fwi',
+        endpoint: 'effis',
         service: 'wms',
         layerName: 'mf010.fwi',
         requestFormat: 'image/png',
@@ -85,9 +138,11 @@ export const EFFIS_LAYERS: VersionedConfig<EffisLayersValues> = defineConfig(
         extension: 'png',
         servedMediaType: 'image/png',
         time: 'daily',
+        leadDays: 0,
       },
       {
         id: 'ba',
+        endpoint: 'effis',
         service: 'wfs',
         layerName: 'modis.ba.poly.week',
         // The mapserver's own name for its GeoJSON output; it answers
@@ -101,9 +156,11 @@ export const EFFIS_LAYERS: VersionedConfig<EffisLayersValues> = defineConfig(
         extension: 'json',
         servedMediaType: 'application/json',
         time: null,
+        leadDays: 0,
       },
+      ...FWI_FORECAST_LEAD_DAYS.map(forecastDay),
     ],
-  } as const,
+  },
 );
 
 /**
@@ -170,4 +227,15 @@ export const EFFIS_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** The UTC calendar date of an instant — what a daily layer is asked for. */
 export function effisUtcDate(epochMs: number): string {
   return new Date(epochMs).toISOString().slice(0, 10);
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * The UTC date a daily layer is asked for (and valid for) when the refresh runs at
+ * `epochMs`: the refresh's own date plus the layer's lead days. `null` for a "latest"
+ * layer.
+ */
+export function effisLayerDate(spec: EffisLayerSpec, epochMs: number): string | null {
+  return spec.time === 'daily' ? effisUtcDate(epochMs + spec.leadDays * DAY_MS) : null;
 }

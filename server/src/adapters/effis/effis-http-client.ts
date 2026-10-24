@@ -25,6 +25,12 @@ import type {
 /** The open EFFIS mapserver endpoint (DATA-SOURCES §D1); WMS and WFS share it. */
 export const EFFIS_BASE_URL = 'https://maps.effis.emergency.copernicus.eu/effis';
 
+/**
+ * The GWIS mapserver (V2-B1): same Copernicus operator and terms, and the one that carries
+ * the ten-day ECMWF-driven FWI forecast (`ecmwf.fwi`) and its point query (`ecmwf.query`).
+ */
+export const GWIS_BASE_URL = 'https://maps.effis.emergency.copernicus.eu/gwis';
+
 /** GetMap over an 11°×7° box can be slow on a bad day; a refresh is never in a hurry. */
 export const EFFIS_TIMEOUT_MS = 60_000;
 
@@ -35,6 +41,8 @@ export interface EffisHttpClientOptions {
   /** Stamps `availableAt` the moment the body is in our hands. */
   readonly clock: Clock;
   readonly baseUrl?: string;
+  /** The GWIS endpoint's base; a test points both at a fake. */
+  readonly gwisBaseUrl?: string;
   readonly timeoutMs?: number;
   /** Injected so the test never opens a socket. */
   readonly fetch?: typeof globalThis.fetch;
@@ -42,12 +50,14 @@ export interface EffisHttpClientOptions {
 
 export function createEffisHttpClient(options: EffisHttpClientOptions): EffisClient {
   const baseUrl = (options.baseUrl ?? EFFIS_BASE_URL).replace(/\/+$/, '');
+  const gwisBaseUrl = (options.gwisBaseUrl ?? GWIS_BASE_URL).replace(/\/+$/, '');
   const timeoutMs = options.timeoutMs ?? EFFIS_TIMEOUT_MS;
   const doFetch = options.fetch ?? globalThis.fetch;
 
   return {
     async fetchLayer(request: EffisLayerRequest): Promise<EffisLayerFetch> {
-      const url = `${baseUrl}?${new URLSearchParams(request.query).toString()}`;
+      const base = request.endpoint === 'gwis' ? gwisBaseUrl : baseUrl;
+      const url = `${base}?${new URLSearchParams(request.query).toString()}`;
 
       let httpResponse: Response;
       try {
