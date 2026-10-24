@@ -356,6 +356,24 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'filters.sensitivityAtLeast',
       'filters.sensitivityHint',
       'filters.sensitivityUnreported',
+      // V2-D3 — measure
+      'measure.toggle',
+      'measure.panelLabel',
+      'measure.modeLabel',
+      'measure.mode.distance',
+      'measure.mode.area',
+      'measure.mode.nearest',
+      'measure.hint.distance',
+      'measure.hint.area',
+      'measure.hint.nearest',
+      'measure.addCentre',
+      'measure.undo',
+      'measure.clear',
+      'measure.distanceResult',
+      'measure.areaResult',
+      'measure.nearestResult',
+      'measure.nearestNone',
+      'measure.approxNote',
     ]);
   });
 

@@ -117,6 +117,9 @@ const BANNER_SELECTOR = '.fw-banner[role="status"]';
 const EVENT_PAGE_SELECTOR = 'article.page.event-page';
 const CHIP_SELECTOR = '.fw-chip';
 const STATUS_SELECTOR = '.map-controls-status';
+/** V2-D3: the measure toggle renders only once the map is up; it owns the panel by id. */
+const MEASURE_TOGGLE_SELECTOR = 'button[aria-controls="fw-measure-panel"]';
+const MEASURE_PANEL_SELECTOR = '#fw-measure-panel';
 const ONBOARDING_SELECTOR = '.onboarding-overlay';
 
 interface Leg {
@@ -628,6 +631,25 @@ describe.each(LEGS)('CI-18 layout floors — $name', (leg: Leg) => {
         STATUS_SELECTOR,
       );
       found.push(...(await sweep('home list (location status)', leg, tab)));
+
+      // The measure panel (V2-D3), open with an outline drawn from the keyboard path: three
+      // "add the map centre" presses in area mode, so the result line holds its widest text.
+      const measureToggle = await tab.waitForSelector(MEASURE_TOGGLE_SELECTOR, {
+        timeout: 15_000,
+      });
+      if (measureToggle === null) throw new Error('e2e: the measure control is missing');
+      await measureToggle.click();
+      await tab.waitForSelector(`${MEASURE_PANEL_SELECTOR} .measure-actions`, { timeout: 15_000 });
+      await tab.click(`${MEASURE_PANEL_SELECTOR} input[value="area"]`);
+      for (let press = 0; press < 3; press += 1) {
+        await tab.click(`${MEASURE_PANEL_SELECTOR} .measure-actions button`);
+      }
+      await tab.waitForFunction(
+        (selector: string) => !document.querySelector(selector)?.hasAttribute('hidden'),
+        { timeout: 15_000 },
+        MEASURE_PANEL_SELECTOR,
+      );
+      found.push(...(await sweep('home list (measure panel)', leg, tab)));
 
       // The degradation banner, on the same page: an in-scope surface in Appendix A, and the
       // widest single line the shell ever renders above the fold.

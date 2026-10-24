@@ -332,6 +332,24 @@ export const CATALOG_GOVERNANCE = {
   'filters.sensitivityAtLeast': { governance: 'own-voice', reason: 'composed-value' },
   'filters.sensitivityHint': { governance: 'own-voice', reason: 'capability-prose' },
   'filters.sensitivityUnreported': { governance: 'own-voice', reason: 'capability-prose' },
+  // V2-D3 — measure. Own voice, and PENDING FOUNDER REVIEW.
+  'measure.toggle': { governance: 'own-voice', reason: 'chrome' },
+  'measure.panelLabel': { governance: 'own-voice', reason: 'chrome' },
+  'measure.modeLabel': { governance: 'own-voice', reason: 'chrome' },
+  'measure.mode.distance': { governance: 'own-voice', reason: 'chrome' },
+  'measure.mode.area': { governance: 'own-voice', reason: 'chrome' },
+  'measure.mode.nearest': { governance: 'own-voice', reason: 'chrome' },
+  'measure.hint.distance': { governance: 'own-voice', reason: 'chrome' },
+  'measure.hint.area': { governance: 'own-voice', reason: 'chrome' },
+  'measure.hint.nearest': { governance: 'own-voice', reason: 'chrome' },
+  'measure.addCentre': { governance: 'own-voice', reason: 'chrome' },
+  'measure.undo': { governance: 'own-voice', reason: 'chrome' },
+  'measure.clear': { governance: 'own-voice', reason: 'chrome' },
+  'measure.distanceResult': { governance: 'own-voice', reason: 'composed-value' },
+  'measure.areaResult': { governance: 'own-voice', reason: 'composed-value' },
+  'measure.nearestResult': { governance: 'own-voice', reason: 'composed-value' },
+  'measure.nearestNone': { governance: 'own-voice', reason: 'client-condition' },
+  'measure.approxNote': { governance: 'own-voice', reason: 'capability-prose' },
   'search.label': { governance: 'own-voice', reason: 'chrome' },
   'search.placeholder': { governance: 'own-voice', reason: 'chrome' },
   'search.loading': { governance: 'own-voice', reason: 'client-condition' },
@@ -784,6 +802,9 @@ export const CATALOG_GOVERNANCE = {
  *   picker can render; the preset names, the thresholds behind them
  *   (`core/filter/sensitivity.ts` `SENSITIVITY_PRESETS`), and the "may still be a real
  *   fire" note are the founder's call.
+ * - `measure.*` — V2-D3, the measure tool. Written by an implementer so the panel can
+ *   render; the labels, the "nearest active fire" wording and the approximation note are
+ *   the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -1097,6 +1118,24 @@ export const PENDING_FOUNDER_REVIEW = [
   'filters.sensitivityAtLeast',
   'filters.sensitivityHint',
   'filters.sensitivityUnreported',
+  // V2-D3 — measure
+  'measure.toggle',
+  'measure.panelLabel',
+  'measure.modeLabel',
+  'measure.mode.distance',
+  'measure.mode.area',
+  'measure.mode.nearest',
+  'measure.hint.distance',
+  'measure.hint.area',
+  'measure.hint.nearest',
+  'measure.addCentre',
+  'measure.undo',
+  'measure.clear',
+  'measure.distanceResult',
+  'measure.areaResult',
+  'measure.nearestResult',
+  'measure.nearestNone',
+  'measure.approxNote',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

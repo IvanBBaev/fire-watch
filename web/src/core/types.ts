@@ -16,6 +16,8 @@ import type {
   StaticSourceMask,
 } from '@fire-watch/contracts';
 
+import type { LonLat } from './geo/bearing.js';
+import type { MeasureCollection } from './geo/measure.js';
 import type { MapCamera, MapViewport } from './geo/viewport.js';
 import type { LightningDraw } from './lightning.js';
 import type { PassSwathsDraw } from './pass-swaths.js';
@@ -349,7 +351,19 @@ export interface MapController {
   setPassSwaths(draw: PassSwathsDraw | null): void;
   /** F18: recent lightning flashes by age, or `null` to draw none. */
   setLightning(draw: LightningDraw | null): void;
+  /**
+   * V2-D3: draw the measure tool's points and lines above everything, and hand every tap on
+   * the map to `onPick` instead of selecting a fire; `null` ends measuring and draws nothing.
+   */
+  setMeasure(overlay: MeasureOverlay | null): void;
   destroy(): void;
+}
+
+/** The measure tool while its panel is open (`ui/measure-panel.tsx`). */
+export interface MeasureOverlay {
+  readonly collection: MeasureCollection;
+  /** A tap or click on the map, as a coordinate. */
+  readonly onPick: (point: LonLat) => void;
 }
 
 /** The EFFIS context overlays the shell wants drawn (`map/effis-overlays.ts`). */

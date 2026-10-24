@@ -344,6 +344,49 @@ button {
   display: none;
 }
 
+/* The measure panel (V2-D3) hangs in the same place as the Layers panel, which it closes.
+   Every line is body-size text: the panel is a CI-18 surface, unlike the layers notes. */
+.measure-panel {
+  box-sizing: border-box;
+  width: 20rem;
+  max-width: 100%;
+  max-height: min(70vh, 36rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.measure-panel[hidden] {
+  display: none;
+}
+
+.measure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0.5rem 0;
+}
+
+.measure-actions .map-control[disabled] {
+  cursor: not-allowed;
+}
+
+.measure-result {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.measure-note {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
 .layers-group {
   margin: 0;
   padding: 0;

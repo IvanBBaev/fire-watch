@@ -34,6 +34,7 @@ import type {
   FireEvent,
   MapController,
   MapControllerDeps,
+  MeasureOverlay,
   ThemeName,
 } from '../core/types.js';
 import type {
@@ -53,6 +54,7 @@ import { NO_EFFIS_OVERLAYS, applyEffisOverlays } from './effis-overlays.js';
 import { applyImageryLayer } from './imagery-layer.js';
 import { applyWindLayer } from './wind-layer.js';
 import { applyLightningLayer } from './lightning-layer.js';
+import { applyMeasureLayer } from './measure-layer.js';
 import { applyPassSwathsLayer } from './pass-swaths-layer.js';
 import { applyStaticSourcesLayer } from './static-sources-layer.js';
 import {
@@ -153,6 +155,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
   // The F15 satellite swaths the shell asked for; none by default.
   let passSwaths: PassSwathsDraw | null = null;
   let lightning: LightningDraw | null = null;
+  /** The measure tool while it is open (V2-D3); `null` when the map selects fires as usual. */
+  let measure: MeasureOverlay | null = null;
 
   const setSourceData = (sourceId: string, data: SourceData): void => {
     const source = map.getSource<GeoJSONSource>(sourceId);
@@ -390,6 +394,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
     applyStaticSourcesLayer(map, staticSources);
     // And the lightning flashes (F18), directly below the fire layers.
     applyLightningLayer(map, lightning);
+    // And the measure drawing (V2-D3), on top of everything.
+    applyMeasureLayer(map, measure?.collection ?? null);
   });
 
   map.once('idle', () => {
@@ -463,6 +469,8 @@ export function createMapController(deps: MapControllerDeps): MapController {
   // that a single selection instead of a double route push.
   let lastHandledClick: unknown = null;
   const handleFireClick = (event: MapLayerMouseEvent): void => {
+    // While measuring, a tap places a point (the general handler below), never a selection.
+    if (measure !== null) return;
     if (event.originalEvent === lastHandledClick) return;
     const feature = event.features?.[0];
     if (feature === undefined) return;
@@ -481,12 +489,18 @@ export function createMapController(deps: MapControllerDeps): MapController {
   for (const layerId of INTERACTIVE_FIRE_LAYER_IDS) {
     map.on('click', layerId, handleFireClick);
     map.on('mouseenter', layerId, () => {
-      map.getCanvas().style.cursor = 'pointer';
+      if (measure === null) map.getCanvas().style.cursor = 'pointer';
     });
     map.on('mouseleave', layerId, () => {
-      map.getCanvas().style.cursor = '';
+      if (measure === null) map.getCanvas().style.cursor = '';
     });
   }
+  // The measure tool's picks: any tap on the map, fire or not, while the panel is open. A
+  // tap is a click in MapLibre (a drag is a pan and fires none), so touch works unchanged.
+  map.on('click', (event) => {
+    if (measure === null) return;
+    measure.onPick({ lon: event.lngLat.lng, lat: event.lngLat.lat });
+  });
 
   return {
     setTheme(theme: ThemeName): void {
@@ -616,7 +630,23 @@ export function createMapController(deps: MapControllerDeps): MapController {
       }
     },
 
+    setMeasure(overlay: MeasureOverlay | null): void {
+      if (overlay === measure) return;
+      const wasMeasuring = measure !== null;
+      measure = overlay;
+      if (wasMeasuring !== (overlay !== null)) {
+        map.getCanvas().style.cursor = overlay === null ? '' : 'crosshair';
+      }
+      // Same reasoning as `setImagery`: 'style.load' applies the wanted state if this throws.
+      try {
+        applyMeasureLayer(map, measure?.collection ?? null);
+      } catch {
+        // Style not loaded yet.
+      }
+    },
+
     destroy(): void {
+      measure = null;
       unsubscribe();
       throttle.dispose();
       uninstallInspection();

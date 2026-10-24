@@ -229,6 +229,30 @@ const messages: Messages = {
     imagery: 'Satellite imagery',
   },
 
+  measure: {
+    toggle: 'Measure',
+    panelLabel: 'Measure on the map',
+    modeLabel: 'What to measure',
+    mode: {
+      distance: 'Distance along a line',
+      area: 'Area of an outline',
+      nearest: 'Distance to the nearest active fire',
+    },
+    hint: {
+      distance: 'Tap the map or add the map centre: two points or more.',
+      area: 'Tap the map or add the map centre: three points or more around the outline.',
+      nearest: 'Tap the map or add the map centre to pick a place.',
+    },
+    addCentre: 'Add the map centre',
+    undo: 'Undo last point',
+    clear: 'Clear',
+    distanceResult: (length) => `Distance: ${length}`,
+    areaResult: (area, perimeter) => `Area: ${area}; perimeter ${perimeter}`,
+    nearestResult: (length, place) => `Nearest active fire: ${length}, near ${place}`,
+    nearestNone: 'No active satellite detection is on the map under the current filters.',
+    approxNote: 'Straight lines on the globe, approximate. Not a route and not a travel time.',
+  },
+
   layers: {
     toggle: 'Layers',
     panelLabel: 'Map layers',

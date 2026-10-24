@@ -22,6 +22,7 @@ import { ageWindow } from './age-window.js';
 import { cameraRequest } from './camera-request.js';
 import { useApp } from './context.js';
 import { MapControls } from './map-controls.js';
+import { measureOverlay } from './measure-state.js';
 import { initialCamera, publishViewport } from './map-camera.js';
 import {
   regionFilter,
@@ -141,6 +142,7 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
         controller.setStaticSources(staticSourcesDraw.peek());
         controller.setPassSwaths(swathDrawRef.current);
         controller.setLightning(lightningDrawRef.current);
+        controller.setMeasure(measureOverlay.peek());
         // The route may already name an event — a permalink opened cold.
         const selected = selectedIdRef.current;
         if (selected !== null) {
@@ -242,6 +244,15 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   useEffect(() => {
     controllerRef.current?.setLightning(lightningDraw);
   }, [lightningDraw]);
+  // V2-D3: the measure drawing, and where a map tap goes while the tool is open.
+  useEffect(
+    () =>
+      effect(() => {
+        const overlay = measureOverlay.value;
+        controllerRef.current?.setMeasure(overlay);
+      }),
+    [],
+  );
   // The fixtures build reads wind, swaths and lightning from committed files; live reads the API's routes.
   const overlayUrls = {
     wind: config.windOverlayUrl ?? OVERLAY_URLS.wind,

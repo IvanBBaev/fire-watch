@@ -86,6 +86,8 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // leave the entry budget, just by being written as an `import()`.
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
   { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
+  // V2-D3: the measure panel and its maths, loaded when a reader first opens the tool.
+  { role: 'page', src: /^src\/ui\/measure-panel\.tsx$/ },
 ];
 
 /**
