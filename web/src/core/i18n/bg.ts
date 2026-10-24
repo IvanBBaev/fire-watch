@@ -271,6 +271,13 @@ const messages: Messages = {
     lightningClasses: ['До 15 минути', 'От 15 минути до 1 час', 'От 1 до 6 часа'],
     lightningAsOf: (time) => `Светкавици, записани до ${time}`,
     lightningNone: 'Няма записани светкавици над района през последните 6 часа.',
+    outlines: 'Приблизителни очертания',
+    outlinesNote:
+      'Приблизително очертание по сателитни засичания: пикселите, отчели топлина. Не е официален периметър, нито прогноза.',
+    outlinesLegend: 'Приблизително очертание',
+    outlinesAsOf: (time) => `Очертанията са преизчислени към ${time}`,
+    outlinesTruncated: 'Само най-големите очертания.',
+    outlinesNone: 'В момента на картата няма приблизителни очертания.',
   },
 
   // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
@@ -734,6 +741,10 @@ const messages: Messages = {
       `Мълнии наоколо: не са засечени светкавици в радиус ${formatNumber(radiusKm, 'bg')} км през ${formatNumber(hours, 'bg')}-те часа преди първото засичане. Сателитът пропуска част от светкавиците, така че това не изключва мълния.`,
     lightningContextNoData:
       'Мълнии наоколо: няма данни за мълнии за часовете преди първото засичане.',
+    fireOutlineArea: (area, low, high, edgeKm, pixels) =>
+      `Приблизително очертание по сателитни засичания: ${area}${low === null ? `, до ${high}` : ` (от ${low} до ${high})`}, по ${pixels === 1 ? '1 пиксел' : `${formatNumber(pixels, 'bg')} пиксела`}; ръбовете ±${formatNumber(edgeKm, 'bg')} км.`,
+    fireOutlineCaveat:
+      'Оценка, а не официален периметър на пожара, нито прогноза: пикселът е по-голям от пожара, който отчита, така че изгорялата площ може да е много по-малка.',
   },
 };
 

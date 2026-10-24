@@ -23,6 +23,9 @@
  *   GET /api/v1/events/:publicId/lightning-context
  *                                F18 lightning before one event's first detection, only
  *                                with `eventLightningContext` deps. Its own per-IP limit.
+ *   GET /overlays/outlines/active.json
+ *                                V2-A4 estimated fire outlines for the events on the map,
+ *                                only with `fireOutlineOverlay` deps. Its own per-IP limit.
  *
  * `/api/v1/meta/freshness` is superseded and is deliberately **not** implemented and **not**
  * aliased (§2.1). An alias would mean two paths whose Grafana rules, CDN rules and
@@ -83,6 +86,11 @@ import {
   registerLightningOverlayRoute,
   type LightningOverlayRouteDeps,
 } from './lightning-overlay-route.js';
+import {
+  FIRE_OUTLINE_OVERLAY_PATH,
+  registerFireOutlineOverlayRoute,
+  type FireOutlineOverlayRouteDeps,
+} from './fire-outline-overlay-route.js';
 import {
   PASSES_PATH,
   PASS_SWATHS_PATH,
@@ -213,6 +221,8 @@ export interface HealthServerDeps {
   readonly lightningOverlay?: LightningOverlayRouteDeps | undefined;
   /** F18 per-event lightning context, with a database. Its own per-IP limit. */
   readonly eventLightningContext?: EventLightningContextRouteDeps | undefined;
+  /** V2-A4 estimated outlines, with a database. Edge-cached, with its own per-IP limit. */
+  readonly fireOutlineOverlay?: FireOutlineOverlayRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -275,7 +285,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === PASSES_PATH ||
       matched === PASS_SWATHS_PATH ||
       matched === LIGHTNING_OVERLAY_PATH ||
-      matched === EVENT_LIGHTNING_CONTEXT_PATH
+      matched === EVENT_LIGHTNING_CONTEXT_PATH ||
+      matched === FIRE_OUTLINE_OVERLAY_PATH
     ) {
       done();
       return;
@@ -419,6 +430,12 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerEventLightningContextRoute(app, {
       ...deps.eventLightningContext,
       clientIpHeader: deps.eventLightningContext.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  if (deps.fireOutlineOverlay !== undefined) {
+    registerFireOutlineOverlayRoute(app, {
+      ...deps.fireOutlineOverlay,
+      clientIpHeader: deps.fireOutlineOverlay.clientIpHeader ?? deps.clientIpHeader,
     });
   }
 

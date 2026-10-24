@@ -1,0 +1,325 @@
+{
+  "type": "FeatureCollection",
+  "schema_version": 1,
+  "kind": "estimated_outline",
+  "params_version": "fire_outline_params_v1",
+  "computed_at": "2026-08-09T09:58:00Z",
+  "truncated": false,
+  "features": [
+    {
+      "type": "Feature",
+      "id": "fw-2026-t6p4a",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [26.31861, 42.67715],
+              [26.32349, 42.67715],
+              [26.32349, 42.68075],
+              [26.33081, 42.68075],
+              [26.33081, 42.68525],
+              [26.32166, 42.68525],
+              [26.32166, 42.6893],
+              [26.31434, 42.6893],
+              [26.31434, 42.6848],
+              [26.31861, 42.6848],
+              [26.31861, 42.67715]
+            ]
+          ],
+          [
+            [
+              [26.31068, 42.6722],
+              [26.31556, 42.6722],
+              [26.31556, 42.6758],
+              [26.31068, 42.6758],
+              [26.31068, 42.6722]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-t6p4a",
+        "area_ha": 110.8,
+        "area_low_ha": 0,
+        "area_high_ha": 331.3,
+        "edge_uncertainty_km": 0.315,
+        "footprints": 4,
+        "last_detection_at": "2026-08-07T23:41:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-d5g2h",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [26.32122, 42.07306],
+              [26.32666, 42.07306],
+              [26.32666, 42.07577],
+              [26.34116, 42.07577],
+              [26.34116, 42.08027],
+              [26.33391, 42.08027],
+              [26.33391, 42.08297],
+              [26.32787, 42.08297],
+              [26.32787, 42.07712],
+              [26.32122, 42.07712],
+              [26.32122, 42.07306]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-d5g2h",
+        "area_ha": 91.8,
+        "area_low_ha": 0,
+        "area_high_ha": 287,
+        "edge_uncertainty_km": 0.355,
+        "footprints": 3,
+        "last_detection_at": "2026-08-09T04:12:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-q7f3d",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [25.89465, 41.9262],
+              [25.89947, 41.9262],
+              [25.89947, 41.9271],
+              [25.90851, 41.9271],
+              [25.90851, 41.93115],
+              [25.90369, 41.93115],
+              [25.90369, 41.93295],
+              [25.90249, 41.93295],
+              [25.90249, 41.9361],
+              [25.89585, 41.9361],
+              [25.89585, 41.9298],
+              [25.89465, 41.9298],
+              [25.89465, 41.9262]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-q7f3d",
+        "area_ha": 86.5,
+        "area_low_ha": 0,
+        "area_high_ha": 210.3,
+        "edge_uncertainty_km": 0.275,
+        "footprints": 4,
+        "last_detection_at": "2026-08-09T09:47:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-g4v8n",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [25.9421, 40.99075],
+              [25.94804, 40.99075],
+              [25.94804, 40.99525],
+              [25.9421, 40.99525],
+              [25.9421, 40.99075]
+            ]
+          ],
+          [
+            [
+              [25.92962, 40.9822],
+              [25.93438, 40.9822],
+              [25.93438, 40.9858],
+              [25.92962, 40.9858],
+              [25.92962, 40.9822]
+            ]
+          ],
+          [
+            [
+              [25.93556, 40.98625],
+              [25.94031, 40.98625],
+              [25.94031, 40.98985],
+              [25.93556, 40.98985],
+              [25.93556, 40.98625]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-g4v8n",
+        "area_ha": 57,
+        "area_low_ha": 0,
+        "area_high_ha": 192.2,
+        "edge_uncertainty_km": 0.26,
+        "footprints": 3,
+        "last_detection_at": "2026-08-09T09:45:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-r3h6t",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [22.2924, 43.903],
+              [22.29924, 43.903],
+              [22.29924, 43.90705],
+              [22.2924, 43.90705],
+              [22.2924, 43.903]
+            ]
+          ],
+          [
+            [
+              [22.28057, 43.8922],
+              [22.28555, 43.8922],
+              [22.28555, 43.8958],
+              [22.28057, 43.8958],
+              [22.28057, 43.8922]
+            ]
+          ],
+          [
+            [
+              [22.28742, 43.89715],
+              [22.2924, 43.89715],
+              [22.2924, 43.90075],
+              [22.28742, 43.90075],
+              [22.28742, 43.89715]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-r3h6t",
+        "area_ha": 56.8,
+        "area_low_ha": 0,
+        "area_high_ha": 205,
+        "edge_uncertainty_km": 0.285,
+        "footprints": 3,
+        "last_detection_at": "2026-08-09T02:14:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-k9s2r",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [27.77953, 41.72005],
+              [27.78493, 41.72005],
+              [27.78493, 41.72365],
+              [27.77953, 41.72365],
+              [27.77953, 41.72005]
+            ]
+          ],
+          [
+            [
+              [27.77172, 41.7142],
+              [27.77652, 41.7142],
+              [27.77652, 41.7178],
+              [27.77172, 41.7178],
+              [27.77172, 41.7142]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-k9s2r",
+        "area_ha": 34,
+        "area_low_ha": 0,
+        "area_high_ha": 106.6,
+        "edge_uncertainty_km": 0.22,
+        "footprints": 2,
+        "last_detection_at": "2026-08-09T09:32:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-p8d3k",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [22.93836, 43.98815],
+              [22.94397, 43.98815],
+              [22.94397, 43.99175],
+              [22.93836, 43.99175],
+              [22.93836, 43.98815]
+            ]
+          ],
+          [
+            [
+              [22.93151, 43.9832],
+              [22.93649, 43.9832],
+              [22.93649, 43.9868],
+              [22.93151, 43.9868],
+              [22.93151, 43.9832]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-p8d3k",
+        "area_ha": 34,
+        "area_low_ha": 0,
+        "area_high_ha": 105,
+        "edge_uncertainty_km": 0.215,
+        "footprints": 2,
+        "last_detection_at": "2026-08-07T13:05:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "fw-2026-b2n5c",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [27.51347, 41.97515],
+              [27.51829, 41.97515],
+              [27.51829, 41.97876],
+              [27.51347, 41.97876],
+              [27.51347, 41.97515]
+            ]
+          ],
+          [
+            [
+              [27.52071, 41.98011],
+              [27.52553, 41.98011],
+              [27.52553, 41.98371],
+              [27.52071, 41.98371],
+              [27.52071, 41.98011]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "event_id": "fw-2026-b2n5c",
+        "area_ha": 32,
+        "area_low_ha": 0,
+        "area_high_ha": 100.8,
+        "edge_uncertainty_km": 0.215,
+        "footprints": 2,
+        "last_detection_at": "2026-08-09T09:32:00Z"
+      }
+    }
+  ],
+  "attribution": [
+    {
+      "id": "firms-acknowledgement",
+      "source": "NASA FIRMS / LANCE",
+      "text": "We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS), part of NASA's Land, Atmosphere Near real-time Capability for Earth observations (LANCE) and NASA's Earth Science Data and Information System (ESDIS)."
+    }
+  ]
+}

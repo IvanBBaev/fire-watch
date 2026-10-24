@@ -66,6 +66,7 @@ import {
 import { createPgChangeReader } from '../adapters/db/pg-change-reader.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgEventDetectionsReader } from '../adapters/db/pg-event-detections-reader.js';
+import { createPgFireOutlineStore } from '../adapters/db/pg-fire-outline-store.js';
 import { createPgLightningContextStore } from '../adapters/db/pg-lightning-context-store.js';
 import { createPgSnapshotReader } from '../adapters/db/pg-snapshot-reader.js';
 import { createHealthServer } from '../adapters/http/health-server.js';
@@ -318,6 +319,12 @@ export function wireHealthServer(
     // F18: the same pool and reasoning as the detections read.
     eventLightningContext: {
       reader: createPgLightningContextStore(snapshotPool),
+      clock: systemClock,
+      onProblem,
+    },
+    // V2-A4: the same pool; the route caps its own in-flight reads.
+    fireOutlineOverlay: {
+      reader: createPgFireOutlineStore(snapshotPool),
       clock: systemClock,
       onProblem,
     },

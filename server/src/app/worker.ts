@@ -44,6 +44,7 @@ import { systemSleeper } from '../adapters/scheduler/system-sleeper.js';
 import { runAlertDigestCycle } from '../core/alerts/digest-pass.js';
 import { runAlertEvaluationCycle } from '../core/alerts/evaluation-cycle.js';
 import { runEffisRefresh } from '../core/effis/effis-refresh.js';
+import { runFireOutlinePass } from '../core/outlines/fire-outline-pass.js';
 import { recordLagHistograms } from '../core/ingest/lag-recorder.js';
 import { runIngestCycle } from '../core/ingest/ingest-cycle.js';
 import { runWeeklyQaReport } from '../core/qa/weekly-report-job.js';
@@ -59,6 +60,11 @@ import {
 import { wireAlertEvaluation } from './alert-evaluation-wiring.js';
 import { ConfigError, describeConfig, loadConfig } from './config.js';
 import { reportCycle } from './cycle-reporter.js';
+import {
+  FIRE_OUTLINE_INTERVAL_MS,
+  reportFireOutlinePass,
+  wireFireOutlines,
+} from './fire-outline-wiring.js';
 import { startDispatchJob } from './dispatch-wiring.js';
 import { reportIdentityCycle } from './identity-reporter.js';
 import { IDENTITY_CYCLE_INTERVAL_MS, wireIdentity } from './identity-wiring.js';
@@ -156,6 +162,8 @@ async function main(): Promise<number> {
   // Hot-reloads the static-source mask between cycles (F16); reload lines go to stderr.
   const identity = wireIdentity(config, { note: (record) => log.note(record) });
   const lag = wireLagHistograms(config);
+  // V2-A4: redraws an event's estimated outline once identity moved its detections.
+  const outlines = wireFireOutlines(config);
   // H3/D9: both alert loops are disabled with named blockers until cadence, routing (H2/D7)
   // and the zone keyring are all in place; a malformed keyring is still a ConfigError. The
   // evaluation loop reports the digest pass as a gap whenever the digest loop is not running,
@@ -211,8 +219,8 @@ async function main(): Promise<number> {
       log.note({ meta_alerts_unpaged: { reason: 'FIRE_WATCH_HEARTBEAT_URL is not set' } });
     }
 
-    // The always-on loops (ingest, identity, lag histograms, monitors, QA report, erasure purge)
-    // plus the optional ones: dispatch, alert evaluation, the digest pass, the two C4 refresh
+    // The always-on loops (ingest, identity, outlines, lag histograms, monitors, QA report,
+    // erasure purge) plus the optional ones: dispatch, alert evaluation, the digest pass, the two C4 refresh
     // loops and the R2 mirror. Independent loops on independent cadences, sharing one abort
     // signal: a slow EFFIS GetMap must not delay a FIRMS poll, and one SIGTERM drains all of
     // them.
@@ -248,6 +256,24 @@ async function main(): Promise<number> {
             'identity',
             (run) => {
               reportIdentityCycle(run, { writeLine });
+            },
+            onMetricsError,
+          ),
+        }),
+      ],
+      [
+        'fire_outlines',
+        runRepeatedly({
+          intervalMs: FIRE_OUTLINE_INTERVAL_MS,
+          clock: systemClock,
+          sleeper: systemSleeper,
+          signal: controller.signal,
+          run: () => runFireOutlinePass(outlines.deps),
+          report: observeLoop(
+            metrics,
+            'fire_outlines',
+            (run) => {
+              reportFireOutlinePass(run, { writeLine });
             },
             onMetricsError,
           ),
@@ -482,6 +508,7 @@ async function main(): Promise<number> {
     await Promise.all([
       wiring.close(),
       identity.close(),
+      outlines.close(),
       lag.close(),
       monitors.close(),
       qa.close(),

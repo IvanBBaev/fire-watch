@@ -159,6 +159,11 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
     [N, 10, 3, 0.4],
   ],
   'eventDetail.lightningContextNone': [[10, 3]],
+  // One pixel and many; a band reaching down to nothing and one that does not.
+  'eventDetail.fireOutlineArea': [
+    [T1, null, T2, 0.4, 1],
+    [T1, T2, T3, 0.4, N],
+  ],
   'eventDetail.frpPeak': [[T1, T2, T3]],
   'eventDetail.frpChartLabel': [
     [1, T1, T2],
@@ -173,6 +178,7 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   'layers.windValidFor': [[T1, T2]],
   'layers.swathsPassAt': [[T1, T2]],
   'layers.lightningAsOf': [[T1]],
+  'layers.outlinesAsOf': [[T1]],
   'passes.computedFor': [[T1]],
   'passes.cloudForecast': [
     [T1, 0],

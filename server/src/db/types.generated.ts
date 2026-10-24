@@ -299,6 +299,26 @@ export interface EventDetections {
   fire_event_id: Int8;
 }
 
+export interface EventFireOutline {
+  area_ha: number | null;
+  area_high_ha: number | null;
+  area_low_ha: number | null;
+  computed_at: Timestamp;
+  detection_count: number;
+  /**
+   * Largest footprint half-extent used: how far any drawn edge may sit from the true edge.
+   */
+  edge_uncertainty_km: number | null;
+  fire_event_id: Int8;
+  footprints: number;
+  last_detection_at: Timestamp;
+  /**
+   * Union of flagged pixel footprints, closed across narrow gaps; NULL when no detection came from an outline-drawing source.
+   */
+  outline: string | null;
+  params_version: string;
+}
+
 export interface EventLightningContext {
   /**
    * Event centroid (WGS84) the flashes were counted around; the row is recomputed once the event moves beyond LIGHTNING_CONTEXT_DRIFT.
@@ -424,6 +444,12 @@ export interface FireEventTransitions {
   status_reason: string | null;
   to_status: string;
   transitioned_at: Timestamp;
+}
+
+export interface FireOutlinePass {
+  id: number;
+  last_completed_at: Timestamp;
+  params_version: string;
 }
 
 export interface IncidentLogEntries {
@@ -651,10 +677,12 @@ export interface DB {
   detections: Detections;
   erasure_requests: ErasureRequests;
   event_detections: EventDetections;
+  event_fire_outline: EventFireOutline;
   event_lightning_context: EventLightningContext;
   events_shadow: EventsShadow;
   fire_event_transitions: FireEventTransitions;
   fire_events: FireEvents;
+  fire_outline_pass: FireOutlinePass;
   incident_log_entries: IncidentLogEntries;
   incident_log_version_contributors: IncidentLogVersionContributors;
   incident_log_versions: IncidentLogVersions;

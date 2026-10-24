@@ -353,6 +353,15 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'dataExport.notice',
       // V2-D4 — og:image
       'ogImage.alt',
+      // V2-A4 — estimated outlines
+      'layers.outlines',
+      'layers.outlinesNote',
+      'layers.outlinesLegend',
+      'layers.outlinesAsOf',
+      'layers.outlinesTruncated',
+      'layers.outlinesNone',
+      'eventDetail.fireOutlineArea',
+      'eventDetail.fireOutlineCaveat',
     ]);
   });
 
