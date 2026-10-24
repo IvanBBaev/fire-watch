@@ -311,6 +311,11 @@ button {
      Narrow, the sheet's peeking handle sits over the bottom of the map, so the column stops
      above it too (the wide layout lifts that part of the cap). */
   max-height: calc(100% - 1rem - var(--tap-target) - 1px);
+  /* At 360 px and 200 % text the five buttons alone are taller than that cap, so an open
+     panel would hang below the column, under the sheet's handle. The column then scrolls as
+     a whole instead (V2-D3); below that size it never overflows and nothing changes. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Wraps because it must: at a large text size two buttons no longer fit one row, and an
@@ -384,10 +389,12 @@ button {
 
 /* The measure panel (V2-D3) hangs in the same place as the Layers panel, which it closes.
    Every line is body-size text: the panel is a CI-18 surface, unlike the layers notes.
-   `min-height: 0` lets it shrink into what the capped control column leaves it. */
+   It shrinks into what the capped control column leaves it, but not below half the frame:
+   when the buttons alone fill the column, the column scrolls to the panel instead of
+   squeezing it down to its padding. */
 .measure-panel {
   box-sizing: border-box;
-  min-height: 0;
+  min-height: min(12rem, 50vh);
   width: 20rem;
   max-width: 100%;
   max-height: min(70vh, 36rem);
