@@ -2666,6 +2666,7 @@ reviewed in both locales, CI-7/12/13/14/18 green.
 - [ ] **V2-E3 — CEMS badge.** *2026-10-24 — built, unticked (171cf4c). Founder: match window, retention, poll, credit. Gaps: synthetic EMSR fixture, undocumented API, heuristic e2e wait.*
 - [ ] **V2-F1 — Natura 2000 proximity.** *2026-10-24 — built, unticked (a12902f). Founder: 10 keys, grid, credit placement, cadence, MK/RS/TR coverage.*
 - [ ] **V2-F4 — Land cover note.** *2026-10-24 — built, unticked (a12902f). Founder: 165 kB asset unbudgeted, copy.*
+- [ ] **V2-C5 — Cross-device sync.** *2026-10-27 — built, unticked (a68a757…ccff6bb, migration 034; `account_preferences_v1` behind GET/PUT `/api/v1/account/preferences` with an `If-Match` revision, in erasure and export; lazy web chunk, no new copy keys). Founder: the per-field 3-way merge (the account wins on a first sync), the 4 KiB cap, synced fields (layers, static sources, Natura, theme, language, time window, sound — not filters or camera; zones already live on the account), the `fw:account-hint` boot trigger, 422/428/409 semantics. Gaps: language applies on the next load; a session older than the hint syncs only after a sign-in-page visit; criticalPath +162 B (360,929 B) from chunk-graph exports and 3 problem codes.*
 
 ## Coverage note
 
