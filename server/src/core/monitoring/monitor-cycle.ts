@@ -1,11 +1,11 @@
 /**
  * One meta-alert cycle (TASKS J1; GATES L-8; OPERATIONS §3).
  *
- * read → readings → hysteresis → pager. The hysteresis state lives in this closure, not in
- * a table: a restart forgets the streaks, which costs at most `pageAfter` cycles of delay
- * on a page that is still true after the restart — and a page that clears across a
- * restart was cleared by healthchecks.io's own state, not by ours, because the pager
- * reports the level every cycle.
+ * read → readings → hysteresis → pager. The hysteresis state is read from and written to a
+ * {@link MetaAlertStateStore} every cycle (migration 036), so a restart or a standby
+ * worker's takeover resumes the streaks and a live page instead of reporting "all clear"
+ * for a cycle; `meta-alert-memory.ts` says when a stored state is held rather than
+ * advanced, and when its streaks are too old to count as consecutive.
  *
  * The pager is called only after every reader succeeded. A cycle that throws reports
  * nothing, so a monitor that cannot see the database pages through the dead-man's switch
@@ -16,14 +16,11 @@ import type { CanaryProbe } from '../ports/canary-probe.js';
 import type { Clock, EpochMs } from '../ports/clock.js';
 import { isoFromEpochMs } from '../ports/clock.js';
 import type { MetaAlertPager } from '../ports/meta-alert-pager.js';
+import type { MetaAlertStateStore } from '../ports/meta-alert-state-store.js';
 import type { MonitorReader } from '../ports/monitor-reader.js';
 import { INITIAL_CANARY_STATE, settleCanary, type CanaryState } from './canary.js';
-import {
-  evaluateMetaAlert,
-  INITIAL_META_ALERT_STATE,
-  type MetaAlertState,
-  type ReadingStatus,
-} from './meta-alert-evaluator.js';
+import { evaluateMetaAlert, type ReadingStatus } from './meta-alert-evaluator.js';
+import { resumeMetaAlertStates, type StoredMetaAlertState } from './meta-alert-memory.js';
 import { META_ALERT_KEYS, type MetaAlertKey, type MetaAlertRules } from './meta-alert-params.js';
 import { identityReadings, outboxReadings, type Readings } from './readings.js';
 
@@ -32,6 +29,9 @@ export interface MonitorCycleDeps {
   readonly pager: MetaAlertPager;
   readonly clock: Clock;
   readonly rules: MetaAlertRules;
+  readonly stateStore: MetaAlertStateStore;
+  /** The loop's cadence; defines "consecutive" for the stored streaks. */
+  readonly intervalMs: number;
   /** The identity loop's cold-start window (clustering `activeWindowMs`). */
   readonly identityWindowMs: number;
   /** `null` until an operator channel exists — see `core/ports/canary-probe.ts`. */
@@ -50,6 +50,11 @@ export interface MonitorCycleReport {
   readonly transitions: readonly { readonly key: MetaAlertKey; readonly to: 'page' | 'clear' }[];
   /** Every key paging after this cycle, in {@link META_ALERT_KEYS} order. */
   readonly paging: readonly MetaAlertKey[];
+  /**
+   * `false` when another cycle advanced the stored state less than half an interval ago:
+   * this one reported that stored level and counted nothing (`meta-alert-memory.ts`).
+   */
+  readonly advanced: boolean;
 }
 
 export interface MonitorCycle {
@@ -60,7 +65,9 @@ export function createMonitorCycle(deps: MonitorCycleDeps): MonitorCycle {
   if (!Number.isFinite(deps.identityWindowMs) || deps.identityWindowMs < 0) {
     throw new RangeError('identityWindowMs must be a non-negative finite number');
   }
-  let states = new Map<MetaAlertKey, MetaAlertState>();
+  if (!Number.isFinite(deps.intervalMs) || deps.intervalMs <= 0) {
+    throw new RangeError('intervalMs must be a positive finite number');
+  }
   let canaryState: CanaryState = INITIAL_CANARY_STATE;
 
   async function readCanary(now: EpochMs): Promise<number | null> {
@@ -89,29 +96,45 @@ export function createMonitorCycle(deps: MonitorCycleDeps): MonitorCycle {
         canary_round_trip_seconds: canary,
       };
 
-      // Built into a fresh map and swapped in only once every key evaluated, so a rule
-      // that throws (a malformed configuration) leaves the previous state intact.
-      const next = new Map<MetaAlertKey, MetaAlertState>();
-      const reports = {} as Record<MetaAlertKey, MonitorReadingReport>;
-      const transitions: { key: MetaAlertKey; to: 'page' | 'clear' }[] = [];
-      const paging: MetaAlertKey[] = [];
-      for (const key of META_ALERT_KEYS) {
-        const rule = deps.rules[key];
-        const step = evaluateMetaAlert(
-          rule,
-          readings[key],
-          states.get(key) ?? INITIAL_META_ALERT_STATE,
-          now,
-        );
-        next.set(key, step.state);
-        reports[key] = { value: readings[key], status: step.status, page_above: rule.pageAbove };
-        if (step.transition !== null) transitions.push({ key, to: step.transition });
-        if (step.state.paging) paging.push(key);
-      }
-      states = next;
+      // `decide` throws for a malformed rule; the store then writes nothing and the
+      // stored state stays as it was.
+      const { reports, transitions, paging, advanced } = await deps.stateStore.update((stored) => {
+        const resumed = resumeMetaAlertStates(stored, now, deps.intervalMs);
+        const next = new Map<MetaAlertKey, StoredMetaAlertState>();
+        const reports = {} as Record<MetaAlertKey, MonitorReadingReport>;
+        const transitions: { key: MetaAlertKey; to: 'page' | 'clear' }[] = [];
+        const paging: MetaAlertKey[] = [];
+        for (const key of META_ALERT_KEYS) {
+          const rule = deps.rules[key];
+          const from = resumed.states.get(key);
+          if (from === undefined) throw new Error(`no resumed state for ${key}`);
+          const step = evaluateMetaAlert(rule, readings[key], from, now);
+          const isPaging = resumed.advance ? step.state.paging : from.paging;
+          reports[key] = {
+            value: readings[key],
+            status: resumed.advance ? step.status : heldStatus(step.status, from.paging),
+            page_above: rule.pageAbove,
+          };
+          if (resumed.advance) {
+            next.set(key, { state: step.state, evaluatedAt: now });
+            if (step.transition !== null) transitions.push({ key, to: step.transition });
+          }
+          if (isPaging) paging.push(key);
+        }
+        return {
+          write: resumed.advance ? next : null,
+          result: { reports, transitions, paging, advanced: resumed.advance },
+        };
+      });
 
       await deps.pager.report(paging);
-      return { at: isoFromEpochMs(now), readings: reports, transitions, paging };
+      return { at: isoFromEpochMs(now), readings: reports, transitions, paging, advanced };
     },
   };
+}
+
+/** A held cycle reports the stored level: it neither raises nor clears a page. */
+function heldStatus(status: ReadingStatus, storedPaging: boolean): ReadingStatus {
+  if (storedPaging) return status === 'unarmed' ? 'unarmed' : 'paging';
+  return status === 'paging' ? 'breaching' : status;
 }

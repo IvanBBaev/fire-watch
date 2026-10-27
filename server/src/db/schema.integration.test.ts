@@ -140,6 +140,7 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'ingest_batches',
       'ingest_quarantine',
       'lifecycle_log_origin',
+      'meta_alert_states',
       'nrt_lag_histograms',
       'qa_weekly_reports',
       'source_status',

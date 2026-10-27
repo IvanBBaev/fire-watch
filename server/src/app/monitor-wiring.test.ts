@@ -19,6 +19,7 @@ const ENV: Environment = {
 
 const REPORT: MonitorCycleReport = {
   at: '2026-09-23T10:00:00Z',
+  advanced: true,
   readings: {
     outbox_queue_oldest_seconds: { value: 661, status: 'paging', page_above: 600 },
     outbox_pending_rows: { value: 3, status: 'unarmed', page_above: null },

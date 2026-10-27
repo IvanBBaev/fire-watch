@@ -19,7 +19,7 @@ function report(paging: MonitorCycleReport['paging']): MonitorCycleReport {
       { value: 0, status: paging.includes(key) ? 'paging' : 'unarmed', page_above: null },
     ]),
   ) as MonitorCycleReport['readings'];
-  return { at: '2026-10-22T10:00:00Z', readings, transitions: [], paging };
+  return { at: '2026-10-22T10:00:00Z', advanced: true, readings, transitions: [], paging };
 }
 
 const ok = (finishedAt: number, paging: MonitorCycleReport['paging'] = []) =>

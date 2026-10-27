@@ -521,6 +521,15 @@ export interface LifecycleLogOrigin {
   started_at: Timestamp;
 }
 
+export interface MetaAlertStates {
+  breach_streak: number;
+  clear_streak: number;
+  evaluated_at: Timestamp;
+  key: string;
+  paging: boolean;
+  paging_since: Timestamp | null;
+}
+
 export interface NrtLagHistograms {
   below: number;
   computed_at: Generated<Timestamp>;
@@ -731,6 +740,7 @@ export interface DB {
   ingest_batches: IngestBatches;
   ingest_quarantine: IngestQuarantine;
   lifecycle_log_origin: LifecycleLogOrigin;
+  meta_alert_states: MetaAlertStates;
   nrt_lag_histograms: NrtLagHistograms;
   qa_weekly_reports: QaWeeklyReports;
   source_status: SourceStatus;

@@ -116,6 +116,7 @@ describe('metaAlertSamples', () => {
   ) as Record<MetaAlertKey, MonitorReadingReport>;
   const report: MonitorCycleReport = {
     at: '2026-09-25T10:00:00.000Z',
+    advanced: true,
     readings: { ...readings, outbox_queue_oldest_seconds: reading(0) },
     transitions: [],
     paging: ['outbox_queue_oldest_seconds'],

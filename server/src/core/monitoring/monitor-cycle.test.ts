@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CanaryProbe } from '../ports/canary-probe.js';
-import { epochMsFromIso, VirtualClock } from '../ports/clock.js';
+import { epochMsFromIso, isoFromEpochMs, VirtualClock } from '../ports/clock.js';
 import type { MetaAlertPager } from '../ports/meta-alert-pager.js';
+import { createInMemoryMetaAlertStateStore } from '../ports/meta-alert-state-store.js';
 import type {
   IdentityLagSnapshot,
   MonitorReader,
@@ -14,6 +15,7 @@ import { createMonitorCycle, type MonitorCycleDeps } from './monitor-cycle.js';
 const START = '2026-09-23T10:00:00Z';
 const T0 = epochMsFromIso(START);
 const HOUR = 3_600_000;
+const MINUTE = 60_000;
 
 const EMPTY_OUTBOX: OutboxQueueSnapshot = {
   pendingCount: 0,
@@ -56,13 +58,16 @@ class RecordingPager implements MetaAlertPager {
   }
 }
 
-function setup(overrides: Partial<MonitorCycleDeps> = {}): {
+function setup(
+  overrides: Partial<MonitorCycleDeps> = {},
+  startAt: string = START,
+): {
   clock: VirtualClock;
   reader: FakeReader;
   pager: RecordingPager;
   cycle: ReturnType<typeof createMonitorCycle>;
 } {
-  const clock = new VirtualClock(START);
+  const clock = new VirtualClock(startAt);
   const reader = new FakeReader();
   const pager = new RecordingPager();
   const cycle = createMonitorCycle({
@@ -72,6 +77,8 @@ function setup(overrides: Partial<MonitorCycleDeps> = {}): {
     rules: META_ALERT_RULES,
     identityWindowMs: 48 * HOUR,
     canary: null,
+    stateStore: createInMemoryMetaAlertStateStore(),
+    intervalMs: 60_000,
     ...overrides,
   });
   return { clock, reader, pager, cycle };
@@ -183,7 +190,87 @@ describe('createMonitorCycle', () => {
     expect(injected).toEqual([T0, T0 + 120_000]);
   });
 
+  it('keeps a live page across a restart instead of reporting all clear for a cycle', async () => {
+    const stateStore = createInMemoryMetaAlertStateStore();
+    const before = setup({ stateStore });
+    before.reader.outbox = {
+      ...EMPTY_OUTBOX,
+      pendingCount: 3,
+      oldestUnsentDecidedAt: T0 - 601_000,
+    };
+    await before.cycle.runOnce();
+    before.clock.advanceMinutes(1);
+    expect((await before.cycle.runOnce()).paging).toEqual(['outbox_queue_oldest_seconds']);
+
+    // A new process, the same store, one interval later; the queue has drained.
+    const after = setup({ stateStore }, isoFromEpochMs(T0 + 2 * MINUTE));
+    const first = await after.cycle.runOnce();
+    expect(first.advanced).toBe(true);
+    expect(first.transitions).toEqual([]);
+    expect(first.paging).toEqual(['outbox_queue_oldest_seconds']);
+    expect(after.pager.reports).toEqual([['outbox_queue_oldest_seconds']]);
+
+    after.clock.advanceMinutes(1);
+    const second = await after.cycle.runOnce();
+    expect(second.transitions).toEqual([{ key: 'outbox_queue_oldest_seconds', to: 'clear' }]);
+    expect(second.paging).toEqual([]);
+  });
+
+  it('holds the stored level when another worker advanced moments ago, and counts nothing', async () => {
+    const stateStore = createInMemoryMetaAlertStateStore();
+    const a = setup({ stateStore });
+    const b = setup({ stateStore }, isoFromEpochMs(T0 + 10_000));
+    const stuck = { ...EMPTY_OUTBOX, pendingCount: 3, oldestUnsentDecidedAt: T0 - 601_000 };
+    a.reader.outbox = stuck;
+    b.reader.outbox = stuck;
+
+    expect((await a.cycle.runOnce()).advanced).toBe(true);
+    const held = await b.cycle.runOnce();
+    expect(held.advanced).toBe(false);
+    expect(held.paging).toEqual([]);
+    expect(held.transitions).toEqual([]);
+    expect(held.readings.outbox_queue_oldest_seconds.status).toBe('breaching');
+    expect(b.pager.reports).toEqual([[]]);
+
+    // B's held cycle did not count: A's next cycle is only the second breaching reading.
+    a.clock.advanceMinutes(1);
+    const paged = await a.cycle.runOnce();
+    expect(paged.transitions).toEqual([{ key: 'outbox_queue_oldest_seconds', to: 'page' }]);
+
+    // Now B, moments later, reports the page A raised rather than clearing it.
+    b.clock.advanceMinutes(1);
+    b.reader.outbox = EMPTY_OUTBOX;
+    const heldPage = await b.cycle.runOnce();
+    expect(heldPage.advanced).toBe(false);
+    expect(heldPage.paging).toEqual(['outbox_queue_oldest_seconds']);
+    expect(heldPage.readings.outbox_queue_oldest_seconds.status).toBe('paging');
+  });
+
+  it('writes nothing and does not page when a rule is malformed', async () => {
+    const stateStore = createInMemoryMetaAlertStateStore();
+    const broken = setup({
+      stateStore,
+      rules: {
+        ...META_ALERT_RULES,
+        outbox_queue_oldest_seconds: {
+          ...META_ALERT_RULES.outbox_queue_oldest_seconds,
+          pageAfter: 0,
+        },
+      },
+    });
+    await expect(broken.cycle.runOnce()).rejects.toThrow();
+    expect(broken.pager.reports).toEqual([]);
+
+    // Nothing was stored, so a healthy cycle right after still advances.
+    const healthy = setup({ stateStore });
+    expect((await healthy.cycle.runOnce()).advanced).toBe(true);
+  });
+
   it('refuses a negative identity window', () => {
     expect(() => setup({ identityWindowMs: -1 })).toThrow(RangeError);
+  });
+
+  it('refuses an interval that is not a positive finite number', () => {
+    expect(() => setup({ intervalMs: 0 })).toThrow(RangeError);
   });
 });

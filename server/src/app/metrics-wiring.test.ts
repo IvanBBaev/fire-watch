@@ -303,6 +303,7 @@ describe('monitorObserver', () => {
   });
   const report: MonitorCycleReport = {
     at: '2026-09-25T10:00:00.000Z',
+    advanced: true,
     readings: Object.fromEntries(META_ALERT_KEYS.map((k) => [k, reading(42)])) as Record<
       MetaAlertKey,
       MonitorReadingReport

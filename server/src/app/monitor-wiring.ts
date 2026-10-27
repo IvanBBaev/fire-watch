@@ -15,12 +15,13 @@
  */
 
 import { systemClock } from '../adapters/clock/system-clock.js';
+import { createPgMetaAlertStateStore } from '../adapters/db/pg-meta-alert-state-store.js';
 import { createPgMonitorReader } from '../adapters/db/pg-monitor-reader.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createHealthchecksMetaPager } from '../adapters/monitoring/healthchecks-meta-pager.js';
 import { activeWindowMs, CLUSTERING_PARAMS } from '../core/clustering/clustering-params.js';
 import { canonicalJson } from '../core/determinism/canonical-json.js';
-import { META_ALERT_RULES } from '../core/monitoring/meta-alert-params.js';
+import { META_ALERT_RULES, MONITOR_INTERVAL_MS } from '../core/monitoring/meta-alert-params.js';
 import { evaluateMetaHealth, type MetaHealthVerdict } from '../core/monitoring/meta-health.js';
 import {
   createMonitorCycle,
@@ -34,7 +35,10 @@ import type { ServerConfig } from './config.js';
 
 export { MONITOR_INTERVAL_MS } from '../core/monitoring/meta-alert-params.js';
 
-/** Two aggregate queries a cycle, run concurrently; more connections would sit idle. */
+/**
+ * Two aggregate queries a cycle, run concurrently, then the hysteresis-state transaction
+ * once both have returned; more connections would sit idle.
+ */
 export const MONITOR_POOL_MAX = 2;
 
 export interface MonitorWiring {
@@ -66,6 +70,8 @@ export function wireMonitors(
     pager,
     clock: systemClock,
     rules: META_ALERT_RULES,
+    stateStore: createPgMetaAlertStateStore(pool),
+    intervalMs: MONITOR_INTERVAL_MS,
     identityWindowMs: activeWindowMs(CLUSTERING_PARAMS.values),
     canary: null,
   });

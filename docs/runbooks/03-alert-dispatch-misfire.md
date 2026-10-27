@@ -54,8 +54,12 @@ Gaps:
   needs the operator channel, a founder decision), thresholds for every other monitor key (`outbox_pending_rows`,
   `outbox_claimed_rows`, `outbox_claimed_oldest_seconds`,
   `outbox_awaiting_approval_oldest_seconds`, `identity_pending_batches`,
-  `identity_oldest_pending_seconds` are all unarmed), and persistent hysteresis (state
-  is in memory, so a restart resets the 2-in-a-row counter).
+  `identity_oldest_pending_seconds` are all unarmed).
+- The 2-in-a-row hysteresis is stored in `meta_alert_states` (migration 036), so a
+  worker restart or a standby's takeover keeps a live page instead of clearing it for a
+  cycle. A cycle within half a minute of another worker's is reported as
+  `"advanced": false` and counts nothing; after more than 3 minutes without a cycle the
+  streaks restart from zero, but a live page stays until two healthy readings clear it.
 - `NOT YET BUILT (H4, founder decision)`: the anomaly breaker's absolute floor. The
   breaker is unarmed, so G is the only enforced ceiling on a runaway.
 - There is no heartbeat for dispatch itself. Queue age is the signal.
