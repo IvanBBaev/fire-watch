@@ -11,8 +11,8 @@
  * **Scope.** Every problem document on the account surface — sign-in
  * (`/api/v1/auth/*`), the account itself (`/api/v1/account`, `/api/v1/account/export`,
  * `/api/v1/account/preferences`),
- * watch zones (`/api/v1/zones`), alert channels (`/api/v1/channels/*`) and the staff
- * plane's curated statements (`/api/v1/staff/curated-statements`) — carries a code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
+ * watch zones (`/api/v1/zones`), alert channels (`/api/v1/channels/*`), webhook endpoints
+ * (`/api/v1/webhooks`) and the staff plane's curated statements (`/api/v1/staff/curated-statements`) — carries a code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
  * on every route. The public data routes (snapshot, stream, client-config, overlays) are
  * status-driven by design (ADR-003 A1.3: "clients key off the status code, never the
  * problem body") and carry no code of their own.
@@ -51,6 +51,11 @@ export const PROBLEM_CODES = [
   'channel_not_found',
   'webhook_not_found',
   'webhook_unauthenticated',
+  // Signed alert webhooks (V2-G2, `/api/v1/webhooks`). `webhook_not_found` above is the
+  // Telegram Bot API's inbound hook, a different thing.
+  'webhook_endpoint_not_found',
+  'webhook_url_invalid',
+  'webhook_limit_reached',
   // Watch zones.
   'zone_not_found',
   'zone_name_invalid',

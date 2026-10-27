@@ -21,6 +21,7 @@ import { HISTORY_PROBLEMS } from './history-route.js';
 import { FALLBACK_PROBLEMS } from './problem.js';
 import { SES_FEEDBACK_PROBLEMS } from './ses-feedback-route.js';
 import { CURATION_REFUSALS, STAFF_CURATION_PROBLEMS } from './staff-curation-route.js';
+import { WEBHOOKS_PROBLEMS } from './webhooks-route.js';
 import { ZONE_REFUSALS, ZONES_PROBLEMS } from './zones-route.js';
 
 interface Emitted {
@@ -40,6 +41,7 @@ const EMITTED: readonly (readonly [string, readonly Emitted[]])[] = [
   ['channel routes', CHANNEL_PROBLEMS],
   ['zone refusals', Object.values(ZONE_REFUSALS)],
   ['zone routes', ZONES_PROBLEMS],
+  ['webhook endpoint routes', WEBHOOKS_PROBLEMS],
   ['SES feedback hook', SES_FEEDBACK_PROBLEMS],
   ['staff curation routes', STAFF_CURATION_PROBLEMS],
   ['staff curation refusals', Object.values(CURATION_REFUSALS)],
