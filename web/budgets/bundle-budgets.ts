@@ -120,6 +120,10 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   { role: 'page', src: /^src\/ui\/event\/before-after\.tsx$/ },
   // TASKS F6: the share card's layout and rasterizer, fetched on the first share click.
   { role: 'page', src: /^src\/ui\/share\/share-action\.ts$/ },
+  // V2-C5: cross-device sync, loaded after first paint and only for a browser with a
+  // signed-in session (the account hint, or a sign-in that just succeeded). Nothing on
+  // screen waits for it, so it is on neither the first-render nor the map path.
+  { role: 'page', src: /^src\/ui\/preferences-sync\.ts$/ },
 ];
 
 /**

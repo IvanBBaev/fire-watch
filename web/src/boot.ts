@@ -39,6 +39,7 @@ import { App } from './ui/app.js';
 import { holdSignInToken, setAuthClient } from './ui/auth.js';
 import { setImageryHandles } from './ui/imagery.js';
 import { newSignalSound, startNewSignals } from './ui/new-signals.js';
+import { readStorage } from './ui/storage.js';
 import { initTheme } from './ui/theme.js';
 
 async function boot(): Promise<void> {
@@ -47,6 +48,9 @@ async function boot(): Promise<void> {
   // third-party script can see it. The page reads it once, from the holder.
   holdSignInToken(takeSignInToken(window.location, window.history));
   setAuthClient(createAuthClient({ fetchFn: (input, init) => fetch(input, init) }));
+  // The fragment as opened, before the app rewrites it: sync (V2-C5) leaves what a link
+  // states on screen.
+  const openedWith = window.location.hash;
 
   const clock = createSystemClock();
   const rng = createMulberry32(entropySeed());
@@ -151,6 +155,15 @@ async function boot(): Promise<void> {
   };
   requestAnimationFrame(() => {
     setTimeout(prefetchMapChunk, 0);
+    // V2-C5: a browser that had a session syncs its preferences — a lazy chunk, after
+    // first paint; a signed-out reader never loads it or sends a request for it.
+    if (readStorage('fw:account-hint') !== null) {
+      void import('./ui/preferences-sync.js')
+        .then((sync) => {
+          sync.startPreferencesSync(openedWith);
+        })
+        .catch(() => undefined);
+    }
   });
 }
 

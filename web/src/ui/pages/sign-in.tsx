@@ -57,6 +57,15 @@ function useReferrerPolicy(): void {
  * `probing` until `GET /api/v1/account` answers; then whether sign-in is served here and,
  * if so, whether this browser is already signed in. No answer at all reads as unavailable.
  */
+/** V2-C5: a live session syncs its preferences; the chunk loads only now, never before. */
+function startSync(): void {
+  void import('../preferences-sync.js')
+    .then((sync) => {
+      sync.startPreferencesSync('');
+    })
+    .catch(() => undefined);
+}
+
 type Probe = 'probing' | 'unavailable' | 'signed-in' | 'signed-out';
 
 function useProbe(): Probe {
@@ -65,6 +74,7 @@ function useProbe(): Probe {
     let live = true;
     void refreshSession().then((state) => {
       if (!live) return;
+      if (state === 'signed-in') startSync();
       setProbe(state === 'signed-in' || state === 'signed-out' ? state : 'unavailable');
     });
     return () => {
@@ -223,7 +233,10 @@ export function SignInContinuePage() {
     if (client === null || taken.kind !== 'token' || state.kind !== 'ready') return;
     setState({ kind: 'working' });
     void client.continueSignIn(taken.token).then((outcome) => {
-      if (outcome.kind === 'signed-in') noteSession('signed-in');
+      if (outcome.kind === 'signed-in') {
+        noteSession('signed-in');
+        startSync();
+      }
       setState(outcome);
     });
   };
