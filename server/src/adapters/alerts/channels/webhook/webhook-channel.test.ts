@@ -75,15 +75,17 @@ function harness(opts: {
     sends,
     store: {
       loadTarget() {
-        return opts.target === undefined
-          ? {
-              endpointId: ENDPOINT,
-              accountId: ACCOUNT,
-              url: 'https://hooks.example-receiver.com/in',
-              sealed: { ciphertext: new Uint8Array(44), keyId: 'k1' },
-              disabled: false,
-            }
-          : opts.target;
+        return Promise.resolve(
+          opts.target === undefined
+            ? {
+                endpointId: ENDPOINT,
+                accountId: ACCOUNT,
+                url: 'https://hooks.example-receiver.com/in',
+                sealed: { ciphertext: new Uint8Array(44), keyId: 'k1' },
+                disabled: false,
+              }
+            : opts.target,
+        );
       },
       lastAttempt() {
         return Promise.resolve(opts.previous ?? null);

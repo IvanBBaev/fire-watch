@@ -22,15 +22,17 @@ function setup(result: Partial<WebhookSendResult>) {
   const sends: WebhookSendRequest[] = [];
   const store: WebhookDeliveryStore = {
     loadTarget(id) {
-      return id === ENDPOINT
-        ? {
-            endpointId: ENDPOINT,
-            accountId: ACCOUNT,
-            url: 'https://hooks.example-receiver.com/in',
-            sealed: { ciphertext: new Uint8Array(44), keyId: 'k1' },
-            disabled: true,
-          }
-        : null;
+      return Promise.resolve(
+        id === ENDPOINT
+          ? {
+              endpointId: ENDPOINT,
+              accountId: ACCOUNT,
+              url: 'https://hooks.example-receiver.com/in',
+              sealed: { ciphertext: new Uint8Array(44), keyId: 'k1' },
+              disabled: true,
+            }
+          : null,
+      );
     },
     lastAttempt() {
       return Promise.resolve(null);
