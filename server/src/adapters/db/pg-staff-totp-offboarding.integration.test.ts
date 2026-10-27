@@ -4,7 +4,8 @@
  * flows with the real sealer, verifier and token issuer: a code elevates once and its
  * replay is refused, the fifth wrong code ends the session, the TOTP factor is never the
  * last one removed, and off-boarding leaves a member with nothing to sign in with — each
- * on the audit trail in its own transaction. A TOTP enrollment (migration 031) parks the
+ * on the audit trail in its own transaction. An off-boarded member is re-admitted with new
+ * roles and no old factor. A TOTP enrollment (migration 031) parks the
  * sealed secret in the session's challenge slot and confirms it with a code.
  *
  * Skipped when there is no Docker daemon, which is the normal state of a laptop here;
@@ -279,6 +280,52 @@ describe.skipIf(!hasDocker)('staff TOTP sign-in, removal and off-boarding', () =
     expect(manage).toHaveLength(2);
     expect(
       await staff.offboardMember('00000000-0000-4000-8000-000000000000', {
+        actorId: admin,
+        at: AT,
+      }),
+    ).toEqual({ kind: 'not_found' });
+  });
+
+  it('re-admits an off-boarded member with fresh roles and no old factor', async () => {
+    const admin = await newMember(['admin']);
+    const id = await newMember(['editor']);
+    await enrollTotp(id, 7);
+    expect(await staff.readmitMember(id, ['moderator'], { actorId: admin, at: AT })).toEqual({
+      kind: 'already_live',
+    });
+    expect(await staff.disableMember(id, { actorId: admin, at: AT })).toMatchObject({
+      kind: 'disabled',
+    });
+    // Disabled in a hurry but still holding a factor, codes and a role: off-board first.
+    expect(await staff.readmitMember(id, ['moderator'], { actorId: admin, at: AT })).toEqual({
+      kind: 'not_offboarded',
+    });
+    expect((await staff.offboardMember(id, { actorId: admin, at: AT })).kind).toBe('offboarded');
+    expect(
+      await staff.readmitMember(id, ['moderator', 'editor'], {
+        actorId: admin,
+        at: AT + 1,
+        ip: '192.0.2.9',
+      }),
+    ).toEqual({ kind: 'readmitted' });
+    expect(await staff.findMember(id)).toMatchObject({
+      disabled: false,
+      roles: ['editor', 'moderator'],
+    });
+    expect(await staff.countSecondFactors(id)).toBe(0);
+    expect(await staff.findTotpFactor(id)).toBeNull();
+    // The old recovery code is gone too.
+    expect(await staff.consumeRecoveryCode(id, new Uint8Array(32).fill(7), { at: AT })).toBe(false);
+    // A fresh primary sign-in opens a pending session from which the member enrolls anew.
+    await pendingSession(id);
+    expect(await staff.readmitMember(id, ['editor'], { actorId: admin, at: AT })).toEqual({
+      kind: 'already_live',
+    });
+    const manage = (await auditActions(id)).filter((a) => a === 'staff.manage');
+    // create, disable, off-board, re-admit.
+    expect(manage).toHaveLength(4);
+    expect(
+      await staff.readmitMember('00000000-0000-4000-8000-000000000000', [], {
         actorId: admin,
         at: AT,
       }),

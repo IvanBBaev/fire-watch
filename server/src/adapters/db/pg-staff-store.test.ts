@@ -717,6 +717,79 @@ describe('createPgStaffStore — TOTP removal and off-boarding', () => {
   });
 });
 
+describe('createPgStaffStore — re-admission', () => {
+  const ctx = { actorId: ADMIN, ip: '192.0.2.1', at: AT };
+
+  it('re-enables a clean member with the new roles under its row lock, one audit row', async () => {
+    const stub = stubPool({
+      lockAnyMember: { rows: [{ live: false }], rowCount: 1 },
+      memberHoldings: { rows: [{ holdings: 0 }], rowCount: 1 },
+      enableMember: { rows: [], rowCount: 1 },
+    });
+    const result = await createPgStaffStore(stub.pool).readmitMember(
+      STAFF,
+      ['moderator', 'editor', 'editor'],
+      ctx,
+    );
+    expect(result).toEqual({ kind: 'readmitted' });
+    expect(stub.trace()).toEqual([
+      'BEGIN',
+      'lockAnyMember',
+      'memberHoldings',
+      'enableMember',
+      'insertRole',
+      'insertRole',
+      'insertAudit',
+      'COMMIT',
+    ]);
+    const roles = stub.queries
+      .filter((q) => q.text === STAFF_SQL.insertRole)
+      .map((q) => q.values.slice(0, 2));
+    expect(roles).toEqual([
+      [STAFF, 'editor'],
+      [STAFF, 'moderator'],
+    ]);
+    expect(auditValues(stub).slice(0, 4)).toEqual([ADMIN, 'staff.manage', 'staff_member', STAFF]);
+  });
+
+  it('refuses an unknown, a live and a not fully off-boarded member without writing', async () => {
+    const cases: readonly (readonly [Parameters<typeof stubPool>[0], string])[] = [
+      [{ lockAnyMember: { rows: [], rowCount: 0 } }, 'not_found'],
+      [{ lockAnyMember: { rows: [{ live: true }], rowCount: 1 } }, 'already_live'],
+      [
+        {
+          lockAnyMember: { rows: [{ live: false }], rowCount: 1 },
+          memberHoldings: { rows: [{ holdings: 1 }], rowCount: 1 },
+        },
+        'not_offboarded',
+      ],
+    ];
+    for (const [answers, kind] of cases) {
+      const stub = stubPool(answers);
+      expect(await createPgStaffStore(stub.pool).readmitMember(STAFF, ['editor'], ctx)).toEqual({
+        kind,
+      });
+      expect(stub.trace()).not.toContain('enableMember');
+      expect(stub.trace()).not.toContain('insertRole');
+      expect(stub.trace()).not.toContain('insertAudit');
+    }
+  });
+
+  it('counts every holding off-boarding removes, unrevoked sessions included', () => {
+    for (const table of [
+      'staff_webauthn_credentials',
+      'staff_totp_factors',
+      'staff_recovery_codes',
+      'staff_role_grants',
+      'staff_sessions',
+    ]) {
+      expect(STAFF_SQL.memberHoldings).toContain(table);
+    }
+    expect(STAFF_SQL.memberHoldings).toContain('revoked_at IS NULL');
+    expect(STAFF_SQL.enableMember).toContain('disabled_at IS NOT NULL');
+  });
+});
+
 describe('migration 030', () => {
   const sql = readFileSync(
     new URL('../../../db/migrations/030_staff_totp_removal_and_offboarding.sql', import.meta.url),

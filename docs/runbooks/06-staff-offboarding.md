@@ -44,6 +44,7 @@ key, a secret or a code.
 | **Disable** (`disableStaffMember`) | `staff.manage`, never on oneself | Disables and ends every session; credentials and roles stay. The fast first move when in doubt. | `staff.manage` |
 | **Remove a TOTP factor** (`removeStaffTotpFactor`) | the member, or `staff.manage` | Deletes the factor and ends the sessions it signed in. Refused when it is the member's last second factor. Recovery codes stay. | `staff.second_factor_removed` |
 | **Remove a key** (`removeWebAuthnCredential`) | the member, or `staff.manage` | Same, for one WebAuthn credential. | `staff.second_factor_removed` |
+| **Re-admit** (`readmitStaffMember`) | `staff.manage`, never on oneself | Re-enables a fully off-boarded member and grants the given roles. Refused as `already_live` for a live member and `not_offboarded` for a disabled one that still holds a credential, a TOTP factor, recovery codes, a role or an open session — off-board first, so no old factor comes back. The member enrolls a fresh second factor. | `staff.manage`; before = `{disabled, roles: []}`, after = `{disabled: false, readmitted, roles}` |
 | **Change roles** (`setStaffRoles`) | `staff.manage`, never on oneself | Replaces the role set; audited only when it changes. | `staff.manage` |
 
 The member row itself is kept: `staff_audit_log.actor_id` references it, and the audit
@@ -85,9 +86,10 @@ live role set, so a dropped role stops working on the next request.
    factor themselves; or an admin removes it. Its sessions end with it.
 2. If the lost device was the **last** factor, removal is refused by design. The
    member signs in with a recovery code, enrolls a new factor, then removes the old
-   one. Without a recovery code: **off-board**. `NOT YET BUILT`: re-admitting an
-   off-boarded member (re-enable plus fresh enrollment); today the email stays taken
-   by the disabled row.
+   one. Without a recovery code: **off-board**, then **re-admit** (§2) with the
+   member's roles. They come back with no second factor; their next primary sign-in
+   opens a pending session from which they enroll a fresh one, as a new member would.
+   The member row and email stay the same, so the trail stays theirs.
 
 ### 3.4 Suspected compromise
 
@@ -110,10 +112,9 @@ live role set, so a dropped role stops working on the next request.
 ## 4. Known gaps
 
 - `NOT YET BUILT (L-15)`: the operator entry point for every operation above.
-- `NOT YET BUILT (I1)`: TOTP enrollment flow and the sealer keyring's env wiring (the
-  AES-256-GCM sealer exists; no key is configured anywhere). Until then no member can
-  hold a TOTP factor on a host.
-- `NOT YET BUILT`: re-admitting an off-boarded member.
+- The TOTP sealing key (`FIRE_WATCH_STAFF_TOTP_KEY_ID` / `_KEY`, read by
+  `loadStaffTotpConfig`) is not in any host's secret store yet (owner). Until it is, no
+  member can hold a TOTP factor on a host.
 - No paging on staff audit rows (§1).
 
 ## 5. Post-incident

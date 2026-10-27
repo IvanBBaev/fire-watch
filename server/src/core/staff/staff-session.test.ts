@@ -20,6 +20,7 @@ import {
   finishWebAuthnAssertion,
   finishWebAuthnRegistration,
   offboardStaffMember,
+  readmitStaffMember,
   removeStaffTotpFactor,
   removeWebAuthnCredential,
   startStaffSession,
@@ -206,6 +207,15 @@ function world(
               rolesRemoved: ['admin'],
             },
       );
+    },
+    readmitMember: (staffId: string, roles: readonly string[]) => {
+      calls.push(`readmit:${roles.join(',')}`);
+      const kind: Record<string, string> = {
+        gone: 'not_found',
+        live: 'already_live',
+        holding: 'not_offboarded',
+      };
+      return Promise.resolve({ kind: kind[staffId] ?? 'readmitted' });
     },
     disableMember: () => {
       calls.push('disable');
@@ -531,6 +541,41 @@ describe('staff session flows', () => {
     });
     expect((await offboardStaffMember(deps, admin, 'staff-2', { at: AT })).kind).toBe('offboarded');
     expect(calls).toEqual(['removeTotp', 'offboard', 'offboard']);
+  });
+
+  it('re-admits an off-boarded member under the policy, mapping the store refusals', async () => {
+    const { deps, calls } = world();
+    const pending = { staffId: STAFF, roles: ['admin'] as const, secondFactorVerified: false };
+    const editor = { staffId: STAFF, roles: ['editor'] as const, secondFactorVerified: true };
+    const admin = { ...pending, secondFactorVerified: true };
+    const back = (staffId: string) => ({ staffId, roles: ['editor'] as const });
+    expect(await readmitStaffMember(deps, pending, back('staff-2'), { at: AT })).toEqual({
+      kind: 'refused',
+      reason: 'second_factor_missing',
+    });
+    expect(await readmitStaffMember(deps, editor, back('staff-2'), { at: AT })).toEqual({
+      kind: 'refused',
+      reason: 'not_permitted',
+    });
+    expect(await readmitStaffMember(deps, admin, back(STAFF), { at: AT })).toEqual({
+      kind: 'refused',
+      reason: 'self_change',
+    });
+    expect(calls).toEqual([]);
+    for (const [staffId, reason] of [
+      ['gone', 'not_found'],
+      ['live', 'already_live'],
+      ['holding', 'not_offboarded'],
+    ] as const) {
+      expect(await readmitStaffMember(deps, admin, back(staffId), { at: AT })).toEqual({
+        kind: 'refused',
+        reason,
+      });
+    }
+    expect(await readmitStaffMember(deps, admin, back('staff-2'), { at: AT })).toEqual({
+      kind: 'readmitted',
+    });
+    expect(calls).toEqual(Array.from({ length: 4 }, () => 'readmit:editor'));
   });
 });
 

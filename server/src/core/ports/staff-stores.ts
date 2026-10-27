@@ -216,6 +216,21 @@ export interface StaffStore {
   >;
 
   /**
+   * Re-admits an off-boarded member (docs/runbooks/06-staff-offboarding.md §3.3): clears
+   * `disabled_at`, grants `roles` and audits it as one `staff.manage` row — one transaction
+   * under the member's row lock. Only a fully off-boarded member qualifies: one who is
+   * disabled but still holds a credential, a TOTP factor, recovery codes, a role grant or
+   * an unrevoked session is `not_offboarded`, so a re-admission never brings an old factor
+   * back. The member comes back with no second factor and enrolls a fresh one from a
+   * pending session. `already_live` for a live member, `not_found` for an unknown id.
+   */
+  readmitMember(
+    staffId: string,
+    roles: readonly StaffRole[],
+    context: StaffActionContext,
+  ): Promise<{ readonly kind: 'readmitted' | 'already_live' | 'not_offboarded' | 'not_found' }>;
+
+  /**
    * Replaces a live member's role set and audits the before/after sets as `staff.manage`.
    * Takes effect on the member's next request: sessions read roles live.
    */

@@ -531,7 +531,9 @@ export type StaffChangeResult<Done> =
         | 'not_permitted'
         | 'self_change'
         | 'not_found'
-        | 'last_second_factor';
+        | 'last_second_factor'
+        | 'already_live'
+        | 'not_offboarded';
     };
 
 export async function removeWebAuthnCredential(
@@ -591,6 +593,30 @@ export async function offboardStaffMember(
     ...ipOf(context),
   });
   return done.kind === 'not_found' ? { kind: 'refused', reason: 'not_found' } : done;
+}
+
+/**
+ * Re-admits an off-boarded member (docs/runbooks/06-staff-offboarding.md §3.3) with a new
+ * role set: `staff.manage`, never on oneself. Only a fully off-boarded member qualifies
+ * (`not_offboarded` otherwise — off-board first, so no old factor comes back). The member
+ * returns with no second factor; their next primary sign-in opens a pending session from
+ * which they enroll a fresh one ({@link beginTotpEnrollment}), as a new member would.
+ */
+export async function readmitStaffMember(
+  deps: Pick<StaffSessionDeps, 'staff'>,
+  actor: StaffPrincipal,
+  target: { readonly staffId: string; readonly roles: readonly StaffRole[] },
+  context: StaffRequestContext,
+): Promise<StaffChangeResult<{ readonly kind: 'readmitted' }>> {
+  const decision = decideMemberChange(actor, target.staffId);
+  if (decision.kind === 'refused') return decision;
+  const done = await deps.staff.readmitMember(target.staffId, target.roles, {
+    actorId: actor.staffId,
+    at: context.at,
+    ...ipOf(context),
+  });
+  const { kind } = done;
+  return kind === 'readmitted' ? { kind } : { kind: 'refused', reason: kind };
 }
 
 export async function disableStaffMember(

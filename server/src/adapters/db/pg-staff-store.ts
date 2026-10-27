@@ -24,7 +24,10 @@
  * lock and ends the sessions TOTP let in. Off-boarding locks the member row whatever its
  * state, disables it if live, ends every session and deletes every credential, the TOTP
  * factor, the recovery codes and the role grants — one transaction, one `staff.manage`
- * row carrying the counts (docs/runbooks/06-staff-offboarding.md).
+ * row carrying the counts (docs/runbooks/06-staff-offboarding.md). Re-admission takes the
+ * same lock, refuses a member that still holds anything off-boarding would take, clears
+ * `disabled_at` and grants the new roles — one transaction, one `staff.manage` row; the
+ * member comes back with no second factor and enrolls a fresh one.
  *
  * A disabled member keeps their rows (the trail references them) but every second-factor
  * read and write refuses them, so disabling is enough to lock someone out.
@@ -209,6 +212,19 @@ SET revoked_at = $2::timestamptz, challenge = NULL, challenge_purpose = NULL,
     challenge_expires_at = NULL, challenge_key_id = NULL
 WHERE staff_id = $1::uuid AND revoked_at IS NULL`;
 
+/** What off-boarding takes away; a member is re-admitted only when all of it is gone. */
+const MEMBER_HOLDINGS = `
+SELECT ((SELECT count(*) FROM staff_webauthn_credentials WHERE staff_id = $1::uuid)
+      + (SELECT count(*) FROM staff_totp_factors WHERE staff_id = $1::uuid)
+      + (SELECT count(*) FROM staff_recovery_codes WHERE staff_id = $1::uuid)
+      + (SELECT count(*) FROM staff_role_grants WHERE staff_id = $1::uuid)
+      + (SELECT count(*) FROM staff_sessions WHERE staff_id = $1::uuid AND revoked_at IS NULL)
+      )::integer AS holdings`;
+
+const ENABLE_MEMBER = `
+UPDATE staff_members SET disabled_at = NULL
+WHERE id = $1::uuid AND disabled_at IS NOT NULL`;
+
 const LOCKED_ROLES = `
 SELECT role FROM staff_role_grants WHERE staff_id = $1::uuid ORDER BY role FOR UPDATE`;
 
@@ -247,6 +263,8 @@ export const STAFF_SQL = {
   lockAnyMember: LOCK_ANY_MEMBER,
   deleteMemberWebAuthn: DELETE_MEMBER_WEBAUTHN,
   deleteMemberRoles: DELETE_MEMBER_ROLES,
+  memberHoldings: MEMBER_HOLDINGS,
+  enableMember: ENABLE_MEMBER,
   lockedRoles: LOCKED_ROLES,
   deleteRole: DELETE_ROLE,
   insertAudit: INSERT_AUDIT,
@@ -621,6 +639,39 @@ export function createPgStaffStore(
           ),
         );
         return { kind: 'offboarded', ...counts } as const;
+      }),
+
+    readmitMember: (staffId, roles, context) =>
+      inTransaction(pool, async (client) => {
+        const locked = await client.query(LOCK_ANY_MEMBER, [staffId]);
+        const [member] = locked.rows;
+        if (member === undefined) return { kind: 'not_found' } as const;
+        if (boolean(field(member, 'live'), 'live')) return { kind: 'already_live' } as const;
+        const [held] = (await client.query(MEMBER_HOLDINGS, [staffId])).rows;
+        if (held === undefined || number(field(held, 'holdings'), 'holdings') !== 0) {
+          return { kind: 'not_offboarded' } as const;
+        }
+        const enabled = await client.query(ENABLE_MEMBER, [staffId]);
+        if (enabled.rowCount !== 1) throw new Error('member re-admission did not change one row');
+        const granted = [...new Set(roles)].sort();
+        const atIso = isoFromEpochMs(context.at);
+        for (const role of granted) await client.query(INSERT_ROLE, [staffId, role, atIso]);
+        await insertAuditRecord(
+          client,
+          buildStaffAuditRecord(
+            {
+              actorId: context.actorId,
+              action: 'staff.manage',
+              entity: { kind: 'staff_member', id: staffId },
+              before: { disabled: true, roles: [] },
+              after: { disabled: false, readmitted: true, roles: granted },
+              ...(context.ip === undefined ? {} : { ip: context.ip }),
+              at: context.at,
+            },
+            sha256Hex,
+          ),
+        );
+        return { kind: 'readmitted' } as const;
       }),
 
     disableMember: (staffId, context) =>
