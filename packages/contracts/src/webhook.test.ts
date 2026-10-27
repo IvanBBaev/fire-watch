@@ -20,7 +20,11 @@ describe('webhook signature', () => {
   it('signs exactly "<t>.<body>" with HMAC-SHA256', () => {
     expect(webhookSignedContent(T, BODY)).toBe(`${String(T)}.${BODY}`);
     const hex = signWebhookPayload(SECRET, T, BODY);
-    expect(hex).toBe(createHmac('sha256', SECRET).update(`${String(T)}.${BODY}`).digest('hex'));
+    expect(hex).toBe(
+      createHmac('sha256', SECRET)
+        .update(`${String(T)}.${BODY}`)
+        .digest('hex'),
+    );
     expect(signWebhookPayload(SECRET, T + 1, BODY)).not.toBe(hex);
     expect(() => signWebhookPayload('', T, BODY)).toThrow(RangeError);
   });

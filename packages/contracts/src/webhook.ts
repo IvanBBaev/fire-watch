@@ -58,8 +58,11 @@ export interface WebhookAttribution {
 export interface WebhookEvent {
   /** The public event id (`fw-YYYY-xxxxx`). */
   readonly id: string;
-  /** The event page on the public site. */
-  readonly permalink: string;
+  /**
+   * The event page on the public site — the same deep link the other channels carry.
+   * `null` only when the alert's template carries none (the digest).
+   */
+  readonly permalink: string | null;
   readonly hazard: typeof WEBHOOK_HAZARD;
   /** The score bucket (`unverified` | `likely` | `confirmed`); never the raw score. */
   readonly severity: string;
