@@ -68,6 +68,7 @@ Rules that outrank any feature. Enforcement details in
 | [`docs/TASKS.md`](docs/TASKS.md) | The plan broken into dispatchable tasks: dispatch waves, per-task specs, done-when criteria |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Operations contract (ops ADR-006): freshness budgets, monitoring legs, backups, provisioning |
 | [`docs/EXTERNAL-ACCOUNTS.md`](docs/EXTERNAL-ACCOUNTS.md) | Every external registration/key needed, with lead times and costs |
+| [`docs/WEBHOOKS.md`](docs/WEBHOOKS.md) | Signed alert webhooks for integrators: registration, payload, signature verification, retries, keys |
 
 Suggested reading order for a newcomer: this file → `ANALYSIS.md` →
 `reviews/00-summary.md` → the five ADRs → `GLOSSARY.md` → `IMPLEMENTATION-PLAN.md`.
