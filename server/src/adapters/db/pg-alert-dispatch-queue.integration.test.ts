@@ -337,6 +337,73 @@ describe.skipIf(!hasDocker)('the outbox read path', () => {
     });
   });
 
+  describe('failed attempts back off (migration 033)', () => {
+    async function retryState(): Promise<
+      { id: string; status: string; delivery_attempts: number; next_attempt_at: Date | null }[]
+    > {
+      const { rows } = await db.query<{
+        id: string;
+        status: string;
+        delivery_attempts: number;
+        next_attempt_at: Date | null;
+      }>(
+        `SELECT id::text AS id, status, delivery_attempts, next_attempt_at
+         FROM alert_outbox ORDER BY id`,
+      );
+      return rows;
+    }
+
+    it('counts the attempt, holds the row back until its retry is due, then hands it over', async () => {
+      await enqueue(draft(0));
+      const queue = createPgAlertDispatchQueue(db);
+      expect((await queue.claim(1, NOW))[0]?.deliveryAttempts).toBe(0);
+
+      await queue.settle('1', { kind: 'released', error: 'HTTP 503', retryAt: NOW + 20_000 });
+      expect(await retryState()).toEqual([
+        {
+          id: '1',
+          status: 'pending',
+          delivery_attempts: 1,
+          next_attempt_at: new Date(NOW + 20_000),
+        },
+      ]);
+
+      expect(await queue.claim(1, NOW + 19_999)).toEqual([]);
+      const [again] = await queue.claim(1, NOW + 20_000);
+      expect(again).toMatchObject({ id: '1', deliveryAttempts: 1, claimedAt: NOW + 20_000 });
+    });
+
+    it('leaves the count alone on a release that was no attempt', async () => {
+      await enqueue(draft(0));
+      const queue = createPgAlertDispatchQueue(db);
+      await queue.claim(1, NOW);
+      await queue.settle('1', { kind: 'released', error: 'cooloff_not_served' });
+      expect(await retryState()).toMatchObject([{ delivery_attempts: 0, next_attempt_at: null }]);
+    });
+
+    it('closes the exhausted row failed and counts its last attempt', async () => {
+      await enqueue(draft(0));
+      const queue = createPgAlertDispatchQueue(db);
+      await queue.claim(1, NOW);
+      await queue.settle('1', {
+        kind: 'closed',
+        status: 'failed',
+        error: 'retry_exhausted:HTTP 503',
+        dispatchedAt: NOW,
+        failedAttempt: true,
+      });
+      expect(await retryState()).toMatchObject([{ status: 'failed', delivery_attempts: 1 }]);
+      expect(await stored()).toMatchObject([{ last_error: 'retry_exhausted:HTTP 503' }]);
+    });
+
+    it('refuses a negative attempt count (CHECK)', async () => {
+      await enqueue(draft(0));
+      await expect(db.query('UPDATE alert_outbox SET delivery_attempts = -1')).rejects.toThrow(
+        /alert_outbox_delivery_attempts_non_negative/,
+      );
+    });
+  });
+
   describe('the send-rate reader', () => {
     it('counts provider hand-offs in the window, sent or failed, and nothing released', async () => {
       await enqueue(draft(0), draft(1), draft(2), draft(3));

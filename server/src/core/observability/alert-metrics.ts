@@ -27,7 +27,7 @@
  *
  * **What is deliberately *not* here.** D9's correctness metrics (DAR, FER, FLR, PCR, PLB)
  * live under `core/qa/` with their own versioned parameters; D6's
- * `fw_notification_queue_oldest_seconds` is calibrated by `delivery_params_v1` and belongs
+ * `fw_notification_queue_oldest_seconds` is calibrated by `delivery_params_v2` and belongs
  * with the dispatch path. This module is A1.12's three series and nothing else - the ones
  * that exist because a decision was made and *not* acted on.
  */

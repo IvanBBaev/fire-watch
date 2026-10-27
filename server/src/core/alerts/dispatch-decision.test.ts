@@ -49,6 +49,7 @@ function claimedRow(overrides: Partial<ClaimedOutboxRow> = {}): ClaimedOutboxRow
     budgetOverride: false,
     decidedAt: DECIDED_AT,
     claimedAt: DECIDED_AT,
+    deliveryAttempts: 0,
     locale: 'bg',
     ...overrides,
   };
@@ -409,10 +410,10 @@ describe('hasExpiredUnapproved', () => {
   });
 });
 
-describe('delivery_params_v1', () => {
+describe('delivery_params_v2', () => {
   it('carries a version the replay fixtures can validate, and is frozen', () => {
     expect(DELIVERY_PARAMS.name).toBe('delivery_params');
-    expect(DELIVERY_PARAMS.version).toBe('delivery_params_v1');
+    expect(DELIVERY_PARAMS.version).toBe('delivery_params_v2');
     expect(DELIVERY_PARAMS.version).toMatch(CONFIG_VERSION_RE);
     expect(Object.isFrozen(DELIVERY_PARAMS)).toBe(true);
     expect(Object.isFrozen(PARAMS)).toBe(true);

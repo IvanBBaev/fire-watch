@@ -17,6 +17,13 @@
  * it; the lease check refuses a provider call that the row's claim lease could not cover
  * to the end (`core/alerts/claim-lease.ts`), releasing the row unsent instead.
  *
+ * A failed attempt — a transient provider error, an adapter that threw, a template that
+ * would not render — backs off (migration 033, `core/alerts/delivery-retry.ts`): the row is
+ * released with a jittered, exponentially growing `next_attempt_at`, and the attempt that
+ * reaches `delivery_params.retry.maxAttempts` closes it `failed` with a `retry_exhausted:`
+ * error instead. A release that is no attempt (cool-off, spent lease, missing adapter)
+ * spends no retry.
+ *
  * and every branch in that chain is either a pure function from `core/alerts/` or a port.
  * The gateway is deliberately dull, because the interesting parts have to be testable
  * without a provider, and a provider has to be swappable without touching a rule.
@@ -38,6 +45,11 @@ import {
   CHANNEL_MISMATCH_REASON,
   dispatchVerdict,
 } from '../../../core/alerts/dispatch-decision.js';
+import {
+  afterFailedAttempt,
+  assertRetryParams,
+  RENDER_FAILED_PREFIX,
+} from '../../../core/alerts/delivery-retry.js';
 import type { DeliveryParams } from '../../../core/config/delivery-params.js';
 import type {
   AlertChannelAdapter,
@@ -92,6 +104,11 @@ export interface NotificationGatewayDeps {
   readonly onEvent?: (event: GatewayEvent) => void;
   /** The claim lease a send must fit inside; the shipped one unless a test says so. */
   readonly claimLease?: ClaimLease;
+  /**
+   * A draw in [0, 1) for the retry jitter. `Math.random` unless a test pins it; the core
+   * never draws one itself.
+   */
+  readonly random?: () => number;
 }
 
 /**
@@ -119,6 +136,8 @@ export type GatewayEvent =
       readonly ruleIds: readonly string[];
     }
   | { readonly kind: 'adapter_threw'; readonly outboxId: string; readonly error: string }
+  /** The template threw while rendering; settled as a failed attempt (migration 033). */
+  | { readonly kind: 'render_failed'; readonly outboxId: string; readonly error: string }
   | { readonly kind: 'row_failed'; readonly outboxId: string; readonly error: string };
 
 /** One row's worth of D7 findings, kept whole so a report names the guilty template. */
@@ -147,6 +166,11 @@ export interface DispatchCycleReport {
   readonly channelMismatches: number;
   /** Rows released unsent because too little of their claim lease was left (H4). */
   readonly leaseExhausted: number;
+  /**
+   * Rows closed `failed` because their last allowed attempt failed (`retry_exhausted:`,
+   * migration 033) — included in `closed`.
+   */
+  readonly retryExhausted: number;
   /** Non-empty means a template rendered forbidden copy — investigate before the next release. */
   readonly lintViolations: readonly LintViolationReport[];
 }
@@ -171,10 +195,48 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
   }
   const claimLease = deps.claimLease ?? DEFAULT_CLAIM_LEASE;
   assertClaimLease(claimLease);
+  assertRetryParams(deps.params.retry);
+  const random = deps.random ?? ((): number => Math.random());
 
   const emit = (event: GatewayEvent): void => {
     deps.onEvent?.(event);
   };
+
+  /**
+   * Settle a failed attempt: back off and release, or — on the last allowed attempt —
+   * close the row `failed`. `dispatchedAt` is the provider call's stamp, or `null` when
+   * the attempt never reached a provider (a render failure).
+   */
+  async function settleFailedAttempt(
+    row: ClaimedOutboxRow,
+    error: string,
+    dispatchedAt: number | null,
+    counters: Counters,
+  ): Promise<void> {
+    const decision = afterFailedAttempt({
+      previousAttempts: row.deliveryAttempts,
+      error,
+      now: deps.now(),
+      random: random(),
+      params: deps.params.retry,
+    });
+    if (decision.action === 'give_up') {
+      await deps.queue.settle(row.id, {
+        kind: 'closed',
+        status: 'failed',
+        error: decision.error,
+        dispatchedAt,
+        failedAttempt: true,
+      });
+      counters.closed += 1;
+      counters.retryExhausted += 1;
+      emit({ kind: 'closed', outboxId: row.id, status: 'failed', reason: decision.error });
+      return;
+    }
+    await deps.queue.settle(row.id, { kind: 'released', error, retryAt: decision.notBefore });
+    counters.released += 1;
+    emit({ kind: 'released', outboxId: row.id, reason: error });
+  }
 
   async function dispatchOne(row: ClaimedOutboxRow, counters: Counters): Promise<void> {
     // A1.9, first of two reasons this read is here: the recipient may have been erased
@@ -209,14 +271,25 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
       throw new TypeError(`dispatchVerdict returned send for a dead recipient on row ${row.id}`);
     }
 
-    const rendered = deps.renderer.render({
-      templateId: row.templateId,
-      templateParams: row.templateParams,
-      channel: row.channel,
-      // The row's own locale, decided with it — not the recipient's answer at send time.
-      locale: row.locale,
-      timeZone: recipient.timeZone,
-    });
+    let rendered: RenderedAlert;
+    try {
+      rendered = deps.renderer.render({
+        templateId: row.templateId,
+        templateParams: row.templateParams,
+        channel: row.channel,
+        // The row's own locale, decided with it — not the recipient's answer at send time.
+        locale: row.locale,
+        timeZone: recipient.timeZone,
+      });
+    } catch (error) {
+      // A template that chokes on a runtime parameter (or is not registered) fails the
+      // same way every time. Counted as a failed attempt, so it backs off and is closed
+      // after the cap rather than abandoned and re-rendered every cycle until D6 expires it.
+      const detail = error instanceof Error ? error.message : String(error);
+      await settleFailedAttempt(row, `${RENDER_FAILED_PREFIX}:${detail}`, null, counters);
+      emit({ kind: 'render_failed', outboxId: row.id, error: detail });
+      return;
+    }
 
     const ruleIds = deps.lint(rendered, {
       channel: row.channel,
@@ -282,11 +355,10 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
       outcome = await adapter.deliver(message);
     } catch (error) {
       // The port says an adapter reports failure by returning, so a throw is an adapter
-      // bug. Treated as transient: the row goes back to the queue, and the event names
-      // the adapter loudly enough to be found.
+      // bug. Treated as a transient failed attempt: the row backs off (or, on its last
+      // attempt, is closed), and the event names the adapter loudly enough to be found.
       const detail = error instanceof Error ? error.message : String(error);
-      await deps.queue.settle(row.id, { kind: 'released', error: `adapter threw: ${detail}` });
-      counters.released += 1;
+      await settleFailedAttempt(row, `adapter threw: ${detail}`, dispatchedAt, counters);
       emit({ kind: 'adapter_threw', outboxId: row.id, error: detail });
       return;
     }
@@ -307,9 +379,7 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
       return;
     }
     if (outcome.kind === 'transient') {
-      await deps.queue.settle(row.id, { kind: 'released', error: outcome.error });
-      counters.released += 1;
-      emit({ kind: 'released', outboxId: row.id, reason: outcome.error });
+      await settleFailedAttempt(row, outcome.error, dispatchedAt, counters);
       return;
     }
 
@@ -340,6 +410,7 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
         errored: 0,
         channelMismatches: 0,
         leaseExhausted: 0,
+        retryExhausted: 0,
         lintViolations: [],
       };
       // Sequential on purpose. The claim already ordered the batch by A1.2 priority, and
@@ -349,9 +420,9 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
         try {
           await dispatchOne(row, counters);
         } catch (error) {
-          // A port threw where the contract says it returns — a resolver outage, a
-          // renderer that choked on a runtime parameter, a lint that hit an input its
-          // author never imagined. The row is left claimed and will come back when the
+          // A port threw where the contract says it returns — a resolver outage, a lint
+          // that hit an input its author never imagined (a render failure is a failed
+          // attempt instead, settled above). The row is left claimed and will come back when the
           // claim expires; what must not happen is the rest of an ordered batch being
           // dropped because row three was unlucky.
           counters.errored += 1;
@@ -370,6 +441,7 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
         errored: counters.errored,
         channelMismatches: counters.channelMismatches,
         leaseExhausted: counters.leaseExhausted,
+        retryExhausted: counters.retryExhausted,
         lintViolations: Object.freeze([...counters.lintViolations]),
       });
     },
@@ -383,5 +455,6 @@ interface Counters {
   errored: number;
   channelMismatches: number;
   leaseExhausted: number;
+  retryExhausted: number;
   lintViolations: LintViolationReport[];
 }

@@ -31,6 +31,12 @@ export interface ClaimedOutboxRow extends OutboxRowDraft {
    * claim is owned for a lease measured from here (`core/alerts/claim-lease.ts`).
    */
   readonly claimedAt: number;
+  /**
+   * `delivery_attempts` — how many attempts on this row have failed so far (migration
+   * 033). The gateway reads it to decide whether the next failure is the last
+   * (`core/alerts/delivery-retry.ts`).
+   */
+  readonly deliveryAttempts: number;
 }
 
 /** How a claimed row was disposed of. */
@@ -48,6 +54,11 @@ export type SettleOutcome =
       readonly status: OutboxStatus;
       readonly error: string;
       readonly dispatchedAt: number | null;
+      /**
+       * The close is the failed attempt that exhausted the row's retries: the settle
+       * counts it in `delivery_attempts` too, so the row records every attempt it had.
+       */
+      readonly failedAttempt?: true;
     }
   | {
       /**
@@ -57,12 +68,20 @@ export type SettleOutcome =
        */
       readonly kind: 'released';
       readonly error: string | null;
+      /**
+       * Present when the release follows a *failed attempt* (migration 033): the settle
+       * counts it in `delivery_attempts` and the row may not be claimed before this epoch
+       * ms (`next_attempt_at`). Absent for a release that was no attempt — a cool-off
+       * waiting for its approver, a spent lease — which leaves both columns alone.
+       */
+      readonly retryAt?: number;
     };
 
 export interface AlertDispatchQueue {
   /**
    * Take up to `limit` rows in A1.2's stored order (`priority, decided_at, id`) and mark
-   * them `claimed` in the same statement. `now` is a parameter and never a clock read,
+   * them `claimed` in the same statement, passing over rows whose retry is not due yet
+   * (`next_attempt_at` after `now`). `now` is a parameter and never a clock read,
    * so a replayed dispatch claims the same rows. `now` is also the claim's lease start
    * (`claimed_at`, returned as {@link ClaimedOutboxRow.claimedAt}).
    */

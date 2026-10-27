@@ -89,6 +89,9 @@ export const EXPORT_COLUMNS: Readonly<Record<AccountExportTable, ExportColumns>>
     // 015
     claimed_at: 'timestamp',
     locale: 'text',
+    // 033
+    delivery_attempts: 'integer',
+    next_attempt_at: 'timestamp',
   },
   // 001
   alert_states: {

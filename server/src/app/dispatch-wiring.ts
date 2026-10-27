@@ -194,7 +194,11 @@ export function createDispatchCycle(deps: DispatchCycleDeps): () => Promise<Disp
     if (allowance.state === 'open' && allowance.claimLimit > 0) {
       gateway = await deps
         .gatewayFor(allowance.claimLimit, (event) => {
-          if (event.kind === 'row_failed' || event.kind === 'adapter_threw') {
+          if (
+            event.kind === 'row_failed' ||
+            event.kind === 'adapter_threw' ||
+            event.kind === 'render_failed'
+          ) {
             rowErrors[event.error] = (rowErrors[event.error] ?? 0) + 1;
           } else if (event.kind === 'closed') {
             const reason = alertDropReasonFor(event.status);

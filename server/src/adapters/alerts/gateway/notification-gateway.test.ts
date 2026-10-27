@@ -74,6 +74,7 @@ function claimedRow(overrides: Partial<ClaimedOutboxRow> = {}): ClaimedOutboxRow
     budgetOverride: false,
     decidedAt: DECIDED_AT,
     claimedAt: NOW,
+    deliveryAttempts: 0,
     locale: 'bg',
     ...overrides,
   };
@@ -205,6 +206,7 @@ interface HarnessOptions {
   readonly now?: () => number;
   readonly claimLease?: ClaimLease;
   readonly renderer?: AlertRenderer;
+  readonly random?: () => number;
 }
 
 interface Harness {
@@ -232,6 +234,7 @@ function harness(options: HarnessOptions = {}): Harness {
     now: options.now ?? ((): number => NOW),
     batchSize: options.batchSize ?? BATCH_SIZE,
     ...(options.claimLease === undefined ? {} : { claimLease: options.claimLease }),
+    random: options.random ?? ((): number => 0),
     onEvent: (event) => {
       events.push(event);
     },
@@ -249,6 +252,7 @@ function report(counts: Partial<DispatchCycleReport> = {}): DispatchCycleReport 
     errored: 0,
     channelMismatches: 0,
     leaseExhausted: 0,
+    retryExhausted: 0,
     lintViolations: [],
     ...counts,
   };
@@ -417,13 +421,17 @@ describe('runOnce — what the adapter answered', () => {
     expect(telegram.delivered).toEqual([]);
   });
 
-  it('releases a transient failure with the providers own error', async () => {
+  it('releases a transient failure with the providers own error, backed off (033)', async () => {
     const transient = scriptedChannel(() => ({ kind: 'transient', error: '503 from provider' }));
     const { gateway, queue } = harness({ channels: [transient] });
 
     expect(await gateway.runOnce()).toEqual(report({ released: 1 }));
+    // The first failed attempt, with the shortest jitter: half of the 20 s base.
     expect(queue.settles).toEqual([
-      { id: '4181', outcome: { kind: 'released', error: '503 from provider' } },
+      {
+        id: '4181',
+        outcome: { kind: 'released', error: '503 from provider', retryAt: NOW + 10_000 },
+      },
     ]);
   });
 
@@ -489,7 +497,14 @@ describe('runOnce — what the adapter answered', () => {
 
     expect(await gateway.runOnce()).toEqual(report({ claimed: 2, sent: 1, released: 1 }));
     expect(queue.settles).toEqual([
-      { id: 'a', outcome: { kind: 'released', error: 'adapter threw: no VAPID key configured' } },
+      {
+        id: 'a',
+        outcome: {
+          kind: 'released',
+          error: 'adapter threw: no VAPID key configured',
+          retryAt: NOW + 10_000,
+        },
+      },
       { id: 'b', outcome: { kind: 'sent', dispatchedAt: NOW, providerAckAt: ACK_AT } },
     ]);
     expect(events).toContainEqual({
@@ -559,13 +574,16 @@ describe('runOnce — locale (H5)', () => {
   });
 
   it('stays fail-closed with the shipped (empty) reviewed corpus, in every locale', async () => {
-    // No reviewed template exists yet (H6, founder review): render throws, the row is
-    // counted errored and left claimed, and nothing reaches a provider.
+    // No reviewed template exists yet (H6, founder review): render throws, the row backs
+    // off as a failed attempt (migration 033), and nothing reaches a provider.
     const rows = [claimedRow({ id: 'bg-row' }), claimedRow({ id: 'en-row', locale: 'en' })];
     const { gateway, queue, sink } = harness({ rows, renderer: createTemplateRenderer() });
 
-    expect(await gateway.runOnce()).toEqual(report({ claimed: 2, errored: 2 }));
-    expect(queue.settles).toEqual([]);
+    expect(await gateway.runOnce()).toEqual(report({ claimed: 2, released: 2 }));
+    expect(queue.settles.map((settle) => settle.outcome)).toEqual([
+      expect.objectContaining({ kind: 'released', retryAt: NOW + 10_000 }),
+      expect.objectContaining({ kind: 'released', retryAt: NOW + 10_000 }),
+    ]);
     expect(sink.delivered).toEqual([]);
   });
 });
@@ -661,5 +679,128 @@ describe('runOnce — the claim lease (H4)', () => {
     expect(() => harness({ claimLease: { leaseMs: 10_000, sendWindowMs: 10_000 } })).toThrow(
       RangeError,
     );
+  });
+});
+
+describe('runOnce — failed attempts back off, then stop (migration 033)', () => {
+  const transient = (): AlertChannelAdapter =>
+    scriptedChannel(() => ({ kind: 'transient', error: '503 from provider' }));
+  const LAST = PARAMS.retry.maxAttempts - 1;
+
+  it('waits longer after each failed attempt, by the jitter draw it is given', async () => {
+    const retryAt = async (deliveryAttempts: number, draw: number): Promise<unknown> => {
+      const { gateway, queue } = harness({
+        rows: [claimedRow({ deliveryAttempts })],
+        channels: [transient()],
+        random: () => draw,
+      });
+      await gateway.runOnce();
+      return queue.settles[0]?.outcome;
+    };
+    expect(await retryAt(0, 0)).toMatchObject({ retryAt: NOW + 10_000 });
+    expect(await retryAt(1, 0)).toMatchObject({ retryAt: NOW + 20_000 });
+    expect(await retryAt(2, 0.5)).toMatchObject({ retryAt: NOW + 60_000 });
+    expect(await retryAt(LAST - 1, 0)).toMatchObject({ retryAt: NOW + 160_000 });
+  });
+
+  it('closes the row failed on its last allowed attempt, keeping the dispatch stamp', async () => {
+    const { gateway, queue, events } = harness({
+      rows: [claimedRow({ deliveryAttempts: LAST })],
+      channels: [transient()],
+    });
+
+    expect(await gateway.runOnce()).toEqual(report({ closed: 1, retryExhausted: 1 }));
+    expect(queue.settles).toEqual([
+      {
+        id: '4181',
+        outcome: {
+          kind: 'closed',
+          status: 'failed',
+          error: 'retry_exhausted:503 from provider',
+          dispatchedAt: NOW,
+          failedAttempt: true,
+        },
+      },
+    ]);
+    expect(events).toContainEqual({
+      kind: 'closed',
+      outboxId: '4181',
+      status: 'failed',
+      reason: 'retry_exhausted:503 from provider',
+    });
+  });
+
+  it('closes an adapter that keeps throwing after the cap too', async () => {
+    const broken = scriptedChannel(() => {
+      throw new Error('no VAPID key configured');
+    });
+    const { gateway, queue } = harness({
+      rows: [claimedRow({ deliveryAttempts: LAST })],
+      channels: [broken],
+    });
+
+    expect(await gateway.runOnce()).toEqual(report({ closed: 1, retryExhausted: 1 }));
+    expect(queue.settles[0]?.outcome).toMatchObject({
+      kind: 'closed',
+      status: 'failed',
+      error: 'retry_exhausted:adapter threw: no VAPID key configured',
+      failedAttempt: true,
+    });
+  });
+
+  it('settles a render failure as a failed attempt, and closes it after the cap', async () => {
+    const throwing: AlertRenderer = {
+      render: (): RenderedAlert => {
+        throw new Error('missing parameter distanceKm');
+      },
+    };
+    const first = harness({ renderer: throwing });
+    expect(await first.gateway.runOnce()).toEqual(report({ released: 1 }));
+    expect(first.queue.settles[0]?.outcome).toEqual({
+      kind: 'released',
+      error: 'render_failed:missing parameter distanceKm',
+      retryAt: NOW + 10_000,
+    });
+    expect(first.events).toContainEqual({
+      kind: 'render_failed',
+      outboxId: '4181',
+      error: 'missing parameter distanceKm',
+    });
+    expect(first.sink.delivered).toEqual([]);
+
+    const last = harness({ renderer: throwing, rows: [claimedRow({ deliveryAttempts: LAST })] });
+    expect(await last.gateway.runOnce()).toEqual(report({ closed: 1, retryExhausted: 1 }));
+    // Never handed to a provider, so there is no dispatch stamp.
+    expect(last.queue.settles[0]?.outcome).toEqual({
+      kind: 'closed',
+      status: 'failed',
+      error: 'retry_exhausted:render_failed:missing parameter distanceKm',
+      dispatchedAt: null,
+      failedAttempt: true,
+    });
+  });
+
+  it('spends no attempt on a release that never tried: a spent lease', async () => {
+    const lease: ClaimLease = { leaseMs: CLAIM_LEASE_MS, sendWindowMs: CLAIM_SEND_WINDOW_MS };
+    const { gateway, queue } = harness({
+      rows: [claimedRow({ deliveryAttempts: LAST, claimedAt: NOW - CLAIM_LEASE_MS })],
+      claimLease: lease,
+    });
+    await gateway.runOnce();
+    expect(queue.settles[0]?.outcome).toEqual({ kind: 'released', error: LEASE_EXHAUSTED_REASON });
+  });
+
+  it('refuses a retry schedule that cannot back off', () => {
+    expect(() =>
+      createNotificationGateway({
+        queue: fakeQueue([]),
+        recipients: fakeRecipients(LIVE),
+        renderer: fakeRenderer(),
+        lint: () => [],
+        channels: [],
+        params: { ...PARAMS, retry: { ...PARAMS.retry, maxAttempts: 0 } },
+        now: () => NOW,
+      }),
+    ).toThrow(RangeError);
   });
 });

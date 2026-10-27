@@ -111,11 +111,13 @@ export interface AlertOutbox {
   channel_subscription_id: string | null;
   claimed_at: Timestamp | null;
   decided_at: Generated<Timestamp>;
+  delivery_attempts: Generated<number>;
   dispatched_at: Timestamp | null;
   fire_event_id: Int8;
   id: Generated<Int8>;
   last_error: string | null;
   locale: Generated<string>;
+  next_attempt_at: Timestamp | null;
   priority: Generated<number>;
   provider_ack_at: Timestamp | null;
   pseudonymized_at: Timestamp | null;

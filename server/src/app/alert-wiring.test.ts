@@ -155,6 +155,7 @@ describe('createShadowAlertGateway', () => {
       errored: 0,
       channelMismatches: 0,
       leaseExhausted: 0,
+      retryExhausted: 0,
       lintViolations: [],
     });
   });
@@ -206,6 +207,7 @@ describe('createAlertGateway', () => {
               budgetOverride: false,
               decidedAt: now - 1_000,
               claimedAt: now,
+              deliveryAttempts: 0,
               locale: 'bg',
             },
           ]);

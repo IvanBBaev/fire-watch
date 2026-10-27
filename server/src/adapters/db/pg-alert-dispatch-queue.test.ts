@@ -62,6 +62,7 @@ function claimedRow(overrides: Record<string, unknown> = {}): Record<string, unk
     decided_at: new Date(NOW - 5_000),
     locale: 'bg',
     claimed_at: new Date(NOW),
+    delivery_attempts: 2,
     ...overrides,
   };
 }
@@ -95,6 +96,8 @@ describe('every settle', () => {
       ALERT_DISPATCH_SQL.settleSent,
       ALERT_DISPATCH_SQL.settleClosed,
       ALERT_DISPATCH_SQL.settleReleased,
+      ALERT_DISPATCH_SQL.settleRetry,
+      ALERT_DISPATCH_SQL.settleExhausted,
       ALERT_DISPATCH_SQL.releaseAbandoned,
     ]) {
       expect(text).toContain("status = 'claimed'");
@@ -118,7 +121,22 @@ describe('claim', () => {
       claimedAt: NOW,
       locale: 'bg',
       status: 'claimed',
+      deliveryAttempts: 2,
     });
+  });
+
+  it('passes over rows whose retry is not due, and reads their attempt count (033)', () => {
+    expect(ALERT_DISPATCH_SQL.claim).toContain(
+      'next_attempt_at IS NULL OR next_attempt_at <= $2::timestamptz',
+    );
+    expect(ALERT_DISPATCH_SQL.claim).toContain('delivery_attempts');
+  });
+
+  it('refuses a row whose attempt count is not a non-negative integer', async () => {
+    for (const bad of [-1, 1.5, 'x', null]) {
+      const db = stubDb({ rows: [claimedRow({ delivery_attempts: bad })], rowCount: 1 });
+      await expect(createPgAlertDispatchQueue(db).claim(1, NOW), String(bad)).rejects.toThrow();
+    }
   });
 
   it('refuses a limit that is not a positive integer without touching the table', async () => {
@@ -213,6 +231,68 @@ describe('settle', () => {
     await queue.settle('7', { kind: 'released', error: 'timeout' });
     expect(db.queries[0]?.text).toBe(ALERT_DISPATCH_SQL.settleReleased);
     expect(db.queries[0]?.values).toEqual(['7', 'timeout', CLAIMED_AT]);
+  });
+
+  it('counts a failed attempt and schedules its retry on a backed-off release (033)', async () => {
+    const { db, queue } = await claimed('7');
+    await queue.settle('7', { kind: 'released', error: 'HTTP 503', retryAt: NOW + 20_000 });
+    expect(db.queries[0]?.text).toBe(ALERT_DISPATCH_SQL.settleRetry);
+    expect(db.queries[0]?.values).toEqual([
+      '7',
+      'HTTP 503',
+      new Date(NOW + 20_000).toISOString(),
+      CLAIMED_AT,
+    ]);
+    expect(ALERT_DISPATCH_SQL.settleRetry).toContain('delivery_attempts = delivery_attempts + 1');
+  });
+
+  it('counts the last failed attempt in the close that ends the row (033)', async () => {
+    const { db, queue } = await claimed('7', '8');
+    await queue.settle('7', {
+      kind: 'closed',
+      status: 'failed',
+      error: 'retry_exhausted:HTTP 503',
+      dispatchedAt: NOW,
+      failedAttempt: true,
+    });
+    await queue.settle('8', {
+      kind: 'closed',
+      status: 'failed',
+      error: 'retry_exhausted:render_failed:boom',
+      dispatchedAt: null,
+      failedAttempt: true,
+    });
+    expect(db.queries[0]?.text).toBe(ALERT_DISPATCH_SQL.settleExhausted);
+    expect(db.queries[0]?.values).toEqual([
+      '7',
+      'retry_exhausted:HTTP 503',
+      new Date(NOW).toISOString(),
+      CLAIMED_AT,
+    ]);
+    expect(db.queries[1]?.values).toEqual([
+      '8',
+      'retry_exhausted:render_failed:boom',
+      null,
+      CLAIMED_AT,
+    ]);
+    expect(ALERT_DISPATCH_SQL.settleExhausted).toContain("status = 'failed'");
+    expect(ALERT_DISPATCH_SQL.settleExhausted).toContain(
+      'delivery_attempts = delivery_attempts + 1',
+    );
+  });
+
+  it('refuses a failed attempt that closes into a status other than failed', async () => {
+    const { db, queue } = await claimed('7');
+    await expect(
+      queue.settle('7', {
+        kind: 'closed',
+        status: 'ttl_expired',
+        error: 'x',
+        dispatchedAt: null,
+        failedAttempt: true,
+      }),
+    ).rejects.toThrow(TypeError);
+    expect(db.queries).toHaveLength(0);
   });
 
   it('refuses to settle a row this instance never claimed, without touching the table', async () => {

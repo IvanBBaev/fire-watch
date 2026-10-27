@@ -32,6 +32,7 @@ const EMPTY_CYCLE: DispatchCycleReport = {
   errored: 0,
   channelMismatches: 0,
   leaseExhausted: 0,
+  retryExhausted: 0,
   lintViolations: [],
 };
 

@@ -26,8 +26,10 @@
  *     joined what survives pseudonymization.
  * v5: `alert_digest_log` (migration 018, TASKS H3/D9) joined the deleted tables, by the
  *     zone cascade.
+ * v6: `alert_outbox.delivery_attempts` and `alert_outbox.next_attempt_at` (migration 033,
+ *     TASKS H4) joined what survives pseudonymization.
  */
-export const ERASURE_PLAN_VERSION = 'erasure_plan_v5';
+export const ERASURE_PLAN_VERSION = 'erasure_plan_v6';
 
 export type ErasureAction = 'delete' | 'pseudonymize' | 'tombstone' | 'record';
 
@@ -85,10 +87,12 @@ export const ERASURE_PLAN: readonly TableErasureRule[] = [
       'approval_mode',
       'claimed_at',
       'locale',
+      'delivery_attempts',
+      'next_attempt_at',
       'pseudonymized_at',
     ],
     reason:
-      'A1.3: the liability defence needs the decision, not the recipient. watch_zone_id and channel_subscription_id become NULL and template_params keeps only RETAINED_TEMPLATE_PARAM_KEYS. A cancelled row is the evidence the send was stopped (A1.9). claimed_at is a pipeline timestamp and locale names which copy of the decision was sent; neither names a recipient (migration 015).',
+      'A1.3: the liability defence needs the decision, not the recipient. watch_zone_id and channel_subscription_id become NULL and template_params keeps only RETAINED_TEMPLATE_PARAM_KEYS. A cancelled row is the evidence the send was stopped (A1.9). claimed_at is a pipeline timestamp and locale names which copy of the decision was sent; neither names a recipient (migration 015). delivery_attempts and next_attempt_at are retry state: how often the delivery failed is part of the record of what was attempted, and neither names a recipient (migration 033).',
     spec: 'ADR-004 A1.3, A1.9; OPERATIONS §6.2 rule 7',
   },
   {

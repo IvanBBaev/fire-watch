@@ -38,6 +38,16 @@
  *     `leaseAllowsSend` check means a live dispatcher's rows are never in a provider call
  *     when that happens.
  *
+ * ## Failed attempts back off (migration 033)
+ *
+ * A settle that records a *failed attempt* — `released` with a `retryAt`, or the
+ * `closed` that exhausted the row's retries (`failedAttempt`) — increments
+ * `delivery_attempts` in the same fenced statement, and a retry stamps `next_attempt_at`.
+ * The claim passes over a `pending` row whose `next_attempt_at` is still in the future
+ * (NULL is "due"). The other releases — the cool-off, a spent lease, an abandoned or an
+ * expired claim — leave both columns alone: they were not attempts, and a row that is
+ * merely waiting must not run out of retries while it waits.
+ *
  * A provider call that returned and a settle that then failed is the one case where
  * either release re-sends: at-least-once is D1's stated delivery guarantee, and the A1.11
  * key makes the duplicate a duplicate *delivery* of one decision, never a second decision.
@@ -92,6 +102,7 @@ WITH next AS (
   SELECT id
   FROM alert_outbox
   WHERE status = 'pending' AND decided_at <= $2::timestamptz
+    AND (next_attempt_at IS NULL OR next_attempt_at <= $2::timestamptz)
   ORDER BY priority, decided_at, id
   LIMIT $1
   FOR UPDATE SKIP LOCKED
@@ -125,7 +136,8 @@ SELECT
   claimed.approved_at,
   claimed.budget_override,
   claimed.decided_at,
-  claimed.claimed_at
+  claimed.claimed_at,
+  claimed.delivery_attempts
 FROM claimed
 ORDER BY claimed.priority, claimed.decided_at, claimed.id`;
 
@@ -147,6 +159,20 @@ const SETTLE_RELEASED = `
 UPDATE alert_outbox
 SET status = 'pending', last_error = $2
 WHERE id = $1::bigint AND status = 'claimed' AND claimed_at = $3::timestamptz`;
+
+/** A failed attempt with retries left: back to `pending`, not claimable before `$3`. */
+const SETTLE_RETRY = `
+UPDATE alert_outbox
+SET status = 'pending', last_error = $2, delivery_attempts = delivery_attempts + 1,
+    next_attempt_at = $3::timestamptz
+WHERE id = $1::bigint AND status = 'claimed' AND claimed_at = $4::timestamptz`;
+
+/** The failed attempt that exhausted the row's retries: closed `failed`, and counted. */
+const SETTLE_EXHAUSTED = `
+UPDATE alert_outbox
+SET status = 'failed', last_error = $2, dispatched_at = $3::timestamptz,
+    delivery_attempts = delivery_attempts + 1
+WHERE id = $1::bigint AND status = 'claimed' AND claimed_at = $4::timestamptz`;
 
 const RELEASE_ABANDONED = `
 UPDATE alert_outbox AS o
@@ -178,6 +204,8 @@ export const ALERT_DISPATCH_SQL = {
   settleSent: SETTLE_SENT,
   settleClosed: SETTLE_CLOSED,
   settleReleased: SETTLE_RELEASED,
+  settleRetry: SETTLE_RETRY,
+  settleExhausted: SETTLE_EXHAUSTED,
   releaseAbandoned: RELEASE_ABANDONED,
   releaseExpired: RELEASE_EXPIRED,
   sendsSince: SENDS_SINCE,
@@ -236,13 +264,25 @@ export function createPgAlertDispatchQueue(db: PgDispatchQueryable): PgAlertDisp
         if (!TERMINAL_CLOSES.includes(outcome.status)) {
           throw new TypeError(`cannot close outbox row ${idText} as ${outcome.status}`);
         }
-        result = await db.query(SETTLE_CLOSED, [
+        if (outcome.failedAttempt === true && outcome.status !== 'failed') {
+          throw new TypeError(
+            `outbox row ${idText}: only a failed close can be a failed attempt, not ${outcome.status}`,
+          );
+        }
+        result = await db.query(outcome.failedAttempt === true ? SETTLE_EXHAUSTED : SETTLE_CLOSED, [
           idText,
-          outcome.status,
+          ...(outcome.failedAttempt === true ? [] : [outcome.status]),
           outcome.error,
           outcome.dispatchedAt === null
             ? null
             : isoTimestamp(outcome.dispatchedAt, 'dispatched_at'),
+          claimedAt,
+        ]);
+      } else if (outcome.retryAt !== undefined) {
+        result = await db.query(SETTLE_RETRY, [
+          idText,
+          outcome.error,
+          isoTimestamp(outcome.retryAt, 'retry_at'),
           claimedAt,
         ]);
       } else {
@@ -337,6 +377,7 @@ export function decodeClaimedRow(row: unknown): ClaimedOutboxRow {
     budgetOverride: boolean(field(row, 'budget_override'), 'budget_override'),
     decidedAt: epochMs(field(row, 'decided_at'), 'decided_at'),
     claimedAt: epochMs(field(row, 'claimed_at'), 'claimed_at'),
+    deliveryAttempts: nonNegativeInteger(field(row, 'delivery_attempts'), 'delivery_attempts'),
   };
 }
 
@@ -362,6 +403,12 @@ function nullable<T>(
 function integer(value: unknown, name: string): number {
   const parsed = number(value, name);
   if (!Number.isSafeInteger(parsed)) throw new Error(`${name} is not an integer`);
+  return parsed;
+}
+
+function nonNegativeInteger(value: unknown, name: string): number {
+  const parsed = integer(value, name);
+  if (parsed < 0) throw new Error(`${name} is negative`);
   return parsed;
 }
 
