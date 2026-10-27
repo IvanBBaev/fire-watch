@@ -211,6 +211,7 @@ Track V2 until its founder decisions land.*
 | B3 | 56c3dcc | MeteoAlarm forest-fire and heat warnings for BG + neighbours | Heat warnings in or out, colours, BG OET codes unverified, Turkey feed 404, 13 copy keys, staleness 15 min / 1 h; fixtures synthetic, cache in memory, no map drawing |
 | A2 | 171cf4c | Sensitivity filter with presets | Preset values and copy |
 | D3 | 171cf4c | Distance / area measure tool | 17 copy keys |
+| E2 | `feat/v2-e2-before-after` | Before/after GIBS true-colour slider on the event page (on demand, keyboard, credit while open) | Client-direct vs proxy, `gibs` always on /credits, short-credit wording, 18:00 UTC readiness hour, 16 copy keys; Sentinel-2 skipped, no cloud detection, no CSP `img-src` |
 | E3 | 171cf4c | Copernicus EMS activation badge | `CEMS_MATCH` 5/15 km and −3/+14 days, 730-day retention, hourly poll, credit wording; EMSR fixture synthetic, CEMS API undocumented |
 
 CI-12: the first-load `criticalPath` is 360,767 B against 358,400 B after wave 1 and is recorded in

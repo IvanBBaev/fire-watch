@@ -68,9 +68,10 @@ GATE-v2 in 09 §1) and whenever a provider announces a policy change.
 | [`eumetsat-mtg-li.md`](./eumetsat-mtg-li.md) | EUMETSAT MTG LI L2 Lightning Flashes (Data Store `EO:EUM:DAT:0691`) | — (context layer, no detection feed) | CC BY 4.0 (Core Data, EUMETSAT Data Policy 25 Nov 2025) | Adapter + decoder + route landed credential-gated (TASKS F18); no account yet, no real product fetched |
 | [`eea-natura2000.md`](./eea-natura2000.md) | EEA Natura 2000 sites — SPA/SCI polygons for the protected-site layer and event note (V2-F1) | — (build-time asset) | CC BY 4.0 (EEA legal notice) | Asset built by `pnpm run geodata:natura2000` (V2-F1); rendered (`/credits`, Layers panel) |
 | [`esa-worldcover.md`](./esa-worldcover.md) | ESA WorldCover 10 m 2021 v200 — land-cover class shares over the polling box (DS-7) | — (build-time asset) | CC BY 4.0 | Product built by `pnpm run geodata:worldcover` (TASKS D10); web grid by `pnpm run geodata:landcover-web` (V2-F4); rendered (`/credits`) |
+| [`nasa-gibs.md`](./nasa-gibs.md) | NASA GIBS — VIIRS SNPP true-colour daily imagery (event-page before/after comparison) | — (imagery for context, no detection feed; nothing ingested) | NASA open data, acknowledgement requested | Client-direct tiles + panel landed (TASKS V2-E2); terms recorded from the 8/2026 verification |
 | [`copernicus-ems.md`](./copernicus-ems.md) | Copernicus EMS Rapid Mapping — wildfire activation list and AOI extents (event-page badge) | — (context, no detection feed; freshness row `cems:activations`) | EU terms: reproduction and distribution allowed with the source cited per the Citation Guidelines | Poller + route + badge landed (TASKS V2-E3); API undocumented |
 
-Sources listed in `docs/DATA-SOURCES.md` as later waves — GIBS, Copernicus DEM GLO-30,
+Sources listed in `docs/DATA-SOURCES.md` as later waves — Copernicus DEM GLO-30,
 Terrarium terrain, CLC+/CORINE, GHSL, CLMS SWI/SSM, GPM IMERG,
 CAMS, Landsat, Esri World Imagery — have **no file here yet, by design**: they get one in
 the PR that integrates them. `docs/DATA-SOURCES.md` marks several of their attribution

@@ -2642,6 +2642,7 @@ reviewed in both locales, CI-7/12/13/14/18 green.
 - [ ] **V2-D1 — Export GeoJSON/KML/CSV.** *2026-10-24 — built, unticked (394544b). Founder: V2-Q3, copy keys.*
 - [ ] **V2-D3 — Measure tool.** *2026-10-24 — built, unticked (171cf4c, f27d290 200 % text fix). Founder: 17 keys.*
 - [ ] **V2-D4 — Open Graph card.** *2026-10-24 — built, unticked (394544b). Founder: Pages deploy + `FW_SNAPSHOT_URL`, wasm size, Noto licence, copy. Gaps: no ETag / PNG cache, no perimeters on the card.*
+- [ ] **V2-E2 — Before/after slider.** *2026-10-27 — built, unticked (branch `feat/v2-e2-before-after`). NASA GIBS VIIRS true colour, client-direct, opened on demand from the event page (closed or active event); date rule in `core/before-after.ts`; credit `gibs-short` while open, `gibs` now always on /credits. Founder: client-direct vs proxy (NASA sees IP + area), `gibs` always on /credits, short-credit wording, 18:00 UTC same-day readiness, 16 `beforeAfter.*` keys (bg draft). Gaps: Sentinel-2 skipped, ~375 m only, no cloud detection, no CSP `img-src`, criticalPath +473 B (397 B catalog, ~76 B host button + credit entry).*
 - [ ] **V2-E3 — CEMS badge.** *2026-10-24 — built, unticked (171cf4c). Founder: match window, retention, poll, credit. Gaps: synthetic EMSR fixture, undocumented API, heuristic e2e wait.*
 - [ ] **V2-F1 — Natura 2000 proximity.** *2026-10-24 — built, unticked (a12902f). Founder: 10 keys, grid, credit placement, cadence, MK/RS/TR coverage.*
 - [ ] **V2-F4 — Land cover note.** *2026-10-24 — built, unticked (a12902f). Founder: 165 kB asset unbudgeted, copy.*
