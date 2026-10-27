@@ -457,6 +457,23 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'eventDetail.cemsActivation',
       // TASKS F3 — the event page's "could not load" state (never "not found").
       'eventUnavailable',
+      // V2-E2 — before/after comparison
+      'beforeAfter.open',
+      'beforeAfter.close',
+      'beforeAfter.title',
+      'beforeAfter.sliderLabel',
+      'beforeAfter.sliderValue',
+      'beforeAfter.beforeLabel',
+      'beforeAfter.afterLabel',
+      'beforeAfter.afterLatestLabel',
+      'beforeAfter.beforeEarlier',
+      'beforeAfter.beforeLater',
+      'beforeAfter.afterEarlier',
+      'beforeAfter.afterLater',
+      'beforeAfter.imageLabel',
+      'beforeAfter.note',
+      'beforeAfter.unavailable',
+      'beforeAfter.tilesFailed',
     ]);
   });
 

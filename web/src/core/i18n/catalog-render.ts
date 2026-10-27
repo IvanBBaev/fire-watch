@@ -184,6 +184,11 @@ export const MESSAGE_ARGUMENTS: Readonly<Record<string, readonly (readonly unkno
   'eventDetail.landCover': [['forest 60%, grassland 30%']],
   'eventDetail.landCoverPart': [['forest', 60]],
   'eventDetail.cemsActivation': [['EMSR822']],
+  'beforeAfter.sliderValue': [[0], [50], [100]],
+  'beforeAfter.beforeLabel': [[T1]],
+  'beforeAfter.afterLabel': [[T1]],
+  'beforeAfter.afterLatestLabel': [[T1]],
+  'beforeAfter.imageLabel': [[T1, T2]],
   'eventDetail.frpPeak': [[T1, T2, T3]],
   'eventDetail.frpChartLabel': [
     [1, T1, T2],

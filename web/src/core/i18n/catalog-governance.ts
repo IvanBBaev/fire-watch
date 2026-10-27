@@ -702,6 +702,23 @@ export const CATALOG_GOVERNANCE = {
   'eventDetail.landCoverWetland': { governance: 'own-voice', reason: 'chrome' },
   // V2-E3 — the CEMS activation badge. Own voice, and PENDING FOUNDER REVIEW.
   'eventDetail.cemsActivation': { governance: 'own-voice', reason: 'capability-prose' },
+  // V2-E2 — the before/after satellite comparison. Own voice, and PENDING FOUNDER REVIEW.
+  'beforeAfter.open': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.close': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.title': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.sliderLabel': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.sliderValue': { governance: 'own-voice', reason: 'composed-value' },
+  'beforeAfter.beforeLabel': { governance: 'own-voice', reason: 'composed-value' },
+  'beforeAfter.afterLabel': { governance: 'own-voice', reason: 'composed-value' },
+  'beforeAfter.afterLatestLabel': { governance: 'own-voice', reason: 'state-label' },
+  'beforeAfter.beforeEarlier': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.beforeLater': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.afterEarlier': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.afterLater': { governance: 'own-voice', reason: 'chrome' },
+  'beforeAfter.imageLabel': { governance: 'own-voice', reason: 'composed-value' },
+  'beforeAfter.note': { governance: 'own-voice', reason: 'capability-prose' },
+  'beforeAfter.unavailable': { governance: 'own-voice', reason: 'client-condition' },
+  'beforeAfter.tilesFailed': { governance: 'own-voice', reason: 'client-condition' },
 
   // The Layers panel (TASKS G4). Own voice, and also PENDING FOUNDER REVIEW — see below.
   'layers.toggle': { governance: 'own-voice', reason: 'chrome' },
@@ -900,6 +917,10 @@ export const CATALOG_GOVERNANCE = {
  *   permalink whose first snapshot failed, or whose feed is failing or stale, must not say
  *   "not found". Written by an implementer; whether to name the cause and the Bulgarian
  *   draft are the founder's call.
+ * - `beforeAfter.*` — V2-E2, the before/after satellite comparison. Written by an
+ *   implementer so the panel can render; its labels, the honesty note (resolution, cloud,
+ *   smoke, not a burned-area map) and the date rule behind them (`core/before-after.ts`)
+ *   are the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -1313,6 +1334,23 @@ export const PENDING_FOUNDER_REVIEW = [
   // V2-E3 — CEMS badge
   'eventDetail.cemsActivation',
   'eventUnavailable',
+  // V2-E2 — before/after comparison
+  'beforeAfter.open',
+  'beforeAfter.close',
+  'beforeAfter.title',
+  'beforeAfter.sliderLabel',
+  'beforeAfter.sliderValue',
+  'beforeAfter.beforeLabel',
+  'beforeAfter.afterLabel',
+  'beforeAfter.afterLatestLabel',
+  'beforeAfter.beforeEarlier',
+  'beforeAfter.beforeLater',
+  'beforeAfter.afterEarlier',
+  'beforeAfter.afterLater',
+  'beforeAfter.imageLabel',
+  'beforeAfter.note',
+  'beforeAfter.unavailable',
+  'beforeAfter.tilesFailed',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */
