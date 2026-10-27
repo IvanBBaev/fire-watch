@@ -30,8 +30,11 @@
 import type { AlertLocale } from '../alerts/templates/alert-copy.js';
 import type { AlertType, TriggerType } from '../config/alert-gating.js';
 
-/** D6's three delivery mechanics, and the `channel` CHECK of migration 001. */
-export const ALERT_CHANNELS = ['push', 'telegram', 'email'] as const;
+/**
+ * D6's three delivery mechanics plus V2-G2's signed webhook, and the `channel` CHECK of
+ * migration 001 as widened by migration 035.
+ */
+export const ALERT_CHANNELS = ['push', 'telegram', 'email', 'webhook'] as const;
 export type AlertChannel = (typeof ALERT_CHANNELS)[number];
 
 /**

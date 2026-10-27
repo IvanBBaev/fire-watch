@@ -15,6 +15,8 @@
  *   - **email 12/s.** SES starts at 14/s in production and 1/s in the sandbox; 12 is
  *     below the production default so the first day out of the sandbox does not begin
  *     with throttling errors (GATES L-6 is the quota raise).
+ *   - **webhook 20/s** (V2-G2). No provider: every endpoint is someone else's server.
+ *     The pace bounds how long a burst of slow receivers can hold the gateway (a draft).
  *
  * The queue is processed one row at a time by the gateway, so a bucket that says "wait
  * 40 ms" is a 40 ms wait; the wait ceiling in {@link RATE_LIMIT_MAX_WAIT_MS} is what
@@ -32,6 +34,9 @@ export const CHANNEL_RATES: Readonly<Record<AlertChannel, ChannelRate>> = {
   push: { ratePerSecond: 300, burst: 300 },
   telegram: { ratePerSecond: 25, burst: 25 },
   email: { ratePerSecond: 12, burst: 12 },
+  // V2-G2: no provider quota — each endpoint is a different receiver. The pace only keeps
+  // a burst of slow receivers (5 s timeout each) from monopolising the gateway; a draft.
+  webhook: { ratePerSecond: 20, burst: 20 },
 };
 
 /**

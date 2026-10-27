@@ -68,12 +68,15 @@ export type OfficialStatus = (typeof OFFICIAL_STATUSES)[number];
  * Body budgets in characters. Push is a lock-screen surface where a few lines are read;
  * Telegram's hard cap is 4096 characters for the whole message, and the budget leaves
  * room for the title, link and footer. Email has no practical limit. The push figure is
- * a draft (founder decision) — the web-push adapter's own byte cap is far larger.
+ * a draft (founder decision) — the web-push adapter's own byte cap is far larger. A
+ * webhook carries the body as a JSON field for a program, so it is uncapped like email
+ * (V2-G2, founder decision).
  */
 export const BODY_MAX_CHARS: Readonly<Record<AlertChannel, number | null>> = {
   push: 480,
   telegram: 3000,
   email: null,
+  webhook: null,
 };
 
 // ── Parameters ───────────────────────────────────────────────────────────────

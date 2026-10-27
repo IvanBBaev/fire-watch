@@ -90,6 +90,8 @@ export const DELIVERY_PARAMS: VersionedConfig<DeliveryParams> = defineConfig(
       push: 1800,
       telegram: 21_600,
       email: 21_600,
+      // V2-G2: a webhook retries on its own schedule (`webhook_params_v1`) inside this.
+      webhook: 21_600,
     },
     queueExpirySeconds: 21_600,
     dispatchSloP95Seconds: 60,

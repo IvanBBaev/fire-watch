@@ -123,7 +123,7 @@ async function snapshotOutputs(): Promise<Record<string, RenderedAttribution>> {
   return outputs;
 }
 
-const ALERT_CHANNELS: readonly AlertChannel[] = ['push', 'telegram', 'email'];
+const ALERT_CHANNELS: readonly AlertChannel[] = ['push', 'telegram', 'email', 'webhook'];
 
 const NEW_FIRE_ENTRY = {
   eventUrl: 'https://firewatch.example/e/fw-2026-abc123',
