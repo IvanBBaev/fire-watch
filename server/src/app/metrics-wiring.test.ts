@@ -26,6 +26,7 @@ import {
   observeAlertDigest,
   observeAlertEvaluation,
   observeLoop,
+  observeSkip,
   transportCollector,
   writeBackupTextfile,
 } from './metrics-wiring.js';
@@ -46,6 +47,21 @@ describe('instrumentHeartbeat', () => {
     expect(await registry.render()).toContain(
       `fw_job_last_success_timestamp_seconds{job_id="ingest-cycle"} ${String(AT / 1000)}\n`,
     );
+  });
+});
+
+describe('observeSkip', () => {
+  it('counts a skip without moving the run count or the last-finished time', async () => {
+    const registry = createProcessMetrics();
+    const report = vi.fn();
+    const skip = { startedAt: AT, finishedAt: AT + 40, reason: 'lock_held' as const };
+    observeSkip(registry, 'dispatch', report, () => {})(skip);
+    expect(report).toHaveBeenCalledWith(skip);
+    const text = await registry.render();
+    expect(text).toContain('fw_loop_skipped_total{loop="dispatch",reason="lock_held"} 1\n');
+    // A standby's skips must not pass for a live holder (MonitorsLoopStalled, J1).
+    expect(text).not.toContain('fw_loop_runs_total{loop="dispatch"');
+    expect(text).not.toContain('fw_loop_last_finished_timestamp_seconds{loop="dispatch"}');
   });
 });
 

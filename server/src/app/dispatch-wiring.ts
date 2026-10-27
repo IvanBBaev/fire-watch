@@ -80,9 +80,15 @@ import {
 } from '../core/config/alert-budgets.js';
 import type { AlertDispatchQueue } from '../core/ports/alert-dispatch-queue.js';
 import type { DispatchControlStore } from '../core/ports/dispatch-control-store.js';
+import type { LoopLock } from '../core/ports/loop-lock.js';
 import type { SendRateReader } from '../core/ports/send-rate-reader.js';
 import { alertDropReasonFor, type AlertDropReason } from '../core/observability/alert-metrics.js';
-import { runRepeatedly, type JobRun, type JobStats } from '../core/scheduler/repeating-job.js';
+import {
+  runRepeatedly,
+  type JobRun,
+  type JobSkip,
+  type JobStats,
+} from '../core/scheduler/repeating-job.js';
 
 export const DISPATCH_INTERVAL_MS = 10_000;
 
@@ -224,6 +230,14 @@ export interface DispatchJobDeps {
   readonly observe?: (
     report: (run: JobRun<DispatchJobReport>) => void | Promise<void>,
   ) => (run: JobRun<DispatchJobReport>) => void | Promise<void>;
+  /**
+   * The cross-worker singleton guard: ADR-004 D1's idempotency rests on there being one
+   * dispatcher, and G's window is only a ceiling if one process counts it. Absent, every
+   * cycle runs.
+   */
+  readonly lock?: LoopLock;
+  /** Called for every cycle skipped because another worker holds `lock`. */
+  readonly skipped?: (skip: JobSkip) => void;
 }
 
 /**
@@ -284,6 +298,8 @@ export function startDispatchJob(
         signal,
         run: cycle,
         report: deps.observe === undefined ? report : deps.observe(report),
+        ...(deps.lock === undefined ? {} : { lock: deps.lock }),
+        ...(deps.skipped === undefined ? {} : { skipped: deps.skipped }),
       });
     } finally {
       await pool.end();

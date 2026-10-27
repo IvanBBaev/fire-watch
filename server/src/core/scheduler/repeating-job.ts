@@ -14,11 +14,14 @@
  *     of the season — the exact outcome the whole project exists to avoid.
  *  2. **Runs never overlap.** The next pause is measured from the end of the run, so a
  *     cycle that took longer than the interval delays the next one instead of racing it.
+ *     Across processes that is the optional `lock`'s job: a cycle whose lock another
+ *     worker holds is skipped, not run alongside.
  *  3. **Shutdown is prompt.** The pause is abortable, so SIGTERM does not wait out a
  *     ten-minute sleep and get escalated to SIGKILL mid-write.
  */
 
 import type { Clock, EpochMs } from '../ports/clock.js';
+import type { LoopLock } from '../ports/loop-lock.js';
 import type { Sleeper } from '../ports/sleeper.js';
 
 /**
@@ -40,6 +43,13 @@ export interface JobRun<T> {
   readonly error: unknown;
 }
 
+/** A cycle that did not run because another worker holds the loop's lock. */
+export interface JobSkip {
+  readonly startedAt: EpochMs;
+  readonly finishedAt: EpochMs;
+  readonly reason: 'lock_held';
+}
+
 export interface RepeatingJobOptions<T> {
   /** Nominal cadence, measured end-of-run to start-of-run. */
   readonly intervalMs: number;
@@ -58,12 +68,26 @@ export interface RepeatingJobOptions<T> {
    * the one time it must not.
    */
   report?(run: JobRun<T>): void | Promise<void>;
+  /**
+   * The cross-process singleton guard (`core/ports/loop-lock.ts`). Each run happens inside
+   * it; a cycle that finds it held elsewhere is skipped: `run` and `report` are not
+   * called — so no heartbeat is pinged on another worker's behalf — and `skipped` is.
+   * Absent, every cycle runs, as it did before there was a guard.
+   */
+  readonly lock?: LoopLock;
+  /** Called for every skipped cycle, and awaited. A throw counts as a failure, like `report`'s. */
+  skipped?(skip: JobSkip): void | Promise<void>;
 }
 
 export interface JobStats {
   readonly runs: number;
   /** Runs that threw, plus runs whose report threw — both mean "something is wrong". */
   readonly failures: number;
+  /**
+   * Cycles not run because another worker held the loop's lock. Not failures: the holder
+   * is doing the work. A standby worker's stats are all skips.
+   */
+  readonly skipped: number;
   readonly stoppedAt: EpochMs;
 }
 
@@ -85,6 +109,7 @@ export async function runRepeatedly<T>(options: RepeatingJobOptions<T>): Promise
 
   let runs = 0;
   let failures = 0;
+  let skipped = 0;
 
   // The first run happens immediately. A worker that restarts at 12:07 has nothing to
   // gain from waiting until 12:10, and the freshness clock is already ticking.
@@ -92,12 +117,36 @@ export async function runRepeatedly<T>(options: RepeatingJobOptions<T>): Promise
     const startedAt = clock.now();
     let value: T | undefined;
     let error: unknown = NOTHING_THROWN;
+    let held = false;
     try {
-      value = await options.run();
+      if (options.lock === undefined) {
+        value = await options.run();
+      } else {
+        const exclusive = await options.lock.runExclusive(() => options.run());
+        if (exclusive.acquired) value = exclusive.value;
+        else held = true;
+      }
     } catch (thrown: unknown) {
+      // A lock that could not even be asked for is a failed run: the database it lives in
+      // is the one the run needs, and a worker that cannot reach it is not "standing by".
       error = thrown;
     }
     const finishedAt = clock.now();
+
+    if (held) {
+      skipped += 1;
+      if (options.skipped) {
+        try {
+          await options.skipped({ startedAt, finishedAt, reason: 'lock_held' });
+        } catch {
+          failures += 1;
+        }
+      }
+      if (signal.aborted) break;
+      await sleeper.sleep(pauseMs(intervalMs, finishedAt - startedAt), signal);
+      continue;
+    }
+
     const failed = error !== NOTHING_THROWN;
     runs += 1;
     if (failed) failures += 1;
@@ -116,7 +165,7 @@ export async function runRepeatedly<T>(options: RepeatingJobOptions<T>): Promise
     await sleeper.sleep(pauseMs(intervalMs, finishedAt - startedAt), signal);
   }
 
-  return { runs, failures, stoppedAt: clock.now() };
+  return { runs, failures, skipped, stoppedAt: clock.now() };
 }
 
 /** Exported for the test that pins the overrun behaviour, and for readability. */

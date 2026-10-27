@@ -66,6 +66,7 @@ import {
   wireFireOutlines,
 } from './fire-outline-wiring.js';
 import { startDispatchJob } from './dispatch-wiring.js';
+import { skipLog, wireLoopLocks } from './loop-lock-wiring.js';
 import { reportIdentityCycle } from './identity-reporter.js';
 import { IDENTITY_CYCLE_INTERVAL_MS, wireIdentity } from './identity-wiring.js';
 import { wireIngest } from './ingest-wiring.js';
@@ -93,6 +94,7 @@ import {
   observeAlertDigest,
   observeAlertEvaluation,
   observeLoop,
+  observeSkip,
   type MetricsErrorSink,
 } from './metrics-wiring.js';
 import { QA_REPORT_INTERVAL_MS, reportQaWeekly, wireQaReport } from './qa-report-wiring.js';
@@ -159,6 +161,17 @@ async function main(): Promise<number> {
     systemClock,
     onMetricsError,
   );
+  // ADR-002's single writer: ingest, alert evaluation and dispatch run in one worker per
+  // database; a second worker started alongside (a deploy overlap, a stray `pnpm worker`)
+  // skips their cycles until the holder goes away. The other loops are idempotent reads
+  // or keyed writes and run wherever a worker runs.
+  const loopLocks = wireLoopLocks(config);
+  const skipNote = (record: Record<string, unknown>): void => {
+    log.note(record);
+  };
+  const ingestSkips = skipLog('ingest', skipNote);
+  const evaluationSkips = skipLog('alert_evaluation', skipNote);
+  const dispatchSkips = skipLog('dispatch', skipNote);
   const wiring = wireIngest(config);
   const refresh = wireRefreshJobs(config);
   // Hot-reloads the static-source mask between cycles (F16); reload lines go to stderr.
@@ -210,7 +223,15 @@ async function main(): Promise<number> {
       {
         writeLine,
         observe: (report) =>
-          observeLoop(metrics, 'dispatch', report, onMetricsError, dispatchObserver(metrics)),
+          observeLoop(
+            metrics,
+            'dispatch',
+            dispatchSkips.ran(report),
+            onMetricsError,
+            dispatchObserver(metrics),
+          ),
+        lock: loopLocks.forLoop('dispatch'),
+        skipped: observeSkip(metrics, 'dispatch', dispatchSkips.skipped, onMetricsError),
       },
       controller.signal,
     );
@@ -236,13 +257,15 @@ async function main(): Promise<number> {
           sleeper: systemSleeper,
           signal: controller.signal,
           run: () => runIngestCycle(wiring.deps),
+          lock: loopLocks.forLoop('ingest'),
           report: observeLoop(
             metrics,
             'ingest',
-            (run) => reportCycle(run, { heartbeat, writeLine }),
+            ingestSkips.ran((run) => reportCycle(run, { heartbeat, writeLine })),
             onMetricsError,
             ingestObserver(metrics),
           ),
+          skipped: observeSkip(metrics, 'ingest', ingestSkips.skipped, onMetricsError),
         }),
       ],
       [
@@ -368,11 +391,18 @@ async function main(): Promise<number> {
           sleeper: systemSleeper,
           signal: controller.signal,
           run: () => runAlertEvaluationCycle(alertEval.deps),
+          lock: loopLocks.forLoop('alert_evaluation'),
           report: observeAlertEvaluation(
             metrics,
-            (run) => {
+            evaluationSkips.ran((run) => {
               reportAlertEvaluationCycle(run, { writeLine });
-            },
+            }),
+            onMetricsError,
+          ),
+          skipped: observeSkip(
+            metrics,
+            'alert_evaluation',
+            evaluationSkips.skipped,
             onMetricsError,
           ),
         }),
@@ -551,6 +581,7 @@ async function main(): Promise<number> {
       alertDigest.enabled ? alertDigest.close() : Promise.resolve(),
       mirror.kind === 'enabled' ? mirror.close() : Promise.resolve(),
       metricsListener === null ? Promise.resolve() : metricsListener.close(),
+      loopLocks.close(),
     ]);
   }
 }

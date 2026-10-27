@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { VirtualClock } from '../ports/clock.js';
+import type { Exclusive, LoopLock } from '../ports/loop-lock.js';
 import type { Sleeper } from '../ports/sleeper.js';
-import type { JobRun } from './repeating-job.js';
+import type { JobRun, JobSkip } from './repeating-job.js';
 import { MIN_PAUSE_MS, pauseMs, runRepeatedly } from './repeating-job.js';
 
 const START = '2026-08-02T11:30:00Z';
@@ -323,5 +324,150 @@ describe('runRepeatedly', () => {
         run: () => Promise.resolve('ok'),
       }),
     ).rejects.toThrow(/at least 1000 ms/);
+  });
+
+  describe('under a loop lock', () => {
+    /** One lock "in the database": `held` stands for another worker holding it. */
+    function fakeLock(state: { held: boolean; throws?: Error }): LoopLock & { calls: number } {
+      const lock = {
+        calls: 0,
+        async runExclusive<T>(body: () => Promise<T>): Promise<Exclusive<T>> {
+          lock.calls += 1;
+          if (state.throws) throw state.throws;
+          if (state.held) return { acquired: false };
+          return { acquired: true, value: await body() };
+        },
+      };
+      return lock;
+    }
+
+    it('skips a cycle whose lock another worker holds: no run, no report, a skip', async () => {
+      const clock = new VirtualClock(START);
+      const controller = new AbortController();
+      const sleeper = fakeSleeper(clock, controller, 2);
+      const state = { held: true };
+      const lock = fakeLock(state);
+      const order: string[] = [];
+      const skips: JobSkip[] = [];
+
+      const stats = await runRepeatedly({
+        intervalMs: INTERVAL_MS,
+        clock,
+        sleeper,
+        signal: controller.signal,
+        lock,
+        run: () => {
+          order.push('run');
+          return Promise.resolve('ok');
+        },
+        report: () => {
+          order.push('report');
+        },
+        skipped: (skip) => {
+          skips.push(skip);
+          state.held = false; // the other worker drained
+        },
+      });
+
+      // The report is where the heartbeat goes: a standby must not ping for the holder.
+      expect(order).toEqual(['run', 'report']);
+      expect(skips).toEqual([
+        { startedAt: Date.parse(START), finishedAt: Date.parse(START), reason: 'lock_held' },
+      ]);
+      expect(stats).toMatchObject({ runs: 1, failures: 0, skipped: 1 });
+      // A skip still waits out the interval: a standby retrying in a spin loop would
+      // hammer the database the holder is using.
+      expect(sleeper.pauses).toEqual([INTERVAL_MS, INTERVAL_MS]);
+      expect(lock.calls).toBe(2);
+    });
+
+    it('runs inside the lock and reports the value as an unguarded loop would', async () => {
+      const clock = new VirtualClock(START);
+      const controller = new AbortController();
+      const seen: JobRun<string>[] = [];
+
+      const stats = await runRepeatedly({
+        intervalMs: INTERVAL_MS,
+        clock,
+        sleeper: fakeSleeper(clock, controller),
+        signal: controller.signal,
+        lock: fakeLock({ held: false }),
+        run: () => Promise.resolve('ok'),
+        report: (run) => {
+          seen.push(run);
+        },
+      });
+
+      expect(seen.map((run) => [run.value, run.error])).toEqual([['ok', null]]);
+      expect(stats).toMatchObject({ runs: 1, failures: 0, skipped: 0 });
+    });
+
+    it('fails, rather than skips, a cycle whose lock could not be asked for', async () => {
+      const clock = new VirtualClock(START);
+      const controller = new AbortController();
+      const seen: unknown[] = [];
+      let runs = 0;
+
+      const stats = await runRepeatedly({
+        intervalMs: INTERVAL_MS,
+        clock,
+        sleeper: fakeSleeper(clock, controller),
+        signal: controller.signal,
+        lock: fakeLock({ held: false, throws: new Error('ECONNREFUSED') }),
+        run: () => {
+          runs += 1;
+          return Promise.resolve('ok');
+        },
+        report: (run) => {
+          seen.push(run.error);
+        },
+        skipped: () => {
+          throw new Error('a failure must not be reported as a skip');
+        },
+      });
+
+      // An unreachable database is the failure the ingest-error alert exists for.
+      expect(runs).toBe(0);
+      expect((seen[0] as Error).message).toBe('ECONNREFUSED');
+      expect(stats).toMatchObject({ runs: 1, failures: 1, skipped: 0 });
+    });
+
+    it('reports what the run threw under the lock as the run failing', async () => {
+      const clock = new VirtualClock(START);
+      const controller = new AbortController();
+      const seen: unknown[] = [];
+
+      const stats = await runRepeatedly({
+        intervalMs: INTERVAL_MS,
+        clock,
+        sleeper: fakeSleeper(clock, controller),
+        signal: controller.signal,
+        lock: fakeLock({ held: false }),
+        run: () => Promise.reject(new Error('EAI_AGAIN')),
+        report: (run) => {
+          seen.push(run.error);
+        },
+      });
+
+      expect((seen[0] as Error).message).toBe('EAI_AGAIN');
+      expect(stats).toMatchObject({ runs: 1, failures: 1, skipped: 0 });
+    });
+
+    it('counts a skip callback that threw as a failure and carries on', async () => {
+      const clock = new VirtualClock(START);
+      const controller = new AbortController();
+
+      const stats = await runRepeatedly({
+        intervalMs: INTERVAL_MS,
+        clock,
+        sleeper: fakeSleeper(clock, controller),
+        signal: controller.signal,
+        lock: fakeLock({ held: true }),
+        run: () => Promise.resolve('ok'),
+        skipped: () => Promise.reject(new Error('stderr closed')),
+      });
+
+      expect(stats).toMatchObject({ runs: 0, failures: 1, skipped: 1 });
+    });
   });
 });

@@ -668,8 +668,11 @@ real because the host is code; the drill in §6.3 is what catches drift.
 
 ### 9.3 Deploy safety
 
-1. Deploy is `deploy.sh <git-sha>`: pull images, restart `worker` (advisory lock makes
-   an overlap safe), restart `api`, then smoke-test `/healthz` and the canonical
+1. Deploy is `deploy.sh <git-sha>`: pull images, restart `worker` (the per-loop advisory
+   locks make an overlap safe: while the old worker drains, the new one skips its ingest,
+   alert-evaluation and dispatch cycles — `fw_loop_skipped_total`, never paged on — and
+   takes each loop over within one interval; `server/src/core/ports/loop-lock.ts`),
+   restart `api`, then smoke-test `/healthz` and the canonical
    freshness endpoint in a loop; on failure, redeploy the tag in `last_good`.
 2. **Rollback is one command** — `deploy.sh <previous-sha>`. Image-tag deploys are the
    whole reason this is true.

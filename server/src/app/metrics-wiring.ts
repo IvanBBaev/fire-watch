@@ -67,6 +67,7 @@ import {
   LOOP_LAST_DURATION,
   LOOP_LAST_FINISHED,
   LOOP_RUNS,
+  LOOP_SKIPPED,
   META_ALERT_METRICS,
   META_ALERT_SERIES,
   metaAlertSamples,
@@ -78,7 +79,7 @@ import { formatExposition, type MetricSample } from '../core/observability/prome
 import type { Clock } from '../core/ports/clock.js';
 import type { FreshnessReader } from '../core/ports/freshness-reader.js';
 import type { Heartbeat } from '../core/ports/heartbeat.js';
-import type { JobRun } from '../core/scheduler/repeating-job.js';
+import type { JobRun, JobSkip } from '../core/scheduler/repeating-job.js';
 import type { DispatchJobReport } from './dispatch-wiring.js';
 import type { MetricsConfig } from './metrics-config.js';
 
@@ -108,6 +109,26 @@ export function instrumentHeartbeat(
       });
       return inner.succeeded(job);
     },
+  };
+}
+
+/**
+ * A loop's `skipped` callback (`runRepeatedly`'s lock): counts the skip, then hands it to
+ * `report`. Deliberately not `observeLoop`: a skipped cycle did not finish anything, so it
+ * must not move `fw_loop_last_finished_timestamp_seconds` — a standby's would otherwise
+ * stand in for a stalled holder's.
+ */
+export function observeSkip(
+  registry: MetricsRegistry,
+  loop: string,
+  report: (skip: JobSkip) => void,
+  onError: MetricsErrorSink,
+): (skip: JobSkip) => void {
+  return (skip) => {
+    guard(onError, () => {
+      registry.incCounter(LOOP_SKIPPED, { loop, reason: skip.reason });
+    });
+    report(skip);
   };
 }
 

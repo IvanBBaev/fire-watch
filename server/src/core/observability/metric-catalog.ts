@@ -149,11 +149,25 @@ export const LOOP_LAST_DURATION: MetricDescriptor = {
   labels: ['loop'],
 };
 
+/**
+ * Cycles a worker did not run because another worker held the loop's lock
+ * (`core/ports/loop-lock.ts`). Its own series rather than a `fw_loop_runs_total` outcome:
+ * a skip is not a run, so it moves neither the run count nor the last-finished time, and
+ * no rule pages on it — the holder's series say whether the work is being done.
+ */
+export const LOOP_SKIPPED: MetricDescriptor = {
+  name: 'fw_loop_skipped_total',
+  kind: 'counter',
+  help: 'Worker loop cycles skipped since process start because another worker held the loop lock.',
+  labels: ['loop', 'reason'],
+};
+
 export const JOB_METRICS: readonly MetricDescriptor[] = [
   JOB_LAST_SUCCESS,
   LOOP_RUNS,
   LOOP_LAST_FINISHED,
   LOOP_LAST_DURATION,
+  LOOP_SKIPPED,
 ];
 
 // --- Ingest (worker process, from the ingest cycle's report) -----------------------------
