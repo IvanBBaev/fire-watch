@@ -7,7 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LocationProvider, Router } from 'preact-iso';
+import { LocationProvider, Route, Router } from 'preact-iso';
 import prerender from 'preact-iso/prerender';
 
 import { DEFAULT_CONFIG } from '../../core/config.js';
@@ -73,9 +73,7 @@ async function renderPage(
   const { html } = await prerender(
     <AppContext.Provider value={services(store, messages, locale)}>
       <LocationProvider>
-        <Router>
-          <EventPage path="/event/:id" />
-        </Router>
+        <Router>{[<Route key="event" path="/event/:id" component={EventPage} />]}</Router>
       </LocationProvider>
     </AppContext.Provider>,
   );
