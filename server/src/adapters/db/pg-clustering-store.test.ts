@@ -228,8 +228,11 @@ describe('pendingBatches', () => {
     expect(fake.released()).toBe(1);
   });
 
-  it('compares the cursor as an (available_at, source) tuple in byte order', () => {
-    expect(SQL.selectPendingBatches).toContain('b.source COLLATE "C" > c.source COLLATE "C"');
+  it('asks the ledger, not a high-water mark, and orders sources in byte order', () => {
+    expect(SQL.selectPendingBatches).toContain('AND NOT EXISTS (');
+    expect(SQL.selectPendingBatches).toContain(
+      'WHERE (b.available_at >= $2 OR b.available_at >= c.available_at)',
+    );
     expect(SQL.selectPendingBatches).toContain('ORDER BY b.available_at, b.source COLLATE "C"');
   });
 

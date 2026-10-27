@@ -240,17 +240,26 @@ describe.skipIf(!hasDocker)('the meta-alert monitor reader', () => {
       expect(cold.pendingBatches).toBe(4);
       expect(cold.oldestPendingRecordedAt).toBe(NOW - 39 * MINUTE);
 
-      // The cursor is the (available_at, source) tuple under "C" collation. The NOAA-20
-      // batch shares the ledgered SNPP batch's instant, and 'firms:viirs:noaa20' sorts
-      // before 'firms:viirs:snpp', so it falls behind the cursor with it.
+      // The ledger is the test, not a high-water mark. The NOAA-20 batch shares the
+      // ledgered SNPP batch's instant and sorts before it under "C" collation, and it is
+      // still pending: nothing clustered it.
       await ledger(run.id, SNPP, NOW - 40 * MINUTE);
       const warm = await reader.readIdentityLag(notBefore);
       const warmExpected = await store.pendingBatches(run, { notBefore, limit: 1_000 });
       expect(warm.pendingBatches).toBe(warmExpected.length);
-      expect(warm.pendingBatches).toBe(2);
-      expect(warm.oldestPendingRecordedAt).toBe(NOW - 29 * MINUTE);
+      expect(warm.pendingBatches).toBe(3);
+      expect(warm.oldestPendingRecordedAt).toBe(NOW - 38 * MINUTE);
 
+      // A batch behind the newest ledger entry is still lag, until it is ledgered.
       await ledger(run.id, SNPP, NOW - 20 * MINUTE);
+      const behind = await reader.readIdentityLag(notBefore);
+      expect(behind.pendingBatches).toBe(
+        (await store.pendingBatches(run, { notBefore, limit: 1_000 })).length,
+      );
+      expect(behind.pendingBatches).toBe(2);
+
+      await ledger(run.id, NOAA20, NOW - 40 * MINUTE);
+      await ledger(run.id, SNPP, NOW - 30 * MINUTE);
       expect(await reader.readIdentityLag(notBefore)).toEqual({
         liveRuns: 1,
         pendingBatches: 0,

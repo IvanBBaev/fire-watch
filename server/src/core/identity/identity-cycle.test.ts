@@ -245,8 +245,8 @@ class FakeStore implements ClusteringStore {
   ): Promise<readonly PendingBatch[]> {
     await yieldTurn();
     const done = this.state.ingestBatches.filter((b) => this.state.ledger.has(batchKey(b)));
-    const floor =
-      done.length === 0 ? query.notBefore : Math.max(...done.map((b) => b.availableAt)) + 1;
+    const newest = done.length === 0 ? Infinity : Math.max(...done.map((b) => b.availableAt));
+    const floor = Math.min(query.notBefore, newest);
     return this.state.ingestBatches
       .filter((b) => !this.state.ledger.has(batchKey(b)) && b.availableAt >= floor)
       .sort((a, b) => a.availableAt - b.availableAt || (a.source < b.source ? -1 : 1))
@@ -1101,6 +1101,22 @@ describe('runIdentityCycle — bookkeeping', () => {
     expect(second.stats.merged).toBe(1);
     const third = await runIdentityCycle(deps(store, clock, 1));
     expect(third.batches).toEqual({ pending: 0, applied: 0, skipped: 0, limitReached: false });
+  });
+
+  it('still applies a batch another writer recorded behind the newest ledger entry', async () => {
+    const store = new FakeStore();
+    const clock = new VirtualClock('2026-08-05T16:00:00Z');
+    store.ingest(MERGE[1] as PollSpec);
+    const first = await runIdentityCycle(deps(store, clock));
+    expect(first.batches.applied).toBe(1);
+
+    // The 03:10 poll commits only now, after 15:10 is in the ledger.
+    store.ingest(MERGE[0] as PollSpec);
+    const late = await runIdentityCycle(deps(store, clock));
+    expect(late.batches).toEqual({ pending: 1, applied: 1, skipped: 0, limitReached: false });
+    expect(store.state.ledger.size).toBe(2);
+    const again = await runIdentityCycle(deps(store, clock));
+    expect(again.batches.pending).toBe(0);
   });
 
   it('never offers a batch older than one active window to a fresh run', async () => {

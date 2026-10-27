@@ -188,7 +188,8 @@ export async function runIdentityCycle(deps: IdentityCycleDeps): Promise<Identit
 
   const pending = await deps.store.pendingBatches(run, {
     // A run with an empty ledger starts one active window back: exactly the detections
-    // the working set would hold had the pipeline always been running.
+    // the working set would hold had the pipeline always been running. The same bound is
+    // how far back a running one looks for a batch another writer recorded late.
     notBefore: deps.clock.now() - activeWindowMs(params),
     limit: deps.maxBatchesPerCycle,
   });

@@ -359,4 +359,32 @@ describe.skipIf(!hasDocker)('the clustering store', () => {
     );
     expect(value).toBeNull();
   });
+
+  it('clusters a batch recorded late, behind the newest ledger entry, exactly once', async () => {
+    // A second ingest writer (the CLI beside the worker, an overlapping deploy) can commit
+    // a batch whose `available_at` sorts before one the identity loop already ledgered.
+    // A cursor that only looks forward never offers it, and its rows are never clustered.
+    const late = '2026-08-05T15:00:00Z';
+    await insertBatch(late, [{ n: 40, acq: '2026-08-05T14:50:00Z', lon: '27.40000' }]);
+
+    const store = createPgClusteringStore(pool satisfies PgClusteringPool, CLUSTERING_PARAMS);
+    const run = await store.liveRun(CLUSTERING_PARAMS);
+    const at = '2026-08-05T17:00:00Z';
+    const notBefore = Date.parse(at) - 72 * 3_600_000;
+    expect(await store.pendingBatches(run, { notBefore, limit: 10 })).toEqual([
+      { source: SNPP, availableAt: Date.parse(late) },
+    ]);
+
+    const report = await cycle(at);
+    expect(report.batches).toMatchObject({ pending: 1, applied: 1, skipped: 0 });
+    expect(report.stats).toMatchObject({ detections: 1, seeded: 1 });
+    expect(await store.pendingBatches(run, { notBefore, limit: 10 })).toEqual([]);
+    const again = await cycle('2026-08-05T17:10:00Z');
+    expect(again.batches).toMatchObject({ pending: 0, applied: 0 });
+    const ledger = await pool.query<{ n: number }>(
+      'SELECT count(*)::int AS n FROM clustering_batches WHERE available_at = $1',
+      [late],
+    );
+    expect(ledger.rows).toEqual([{ n: 1 }]);
+  });
 });

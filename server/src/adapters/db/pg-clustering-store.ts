@@ -133,27 +133,34 @@ RETURNING id::text AS id, kind, config_version, config_digest, lifecycle_ticked_
 `.trim();
 
 /**
- * The cursor is the newest ledger entry as a `(available_at, source)` tuple, compared
- * as a tuple: two sources polled in the same instant are two batches, and a plain
- * `available_at >` would skip the second one forever. `COLLATE "C"` makes the source
- * order bytewise, which is the order the engine and the replay sort sources in.
+ * A batch is pending when the run's ledger does not hold it. The ledger, not a cursor,
+ * is the answer: a second ingest writer (the CLI beside the worker, an overlapping
+ * deploy) can commit a batch whose `available_at` sorts before one already clustered,
+ * and a forward-only high-water mark would never offer it — its rows would sit in the
+ * archive unclustered for good.
+ *
+ * The anti-join is bounded so a run never reaches into the whole archive: batches from
+ * `$2` (one active window back) on, plus anything at or after the newest ledger entry,
+ * which is the backlog of a worker that was down for longer than a window. A late batch
+ * older than both is outside the working set it would attach to and stays unclustered.
+ * `COLLATE "C"` makes the source order bytewise, which is the order the engine and the
+ * replay sort sources in.
  */
 const SELECT_PENDING_BATCHES = `
 WITH cursor AS (
-  SELECT available_at, source
+  SELECT max(available_at) AS available_at
     FROM clustering_batches
    WHERE clustering_run_id = $1
-   ORDER BY available_at DESC, source COLLATE "C" DESC
-   LIMIT 1
 )
 SELECT b.source, b.available_at
   FROM ingest_batches b
-  LEFT JOIN cursor c ON true
- WHERE (c.available_at IS NULL AND b.available_at >= $2)
-    OR (c.available_at IS NOT NULL
-        AND (b.available_at > c.available_at
-             OR (b.available_at = c.available_at
-                 AND b.source COLLATE "C" > c.source COLLATE "C")))
+  CROSS JOIN cursor c
+ WHERE (b.available_at >= $2 OR b.available_at >= c.available_at)
+   AND NOT EXISTS (
+         SELECT 1 FROM clustering_batches l
+          WHERE l.clustering_run_id = $1
+            AND l.available_at = b.available_at
+            AND l.source = b.source)
  ORDER BY b.available_at, b.source COLLATE "C"
  LIMIT $3
 `.trim();

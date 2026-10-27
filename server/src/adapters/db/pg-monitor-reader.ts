@@ -6,7 +6,7 @@
  * `pg-alert-dispatch-queue.ts`, so a scheduled row is not reported as late. `claimed`
  * rows count regardless: a claim is by definition a row that was due.
  *
- * Identity: the pending-batch cursor of `pg-clustering-store.ts`, aggregated instead of
+ * Identity: the pending-batch predicate of `pg-clustering-store.ts`, aggregated instead of
  * listed and without its per-cycle LIMIT — the lag is the whole backlog, not the next
  * page of it. The predicate must stay in step with that store's `SELECT_PENDING_BATCHES`;
  * the integration test drives both over the same ledger to hold them together.
@@ -45,25 +45,23 @@ WITH live AS (
   SELECT id FROM clustering_runs WHERE kind = 'live'
 ),
 cursor AS (
-  SELECT cb.available_at, cb.source
+  SELECT max(cb.available_at) AS available_at
     FROM clustering_batches cb
    WHERE cb.clustering_run_id = (SELECT min(id) FROM live)
-   ORDER BY cb.available_at DESC, cb.source COLLATE "C" DESC
-   LIMIT 1
 )
 SELECT
   (SELECT count(*) FROM live)::int AS live_runs,
   count(b.available_at)::int AS pending_batches,
   min(b.recorded_at) AS oldest_recorded_at
 FROM ingest_batches b
-LEFT JOIN cursor c ON true
+CROSS JOIN cursor c
 WHERE (SELECT count(*) FROM live) = 1
-  AND (
-    (c.available_at IS NULL AND b.available_at >= $1::timestamptz)
-    OR (c.available_at IS NOT NULL AND (
-      b.available_at > c.available_at
-      OR (b.available_at = c.available_at AND b.source COLLATE "C" > c.source COLLATE "C")
-    ))
+  AND (b.available_at >= $1::timestamptz OR b.available_at >= c.available_at)
+  AND NOT EXISTS (
+    SELECT 1 FROM clustering_batches l
+     WHERE l.clustering_run_id = (SELECT min(id) FROM live)
+       AND l.available_at = b.available_at
+       AND l.source = b.source
   )`.trim();
 
 /** Exported for the shape tests; the SQL is the contract with migrations 001/002/005. */

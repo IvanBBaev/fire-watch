@@ -22,7 +22,7 @@ export interface OutboxQueueSnapshot {
 export interface IdentityLagSnapshot {
   /** Number of `kind = 'live'` clustering runs. Anything but one means "no reading". */
   readonly liveRuns: number;
-  /** Ingested batches after the live run's cursor (and not before `notBefore`). */
+  /** Ingested batches the live run would still be offered (`ClusteringStore.pendingBatches`). */
   readonly pendingBatches: number;
   /** Oldest `recorded_at` among those batches — when we ingested it, not when it was published. */
   readonly oldestPendingRecordedAt: EpochMs | null;

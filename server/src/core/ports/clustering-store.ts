@@ -370,8 +370,9 @@ export interface StaticSourceStaleEvent {
 
 export interface PendingBatchQuery {
   /**
-   * The cursor floor for a run whose ledger is empty. Batches older than this are never
-   * offered: a brand-new run must not re-cluster the whole archive into the live registry.
+   * The floor of the look-back, one active window before now. A brand-new run offers
+   * nothing older, so it never re-clusters the whole archive into the live registry; a
+   * running one also offers what is at or after its newest ledger entry.
    */
   readonly notBefore: EpochMs;
   readonly limit: number;
@@ -389,8 +390,10 @@ export interface ClusteringStore {
   liveRun(config: ClusteringConfig): Promise<ClusteringRun>;
 
   /**
-   * Ingest batches not yet in the run's ledger and newer than its newest entry, oldest
-   * first, in `(available_at, source)` order — the same order the engine breaks ties in.
+   * Ingest batches not yet in the run's ledger — from `notBefore` on, or at or after its
+   * newest entry — oldest first, in `(available_at, source)` order, the same order the
+   * engine breaks ties in. Membership in the ledger is the test, not a high-water mark:
+   * a batch another ingest writer commits behind the newest entry is still offered.
    */
   pendingBatches(run: ClusteringRun, query: PendingBatchQuery): Promise<readonly PendingBatch[]>;
 
