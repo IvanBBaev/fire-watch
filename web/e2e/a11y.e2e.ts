@@ -563,7 +563,9 @@ afterEach(async () => {
  */
 const READY_SELECTOR: Record<RouteId, string> = {
   home: ROW_SELECTOR,
-  event: EVENT_PAGE_SELECTOR,
+  // Not the loading state a cold permalink open shows before its first snapshot (TASKS F3):
+  // the sweep measures the page with its event on it.
+  event: `${EVENT_PAGE_SELECTOR}:not([data-state="loading"])`,
   settings: '.settings-group',
   about: '#data-freshness',
   credits: '.credits-list',

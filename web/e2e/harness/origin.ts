@@ -100,6 +100,12 @@ export interface HarnessOrigin {
    * harness's same-origin one. Set before the page boots: client-config is read once.
    */
   advertiseStaticSnapshotUrl(url: string): void;
+  /**
+   * Hold every snapshot answer (both routes) until the returned release is called — a slow
+   * origin, for the cold-load scenario that must see the page before its first snapshot.
+   * A held request is answered as of the moment it is released, not when it arrived.
+   */
+  holdSnapshots(): () => void;
   close(): Promise<void>;
 }
 
@@ -175,6 +181,8 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
   let scenario: Scenario = 'fresh';
   let baseUrl = '';
   let advertisedStaticUrl: string | null = null;
+  /** Set while `holdSnapshots` is in force: snapshot answers wait for it to settle. */
+  let snapshotHold: Promise<void> | null = null;
   /**
    * The instant publishing stopped, fixed when the `stale` scenario is entered. Fixed, not
    * recomputed per request: an outage's last document keeps getting older, and a sliding
@@ -233,7 +241,8 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
     const method = req.method ?? 'GET';
     const query = Object.fromEntries(url.searchParams.entries());
     const ifNoneMatch = req.headers['if-none-match'] ?? null;
-    const now = clock();
+    // Re-read after a snapshot hold, so a held answer is dated as of its release.
+    let now = clock();
 
     const send = (
       status: number,
@@ -312,6 +321,10 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
         );
         return;
       }
+      if (snapshotHold !== null) {
+        await snapshotHold;
+        now = clock();
+      }
       const after = query[CURSOR_QUERY_PARAM];
       const cursor = after === undefined ? null : Number.parseInt(after, 10);
       const base = cursor === null ? snapshot.current() : snapshot.changesAfter(cursor);
@@ -322,6 +335,10 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
     if (url.pathname === STATIC_COPY_PATH) {
       // A CDN object: the whole set whatever the query says, and unaffected by the
       // origin being down — that is the point of it.
+      if (snapshotHold !== null) {
+        await snapshotHold;
+        now = clock();
+      }
       sendSnapshot(anchoredAt(snapshot.current(), generatedAtMs(now)));
       return;
     }
@@ -381,6 +398,17 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
     },
     advertiseStaticSnapshotUrl: (url) => {
       advertisedStaticUrl = url;
+    },
+    holdSnapshots: () => {
+      let release = (): void => {};
+      const hold = new Promise<void>((resolveHold) => {
+        release = resolveHold;
+      });
+      snapshotHold = hold;
+      return () => {
+        if (snapshotHold === hold) snapshotHold = null;
+        release();
+      };
     },
     close: () =>
       new Promise<void>((resolveClose, rejectClose) => {
