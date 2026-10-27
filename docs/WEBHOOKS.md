@@ -193,9 +193,13 @@ How each answer is treated (`server/src/core/webhooks/webhook-retry.ts`):
 - Any other `4xx`: failed at once, without a retry. It still counts toward auto-disable.
 - An address refused by the SSRF guard: `refused`. Not retried, and counted as a failure.
 
-Retries are re-claims of the alert's outbox row. The row expires 6 h after the decision
-(`delivery_params_v1.queueExpirySeconds`), and the schedule is chosen to finish inside
-that limit. **Acknowledge quickly with a `2xx` and do the work afterwards.**
+Retries are re-claims of the alert's outbox row. A failed attempt releases the row
+unclaimable until the webhook's own next try, so the schedule above, not the shared
+alert backoff, sets the pace; a row claimed early anyway is released again without a
+request and without spending an attempt. The webhook's attempt cap must not exceed the
+outbox's own (`delivery_params.retry.maxAttempts`, also 6). The row expires 6 h after the
+decision (`delivery_params_v1.queueExpirySeconds`), and the schedule is chosen to finish
+inside that limit. **Acknowledge quickly with a `2xx` and do the work afterwards.**
 
 After N consecutive failures the endpoint is disabled (`disabled_at`, `disabled_reason`)
 and its subscription is revoked. A successful test ping re-enables it.
@@ -207,7 +211,7 @@ and our own redacted error text. **It never stores a request or response body.**
 ## 6. Privacy
 
 Both tables are keyed by account and classed `personal`. Account erasure (TASKS I4,
-`erasure_plan_v6`) deletes the delivery log and then the endpoints, before the
+`erasure_plan_v8`) deletes the delivery log and then the endpoints, before the
 subscriptions, and counts both in the ledger. The account export includes both tables. It
 withholds the sealed secret and the id of the key that seals it. An outbox row names the
 endpoint id, never the URL.
@@ -219,8 +223,6 @@ endpoint id, never the URL.
   window needs a connect-time hook (an undici dispatcher pinned to the checked address) or
   an egress proxy.
 - **The response body is read whole**, bounded only by the 5 s timeout.
-- **A row still in backoff is re-claimed on every dispatch tick** and released without a
-  network call. That is cheap, but it is churn in the outbox.
 - `dns-host-resolver.ts` (the `node:dns` adapter) has no unit test, because tests never hit
   the network.
 - A test ping for an endpoint whose secret cannot be opened (its key was removed from the

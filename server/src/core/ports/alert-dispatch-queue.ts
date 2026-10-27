@@ -75,6 +75,12 @@ export type SettleOutcome =
        * waiting for its approver, a spent lease — which leaves both columns alone.
        */
       readonly retryAt?: number;
+      /**
+       * A release that is no attempt but may still not be claimed before this epoch ms:
+       * an adapter whose own retry schedule is not due yet (the webhook channel). It sets
+       * `next_attempt_at` and leaves `delivery_attempts` alone. Never with `retryAt`.
+       */
+      readonly deferUntil?: number;
     };
 
 export interface AlertDispatchQueue {

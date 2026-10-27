@@ -97,6 +97,7 @@ describe('every settle', () => {
       ALERT_DISPATCH_SQL.settleClosed,
       ALERT_DISPATCH_SQL.settleReleased,
       ALERT_DISPATCH_SQL.settleRetry,
+      ALERT_DISPATCH_SQL.settleDeferred,
       ALERT_DISPATCH_SQL.settleExhausted,
       ALERT_DISPATCH_SQL.releaseAbandoned,
     ]) {
@@ -244,6 +245,27 @@ describe('settle', () => {
       CLAIMED_AT,
     ]);
     expect(ALERT_DISPATCH_SQL.settleRetry).toContain('delivery_attempts = delivery_attempts + 1');
+  });
+
+  it('defers a release without counting an attempt', async () => {
+    const { db, queue } = await claimed('7');
+    await queue.settle('7', { kind: 'released', error: 'not due', deferUntil: NOW + 60_000 });
+    expect(db.queries[0]?.text).toBe(ALERT_DISPATCH_SQL.settleDeferred);
+    expect(db.queries[0]?.values).toEqual([
+      '7',
+      'not due',
+      new Date(NOW + 60_000).toISOString(),
+      CLAIMED_AT,
+    ]);
+    expect(ALERT_DISPATCH_SQL.settleDeferred).not.toContain('delivery_attempts');
+  });
+
+  it('refuses a release that is both a failed attempt and a deferral', async () => {
+    const { db, queue } = await claimed('7');
+    await expect(
+      queue.settle('7', { kind: 'released', error: 'x', retryAt: NOW, deferUntil: NOW }),
+    ).rejects.toThrow(TypeError);
+    expect(db.queries).toHaveLength(0);
   });
 
   it('counts the last failed attempt in the close that ends the row (033)', async () => {

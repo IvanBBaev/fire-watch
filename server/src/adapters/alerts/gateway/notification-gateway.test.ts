@@ -780,6 +780,47 @@ describe('runOnce — failed attempts back off, then stop (migration 033)', () =
     });
   });
 
+  it("takes the adapter's own next try in place of the backoff, still counted", async () => {
+    const own = scriptedChannel(() => ({
+      kind: 'transient',
+      error: 'webhook answered 503',
+      retryAt: NOW + 3_600_000,
+    }));
+    const { gateway, queue } = harness({ channels: [own] });
+    expect(await gateway.runOnce()).toEqual(report({ released: 1 }));
+    expect(queue.settles[0]?.outcome).toEqual({
+      kind: 'released',
+      error: 'webhook answered 503',
+      retryAt: NOW + 3_600_000,
+    });
+
+    const last = harness({ channels: [own], rows: [claimedRow({ deliveryAttempts: LAST })] });
+    expect(await last.gateway.runOnce()).toEqual(report({ closed: 1, retryExhausted: 1 }));
+  });
+
+  it('spends no attempt on a deferral: the adapter is not due yet', async () => {
+    const early = scriptedChannel(() => ({
+      kind: 'deferred',
+      reason: 'webhook retry not due',
+      retryAt: NOW + 60_000,
+    }));
+    const { gateway, queue, events } = harness({
+      rows: [claimedRow({ deliveryAttempts: LAST })],
+      channels: [early],
+    });
+    expect(await gateway.runOnce()).toEqual(report({ released: 1 }));
+    expect(queue.settles[0]?.outcome).toEqual({
+      kind: 'released',
+      error: 'webhook retry not due',
+      deferUntil: NOW + 60_000,
+    });
+    expect(events).toContainEqual({
+      kind: 'released',
+      outboxId: '4181',
+      reason: 'webhook retry not due',
+    });
+  });
+
   it('spends no attempt on a release that never tried: a spent lease', async () => {
     const lease: ClaimLease = { leaseMs: CLAIM_LEASE_MS, sendWindowMs: CLAIM_SEND_WINDOW_MS };
     const { gateway, queue } = harness({

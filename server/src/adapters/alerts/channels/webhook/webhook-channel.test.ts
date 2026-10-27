@@ -167,7 +167,11 @@ describe('createWebhookChannel', () => {
       result: { class: 'retry', statusCode: 503, error: 'webhook h answered 503' },
     });
     const outcome = await channel(h).deliver(message());
-    expect(outcome).toEqual({ kind: 'transient', error: 'webhook h answered 503' });
+    expect(outcome).toEqual({
+      kind: 'transient',
+      error: 'webhook h answered 503',
+      retryAt: NOW + 0.5 * PARAMS.backoffBaseMs,
+    });
     expect(h.records[0]?.record).toMatchObject({
       outcome: 'retry',
       statusCode: 503,
@@ -179,10 +183,14 @@ describe('createWebhookChannel', () => {
     });
   });
 
-  it('waits without a request while the backoff runs', async () => {
+  it('defers without a request while the backoff runs', async () => {
     const h = harness({ previous: { attempt: 2, nextAttemptAt: NOW + 5_000, delivered: false } });
     const outcome = await channel(h).deliver(message());
-    expect(outcome).toEqual({ kind: 'transient', error: 'webhook retry not due for 5000 ms' });
+    expect(outcome).toEqual({
+      kind: 'deferred',
+      reason: 'webhook retry not due for 5000 ms',
+      retryAt: NOW + 5_000,
+    });
     expect(h.sends).toHaveLength(0);
     expect(h.records).toHaveLength(0);
   });

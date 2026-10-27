@@ -46,7 +46,9 @@
  * The claim passes over a `pending` row whose `next_attempt_at` is still in the future
  * (NULL is "due"). The other releases — the cool-off, a spent lease, an abandoned or an
  * expired claim — leave both columns alone: they were not attempts, and a row that is
- * merely waiting must not run out of retries while it waits.
+ * merely waiting must not run out of retries while it waits. A *deferred* release
+ * (`deferUntil`, an adapter whose own retry is not due) is the one that stamps
+ * `next_attempt_at` without counting an attempt.
  *
  * A provider call that returned and a settle that then failed is the one case where
  * either release re-sends: at-least-once is D1's stated delivery guarantee, and the A1.11
@@ -167,6 +169,12 @@ SET status = 'pending', last_error = $2, delivery_attempts = delivery_attempts +
     next_attempt_at = $3::timestamptz
 WHERE id = $1::bigint AND status = 'claimed' AND claimed_at = $4::timestamptz`;
 
+/** Not an attempt, but not claimable before `$3`: the adapter's own retry is not due. */
+const SETTLE_DEFERRED = `
+UPDATE alert_outbox
+SET status = 'pending', last_error = $2, next_attempt_at = $3::timestamptz
+WHERE id = $1::bigint AND status = 'claimed' AND claimed_at = $4::timestamptz`;
+
 /** The failed attempt that exhausted the row's retries: closed `failed`, and counted. */
 const SETTLE_EXHAUSTED = `
 UPDATE alert_outbox
@@ -205,6 +213,7 @@ export const ALERT_DISPATCH_SQL = {
   settleClosed: SETTLE_CLOSED,
   settleReleased: SETTLE_RELEASED,
   settleRetry: SETTLE_RETRY,
+  settleDeferred: SETTLE_DEFERRED,
   settleExhausted: SETTLE_EXHAUSTED,
   releaseAbandoned: RELEASE_ABANDONED,
   releaseExpired: RELEASE_EXPIRED,
@@ -276,6 +285,17 @@ export function createPgAlertDispatchQueue(db: PgDispatchQueryable): PgAlertDisp
           outcome.dispatchedAt === null
             ? null
             : isoTimestamp(outcome.dispatchedAt, 'dispatched_at'),
+          claimedAt,
+        ]);
+      } else if (outcome.retryAt !== undefined && outcome.deferUntil !== undefined) {
+        throw new TypeError(
+          `outbox row ${idText}: a release is a failed attempt or a deferral, not both`,
+        );
+      } else if (outcome.deferUntil !== undefined) {
+        result = await db.query(SETTLE_DEFERRED, [
+          idText,
+          outcome.error,
+          isoTimestamp(outcome.deferUntil, 'defer_until'),
           claimedAt,
         ]);
       } else if (outcome.retryAt !== undefined) {

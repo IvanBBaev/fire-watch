@@ -381,6 +381,27 @@ describe.skipIf(!hasDocker)('the outbox read path', () => {
       expect(await retryState()).toMatchObject([{ delivery_attempts: 0, next_attempt_at: null }]);
     });
 
+    it('holds a deferred row back without counting an attempt', async () => {
+      await enqueue(draft(0));
+      const queue = createPgAlertDispatchQueue(db);
+      await queue.claim(1, NOW);
+      await queue.settle('1', {
+        kind: 'released',
+        error: 'webhook retry not due',
+        deferUntil: NOW + 60_000,
+      });
+      expect(await retryState()).toEqual([
+        {
+          id: '1',
+          status: 'pending',
+          delivery_attempts: 0,
+          next_attempt_at: new Date(NOW + 60_000),
+        },
+      ]);
+      expect(await queue.claim(1, NOW + 59_999)).toEqual([]);
+      expect((await queue.claim(1, NOW + 60_000))[0]?.deliveryAttempts).toBe(0);
+    });
+
     it('closes the exhausted row failed and counts its last attempt', async () => {
       await enqueue(draft(0));
       const queue = createPgAlertDispatchQueue(db);

@@ -91,6 +91,21 @@ export type DeliveryOutcome =
       /** Worth another claim later: a timeout, a 5xx, a bucket that ran dry. */
       readonly kind: 'transient';
       readonly error: string;
+      /**
+       * Epoch ms of the next try by the adapter's own retry schedule (the webhook
+       * channel's). The attempt still counts toward `delivery_params.retry.maxAttempts`,
+       * but the row's next claim is this instead of the gateway's own backoff.
+       */
+      readonly retryAt?: number;
+    }
+  | {
+      /**
+       * Not an attempt: the adapter's own retry schedule is not due until `retryAt`. The
+       * row is released unclaimable before then and spends no retry.
+       */
+      readonly kind: 'deferred';
+      readonly reason: string;
+      readonly retryAt: number;
     }
   | {
       /** This endpoint will never accept this message. */

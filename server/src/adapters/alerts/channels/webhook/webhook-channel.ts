@@ -8,9 +8,15 @@
  *
  * **Retries live here, not in the gateway.** A failed attempt is logged in
  * `webhook_deliveries` with its `next_attempt_at` (exponential backoff, full jitter) and
- * reported `transient`, so the gateway releases the row. When the dispatch loop claims it
- * again before that time, {@link nextAttemptDue} says `wait` and the adapter releases it
- * again without touching the network. The outbox's 6 h expiry is the outer bound.
+ * reported `transient` with that time as `retryAt`, so the gateway releases the row
+ * unclaimable until then instead of on its own, shorter backoff. When the row is claimed
+ * before that time anyway (a clock skew between workers, a log row newer than the outbox),
+ * {@link nextAttemptDue} says `wait` and the adapter answers `deferred` without touching
+ * the network: released again, and not counted as an attempt. The webhook's own attempt
+ * cap (`webhook_params_v1.maxAttempts`) must not exceed the gateway's
+ * (`delivery_params.retry.maxAttempts`), or the outbox would close the row first; the
+ * webhook's last attempt answers `permanent` itself. The outbox's 6 h expiry is the outer
+ * bound.
  *
  *   | attempt result                         | log outcome | endpoint effect      | gateway outcome     |
  *   |----------------------------------------|-------------|----------------------|---------------------|
@@ -106,8 +112,9 @@ export function createWebhookChannel(options: WebhookChannelOptions): AlertChann
       const gate = nextAttemptDue(previous, now, params);
       if (gate.kind === 'wait') {
         return {
-          kind: 'transient',
-          error: `webhook retry not due for ${String(gate.untilMs - now)} ms`,
+          kind: 'deferred',
+          reason: `webhook retry not due for ${String(gate.untilMs - now)} ms`,
+          retryAt: gate.untilMs,
         };
       }
       if (gate.kind === 'exhausted') {
@@ -188,7 +195,11 @@ export function createWebhookChannel(options: WebhookChannelOptions): AlertChann
                 error: `${error}; endpoint disabled after consecutive failures`,
                 subscription: 'keep',
               }
-            : { kind: 'transient', error };
+            : {
+                kind: 'transient',
+                error,
+                ...(nextAttemptAtMs === null ? {} : { retryAt: nextAttemptAtMs }),
+              };
         case 'failed':
         case 'refused':
           return { kind: 'permanent', error, subscription: 'keep' };

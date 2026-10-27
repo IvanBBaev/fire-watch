@@ -22,7 +22,9 @@
  * released with a jittered, exponentially growing `next_attempt_at`, and the attempt that
  * reaches `delivery_params.retry.maxAttempts` closes it `failed` with a `retry_exhausted:`
  * error instead. A release that is no attempt (cool-off, spent lease, missing adapter)
- * spends no retry.
+ * spends no retry. An adapter that keeps its own retry schedule (the webhook channel)
+ * names the next try in its `transient` outcome, which replaces the gateway's backoff,
+ * and answers `deferred` to a claim that came before it: released, not an attempt.
  *
  * and every branch in that chain is either a pure function from `core/alerts/` or a port.
  * The gateway is deliberately dull, because the interesting parts have to be testable
@@ -205,13 +207,15 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
   /**
    * Settle a failed attempt: back off and release, or — on the last allowed attempt —
    * close the row `failed`. `dispatchedAt` is the provider call's stamp, or `null` when
-   * the attempt never reached a provider (a render failure).
+   * the attempt never reached a provider (a render failure). `adapterRetryAt` is the
+   * adapter's own next try, which replaces the backoff but not the cap.
    */
   async function settleFailedAttempt(
     row: ClaimedOutboxRow,
     error: string,
     dispatchedAt: number | null,
     counters: Counters,
+    adapterRetryAt?: number,
   ): Promise<void> {
     const decision = afterFailedAttempt({
       previousAttempts: row.deliveryAttempts,
@@ -233,7 +237,11 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
       emit({ kind: 'closed', outboxId: row.id, status: 'failed', reason: decision.error });
       return;
     }
-    await deps.queue.settle(row.id, { kind: 'released', error, retryAt: decision.notBefore });
+    await deps.queue.settle(row.id, {
+      kind: 'released',
+      error,
+      retryAt: adapterRetryAt ?? decision.notBefore,
+    });
     counters.released += 1;
     emit({ kind: 'released', outboxId: row.id, reason: error });
   }
@@ -379,7 +387,17 @@ export function createNotificationGateway(deps: NotificationGatewayDeps): Notifi
       return;
     }
     if (outcome.kind === 'transient') {
-      await settleFailedAttempt(row, outcome.error, dispatchedAt, counters);
+      await settleFailedAttempt(row, outcome.error, dispatchedAt, counters, outcome.retryAt);
+      return;
+    }
+    if (outcome.kind === 'deferred') {
+      await deps.queue.settle(row.id, {
+        kind: 'released',
+        error: outcome.reason,
+        deferUntil: outcome.retryAt,
+      });
+      counters.released += 1;
+      emit({ kind: 'released', outboxId: row.id, reason: outcome.reason });
       return;
     }
 
