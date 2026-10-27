@@ -592,6 +592,15 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   double-poll tests compare whole rows, digest included. Types were regenerated with
   `db:codegen` against a migrated PostGIS 16, and 025 rolls back and re-applies
   cleanly.*
+  *2026-10-27 — the append and the `ingest_batches` row are now one transaction
+  (`ports/ingest-batch-writer.ts`, `pg-ingest-batch-writer.ts`). Before, a failure
+  between them left detections whose `available_at` had no batch row, and the identity
+  pipeline, which queues on that table, never clustered them. A failed batch row now
+  rolls the rows back, the outcome is `write_failed` and freshness records a failure;
+  the next poll re-delivers the rows under its own batch. Quarantine entries stay
+  outside the transaction, and a batch row alone (0 inserted) is still written when the
+  atomic write fails, so the breaker keeps its history. Unit and PostGIS integration
+  tests show a failure in the second write leaves neither write behind. Not ticked.*
 - [x] **C2 — CSV validation + quarantine + anomaly breaker leg.** Spec: A23; 01
   §6.1.3. Needs: C1. E1-grade validation (incl. MODIS scan/track NaN guard,
   `available_at < acq_ts` clamp/flag), raw bytes retained on quarantine, batch
@@ -840,6 +849,15 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   CI with `FIRE_WATCH_REQUIRE_DOCKER=1`. 19 open decisions shipped unarmed/null are
   listed in WORKLOG 2026-09-23 (cadence, late batches below the cursor, quarantined
   rows never clustered, D7 promotion on config change, …).*
+  *2026-10-27 — late batches below the cursor are no longer skipped. A second ingest
+  writer (the CLI beside the worker, an overlapping deploy) could commit a batch behind
+  the newest ledger entry, and the forward-only cursor never offered it, so its rows
+  were never clustered. `pendingBatches` and the J1 identity-lag read now ask the ledger
+  (an anti-join on `clustering_batches`), bounded to one active window back or at or
+  after the newest entry; the `withBatch` ledger re-check keeps it idempotent. A late
+  batch is applied after newer ones, so the live registry can differ from a replay in
+  `(available_at, source)` order; one older than both bounds is still not clustered. No
+  migration. Not ticked.*
 - [x] **D2 — Merge semantics + `migrateAlertState`.** Spec: ADR-002 D4, I2/I3.
   Needs: D1, B4 (alert-state tables exist). Survivor rule, tombstones + path
   compression, same-transaction alert-state migration, 20 km hull →
