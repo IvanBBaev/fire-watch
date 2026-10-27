@@ -103,11 +103,7 @@ export const EMPTY_ACCOUNT_PREFERENCES: AccountPreferencesDocument = {
 };
 
 export type AccountPreferencesIssue =
-  | 'not_object'
-  | 'wrong_schema'
-  | 'unknown_member'
-  | 'invalid_member'
-  | 'too_large';
+  'not_object' | 'wrong_schema' | 'unknown_member' | 'invalid_member' | 'too_large';
 
 export type AccountPreferencesParse =
   | { readonly ok: true; readonly document: AccountPreferencesDocument }
@@ -187,7 +183,7 @@ export function parseAccountPreferencesDocument(value: unknown): AccountPreferen
   }
   const document: AccountPreferencesDocument = {
     schema: ACCOUNT_PREFERENCES_SCHEMA,
-    preferences: preferences as AccountPreferences,
+    preferences,
   };
   if (accountPreferencesSize(document) > ACCOUNT_PREFERENCES_MAX_BYTES) {
     return { ok: false, issue: 'too_large' };
