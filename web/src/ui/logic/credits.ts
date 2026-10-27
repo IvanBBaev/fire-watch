@@ -23,6 +23,8 @@ export interface CreditSessionState {
   readonly windOn?: boolean;
   /** F17 forecast cloud is shown in the satellite-pass section (`passesCloudOn`). */
   readonly cloudOn?: boolean;
+  /** The V2-E2 before/after comparison (NASA GIBS imagery) is open on an event page. */
+  readonly gibsOn?: boolean;
 }
 
 /**
@@ -64,6 +66,8 @@ export function activeCreditConditions(
   // And the wind layer: all five ECMWF components, owed while it is chosen (F14).
   // The F17 per-pass cloud forecast is ECMWF-derived too: the same five, never twice.
   if (session.windOn === true || session.cloudOn === true) conditions.push('derived:ecmwf');
+  // GIBS imagery is drawn only inside the open comparison panel, never on the map (V2-E2).
+  if (session.gibsOn === true) conditions.push('layer:gibs');
   return conditions;
 }
 

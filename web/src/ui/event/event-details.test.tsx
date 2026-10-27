@@ -158,6 +158,14 @@ describe('EventDetails', () => {
     expect(html).toContain('For orientation only, not directions.');
   });
 
+  it('offers the before/after comparison closed: no NASA request, no credit', async () => {
+    const html = await render(READY);
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain(`>${en.beforeAfter.open}</button>`);
+    expect(html).not.toContain('gibs.earthdata.nasa.gov');
+    expect(html).not.toContain('NASA GIBS');
+  });
+
   it('renders in Bulgarian from the Bulgarian catalog', async () => {
     const html = await render(READY, { messages: bg, locale: 'bg' });
     expect(html).toContain('Сателитна хронология');

@@ -50,6 +50,12 @@
  * owed on the credits page only, and the map corner's drawn set recognises the arrows by
  * their source id.
  *
+ * **Before/after imagery (V2-E2).** `layer:gibs` is reached by the reader opening the
+ * comparison on an event page (`gibs-on`). The `imagery-compare` probe renders the real
+ * panel then and nothing otherwise — the panel, and its credit, exist only while open. The
+ * comparison is a panel beside the map, not a map layer, so the map corner's drawn set
+ * never contains it.
+ *
  * **What this does not see.** Styling: a credit that is present but hidden, clipped or
  * collapsed (the corner control is `compact`) passes. Credits MapLibre takes from the
  * external basemap style's own `attribution` fields.
@@ -92,6 +98,7 @@ import { activeCreditConditions, mapCornerAttribution } from './logic/credits.js
 import { effisCreditText, setFwiDay, setOverlays } from './layers.js';
 import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
+import { BeforeAfter } from './event/before-after.js';
 import { AboutPage } from './pages/about.js';
 import { CreditsPage } from './pages/credits.js';
 
@@ -373,8 +380,27 @@ function drawnConditions(): readonly CreditCondition[] {
   return [...drawn].sort();
 }
 
+/** The event the comparison probe opens: closed, with a pair of GIBS days before NOW. */
+const COMPARED_EVENT = {
+  id: 'fw-2026-ci13',
+  lon: 25.6,
+  lat: 42.4,
+  firstObservedAt: '2026-09-10T11:00:00Z',
+  lastObservedAt: '2026-09-12T11:00:00Z',
+} as const;
+
 const PROBES = {
   'map-corner': probeMapCorner,
+  // The panel exists only while the reader has it open, which is what `gibsOn` says.
+  'imagery-compare': async (config, locale, session) => {
+    if (session.gibsOn !== true) return { text: '', hrefs: [] };
+    const { html } = await prerender(
+      <AppContext.Provider value={services(config, locale)}>
+        <BeforeAfter event={COMPARED_EVENT} nowMs={NOW} onClose={() => {}} />
+      </AppContext.Provider>,
+    );
+    return readHtml(html);
+  },
   // The page reads the Layers panel's choice (`effisChosen`), not the session, so the probe
   // makes the choice the session describes — and clears it, so no other probe inherits it.
   'credits-page': async (config, locale, session) => {
@@ -447,6 +473,8 @@ const IMAGERY = {
   'wind-on': { windOn: true },
   // An FWI forecast day ahead picked in the Layers panel: the GWIS raster (V2-B1).
   'gwis-on': { effisOn: true, gwisOn: true },
+  // The before/after comparison opened on an event page (V2-E2).
+  'gibs-on': { gibsOn: true },
 } as const satisfies Record<string, CreditSessionState>;
 
 type BasemapKey = keyof typeof BASEMAPS;
@@ -489,7 +517,8 @@ const CONTEXTS = {
   always: { reachable: true, via: 'neutral-url/imagery-off' },
   'basemap:openfreemap': { reachable: true, via: 'openfreemap/imagery-off' },
   'basemap:protomaps': { reachable: true, via: 'outdoor/imagery-off' },
-  'layer:gibs': { reachable: false, why: NO_SHIPPED_LAYER },
+  // Reached by the reader opening the before/after comparison on an event page (V2-E2).
+  'layer:gibs': { reachable: true, via: 'neutral-url/gibs-on' },
   // Reached by the reader choosing an EFFIS overlay in the Layers panel (TASKS G4).
   'layer:effis': { reachable: true, via: 'neutral-url/effis-on' },
   // Reached by the reader picking an FWI forecast day ahead in the Layers panel (V2-B1).
@@ -539,11 +568,13 @@ const KNOWN_FINDINGS = [
       'openfreemap/effis-on',
       'openfreemap/wind-on',
       'openfreemap/gwis-on',
+      'openfreemap/gibs-on',
       'outdoor-fallback/imagery-off',
       'outdoor-fallback/imagery-on',
       'outdoor-fallback/effis-on',
       'outdoor-fallback/wind-on',
       'outdoor-fallback/gwis-on',
+      'outdoor-fallback/gibs-on',
     ],
     'map-corner',
     'openfreemap text',
@@ -557,6 +588,7 @@ const KNOWN_FINDINGS = [
       'outdoor+terrain/effis-on',
       'outdoor+terrain/wind-on',
       'outdoor+terrain/gwis-on',
+      'outdoor+terrain/gibs-on',
     ],
     'map-corner',
     'terrarium-short text',
@@ -631,7 +663,10 @@ describe('CI-13 — attribution presence on the web surfaces', () => {
     'the credits describe what the map draws (%s)',
     async (key) => {
       const entry = combination(key);
-      const expected = [...conditionsOf(entry)].sort();
+      // The before/after comparison is a panel, not something the map draws (V2-E2).
+      const expected = conditionsOf(entry)
+        .filter((condition) => condition !== 'layer:gibs')
+        .sort();
       for (const theme of THEMES) {
         await probeMapCorner(entry.config, 'en', entry.session, theme);
         expect(drawnConditions(), `${key} ${theme}`).toStrictEqual(expected);

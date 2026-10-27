@@ -9,7 +9,7 @@
  */
 
 import type { FunctionComponent } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 import { relativePosition } from '../../core/geo/bearing.js';
 import type { RelativePosition } from '../../core/geo/bearing.js';
@@ -22,6 +22,7 @@ import {
 import type { FireEvent } from '../../core/types.js';
 import { useApp } from '../context.js';
 import { eventPath } from '../logic/event-resolution.js';
+import type { BeforeAfterProps } from './before-after.js';
 import type { CemsBadgeProps } from './cems-badge.js';
 import { copyText } from './clipboard.js';
 import type { FrpSummary, Overpass } from './detection-detail.js';
@@ -293,6 +294,58 @@ function CemsBadgeHost({ event }: { readonly event: FireEvent }) {
   return <Badge url={url} event={event} />;
 }
 
+/**
+ * The V2-E2 before/after comparison, opened on the reader's press: until then nothing is
+ * fetched from NASA, and the panel's code and credit line do not exist (CI-12, CI-13). The
+ * button stays in place, so closing returns focus to it.
+ */
+function BeforeAfterHost({ event, nowMs }: { readonly event: FireEvent; readonly nowMs: number }) {
+  const { messages } = useApp();
+  const [open, setOpen] = useState(false);
+  const [Panel, setPanel] = useState<FunctionComponent<BeforeAfterProps> | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    setOpen(false);
+  }, [event.id]);
+  const toggle = (): void => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (Panel !== null) return;
+    import('./before-after.js').then(
+      (module) => {
+        setPanel(() => module.BeforeAfter);
+      },
+      () => {
+        // A failed chunk load leaves the button closed; nothing else depends on the panel.
+        setOpen(false);
+      },
+    );
+  };
+  const close = (): void => {
+    setOpen(false);
+    button.current?.focus();
+  };
+  return (
+    <>
+      <p>
+        <button
+          ref={button}
+          type="button"
+          class="button-secondary before-after-open"
+          aria-expanded={open}
+          onClick={toggle}
+        >
+          {messages.beforeAfter.open}
+        </button>
+      </p>
+      {open && Panel !== null && <Panel event={event} nowMs={nowMs} onClose={close} />}
+    </>
+  );
+}
+
 export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
   const { messages, locale } = useApp();
   const t = messages.eventDetail;
@@ -342,6 +395,7 @@ export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
       <FireOutlineNote eventId={event.id} />
       <CemsBadgeHost event={event} />
       <DetectionSections detail={detail} />
+      <BeforeAfterHost event={event} nowMs={nowMs} />
       <WhereSection event={event} />
     </>
   );

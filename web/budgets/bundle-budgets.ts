@@ -115,6 +115,9 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   { role: 'page', src: /^src\/map\/(pass-swaths|lightning|fire-outline)-layer\.ts$/ },
   // V2-E3: the CEMS activation badge, fetched by the event page when a source is configured.
   { role: 'page', src: /^src\/ui\/event\/cems-badge\.tsx$/ },
+  // V2-E2: the before/after comparison and its date and tile maths, fetched on the
+  // reader's press on an event page.
+  { role: 'page', src: /^src\/ui\/event\/before-after\.tsx$/ },
   // TASKS F6: the share card's layout and rasterizer, fetched on the first share click.
   { role: 'page', src: /^src\/ui\/share\/share-action\.ts$/ },
 ];

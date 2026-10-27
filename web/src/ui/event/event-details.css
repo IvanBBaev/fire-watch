@@ -97,3 +97,89 @@
     margin-bottom: 0.5rem;
   }
 }
+
+/*
+ * V2-E2 before/after comparison. The view is a window onto two stacked tile layers; the
+ * after layer is clipped from the divider rightwards. The divider and centre marker sit on
+ * imagery of any colour, so they are white with a dark outline, never red. The range input
+ * below the view is the control (44px tall), so the picture is never under the reader's
+ * finger and the arrow keys move the divider.
+ */
+.before-after-dates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.before-after-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.before-after-step {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.before-after-view {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 800px;
+  height: 300px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+}
+
+.before-after-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.before-after-tile {
+  position: absolute;
+  width: 512px;
+  height: 512px;
+  max-width: none;
+  user-select: none;
+}
+
+.before-after-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.before-after-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.before-after-slider {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  min-height: 44px;
+  margin: 0.25rem 0;
+}
+
+.before-after-slider:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}

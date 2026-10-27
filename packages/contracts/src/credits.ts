@@ -23,8 +23,11 @@
  * Where a credit has to appear. A credit may need several surfaces at once. `api` is the
  * `attribution` member every JSON API response and snapshot carries (ADR-003 A1.3): a
  * consumer who takes the data instead of the map inherits the obligation with it.
+ * `imagery-compare` is the V2-E2 before/after panel on an event page, which draws imagery
+ * outside the map and so carries its own credit line while it is open.
  */
-export type CreditSurface = 'map-corner' | 'credits-page' | 'about' | 'alert-footer' | 'api';
+export type CreditSurface =
+  'map-corner' | 'credits-page' | 'about' | 'alert-footer' | 'api' | 'imagery-compare';
 
 /** The package whose code produces a surface's output. */
 export type CreditSurfaceOwner = 'web' | 'server';
@@ -41,6 +44,7 @@ export const CREDIT_SURFACE_OWNER = {
   about: 'web',
   'alert-footer': 'server',
   api: 'server',
+  'imagery-compare': 'web',
 } as const satisfies Record<CreditSurface, CreditSurfaceOwner>;
 
 /** The surfaces {@link CREDIT_SURFACE_OWNER} assigns to `Owner`. */
@@ -199,10 +203,29 @@ export const CREDITS: readonly Credit[] = [
       "Browse Services (GIBS), part of NASA's Earth Science Data and Information System " +
       '(ESDIS).',
     surfaces: ['credits-page'],
-    condition: 'layer:gibs',
+    // The V2-E2 before/after comparison draws GIBS imagery on any event page, so the full
+    // acknowledgement is listed on /credits always rather than only while a panel is open:
+    // over-crediting is the safe direction (founder decision, TASKS V2-E2).
+    condition: 'always',
     required: true,
     verified: true,
     authority: 'GIBS citation guidance',
+  },
+  {
+    id: 'gibs-short',
+    source: 'NASA GIBS true-colour imagery (event-page before/after comparison, TASKS V2-E2)',
+    // NASA imagery carries no use restriction; GIBS asks for an acknowledgement. The short
+    // form names the service and its system where the imagery is drawn; the long sentence
+    // above is the full acknowledgement on /credits. Our connective word stays editable.
+    text: 'Imagery: NASA GIBS / EOSDIS',
+    verbatim: 'NASA GIBS / EOSDIS',
+    href: 'https://nasa-gibs.github.io/gibs-api-docs/',
+    surfaces: ['imagery-compare'],
+    condition: 'layer:gibs',
+    required: true,
+    verified: true,
+    authority:
+      'GIBS citation guidance (nasa-gibs.github.io/gibs-api-docs/) — attribution requested; short form ours',
   },
   {
     id: 'eumetsat-meteosat',
