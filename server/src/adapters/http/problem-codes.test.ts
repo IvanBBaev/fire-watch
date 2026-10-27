@@ -21,6 +21,8 @@ import { HISTORY_PROBLEMS } from './history-route.js';
 import { FALLBACK_PROBLEMS } from './problem.js';
 import { SES_FEEDBACK_PROBLEMS } from './ses-feedback-route.js';
 import { CURATION_REFUSALS, STAFF_CURATION_PROBLEMS } from './staff-curation-route.js';
+import { STAFF_MEMBERS_PROBLEMS } from './staff-members-route.js';
+import { STAFF_SECOND_FACTOR_REFUSALS, STAFF_SESSION_PROBLEMS } from './staff-session-route.js';
 import { WEBHOOKS_PROBLEMS } from './webhooks-route.js';
 import { ZONE_REFUSALS, ZONES_PROBLEMS } from './zones-route.js';
 
@@ -45,6 +47,9 @@ const EMITTED: readonly (readonly [string, readonly Emitted[]])[] = [
   ['SES feedback hook', SES_FEEDBACK_PROBLEMS],
   ['staff curation routes', STAFF_CURATION_PROBLEMS],
   ['staff curation refusals', Object.values(CURATION_REFUSALS)],
+  ['staff session routes', STAFF_SESSION_PROBLEMS],
+  ['staff second-factor refusals', Object.values(STAFF_SECOND_FACTOR_REFUSALS)],
+  ['staff member routes', STAFF_MEMBERS_PROBLEMS],
   ['playback history route', HISTORY_PROBLEMS],
 ];
 

@@ -12,7 +12,9 @@
  * (`/api/v1/auth/*`), the account itself (`/api/v1/account`, `/api/v1/account/export`,
  * `/api/v1/account/preferences`),
  * watch zones (`/api/v1/zones`), alert channels (`/api/v1/channels/*`), webhook endpoints
- * (`/api/v1/webhooks`) and the staff plane's curated statements (`/api/v1/staff/curated-statements`) — carries a code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
+ * (`/api/v1/webhooks`) and the staff plane — its session (`/api/v1/staff/session`), member
+ * management (`/api/v1/staff/members`) and curated statements
+ * (`/api/v1/staff/curated-statements`) — carries a code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
  * on every route. The public data routes (snapshot, stream, client-config, overlays) are
  * status-driven by design (ADR-003 A1.3: "clients key off the status code, never the
  * problem body") and carry no code of their own.
@@ -72,6 +74,19 @@ export const PROBLEM_CODES = [
   'statement_wrong_status',
   'statement_conflict',
   'statement_self_review',
+  // The staff session's second factor (TASKS I1, `/api/v1/staff/session`).
+  'staff_challenge_unusable',
+  'staff_second_factor_refused',
+  'staff_code_invalid',
+  'staff_credential_taken',
+  'staff_label_invalid',
+  // Staff member management (TASKS I1, `/api/v1/staff/members`).
+  'staff_self_change',
+  'staff_member_not_found',
+  'staff_factor_not_found',
+  'staff_last_second_factor',
+  'staff_member_live',
+  'staff_member_not_offboarded',
   // V2-A1 playback: `/api/v1/history` takes exactly one known range.
   'history_range_invalid',
   // V2-C5 synced preferences (`/api/v1/account/preferences`).
