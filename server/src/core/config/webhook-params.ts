@@ -17,7 +17,7 @@
 import { defineConfig, type VersionedConfig } from './versioned-config.js';
 
 export interface WebhookParams {
-  /** One HTTP attempt, connect to last byte. A receiver should acknowledge first and work later. */
+  /** One HTTP attempt, connect to response headers. A receiver should acknowledge first and work later. */
   readonly timeoutMs: number;
   /** Attempts per delivery (the first included) before the delivery is given up as failed. */
   readonly maxAttempts: number;

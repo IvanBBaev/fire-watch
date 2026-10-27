@@ -12,15 +12,18 @@
  *      network error; a private answer is `refused`, which is not retried.
  *   3. **The body is signed** — `X-FireWatch-Signature: t=<unix>,v1=<hex>` over
  *      `"<t>.<body>"` with the endpoint's secret.
- *   4. **One request, no redirects** (`providerRequest`, `redirect: 'error'`): a redirect
- *      could point the signed POST at an internal address the guard never checked.
+ *   4. **One request, pinned, no redirects** (`createPinnedHttpsPoster`): the socket
+ *      connects to the address step 2 checked, never to a second resolution, so a DNS
+ *      answer swapped between the check and the connect cannot reach a private address.
+ *      A 3xx is not followed, since it could point the signed POST at an address the guard
+ *      never checked; it is retried like a network error. Only the status line is read:
+ *      the response is dropped once its headers arrive.
  *
  * The secret is redacted from every error text, and so is the URL, whose path or query
  * may carry the receiver's own token; the error names the host only.
  *
- * Known limits, both in docs/WEBHOOKS.md: the guard and `fetch` resolve the name
- * separately (a DNS-rebinding window of one TTL), and the response body is read whole,
- * bounded only by the timeout.
+ * An injected `fetch` (tests, the wiring's shared seam) replaces the pinned poster and
+ * resolves the name itself; production injects none.
  */
 
 import { WEBHOOK_SIGNATURE_HEADER, formatWebhookSignatureHeader } from '@fire-watch/contracts';
@@ -36,7 +39,13 @@ import {
   classifyWebhookAttempt,
   type WebhookAttemptClass,
 } from '../../../../core/webhooks/webhook-retry.js';
-import { describeError, providerRequest, type FetchLike } from '../provider-http.js';
+import { describeError, type FetchLike } from '../provider-http.js';
+import {
+  createPinnedHttpsPoster,
+  type WebhookPostRequest,
+  type WebhookPoster,
+  type WebhookPostResult,
+} from './pinned-https-post.js';
 
 export const WEBHOOK_USER_AGENT = 'FireWatch-Webhook/1';
 
@@ -45,6 +54,9 @@ export interface WebhookTransportOptions {
   readonly now: () => number;
   readonly timeoutMs: number;
   readonly rules: WebhookUrlRules;
+  /** Replaces the pinned `node:https` poster. */
+  readonly post?: WebhookPoster;
+  /** Replaces the poster with an unpinned `fetch`; ignored when `post` is given. */
   readonly fetch?: FetchLike;
 }
 
@@ -75,7 +87,9 @@ export interface WebhookTransport {
 const MAX_ERROR_CHARS = 500;
 
 export function createWebhookTransport(options: WebhookTransportOptions): WebhookTransport {
-  const doFetch = options.fetch ?? globalThis.fetch;
+  const post =
+    options.post ??
+    (options.fetch === undefined ? createPinnedHttpsPoster() : fetchPoster(options.fetch));
 
   return {
     async send(request) {
@@ -83,7 +97,7 @@ export function createWebhookTransport(options: WebhookTransportOptions): Webhoo
       const elapsed = (): number => Math.max(0, Math.round(options.now() - startedAt));
       const scrub = (text: string): string =>
         cap(
-          [request.secret, request.url]
+          [request.secret, request.url, check.ok ? check.href : '']
             .filter((s) => s.length > 0)
             .reduce((acc, s) => acc.split(s).join('<redacted>'), text),
         );
@@ -93,6 +107,7 @@ export function createWebhookTransport(options: WebhookTransportOptions): Webhoo
         return refused(`webhook url refused: ${check.reason}`, elapsed());
       }
 
+      let address: string | null = null;
       if (!check.ipLiteral) {
         let addresses: readonly string[];
         try {
@@ -108,14 +123,15 @@ export function createWebhookTransport(options: WebhookTransportOptions): Webhoo
         if (!allAddressesPublic(addresses)) {
           return refused(`webhook host ${check.host} resolves to a non-public address`, elapsed());
         }
+        // Every answer is public; connect to the first, so the socket never resolves again.
+        address = addresses[0] ?? null;
       }
 
       const timestampSeconds = Math.floor(options.now() / 1000);
       const signature = signWebhookPayload(request.secret, timestampSeconds, request.body);
-      const result = await providerRequest({
-        fetch: doFetch,
-        url: check.href,
-        method: 'POST',
+      const result = await post({
+        href: check.href,
+        address,
         headers: {
           'content-type': 'application/json',
           'user-agent': WEBHOOK_USER_AGENT,
@@ -126,14 +142,21 @@ export function createWebhookTransport(options: WebhookTransportOptions): Webhoo
         },
         body: request.body,
         timeoutMs: options.timeoutMs,
-        redact: [request.secret, request.url, check.href],
       });
 
-      if (result.status === null) {
+      if ('error' in result) {
         return {
           class: 'retry',
           statusCode: null,
           error: scrub(`webhook request to ${check.host} failed: ${result.error}`),
+          durationMs: elapsed(),
+        };
+      }
+      if (result.status >= 300 && result.status < 400) {
+        return {
+          class: 'retry',
+          statusCode: result.status,
+          error: `webhook ${check.host} answered ${String(result.status)}; redirects are not followed`,
           durationMs: elapsed(),
         };
       }
@@ -149,6 +172,25 @@ export function createWebhookTransport(options: WebhookTransportOptions): Webhoo
         durationMs: elapsed(),
       };
     },
+  };
+}
+
+/** The `fetch` seam: unpinned, no redirects, the body cancelled unread. */
+export function fetchPoster(doFetch: FetchLike): WebhookPoster {
+  return async (input: WebhookPostRequest): Promise<WebhookPostResult> => {
+    try {
+      const response = await doFetch(input.href, {
+        method: 'POST',
+        headers: input.headers,
+        body: input.body,
+        redirect: 'error',
+        signal: AbortSignal.timeout(input.timeoutMs),
+      });
+      await response.body?.cancel().catch(() => undefined);
+      return { status: response.status };
+    } catch (error) {
+      return { error: describeError(error) };
+    }
   };
 }
 

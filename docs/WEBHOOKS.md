@@ -50,8 +50,14 @@ registration and again before every send:
   IANA special-purpose registries: loopback, RFC 1918, CGNAT, link-local (including the
   `169.254.169.254` metadata service), documentation, benchmarking, multicast, reserved,
   IPv6 unique-local (including `fd00:ec2::254`) and IPv6 forms that embed one of these;
-- **redirects are never followed** (`redirect: 'error'`). A `3xx` aborts the request,
-  which is retried like any network error until the attempts run out.
+- **the request connects to the address that was checked.** The socket's lookup is pinned
+  to it (`pinned-https-post.ts`), so a DNS answer that changes between the check and the
+  connect cannot reach a private address. TLS still verifies the certificate against your
+  host name;
+- **redirects are never followed.** A `3xx` is retried like a network error until the
+  attempts run out;
+- **only the status line is read.** The connection is dropped once the response headers
+  arrive, so a response body is never read or stored.
 
 ## 2. The request
 
@@ -178,7 +184,7 @@ re-encrypts the existing secrets in bulk (§7).
 
 | Rule | Value (`webhook_params_v1`) |
 |---|---|
-| Timeout per attempt, connect to last byte | 5 s |
+| Timeout per attempt, connect to response headers | 5 s |
 | Attempts per delivery, the first included | 6 |
 | Backoff | exponential with full jitter: `random × min(60 min, 1 min × 2^(n−1))` |
 | Auto-disable after consecutive failed attempts (alerts and pings alike) | 20 |
@@ -218,11 +224,8 @@ endpoint id, never the URL.
 
 ## 7. Known limits
 
-- **DNS-rebinding window.** The guard and `fetch` resolve the name separately. A DNS
-  server answering with a very short TTL could swap the answer between them. Closing the
-  window needs a connect-time hook (an undici dispatcher pinned to the checked address) or
-  an egress proxy.
-- **The response body is read whole**, bounded only by the 5 s timeout.
+- The send connects to the first checked address only; a host with several public
+  addresses gets no fallback to the next one within an attempt.
 - `dns-host-resolver.ts` (the `node:dns` adapter) has no unit test, because tests never hit
   the network.
 - A test ping for an endpoint whose secret cannot be opened (its key was removed from the

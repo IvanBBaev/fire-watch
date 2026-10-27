@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { HostResolver } from '../../../../core/ports/webhook-store.js';
 import type { FetchLike } from '../provider-http.js';
+import type { WebhookPostRequest, WebhookPoster } from './pinned-https-post.js';
 import { createWebhookTransport, WEBHOOK_USER_AGENT } from './webhook-transport.js';
 
 const NOW = Date.UTC(2026, 9, 27, 12, 0, 0);
@@ -155,6 +156,42 @@ describe('createWebhookTransport', () => {
       expect(result.class).toBe(expected);
       expect(result.statusCode).toBe(status);
       expect(result.error ?? '').not.toContain('receiver internals');
+    }
+  });
+
+  it('hands the poster the checked address, so the socket never resolves again', async () => {
+    const requests: WebhookPostRequest[] = [];
+    const post: WebhookPoster = (request) => {
+      requests.push(request);
+      return Promise.resolve({ status: 204 });
+    };
+    const send = (url: string, addresses: readonly string[]) =>
+      createWebhookTransport({
+        post,
+        resolver: resolverOf(addresses),
+        now: () => NOW,
+        timeoutMs: 5000,
+        rules: RULES,
+      }).send({ url, secret: testSecret(), body: '{}', deliveryId: 'd' });
+
+    expect((await send(URL_WITH_TOKEN, ['93.184.216.34', '2606:2800:220:1::1'])).class).toBe(
+      'delivered',
+    );
+    expect(await send('https://93.184.216.34/in', [])).toMatchObject({ class: 'delivered' });
+    expect(requests.map((r) => [r.href, r.address, r.timeoutMs])).toEqual([
+      [URL_WITH_TOKEN, '93.184.216.34', 5000],
+      ['https://93.184.216.34/in', null, 5000],
+    ]);
+  });
+
+  it('retries a redirect instead of following or rejecting it', async () => {
+    for (const status of [301, 302, 307, 308]) {
+      const result = await transport(
+        stubFetch(new Response(null, { status }), []),
+        resolverOf(['93.184.216.34']),
+      ).send({ url: URL_WITH_TOKEN, secret: testSecret(), body: '{}', deliveryId: 'd' });
+      expect(result).toMatchObject({ class: 'retry', statusCode: status });
+      expect(result.error).toContain('redirects are not followed');
     }
   });
 });
