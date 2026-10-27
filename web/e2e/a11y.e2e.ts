@@ -122,6 +122,9 @@ const STATUS_SELECTOR = '.map-controls-status';
 const MEASURE_TOGGLE_SELECTOR = 'button[aria-controls="fw-measure-panel"]';
 const MEASURE_PANEL_SELECTOR = '#fw-measure-panel';
 const ONBOARDING_SELECTOR = '.onboarding-overlay';
+/** V2-E2: the before/after comparison, opened on demand on the event page. */
+const BEFORE_AFTER_OPEN_SELECTOR = 'button.before-after-open';
+const BEFORE_AFTER_CREDIT_SELECTOR = '.before-after-credit';
 
 interface Leg {
   readonly name: string;
@@ -648,6 +651,13 @@ describe.each(LEGS)('CI-18 layout floors — $name', (leg: Leg) => {
       await tab.waitForSelector(CHIP_SELECTOR, { timeout: 15_000 });
       expect(await has(tab, CHIP_SELECTOR)).toBe(true);
       found.push(...(await sweep('event page (freshness line)', leg, tab)));
+
+      // The before/after comparison (V2-E2), opened: its date rows, step buttons, slider and
+      // credit. NASA is outside the harness, so every tile is refused and the panel also
+      // shows its "could not be loaded" line — the longest state it has.
+      await tab.click(BEFORE_AFTER_OPEN_SELECTOR);
+      await tab.waitForSelector(BEFORE_AFTER_CREDIT_SELECTOR, { timeout: 15_000 });
+      found.push(...(await sweep('event page (before/after open)', leg, tab)));
 
       // The location status line only exists once the question has been asked and answered.
       // A coordinate outside the coverage box makes the answer deterministic.
