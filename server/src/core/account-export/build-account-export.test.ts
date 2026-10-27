@@ -157,6 +157,8 @@ describe('buildAccountExport', () => {
       alert_decision_log: { by: 'zones', zoneIds: [ZONE_A] },
       alert_digest_log: { by: 'zones', zoneIds: [ZONE_A] },
       channel_confirmations: { by: 'account', accountId: ACCOUNT },
+      webhook_deliveries: { by: 'account', accountId: ACCOUNT },
+      webhook_endpoints: { by: 'account', accountId: ACCOUNT },
       channel_subscriptions: { by: 'account', accountId: ACCOUNT },
       account_sessions: { by: 'account', accountId: ACCOUNT },
       account_preferences: { by: 'account', accountId: ACCOUNT },
@@ -174,6 +176,8 @@ describe('buildAccountExport', () => {
       'channel_confirmations',
       'channel_subscriptions',
       'erasure_requests',
+      'webhook_deliveries',
+      'webhook_endpoints',
     ]);
     if (outcome.status !== 'exported') throw new Error(outcome.status);
     expect(outcome.document.tables.alert_outbox).toEqual([]);

@@ -48,6 +48,10 @@ function recordingStore(account: LockedAccount, zoneIds: readonly string[] = ZON
       note('deleteChannelConfirmations', id);
       return Promise.resolve(7);
     },
+    deleteWebhooks: (id) => {
+      note('deleteWebhooks', id);
+      return Promise.resolve({ endpoints: 2, deliveries: 9 });
+    },
     deleteSubscriptions: (id) => {
       note('deleteSubscriptions', id);
       return Promise.resolve(1);
@@ -88,6 +92,7 @@ describe('eraseAccount', () => {
       'deleteAlertStates',
       'deleteZones',
       'deleteChannelConfirmations',
+      'deleteWebhooks',
       'deleteSubscriptions',
       'deleteSessions',
       'deleteAccountPreferences',
@@ -109,6 +114,8 @@ describe('eraseAccount', () => {
       digestLog: 5,
       zones: 2,
       channelConfirmations: 7,
+      webhookEndpoints: 2,
+      webhookDeliveries: 9,
       subscriptions: 1,
       sessions: 2,
       accountPreferences: 1,

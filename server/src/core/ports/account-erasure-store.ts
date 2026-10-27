@@ -32,6 +32,10 @@ export interface ErasureCounts {
   readonly zones: number;
   /** `channel_confirmations` rows (migration 012), pending Telegram links included. */
   readonly channelConfirmations: number;
+  /** `webhook_endpoints` rows (migration 035), disabled ones included. */
+  readonly webhookEndpoints: number;
+  /** `webhook_deliveries` rows (migration 035): the account's whole delivery log. */
+  readonly webhookDeliveries: number;
   readonly subscriptions: number;
   readonly sessions: number;
   /** `account_preferences` rows (migration 034, V2-C5): zero or one. */
@@ -78,6 +82,14 @@ export interface AccountErasureStore {
    * leave it behind.
    */
   deleteChannelConfirmations(accountId: string): Promise<number>;
+  /**
+   * Deletes the account's webhook delivery log, then its webhook endpoints (migration 035).
+   * Before the subscriptions: their cascade would remove the endpoints too, but uncounted.
+   */
+  deleteWebhooks(accountId: string): Promise<{
+    readonly endpoints: number;
+    readonly deliveries: number;
+  }>;
   deleteSubscriptions(accountId: string): Promise<number>;
   deleteSessions(accountId: string): Promise<number>;
   /** Deletes the account's synced preferences (migration 034). */

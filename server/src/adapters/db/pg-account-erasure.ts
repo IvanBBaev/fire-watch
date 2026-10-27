@@ -133,6 +133,15 @@ const DELETE_CHANNEL_CONFIRMATIONS = `
 DELETE FROM channel_confirmations
 WHERE account_id = $1::uuid`;
 
+/** Migration 035: the delivery log first (it names the endpoints), then the endpoints. */
+const DELETE_WEBHOOK_DELIVERIES = `
+DELETE FROM webhook_deliveries
+WHERE account_id = $1::uuid`;
+
+const DELETE_WEBHOOK_ENDPOINTS = `
+DELETE FROM webhook_endpoints
+WHERE account_id = $1::uuid`;
+
 const DELETE_SUBSCRIPTIONS = `
 DELETE FROM channel_subscriptions
 WHERE account_id = $1::uuid`;
@@ -176,6 +185,8 @@ export const ACCOUNT_ERASURE_SQL = {
   deleteAlertStates: DELETE_ALERT_STATES,
   deleteZones: DELETE_ZONES,
   deleteChannelConfirmations: DELETE_CHANNEL_CONFIRMATIONS,
+  deleteWebhookDeliveries: DELETE_WEBHOOK_DELIVERIES,
+  deleteWebhookEndpoints: DELETE_WEBHOOK_ENDPOINTS,
   deleteSubscriptions: DELETE_SUBSCRIPTIONS,
   deleteSessions: DELETE_SESSIONS,
   deleteAccountPreferences: DELETE_ACCOUNT_PREFERENCES,
@@ -243,6 +254,11 @@ export function createPgAccountErasureStore(db: PgErasureQueryable): AccountEras
     async deleteChannelConfirmations(accountId) {
       const result = await db.query(DELETE_CHANNEL_CONFIRMATIONS, [accountId]);
       return result.rowCount ?? 0;
+    },
+    async deleteWebhooks(accountId) {
+      const deliveries = await db.query(DELETE_WEBHOOK_DELIVERIES, [accountId]);
+      const endpoints = await db.query(DELETE_WEBHOOK_ENDPOINTS, [accountId]);
+      return { endpoints: endpoints.rowCount ?? 0, deliveries: deliveries.rowCount ?? 0 };
     },
     async deleteSubscriptions(accountId) {
       const result = await db.query(DELETE_SUBSCRIPTIONS, [accountId]);

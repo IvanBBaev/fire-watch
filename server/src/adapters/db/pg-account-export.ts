@@ -110,6 +110,8 @@ const ORDER_BY: Readonly<Record<AccountExportTable, string>> = {
   alert_digest_log: 't.decided_at, t.id',
   watch_zones: 't.created_at, t.id',
   channel_confirmations: 't.issued_at, t.id',
+  webhook_deliveries: 't.attempted_at, t.id',
+  webhook_endpoints: 't.created_at, t.id',
   channel_subscriptions: 't.created_at, t.id',
   account_sessions: 't.created_at, t.id',
   account_preferences: 't.account_id',

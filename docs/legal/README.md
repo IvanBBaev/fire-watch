@@ -27,7 +27,7 @@ Short names used throughout:
 - **05** — `docs/reviews/05-security.md` (security review; §5.3 is GDPR engineering,
   §5.7.2 is incident response).
 - **ADR-004** — alert pipeline decisions, including A1.3 (retention and pseudonymization).
-- **Erasure plan** — `server/src/core/erasure/erasure-plan.ts` (`erasure_plan_v7`).
+- **Erasure plan** — `server/src/core/erasure/erasure-plan.ts` (`erasure_plan_v8`).
 - **Export schema** — `server/src/core/account-export/export-schema.ts` (`account_export_v1`).
 
 ## What the code already guarantees

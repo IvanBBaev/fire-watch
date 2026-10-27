@@ -24,6 +24,8 @@ const ROWS: Record<DeletedTable, number> = {
   alert_digest_log: 3,
   watch_zones: 4,
   channel_confirmations: 2,
+  webhook_deliveries: 1,
+  webhook_endpoints: 1,
   channel_subscriptions: 1,
   account_sessions: 1,
   account_preferences: 1,

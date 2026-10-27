@@ -153,6 +153,8 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
       'staff_webauthn_credentials',
       'table_backup_class',
       'watch_zones',
+      'webhook_deliveries',
+      'webhook_endpoints',
     ]);
   });
 

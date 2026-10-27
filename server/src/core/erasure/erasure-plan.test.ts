@@ -27,6 +27,8 @@ const PERSONAL_TABLES = [
   'channel_subscriptions',
   'erasure_requests',
   'watch_zones',
+  'webhook_deliveries',
+  'webhook_endpoints',
 ];
 
 describe('ERASURE_PLAN', () => {

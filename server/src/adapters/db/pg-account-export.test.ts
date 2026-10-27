@@ -206,6 +206,8 @@ describe('createPgAccountExporter', () => {
       'alert_decision_log',
       'alert_digest_log',
       'channel_confirmations',
+      'webhook_deliveries',
+      'webhook_endpoints',
       'channel_subscriptions',
       'account_sessions',
       'account_preferences',

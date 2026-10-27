@@ -4,8 +4,8 @@
  *
  * The drill: deleting an account cancels its pending and claimed outbox rows and
  * pseudonymizes every outbox row of its zones in the same transaction that removes its
- * zones, alert state, channel confirmations, subscriptions, sessions, synced preferences
- * and link requests,
+ * zones, alert state, channel confirmations, webhooks, subscriptions, sessions, synced
+ * preferences and link requests,
  * tombstones it and writes the ledger. Then the row-lock orderings against the dispatcher's `SKIP LOCKED` claim,
  * and the guards that stop the runtime role from undoing an erasure.
  *
@@ -281,6 +281,32 @@ describe.skipIf(!hasDocker)('account erasure', () => {
       ],
     );
 
+    // Migration 035: a webhook endpoint (its own subscription) with two attempts in the
+    // delivery log. Deleted by account before the subscriptions, so they are counted.
+    const webhookId = randomUUID();
+    await db.query(
+      `WITH subscription AS (
+         INSERT INTO channel_subscriptions (account_id, channel, endpoint)
+         VALUES ($1::uuid, 'webhook', $2::text)
+         RETURNING id
+       ),
+       endpoint AS (
+         INSERT INTO webhook_endpoints
+           (id, account_id, channel_subscription_id, url, secret_ciphertext, secret_key_id,
+            created_at, secret_rotated_at)
+         SELECT $2::uuid, $1::uuid, subscription.id, 'https://example.invalid/hook',
+                decode(repeat('00', 44), 'hex'), 'test', $3::timestamptz, $3::timestamptz
+         FROM subscription
+         RETURNING id
+       )
+       INSERT INTO webhook_deliveries
+         (account_id, webhook_endpoint_id, kind, delivery_id, attempt, attempted_at, outcome,
+          duration_ms, error)
+       SELECT $1::uuid, endpoint.id, 'ping', $2::text, n, $3::timestamptz, 'refused', 0, 'seed'
+       FROM endpoint, generate_series(1, 2) AS n`,
+      [seeded.accountId, webhookId, new Date(DECIDED_AT).toISOString()],
+    );
+
     const outcome = await createPgAccountEraser(appPool)(seeded.accountId, AT);
 
     expect(outcome).toEqual({
@@ -296,7 +322,9 @@ describe.skipIf(!hasDocker)('account erasure', () => {
         digestLog: 0,
         zones: 3,
         channelConfirmations: 2,
-        subscriptions: 1,
+        webhookEndpoints: 1,
+        webhookDeliveries: 2,
+        subscriptions: 2,
         sessions: 1,
         accountPreferences: 1,
         linkRequests: 1,
@@ -323,6 +351,10 @@ describe.skipIf(!hasDocker)('account erasure', () => {
     expect(
       await countWhere('channel_confirmations WHERE account_id = $1', [seeded.accountId]),
     ).toBe(0);
+    expect(await countWhere('webhook_endpoints WHERE account_id = $1', [seeded.accountId])).toBe(0);
+    expect(await countWhere('webhook_deliveries WHERE account_id = $1', [seeded.accountId])).toBe(
+      0,
+    );
     expect(
       await countWhere('channel_subscriptions WHERE account_id = $1', [seeded.accountId]),
     ).toBe(0);

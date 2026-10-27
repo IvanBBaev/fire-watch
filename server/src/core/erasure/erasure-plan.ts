@@ -29,8 +29,10 @@
  * v6: `alert_outbox.delivery_attempts` and `alert_outbox.next_attempt_at` (migration 033,
  *     TASKS H4) joined what survives pseudonymization.
  * v7: `account_preferences` (migration 034, TASKS V2-C5) joined the deleted tables.
+ * v8: `webhook_endpoints` and `webhook_deliveries` (migration 035, TASKS V2-G2) joined the
+ *     deleted tables, by account, before the subscriptions.
  */
-export const ERASURE_PLAN_VERSION = 'erasure_plan_v7';
+export const ERASURE_PLAN_VERSION = 'erasure_plan_v8';
 
 export type ErasureAction = 'delete' | 'pseudonymize' | 'tombstone' | 'record';
 
@@ -148,6 +150,26 @@ export const ERASURE_PLAN: readonly TableErasureRule[] = [
     reason:
       'the rows are keyed by the account and name its endpoints; a Telegram link still pending has no subscription, so the subscription cascade alone would miss it',
     spec: 'ADR-004 D6, D8; 05 §5.5.3',
+  },
+  {
+    table: 'webhook_deliveries',
+    action: 'delete',
+    scope:
+      'every delivery attempt of the account, alert and ping alike; deleted before the endpoints they name',
+    survives: [],
+    reason:
+      "keyed by account; the log names the owner's endpoint and when it was reached. A sent alert's decision survives in the pseudonymized outbox row",
+    spec: 'migration 035 header; ADR-004 D8',
+  },
+  {
+    table: 'webhook_endpoints',
+    action: 'delete',
+    scope:
+      'every webhook endpoint of the account, disabled ones included; deleted before the subscriptions they route through',
+    survives: [],
+    reason:
+      "the URL can identify the owner's server and the sealed secret is theirs; the subscription cascade would remove the rows too, but uncounted",
+    spec: 'migration 035 header; ADR-004 D8',
   },
   {
     table: 'channel_subscriptions',

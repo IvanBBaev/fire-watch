@@ -28,6 +28,8 @@ export const ACCOUNT_EXPORT_TABLES = [
   'alert_digest_log',
   'watch_zones',
   'channel_confirmations',
+  'webhook_deliveries',
+  'webhook_endpoints',
   'channel_subscriptions',
   'account_sessions',
   'account_preferences',
@@ -174,6 +176,36 @@ export const EXPORT_COLUMNS: Readonly<Record<AccountExportTable, ExportColumns>>
     superseded_at: 'timestamp',
     revoked_at: 'timestamp',
   },
+  // 035. Attempt outcomes only: the log never held a request or response body.
+  webhook_deliveries: {
+    id: 'bigint',
+    account_id: 'id',
+    webhook_endpoint_id: 'id',
+    kind: 'text',
+    outbox_id: 'bigint',
+    delivery_id: 'text',
+    attempt: 'integer',
+    attempted_at: 'timestamp',
+    next_attempt_at: 'timestamp',
+    outcome: 'text',
+    status_code: 'integer',
+    duration_ms: 'integer',
+    error: 'text',
+  },
+  // 035. The sealed signing secret is withheld.
+  webhook_endpoints: {
+    id: 'id',
+    account_id: 'id',
+    channel_subscription_id: 'id',
+    url: 'text',
+    created_at: 'timestamp',
+    secret_rotated_at: 'timestamp', // gitleaks:allow — an export column kind, not a credential
+    consecutive_failures: 'integer',
+    last_success_at: 'timestamp',
+    last_failure_at: 'timestamp',
+    disabled_at: 'timestamp',
+    disabled_reason: 'text',
+  },
   // 001 + 012
   channel_subscriptions: {
     id: 'id',
@@ -278,6 +310,19 @@ export const EXPORT_WITHHELD: readonly WithheldColumn[] = [
       'information about you; exporting it would only widen what a leaked export exposes.',
   },
   {
+    table: 'webhook_endpoints',
+    column: 'secret_ciphertext',
+    reason:
+      'The webhook signing secret, encrypted under a server key (migration 035). It was ' +
+      'shown to you once when it was issued; an export must not become a second copy of a ' +
+      'credential. Rotate the secret to get a new one.',
+  },
+  {
+    table: 'webhook_endpoints',
+    column: 'secret_key_id',
+    reason: 'Names the server key that encrypts the signing secret; it says nothing about you.',
+  },
+  {
     table: 'account_sessions',
     column: 'token_hash',
     reason:
@@ -314,6 +359,8 @@ export const EXPORT_SCOPES: Readonly<Record<AccountExportTable, ExportScopeKind>
   alert_digest_log: 'zones',
   watch_zones: 'account',
   channel_confirmations: 'account',
+  webhook_deliveries: 'account',
+  webhook_endpoints: 'account',
   channel_subscriptions: 'account',
   account_sessions: 'account',
   account_preferences: 'account',

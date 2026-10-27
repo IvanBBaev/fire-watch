@@ -261,7 +261,10 @@ describe('createPgWebhookDeliveryStore', () => {
 
   it('reads the newest attempt and the alert facts', async () => {
     const stub = stubPool({
-      lastAttempt: { rows: [{ attempt: 2, next_attempt_at: new Date(AT + 60_000), delivered: false }], rowCount: 1 },
+      lastAttempt: {
+        rows: [{ attempt: 2, next_attempt_at: new Date(AT + 60_000), delivered: false }],
+        rowCount: 1,
+      },
       alertFacts: {
         rows: [
           {

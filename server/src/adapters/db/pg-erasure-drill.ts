@@ -12,6 +12,10 @@
  * record shows that table as not exercised rather than as passed. `alert_digest_log`
  * (migration 018) references only the zone, so its leg is seeded whenever a zone exists.
  *
+ * **The webhook leg (migration 035) can never send.** Its endpoint points under
+ * `example.invalid`, its subscription is never confirmed (so the recipient resolver never
+ * routes to it), and its sealed secret is 44 zero bytes, which no key opens.
+ *
  * **Outbox rows are inserted directly**, in the three states the erasure treats
  * differently: `sent` (pseudonymized, kept), `claimed` and `pending` (cancelled, then
  * pseudonymized). Every address is under `example.invalid`, so nothing seeded here can
@@ -90,6 +94,32 @@ VALUES ($1::uuid, 'push', $2::uuid, sha256(convert_to($3::text || ':confirm', 'U
        ($1::uuid, 'telegram', NULL, sha256(convert_to($3::text || ':telegram', 'UTF8')),
         $4::timestamptz, $5::timestamptz)`;
 
+/**
+ * One unconfirmed webhook subscription, its endpoint and one failed ping in the log. The
+ * subscription's `endpoint` is the endpoint id, as migration 035 requires.
+ */
+const INSERT_WEBHOOK = `
+WITH subscription AS (
+  INSERT INTO channel_subscriptions (account_id, channel, endpoint)
+  VALUES ($1::uuid, 'webhook', $2::text)
+  RETURNING id
+),
+endpoint AS (
+  INSERT INTO webhook_endpoints
+    (id, account_id, channel_subscription_id, url, secret_ciphertext, secret_key_id,
+     created_at, secret_rotated_at)
+  SELECT $2::uuid, $1::uuid, subscription.id, 'https://example.invalid/webhook/erasure-drill',
+         decode(repeat('00', 44), 'hex'), 'erasure-drill', $3::timestamptz, $3::timestamptz
+  FROM subscription
+  RETURNING id
+)
+INSERT INTO webhook_deliveries
+  (account_id, webhook_endpoint_id, kind, delivery_id, attempt, attempted_at, outcome,
+   duration_ms, error)
+SELECT $1::uuid, endpoint.id, 'ping', $2::text, 1, $3::timestamptz, 'refused', 0,
+       'erasure drill seed'
+FROM endpoint`;
+
 const NEWEST_FIRE_EVENT = `
 SELECT id::text AS id, seq::text AS seq FROM fire_events ORDER BY id DESC LIMIT 1`;
 
@@ -151,6 +181,8 @@ SELECT
   (SELECT count(*)::integer FROM watch_zones
      WHERE account_id = $1::uuid OR id = ANY($2::uuid[])) AS watch_zones,
   (SELECT count(*)::integer FROM channel_confirmations WHERE account_id = $1::uuid) AS channel_confirmations,
+  (SELECT count(*)::integer FROM webhook_deliveries WHERE account_id = $1::uuid) AS webhook_deliveries,
+  (SELECT count(*)::integer FROM webhook_endpoints WHERE account_id = $1::uuid) AS webhook_endpoints,
   (SELECT count(*)::integer FROM channel_subscriptions WHERE account_id = $1::uuid) AS channel_subscriptions,
   (SELECT count(*)::integer FROM account_sessions WHERE account_id = $1::uuid) AS account_sessions,
   (SELECT count(*)::integer FROM account_preferences WHERE account_id = $1::uuid) AS account_preferences,
@@ -189,6 +221,7 @@ export const ERASURE_DRILL_SQL = {
   insertPreferences: INSERT_PREFERENCES,
   insertLinkRequest: INSERT_LINK_REQUEST,
   insertConfirmations: INSERT_CONFIRMATIONS,
+  insertWebhook: INSERT_WEBHOOK,
   newestFireEvent: NEWEST_FIRE_EVENT,
   newestShadowEvent: NEWEST_SHADOW_EVENT,
   insertAlertState: INSERT_ALERT_STATE,
@@ -211,6 +244,8 @@ const DELETED_TABLES: readonly DeletedTable[] = [
   'alert_digest_log',
   'watch_zones',
   'channel_confirmations',
+  'webhook_deliveries',
+  'webhook_endpoints',
   'channel_subscriptions',
   'account_sessions',
   'account_preferences',
@@ -242,6 +277,7 @@ export async function seedDrillAccount(
     await db.query(INSERT_PREFERENCES, [accountId, now]);
     await db.query(INSERT_LINK_REQUEST, [email, now, inADay]);
     await db.query(INSERT_CONFIRMATIONS, [accountId, subscriptionId, email, now, inADay]);
+    await db.query(INSERT_WEBHOOK, [accountId, randomUUID(), now]);
 
     const rows: Record<DeletedTable, number> = {
       alert_states: 0,
@@ -250,7 +286,9 @@ export async function seedDrillAccount(
       alert_digest_log: 0,
       watch_zones: zoneIds.length,
       channel_confirmations: 2,
-      channel_subscriptions: 1,
+      webhook_deliveries: 1,
+      webhook_endpoints: 1,
+      channel_subscriptions: 2,
       account_sessions: 1,
       account_preferences: 1,
       auth_link_requests: 1,
