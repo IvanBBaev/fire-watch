@@ -275,6 +275,7 @@ export const CATALOG_GOVERNANCE = {
   relativeAge: { governance: 'own-voice', reason: 'composed-value' },
   observedShort: { governance: 'own-voice', reason: 'composed-value' },
   eventNotFound: { governance: 'own-voice', reason: 'client-condition' },
+  eventUnavailable: { governance: 'own-voice', reason: 'client-condition' },
   backToMap: { governance: 'own-voice', reason: 'chrome' },
   copyLink: { governance: 'own-voice', reason: 'chrome' },
   loading: { governance: 'own-voice', reason: 'chrome' },
@@ -895,6 +896,10 @@ export const CATALOG_GOVERNANCE = {
  * - `eventDetail.cemsActivation` — V2-E3, the Copernicus EMS activation badge. Written by an
  *   implementer so the badge can render; its wording, and the match rule behind it
  *   (`@fire-watch/contracts` `CEMS_MATCH`), are the founder's call.
+ * - `eventUnavailable` — TASKS F3 (2026-10-27), the event page's "could not load" state: a
+ *   permalink whose first snapshot failed, or whose feed is failing or stale, must not say
+ *   "not found". Written by an implementer; whether to name the cause and the Bulgarian
+ *   draft are the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
   'shareCard.share',
@@ -1307,6 +1312,7 @@ export const PENDING_FOUNDER_REVIEW = [
   'measure.approxNote',
   // V2-E3 — CEMS badge
   'eventDetail.cemsActivation',
+  'eventUnavailable',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

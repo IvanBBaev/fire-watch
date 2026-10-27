@@ -122,6 +122,8 @@ const messages: Messages = {
   },
   observedShort: (time, age) => `Observed: ${time} (${age})`,
   eventNotFound: 'This event could not be found. Check the link, or go back to the map.',
+  eventUnavailable:
+    'This event could not be loaded right now. Try again shortly, or go back to the map.',
   backToMap: 'Back to map',
   copyLink: 'Copy link',
   loading: 'Loading…',

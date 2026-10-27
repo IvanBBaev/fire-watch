@@ -100,6 +100,12 @@ export interface Messages {
   /** `time` is a pre-formatted stamp (bare time today, date+time older); `age` is worded. */
   readonly observedShort: (time: string, age: string) => string;
   readonly eventNotFound: string;
+  /**
+   * An event page that cannot tell "absent" from "not received": the first snapshot failed,
+   * the feed stopped answering, or the stale banner is up. Never "not found" — the event may
+   * be newer than what the client holds.
+   */
+  readonly eventUnavailable: string;
   readonly backToMap: string;
   readonly copyLink: string;
   readonly loading: string;

@@ -455,6 +455,8 @@ describe('PENDING_FOUNDER_REVIEW', () => {
       'measure.approxNote',
       // V2-E3 — CEMS badge
       'eventDetail.cemsActivation',
+      // TASKS F3 — the event page's "could not load" state (never "not found").
+      'eventUnavailable',
     ]);
   });
 

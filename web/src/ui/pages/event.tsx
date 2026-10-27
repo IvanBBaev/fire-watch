@@ -12,7 +12,7 @@ import { FreshnessChip, pickBanner } from '../status/index.js';
 import { EventDetails, EventIdentity } from '../event/event-details.js';
 import { detectionsUrl, useDetectionSummary } from '../event/use-detection-summary.js';
 import { DownloadMenu } from '../export/download-menu.js';
-import { eventPath, redirectTargetFor } from '../logic/event-resolution.js';
+import { eventPageState, eventPath, redirectTargetFor } from '../logic/event-resolution.js';
 import { lifecycleLine } from '../logic/lifecycle-line.js';
 import { placeName } from '../logic/place.js';
 import { applyMetaTags } from '../share/document-meta.js';
@@ -69,9 +69,25 @@ export function EventPage() {
   );
 
   if (event == null) {
+    // Not found only when a fresh snapshot could have held it (`eventPageState`): a cold
+    // open waits for the first snapshot, and a failing or stale feed says "could not load".
+    const pageState = eventPageState({
+      found: false,
+      lastSnapshotAt: state.lastSnapshotAt,
+      feedStatus: state.feedStatus,
+      bannerUp: pickBanner(state, nowMs) !== null,
+    });
+    const loading = pageState === 'loading';
     return (
-      <article class="page event-page">
-        <p class="key-fact">{messages.eventNotFound}</p>
+      <article class="page event-page" data-state={pageState} aria-busy={loading}>
+        {/* A status region, so the switch from "loading" to the answer is announced. */}
+        <p class="key-fact" role="status">
+          {loading
+            ? messages.loading
+            : pageState === 'unavailable'
+              ? messages.eventUnavailable
+              : messages.eventNotFound}
+        </p>
         <p>
           <a class="back-link" href="/">
             {messages.backToMap}
@@ -114,7 +130,7 @@ export function EventPage() {
   };
 
   return (
-    <article class="page event-page">
+    <article class="page event-page" data-state="found">
       <p>
         <a class="back-link" href="/">
           {messages.backToMap}

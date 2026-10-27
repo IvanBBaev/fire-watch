@@ -6,6 +6,8 @@
  * copied links converge on one id.
  */
 
+import type { FeedStatus } from '../../core/types.js';
+
 export function eventPath(publicId: string): string {
   return `/event/${publicId}`;
 }
@@ -25,4 +27,34 @@ export function redirectTargetFor(
     return null;
   }
   return eventPath(resolvedPublicId);
+}
+
+/**
+ * What an event page with no event to show is allowed to say.
+ *
+ * "Not found" is a claim about the data (this id is not in what the server publishes),
+ * and it may be made only from data that could have held it. Before the first snapshot
+ * is applied there is nothing to look in, so the page is still loading: a cold permalink
+ * open must never flash "not found". A feed that has stopped answering, or a snapshot the
+ * stale banner is already up for, cannot vouch for an absence either — the event may be
+ * newer than what the client holds — so the page says it could not load the event, not
+ * that the event does not exist.
+ */
+export type EventPageState = 'found' | 'loading' | 'unavailable' | 'not-found';
+
+export interface EventPageInputs {
+  /** The requested id (or its merge survivor) is in the store. */
+  readonly found: boolean;
+  /** `StoreState.lastSnapshotAt`: `null` until a full snapshot has been applied. */
+  readonly lastSnapshotAt: string | null;
+  readonly feedStatus: FeedStatus;
+  /** `pickBanner` fills the degraded slot (offline or stale sources) at this instant. */
+  readonly bannerUp: boolean;
+}
+
+export function eventPageState(inputs: EventPageInputs): EventPageState {
+  if (inputs.found) return 'found';
+  const failing = inputs.feedStatus === 'degraded' || inputs.feedStatus === 'dead';
+  if (inputs.lastSnapshotAt === null) return failing ? 'unavailable' : 'loading';
+  return failing || inputs.bannerUp ? 'unavailable' : 'not-found';
 }
