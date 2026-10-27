@@ -2,6 +2,9 @@ import { generateKeyPairSync } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
+import { createAesGcmWebhookSecretSealer } from '../adapters/crypto/aes-gcm-webhook-secret-sealer.js';
+import type { WebhookDeliveryStore } from '../core/ports/webhook-store.js';
+
 import {
   createAlertGateway,
   createLiveChannels,
@@ -282,6 +285,35 @@ describe('createLiveChannels', () => {
     const live = createLiveChannels({ config, now: () => 0, sleeper });
     expect(live.channels.map((channel) => channel.channel)).toEqual(['push', 'telegram', 'email']);
     expect(live.vapidPublicKey).toBe(config.webPush?.publicKey);
+  });
+
+  it('offers the webhook channel last, and only when handed its store and sealer (V2-G2)', () => {
+    const unused = (): Promise<never> => Promise.reject(new Error('not under test'));
+    const store: WebhookDeliveryStore = {
+      loadTarget: unused,
+      lastAttempt: unused,
+      alertFacts: unused,
+      recordAttempt: unused,
+    };
+    const sealer = createAesGcmWebhookSecretSealer({
+      active: { id: 'test-1', key: new Uint8Array(32) },
+      retired: [],
+    });
+    const config = everything();
+    const withWebhook = createLiveChannels({
+      config,
+      now: () => 0,
+      sleeper,
+      webhook: { store, sealer },
+    });
+    expect(withWebhook.channels.map((channel) => channel.channel)).toEqual([
+      'push',
+      'telegram',
+      'email',
+      'webhook',
+    ]);
+    const without = createLiveChannels({ config, now: () => 0, sleeper, webhook: null });
+    expect(without.channels.map((channel) => channel.channel)).not.toContain('webhook');
   });
 
   it('wires only the providers present', () => {

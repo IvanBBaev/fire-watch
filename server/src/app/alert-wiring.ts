@@ -29,15 +29,25 @@ import { createRateLimitedChannel } from '../adapters/alerts/channels/rate-limit
 import { createSinkChannel } from '../adapters/alerts/channels/sink-channel.js';
 import { createTelegramChannel } from '../adapters/alerts/channels/telegram/telegram-channel.js';
 import { createTokenBucket } from '../adapters/alerts/channels/token-bucket.js';
+import { createWebhookChannel } from '../adapters/alerts/channels/webhook/webhook-channel.js';
+import { createWebhookTransport } from '../adapters/alerts/channels/webhook/webhook-transport.js';
 import { createWebPushChannel } from '../adapters/alerts/channels/web-push/web-push-channel.js';
+import { createDnsHostResolver } from '../adapters/webhooks/dns-host-resolver.js';
+import { createWebhookPinger, type WebhookPinger } from '../adapters/webhooks/webhook-pinger.js';
 import { lintContextFor } from '../core/alerts/templates/alert-templates.js';
 import { DELIVERY_PARAMS } from '../core/config/delivery-params.js';
+import { WEBHOOK_PARAMS } from '../core/config/webhook-params.js';
 import type { AlertChannelAdapter } from '../core/ports/alert-channel.js';
 import type { AlertDispatchQueue } from '../core/ports/alert-dispatch-queue.js';
 import type { AlertRenderer } from '../core/ports/alert-renderer.js';
 import { ALERT_CHANNELS } from '../core/ports/alert-outbox-store.js';
 import type { RecipientResolver } from '../core/ports/recipient-resolver.js';
 import type { Sleeper } from '../core/ports/sleeper.js';
+import type {
+  HostResolver,
+  WebhookDeliveryStore,
+  WebhookSecretSealer,
+} from '../core/ports/webhook-store.js';
 import { ConfigError, type AlertChannelsConfig } from './config.js';
 
 /**
@@ -135,6 +145,20 @@ export interface LiveChannelDeps {
   readonly signal?: AbortSignal;
   /** Overridable so a smoke test can point every provider at a stub. */
   readonly fetch?: FetchLike;
+  /**
+   * The signed-webhook channel (V2-G2), present only with a webhook keyring
+   * (`webhooks-config.ts`). Without it no `webhook` adapter is offered, and an alert routed
+   * to one fails as any unconfigured channel does.
+   */
+  readonly webhook?: WebhookChannelWiring | null;
+}
+
+/** What the webhook channel needs beyond the provider deps: its store and the seal. */
+export interface WebhookChannelWiring {
+  readonly store: WebhookDeliveryStore;
+  readonly sealer: WebhookSecretSealer;
+  /** For tests; the operating system's resolver otherwise. Every send re-resolves. */
+  readonly resolver?: HostResolver;
 }
 
 export interface LiveChannels {
@@ -209,7 +233,60 @@ export function createLiveChannels(deps: LiveChannelDeps): LiveChannels {
     );
   }
 
+  if (deps.webhook != null) {
+    const { store, sealer } = deps.webhook;
+    const transport = webhookTransport({
+      now,
+      ...fetchOption,
+      ...(deps.webhook.resolver === undefined ? {} : { resolver: deps.webhook.resolver }),
+    });
+    channels.push(
+      paced(createWebhookChannel({ store, sealer, transport, params: WEBHOOK_PARAMS.values, now })),
+    );
+  }
+
   return { channels, vapidPublicKey };
+}
+
+/**
+ * The webhook test ping (V2-G2, `POST /api/v1/webhooks/:id/test`) over the same transport
+ * the channel sends through — SSRF guard, signature, timeout — built here because this is
+ * the one composition root allowed to reach `adapters/alerts/channels/`. The API's account
+ * wiring takes the pinger, never the transport.
+ *
+ * A ping is not an alert: it is one POST its owner asked for, to their own endpoint, and
+ * it does not pass the gateway (no outbox row, no suppression, no G budget). The route's
+ * per-account limit is what bounds it.
+ */
+export function createWebhookTestPinger(deps: {
+  readonly store: WebhookDeliveryStore;
+  readonly sealer: WebhookSecretSealer;
+  readonly now: () => number;
+  readonly fetch?: FetchLike;
+  readonly resolver?: HostResolver;
+}): WebhookPinger {
+  const { store, sealer, now } = deps;
+  const transport = webhookTransport({
+    now,
+    ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),
+    ...(deps.resolver === undefined ? {} : { resolver: deps.resolver }),
+  });
+  return createWebhookPinger({ store, sealer, transport, now });
+}
+
+function webhookTransport(options: {
+  readonly now: () => number;
+  readonly fetch?: FetchLike;
+  readonly resolver?: HostResolver;
+}) {
+  const params = WEBHOOK_PARAMS.values;
+  return createWebhookTransport({
+    resolver: options.resolver ?? createDnsHostResolver(),
+    now: options.now,
+    timeoutMs: params.timeoutMs,
+    rules: { allowedPorts: params.allowedPorts, maxUrlLength: params.maxUrlLength },
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+  });
 }
 
 function gated<T>(variables: string, build: () => T): T {

@@ -14,6 +14,7 @@ import {
   type ChannelOptInFlows,
 } from '../adapters/http/channel-opt-in-route.js';
 import { SESSION_COOKIE_NAME } from '../adapters/http/session-cookie.js';
+import { WEBHOOKS_PATH } from '../adapters/http/webhooks-route.js';
 import { ZONES_PATH } from '../adapters/http/zones-route.js';
 import { signInLinkUrl } from '../adapters/mail/ses-auth-mailer.js';
 import type { AuthenticatedSession } from '../core/auth/sign-in.js';
@@ -22,8 +23,10 @@ import type { ZoneCentreCipher } from '../core/ports/zone-centre-cipher.js';
 import {
   ACCOUNT_EXPORT_RATE_LIMIT,
   unarmedChannelFlows,
+  WEBHOOK_TEST_PING_RATE_LIMIT,
   wireAuthRoutes,
   type AccountSurface,
+  type WebhookSurface,
   type ZoneSurface,
 } from './auth-wiring.js';
 import { loadConfig, type AuthConfig, type Environment } from './config.js';
@@ -588,5 +591,91 @@ describe('wireAuthRoutes — the account routes (I2, I3, I4, I6)', () => {
     ]) {
       expect(logged).not.toContain(secret);
     }
+  });
+});
+
+const WEBHOOK_ID = '00000000-0000-4000-8000-0000000000cc';
+
+function webhooksFor(calls: Calls): WebhookSurface {
+  return {
+    create: () => (calls.push('webhooks.create'), notUnderTest()),
+    list: () => (calls.push('webhooks.list'), Promise.resolve([])),
+    remove: () => (calls.push('webhooks.remove'), Promise.resolve(true)),
+    rotateSecret: () => (calls.push('webhooks.rotateSecret'), notUnderTest()),
+    ping: () => (
+      calls.push('webhooks.ping'),
+      Promise.resolve({
+        deliveryId: '00000000-0000-4000-8000-0000000000dd',
+        outcome: 'delivered' as const,
+        statusCode: 200,
+        error: null,
+        durationMs: 1,
+        confirmed: true,
+      })
+    ),
+  };
+}
+
+describe('wireAuthRoutes — the webhook routes (V2-G2)', () => {
+  it('production path: webhook routes are 404 without a webhook keyring, guarded with one', async () => {
+    for (const [webhookKeyring, expected] of [
+      [null, 404],
+      [KEYRING, 401],
+    ] as const) {
+      const server = app();
+      const wiring = wireAuthRoutes(server, loadConfig(ENABLED_ENV), {
+        onProblem: () => undefined,
+        webhookKeyring,
+      });
+      try {
+        expect(wiring.webhooksEnabled).toBe(webhookKeyring !== null);
+        const response = await server.inject({ method: 'GET', url: WEBHOOKS_PATH });
+        expect(response.statusCode).toBe(expected);
+      } finally {
+        await wiring.close();
+      }
+    }
+  });
+
+  it('never registers webhook routes without a keyring, whatever the surface offers', async () => {
+    const calls: Calls = [];
+    const server = app();
+    const wiring = wireAuthRoutes(server, loadConfig(ENABLED_ENV), {
+      onProblem: () => undefined,
+      zoneKeyring: KEYRING,
+      createSurface: recordingSurface(calls, { webhooks: webhooksFor(calls) }),
+    });
+    expect(wiring.webhooksEnabled).toBe(false);
+    const response = await server.inject({
+      method: 'GET',
+      url: WEBHOOKS_PATH,
+      headers: { cookie: SESSION_COOKIE },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(calls).toEqual([]);
+  });
+
+  it('limits test pings per account', async () => {
+    const calls: Calls = [];
+    const server = app();
+    wireAuthRoutes(server, loadConfig(ENABLED_ENV), {
+      onProblem: () => undefined,
+      webhookKeyring: KEYRING,
+      createSurface: recordingSurface(calls, { webhooks: webhooksFor(calls) }),
+    });
+    const statuses: number[] = [];
+    for (let index = 0; index <= WEBHOOK_TEST_PING_RATE_LIMIT.limit; index += 1) {
+      const response = await server.inject({
+        method: 'POST',
+        url: `${WEBHOOKS_PATH}/${WEBHOOK_ID}/test`,
+        headers: { origin: ORIGIN, cookie: SESSION_COOKIE },
+      });
+      statuses.push(response.statusCode);
+    }
+    expect(statuses.slice(0, -1).every((status) => status === 200)).toBe(true);
+    expect(statuses.at(-1)).toBe(429);
+    expect(calls.filter((name) => name === 'webhooks.ping')).toHaveLength(
+      WEBHOOK_TEST_PING_RATE_LIMIT.limit,
+    );
   });
 });

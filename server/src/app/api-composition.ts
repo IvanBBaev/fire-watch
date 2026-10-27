@@ -20,6 +20,7 @@ import {
   transportCollector,
   type MetricsListener,
 } from './metrics-wiring.js';
+import { describeWebhooksConfig, loadWebhooksConfig } from './webhooks-config.js';
 import { describeZonesConfig, loadZonesConfig } from './zones-config.js';
 
 export const API_APPLICATION_NAME = 'fire-watch-api';
@@ -46,7 +47,11 @@ export async function startApi(env: Environment, log: ProcessLog): Promise<Runni
   const zoneKeyring = loadZonesConfig(env);
   log.note({ zones: describeZonesConfig(zoneKeyring) });
 
-  const wiring = wireHealthServer(config, log, { zoneKeyring });
+  // V2-G2: the webhook signing-secret keyring. Absent, the webhook routes are not served.
+  const webhookKeyring = loadWebhooksConfig(env);
+  log.note({ webhooks: describeWebhooksConfig(webhookKeyring) });
+
+  const wiring = wireHealthServer(config, log, { zoneKeyring, webhookKeyring });
   let metricsListener: MetricsListener | null = null;
   if (metricsConfig !== null) {
     const registry = createProcessMetrics();

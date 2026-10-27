@@ -100,6 +100,7 @@ import {
 import { QA_REPORT_INTERVAL_MS, reportQaWeekly, wireQaReport } from './qa-report-wiring.js';
 import { describeR2MirrorConfig, loadR2MirrorConfig } from './r2-mirror-config.js';
 import { startR2MirrorLoops, wireR2Mirror } from './r2-mirror-wiring.js';
+import { describeWebhooksConfig, loadWebhooksConfig } from './webhooks-config.js';
 import { startMeteoalarmLoops, wireMeteoalarmRefresh } from './meteoalarm-wiring.js';
 import { startPassesLoops, wirePassesRefresh } from './passes-wiring.js';
 import { startLightningLoops, wireLightningRefresh } from './lightning-wiring.js';
@@ -193,6 +194,9 @@ async function main(): Promise<number> {
   const r2 = loadR2MirrorConfig(process.env, config.staticSnapshotUrl);
   log.note({ r2_mirror: describeR2MirrorConfig(r2) });
   const mirror = wireR2Mirror(config, r2);
+  // V2-G2: the webhook signing-secret keyring. Absent, dispatch offers no webhook channel.
+  const webhookKeyring = loadWebhooksConfig(process.env);
+  log.note({ webhooks: describeWebhooksConfig(webhookKeyring) });
   const monitors = wireMonitors(config, {
     onPagerError: (reason) => {
       log.note({ meta_alert_ping_failed: { reason } });
@@ -232,6 +236,7 @@ async function main(): Promise<number> {
           ),
         lock: loopLocks.forLoop('dispatch'),
         skipped: observeSkip(metrics, 'dispatch', dispatchSkips.skipped, onMetricsError),
+        webhookKeyring,
       },
       controller.signal,
     );

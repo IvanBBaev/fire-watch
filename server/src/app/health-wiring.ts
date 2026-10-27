@@ -58,6 +58,7 @@ import {
 import type { Pool } from 'pg';
 
 import { systemClock } from '../adapters/clock/system-clock.js';
+import type { WebhookSealKeyring } from '../adapters/crypto/aes-gcm-webhook-secret-sealer.js';
 import type { ZoneKeyring } from '../adapters/crypto/aes-gcm-zone-cipher.js';
 import {
   createPgDatabaseProbe,
@@ -191,6 +192,8 @@ export interface HealthWiring {
 export interface HealthWiringOptions {
   /** `loadZonesConfig`: without it the zone and export routes are not registered (I2, I6). */
   readonly zoneKeyring?: ZoneKeyring | null;
+  /** `loadWebhooksConfig`: without it the webhook routes are not registered (V2-G2). */
+  readonly webhookKeyring?: WebhookSealKeyring | null;
 }
 
 export function wireHealthServer(
@@ -417,6 +420,7 @@ export function wireHealthServer(
   const auth = wireAuthRoutes(app, config, {
     onProblem,
     zoneKeyring: options.zoneKeyring ?? null,
+    webhookKeyring: options.webhookKeyring ?? null,
   });
   // SES bounce/complaint feedback: registered only with FIRE_WATCH_SES_FEEDBACK_TOPIC_ARN.
   const sesFeedback = wireSesFeedbackRoute(app, config, { log, onProblem });

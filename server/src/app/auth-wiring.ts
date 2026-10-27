@@ -26,6 +26,11 @@
  *     ({@link ACCOUNT_EXPORT_RATE_LIMIT}).
  *   * `GET|PUT /api/v1/account/preferences` (V2-C5) — the synced preferences document,
  *     with a revision check on every write; no key involved, so registered with the flag.
+ *   * `/api/v1/webhooks/*` (V2-G2, `webhooks-route.ts`) — **only with a webhook keyring**
+ *     (`webhooks-config.ts`): every endpoint's signing secret is sealed under it, so a
+ *     process without one does not register the routes. The test ping is limited per
+ *     account ({@link WEBHOOK_TEST_PING_RATE_LIMIT}) and is built in `alert-wiring.ts`, the
+ *     one composition root that may reach the webhook transport.
  *   * `/api/v1/channels/*` (I3) — registered **unarmed**: the confirmation mailer and the
  *     Telegram Bot API have no implementation, so asking for a channel is `503` before any
  *     row is written, the webhook is `404`, and only confirm and unlink reach the database.
@@ -44,6 +49,10 @@ import type { Pool } from 'pg';
 import { systemClock } from '../adapters/clock/system-clock.js';
 import { createAuthTokens } from '../adapters/crypto/auth-tokens.js';
 import {
+  createAesGcmWebhookSecretSealer,
+  type WebhookSealKeyring,
+} from '../adapters/crypto/aes-gcm-webhook-secret-sealer.js';
+import {
   createAesGcmZoneCipher,
   type ZoneKeyring,
 } from '../adapters/crypto/aes-gcm-zone-cipher.js';
@@ -54,6 +63,10 @@ import { createPgSignInFlows } from '../adapters/db/pg-auth.js';
 import { createPgChannelOptInFlows } from '../adapters/db/pg-channel-opt-in.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgWatchZoneStore } from '../adapters/db/pg-watch-zone-store.js';
+import {
+  createPgWebhookDeliveryStore,
+  createPgWebhookEndpointStore,
+} from '../adapters/db/pg-webhook-store.js';
 import { createPgZoneDeleter } from '../adapters/db/pg-zone-deletion.js';
 import { createPgZoneCreator } from '../adapters/db/pg-zone-creation.js';
 import {
@@ -71,9 +84,13 @@ import {
   type ChannelOptInFlows,
 } from '../adapters/http/channel-opt-in-route.js';
 import type { ProblemObserver } from '../adapters/http/problem.js';
+import { registerWebhooksRoutes, type WebhooksRouteDeps } from '../adapters/http/webhooks-route.js';
 import { registerZonesRoutes, type ZonesRouteDeps } from '../adapters/http/zones-route.js';
 import { createSesAuthMailer } from '../adapters/mail/ses-auth-mailer.js';
+import { createDnsHostResolver } from '../adapters/webhooks/dns-host-resolver.js';
+import { createWebhookRegistry } from '../adapters/webhooks/webhook-registry.js';
 import { ChannelOptInRefusal } from '../core/channels/channel-opt-in.js';
+import { WEBHOOK_PARAMS } from '../core/config/webhook-params.js';
 import { createRateLimiter } from '../core/http/rate-limiter.js';
 import type { AuthMailer } from '../core/ports/auth-stores.js';
 import type {
@@ -81,12 +98,14 @@ import type {
   TelegramBotApi,
 } from '../core/ports/channel-opt-in-store.js';
 import type { Clock } from '../core/ports/clock.js';
+import type { WebhookSecretSealer } from '../core/ports/webhook-store.js';
 import type { ZoneCentreCipher } from '../core/ports/zone-centre-cipher.js';
 import {
   readAccountPreferences,
   writeAccountPreferences,
 } from '../core/preferences/account-preferences.js';
 import { listOwnedWatchZones } from '../core/zones/create-watch-zone.js';
+import { createWebhookTestPinger } from './alert-wiring.js';
 import type { ServerConfig } from './config.js';
 
 /** A link request holds one connection for the length of an SES call; a few is plenty. */
@@ -106,11 +125,20 @@ export const ACCOUNT_STATEMENT_TIMEOUT_MS = 15_000;
  */
 export const ACCOUNT_EXPORT_RATE_LIMIT = { limit: 3, windowMs: 3_600_000 } as const;
 
+/**
+ * Test pings per account per hour (V2-G2). **Not a design number** — a ping is one signed
+ * POST to a server the account names, so the limit is what stops the API being used to
+ * knock on someone else's door; ten is "enough to debug a receiver, too few to flood one".
+ */
+export const WEBHOOK_TEST_PING_RATE_LIMIT = { limit: 10, windowMs: 3_600_000 } as const;
+
 export interface AuthWiring {
   /** Whether the routes were registered. */
   readonly enabled: boolean;
   /** Whether the zone and export routes were registered (a keyring was configured). */
   readonly zonesEnabled: boolean;
+  /** Whether the webhook routes were registered (a webhook keyring was configured). */
+  readonly webhooksEnabled: boolean;
   readonly close: () => Promise<void>;
 }
 
@@ -121,6 +149,12 @@ export interface ZoneSurface {
   readonly remove: ZonesRouteDeps['remove'];
   readonly exportAccount: AccountExportRouteDeps['exportAccount'];
 }
+
+/** The webhook routes' dependencies, present only when there is a sealer. */
+export type WebhookSurface = Pick<
+  WebhooksRouteDeps,
+  'create' | 'list' | 'remove' | 'rotateSecret' | 'ping'
+>;
 
 /** Everything the routes call, built over Postgres in production. */
 export interface AccountSurface {
@@ -135,6 +169,8 @@ export interface AccountSurface {
     readonly write: AccountPreferencesRouteDeps['write'];
   };
   readonly zones: ZoneSurface | null;
+  /** Absent in surfaces built before V2-G2's tests; read as `null`. */
+  readonly webhooks?: WebhookSurface | null;
 }
 
 export interface AuthWiringDeps {
@@ -148,11 +184,20 @@ export interface AuthWiringDeps {
    */
   readonly zoneKeyring?: ZoneKeyring | null;
   /**
-   * For tests: the surface over the real mailer, in place of Postgres. Its `zones` are
-   * ignored without a keyring — the keyring, not the surface, decides whether zone
-   * routes exist.
+   * The webhook signing-secret keyring (`loadWebhooksConfig`). Absent or `null`: the
+   * webhook routes are not registered.
    */
-  readonly createSurface?: (mailer: AuthMailer, cipher: ZoneCentreCipher | null) => AccountSurface;
+  readonly webhookKeyring?: WebhookSealKeyring | null;
+  /**
+   * For tests: the surface over the real mailer, in place of Postgres. Its `zones` and
+   * `webhooks` are ignored without the matching keyring — the keyring, not the surface,
+   * decides whether those routes exist.
+   */
+  readonly createSurface?: (
+    mailer: AuthMailer,
+    cipher: ZoneCentreCipher | null,
+    webhookSealer: WebhookSecretSealer | null,
+  ) => AccountSurface;
 }
 
 export function wireAuthRoutes(
@@ -162,7 +207,12 @@ export function wireAuthRoutes(
 ): AuthWiring {
   const auth = config.auth;
   if (!auth.enabled) {
-    return { enabled: false, zonesEnabled: false, close: () => Promise.resolve() };
+    return {
+      enabled: false,
+      zonesEnabled: false,
+      webhooksEnabled: false,
+      close: () => Promise.resolve(),
+    };
   }
 
   const clock = deps.clock ?? systemClock;
@@ -178,6 +228,9 @@ export function wireAuthRoutes(
   });
   const keyring = deps.zoneKeyring ?? null;
   const cipher = keyring === null ? null : createAesGcmZoneCipher(keyring);
+  const webhookKeyring = deps.webhookKeyring ?? null;
+  const webhookSealer =
+    webhookKeyring === null ? null : createAesGcmWebhookSecretSealer(webhookKeyring);
 
   const pools: Pool[] = [];
   let surface: AccountSurface;
@@ -200,9 +253,16 @@ export function wireAuthRoutes(
       statementTimeoutMs: ACCOUNT_STATEMENT_TIMEOUT_MS,
     });
     pools.push(authPool, accountPool);
-    surface = pgAccountSurface({ authPool, accountPool, mailer, cipher });
+    surface = pgAccountSurface({
+      authPool,
+      accountPool,
+      mailer,
+      cipher,
+      webhookSealer,
+      now: () => clock.now(),
+    });
   } else {
-    surface = deps.createSurface(mailer, cipher);
+    surface = deps.createSurface(mailer, cipher, webhookSealer);
   }
 
   const common = {
@@ -246,9 +306,19 @@ export function wireAuthRoutes(
     });
   }
 
+  const webhooks = webhookSealer === null ? null : (surface.webhooks ?? null);
+  if (webhooks !== null) {
+    registerWebhooksRoutes(app, {
+      ...common,
+      ...webhooks,
+      pingLimiter: createRateLimiter(WEBHOOK_TEST_PING_RATE_LIMIT),
+    });
+  }
+
   return {
     enabled: true,
     zonesEnabled: zones !== null,
+    webhooksEnabled: webhooks !== null,
     close: async () => {
       await Promise.all(pools.map((pool) => pool.end()));
     },
@@ -261,8 +331,10 @@ function pgAccountSurface(options: {
   readonly accountPool: Pool;
   readonly mailer: AuthMailer;
   readonly cipher: ZoneCentreCipher | null;
+  readonly webhookSealer: WebhookSecretSealer | null;
+  readonly now: () => number;
 }): AccountSurface {
-  const { authPool, accountPool, cipher } = options;
+  const { authPool, accountPool, cipher, webhookSealer } = options;
   const tokens = createAuthTokens();
   const signIn = createPgSignInFlows(authPool, { tokens, mailer: options.mailer });
   const zoneStore = createPgWatchZoneStore(accountPool);
@@ -293,6 +365,34 @@ function pgAccountSurface(options: {
               (await deleteZone(accountId, zoneId, atIso)).deleted,
             exportAccount: createPgAccountExporter(accountPool, cipher),
           },
+    webhooks:
+      webhookSealer === null ? null : pgWebhookSurface(accountPool, webhookSealer, options.now),
+  };
+}
+
+/** The webhook registry and test ping over the account pool (V2-G2). */
+function pgWebhookSurface(
+  pool: Pool,
+  sealer: WebhookSecretSealer,
+  now: () => number,
+): WebhookSurface {
+  const registry = createWebhookRegistry({
+    store: createPgWebhookEndpointStore(pool),
+    sealer,
+    resolver: createDnsHostResolver(),
+    params: WEBHOOK_PARAMS.values,
+  });
+  const pinger = createWebhookTestPinger({
+    store: createPgWebhookDeliveryStore(pool),
+    sealer,
+    now,
+  });
+  return {
+    create: (accountId, url, at) => registry.create(accountId, url, at),
+    list: (accountId) => registry.list(accountId),
+    remove: (accountId, id, at) => registry.remove(accountId, id, at),
+    rotateSecret: (accountId, id, at) => registry.rotateSecret(accountId, id, at),
+    ping: (accountId, id) => pinger.ping(accountId, id),
   };
 }
 

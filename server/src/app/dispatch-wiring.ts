@@ -44,7 +44,7 @@
  *     unarmed either way, and G is the enforced ceiling.
  */
 
-import { createAlertGateway, createLiveChannels } from './alert-wiring.js';
+import { createAlertGateway, createLiveChannels, type LiveChannels } from './alert-wiring.js';
 import { ConfigError, type ServerConfig } from './config.js';
 import { reportDispatch } from './dispatch-reporter.js';
 import type {
@@ -55,9 +55,14 @@ import type {
 import { createTemplateRenderer } from '../adapters/alerts/templates/template-renderer.js';
 import { systemClock } from '../adapters/clock/system-clock.js';
 import {
+  createAesGcmWebhookSecretSealer,
+  type WebhookSealKeyring,
+} from '../adapters/crypto/aes-gcm-webhook-secret-sealer.js';
+import {
   createPgAlertDispatchQueue,
   createPgSendRateReader,
 } from '../adapters/db/pg-alert-dispatch-queue.js';
+import { createPgWebhookDeliveryStore } from '../adapters/db/pg-webhook-store.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgRecipientResolver } from '../adapters/db/pg-recipient-resolver.js';
 import { systemSleeper } from '../adapters/scheduler/system-sleeper.js';
@@ -242,6 +247,11 @@ export interface DispatchJobDeps {
   readonly lock?: LoopLock;
   /** Called for every cycle skipped because another worker holds `lock`. */
   readonly skipped?: (skip: JobSkip) => void;
+  /**
+   * The webhook signing-secret keyring (`loadWebhooksConfig`, V2-G2). Absent or `null`:
+   * no `webhook` channel is offered to the gateway.
+   */
+  readonly webhookKeyring?: WebhookSealKeyring | null;
 }
 
 /**
@@ -262,21 +272,35 @@ export function startDispatchJob(
 
   const now = (): number => systemClock.now();
   const control = createFsDispatchControlStore(config.stateDir);
-  // Built before the pool, so a provider credential that fails its own gate is a
-  // ConfigError at start-up with nothing yet to close.
-  const { channels } = createLiveChannels({
-    config: config.alertChannels,
-    now,
-    sleeper: systemSleeper,
-    signal,
-  });
+  // A provider credential that fails its own gate is a ConfigError at start-up; the
+  // webhook channel needs the pool for its store, so the pool is ended on that path.
+  const webhookKeyring = deps.webhookKeyring ?? null;
+  const webhookSealer =
+    webhookKeyring === null ? null : createAesGcmWebhookSecretSealer(webhookKeyring);
   // Its own pool, named in `pg_stat_activity`: a claim stuck behind a lock should name the
-  // dispatcher, not the ingest loop that shares the process.
+  // dispatcher, not the ingest loop that shares the process. Creating it opens no
+  // connection, so the provider gates below still fail before anything needs closing.
   const pool = createPgPool({
     databaseUrl: config.databaseUrl,
     role: config.databaseRole,
     applicationName: `${config.applicationName}-dispatch`,
   });
+  let channels: LiveChannels['channels'];
+  try {
+    ({ channels } = createLiveChannels({
+      config: config.alertChannels,
+      now,
+      sleeper: systemSleeper,
+      signal,
+      webhook:
+        webhookSealer === null
+          ? null
+          : { store: createPgWebhookDeliveryStore(pool), sealer: webhookSealer },
+    }));
+  } catch (error) {
+    void pool.end();
+    throw error;
+  }
   const queue = createPgAlertDispatchQueue(pool);
   const recipients = createPgRecipientResolver(pool, { now });
   const renderer = createTemplateRenderer();
