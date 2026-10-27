@@ -26,6 +26,7 @@ const REPORT: PurgeReport = {
     account_tombstones: { armed: false },
     alert_decision_log: { armed: false },
     alert_digest_log: { armed: false },
+    webhook_deliveries: { armed: false },
   },
 };
 

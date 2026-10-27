@@ -25,6 +25,7 @@
  */
 
 import { AUTH_POLICY } from '../auth/auth-policy.js';
+import { DELIVERY_PARAMS } from '../config/delivery-params.js';
 import { isoFromEpochMs, type EpochMs } from '../ports/clock.js';
 import { ERASURE_HORIZON } from './erasure-horizon.js';
 
@@ -37,6 +38,7 @@ export const PURGE_TARGETS = [
   'account_tombstones',
   'alert_decision_log',
   'alert_digest_log',
+  'webhook_deliveries',
 ] as const;
 
 export type PurgeTarget = (typeof PURGE_TARGETS)[number];
@@ -58,6 +60,9 @@ export const PURGE_RETENTION: PurgeRetention = {
   // Open: how long a digest decision stays on record is a founder decision. The watermark
   // is protected structurally by the function, not by this number.
   alert_digest_log: null,
+  // Open: the webhook delivery log (migration 035) is the owner's debugging aid and the retry
+  // schedule; `webhook_params_v1.deliveryLogRetentionDays` proposes 30 days (TASKS V2-G2).
+  webhook_deliveries: null,
 };
 
 export interface PurgeTargetSpec {
@@ -100,6 +105,12 @@ export const PURGE_TARGET_SPECS: Readonly<Record<PurgeTarget, PurgeTargetSpec>> 
     floorMs: 0,
     floorReason:
       'the pass reads back only the newest spent window per account, which the purge function never deletes',
+  },
+  webhook_deliveries: {
+    anchor: 'attempted_at',
+    floorMs: DELIVERY_PARAMS.values.queueExpirySeconds * 1000,
+    floorReason:
+      'the newest attempt of a delivery is its retry schedule until the outbox row expires',
   },
 };
 

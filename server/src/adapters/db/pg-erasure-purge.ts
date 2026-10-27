@@ -77,7 +77,19 @@ WHERE id IN (
     AND NOT EXISTS (SELECT 1 FROM channel_confirmations AS k WHERE k.account_id = a.id)
     AND NOT EXISTS (SELECT 1 FROM account_sessions AS s WHERE s.account_id = a.id)
     AND NOT EXISTS (SELECT 1 FROM account_preferences AS p WHERE p.account_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM webhook_endpoints AS w WHERE w.account_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM webhook_deliveries AS d WHERE d.account_id = a.id)
   ORDER BY a.deleted_at
+  LIMIT $2::integer
+)`;
+
+/** Migration 035's delivery log; the runtime role has DELETE on it (erasure needs it too). */
+const PURGE_WEBHOOK_DELIVERIES = `
+DELETE FROM webhook_deliveries
+WHERE id IN (
+  SELECT id FROM webhook_deliveries
+  WHERE attempted_at < $1::timestamptz
+  ORDER BY attempted_at
   LIMIT $2::integer
 )`;
 
@@ -89,6 +101,7 @@ export const ERASURE_PURGE_SQL: Readonly<Record<PurgeTarget, string>> = {
   account_tombstones: PURGE_ACCOUNT_TOMBSTONES,
   alert_decision_log: PURGE_ALERT_DECISION_LOG,
   alert_digest_log: PURGE_ALERT_DIGEST_LOG,
+  webhook_deliveries: PURGE_WEBHOOK_DELIVERIES,
 };
 
 export function createPgErasurePurge(db: PgPurgeQueryable): PurgeExecutor {

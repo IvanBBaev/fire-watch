@@ -21,6 +21,7 @@ const UNARMED: PurgeRetention = {
   account_tombstones: null,
   alert_decision_log: null,
   alert_digest_log: null,
+  webhook_deliveries: null,
 };
 
 function recordingExecutor(answer: (target: PurgeTarget) => number = () => 0) {
@@ -71,6 +72,7 @@ describe('planPurge', () => {
       { target: 'account_tombstones', armed: false },
       { target: 'alert_decision_log', armed: false },
       { target: 'alert_digest_log', armed: false },
+      { target: 'webhook_deliveries', armed: false },
     ]);
   });
 

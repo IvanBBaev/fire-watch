@@ -667,6 +667,38 @@ export interface WatchZones {
   radius_m: number | null;
 }
 
+export interface WebhookDeliveries {
+  account_id: string;
+  attempt: number;
+  attempted_at: Timestamp;
+  delivery_id: string;
+  duration_ms: number;
+  error: string | null;
+  id: Generated<Int8>;
+  kind: string;
+  next_attempt_at: Timestamp | null;
+  outbox_id: Int8 | null;
+  outcome: string;
+  status_code: number | null;
+  webhook_endpoint_id: string;
+}
+
+export interface WebhookEndpoints {
+  account_id: string;
+  channel_subscription_id: string;
+  consecutive_failures: Generated<number>;
+  created_at: Generated<Timestamp>;
+  disabled_at: Timestamp | null;
+  disabled_reason: string | null;
+  id: string;
+  last_failure_at: Timestamp | null;
+  last_success_at: Timestamp | null;
+  secret_ciphertext: Buffer;
+  secret_key_id: string;
+  secret_rotated_at: Generated<Timestamp>;
+  url: string;
+}
+
 export interface DB {
   account_preferences: AccountPreferences;
   account_sessions: AccountSessions;
@@ -712,4 +744,6 @@ export interface DB {
   staff_webauthn_credentials: StaffWebauthnCredentials;
   table_backup_class: TableBackupClass;
   watch_zones: WatchZones;
+  webhook_deliveries: WebhookDeliveries;
+  webhook_endpoints: WebhookEndpoints;
 }

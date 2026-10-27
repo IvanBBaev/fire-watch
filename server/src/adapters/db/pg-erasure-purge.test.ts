@@ -78,6 +78,8 @@ describe('createPgErasurePurge', () => {
       'channel_confirmations',
       'account_sessions',
       'account_preferences',
+      'webhook_endpoints',
+      'webhook_deliveries',
     ]) {
       expect(sql).toContain(`NOT EXISTS (SELECT 1 FROM ${table}`);
     }
