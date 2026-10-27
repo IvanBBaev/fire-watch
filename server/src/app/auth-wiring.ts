@@ -24,6 +24,8 @@
  *     zone centres, and `zones-config.ts` fixes what a process without a key does: it does
  *     not register them, never "store zones in clear". The export is limited per account
  *     ({@link ACCOUNT_EXPORT_RATE_LIMIT}).
+ *   * `GET|PUT /api/v1/account/preferences` (V2-C5) — the synced preferences document,
+ *     with a revision check on every write; no key involved, so registered with the flag.
  *   * `/api/v1/channels/*` (I3) — registered **unarmed**: the confirmation mailer and the
  *     Telegram Bot API have no implementation, so asking for a channel is `503` before any
  *     row is written, the webhook is `404`, and only confirm and unlink reach the database.
@@ -47,6 +49,7 @@ import {
 } from '../adapters/crypto/aes-gcm-zone-cipher.js';
 import { createPgAccountEraser } from '../adapters/db/pg-account-erasure.js';
 import { createPgAccountExporter } from '../adapters/db/pg-account-export.js';
+import { createPgAccountPreferencesStore } from '../adapters/db/pg-account-preferences.js';
 import { createPgSignInFlows } from '../adapters/db/pg-auth.js';
 import { createPgChannelOptInFlows } from '../adapters/db/pg-channel-opt-in.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
@@ -57,6 +60,10 @@ import {
   registerAccountExportRoutes,
   type AccountExportRouteDeps,
 } from '../adapters/http/account-export-route.js';
+import {
+  registerAccountPreferencesRoutes,
+  type AccountPreferencesRouteDeps,
+} from '../adapters/http/account-preferences-route.js';
 import { registerAccountRoutes, type AccountRouteDeps } from '../adapters/http/account-route.js';
 import { registerAuthRoutes, type SignInFlows } from '../adapters/http/auth-route.js';
 import {
@@ -75,6 +82,10 @@ import type {
 } from '../core/ports/channel-opt-in-store.js';
 import type { Clock } from '../core/ports/clock.js';
 import type { ZoneCentreCipher } from '../core/ports/zone-centre-cipher.js';
+import {
+  readAccountPreferences,
+  writeAccountPreferences,
+} from '../core/preferences/account-preferences.js';
 import { listOwnedWatchZones } from '../core/zones/create-watch-zone.js';
 import type { ServerConfig } from './config.js';
 
@@ -118,6 +129,11 @@ export interface AccountSurface {
   readonly authenticate: AccountRouteDeps['authenticate'];
   readonly erase: AccountRouteDeps['erase'];
   readonly channels: ChannelOptInFlows;
+  /** V2-C5: the synced preferences, read and written under a revision check. */
+  readonly preferences: {
+    readonly read: AccountPreferencesRouteDeps['read'];
+    readonly write: AccountPreferencesRouteDeps['write'];
+  };
   readonly zones: ZoneSurface | null;
 }
 
@@ -203,6 +219,11 @@ export function wireAuthRoutes(
     onProblem: deps.onProblem,
   });
   registerAccountRoutes(app, { ...common, erase: surface.erase });
+  registerAccountPreferencesRoutes(app, {
+    ...common,
+    read: surface.preferences.read,
+    write: surface.preferences.write,
+  });
   registerChannelOptInRoutes(app, {
     ...common,
     flows: unarmedChannelFlows(surface.channels),
@@ -246,6 +267,7 @@ function pgAccountSurface(options: {
   const signIn = createPgSignInFlows(authPool, { tokens, mailer: options.mailer });
   const zoneStore = createPgWatchZoneStore(accountPool);
   const deleteZone = createPgZoneDeleter(accountPool);
+  const preferenceStore = createPgAccountPreferencesStore(accountPool);
   return {
     signIn,
     authenticate: (token, at) => signIn.authenticate(token, at),
@@ -255,6 +277,10 @@ function pgAccountSurface(options: {
       mailer: UNWIRED_CONFIRMATION_MAILER,
       bot: UNWIRED_TELEGRAM_BOT,
     }),
+    preferences: {
+      read: (accountId) => readAccountPreferences(accountId, preferenceStore),
+      write: (request, atIso) => writeAccountPreferences(request, atIso, preferenceStore),
+    },
     zones:
       cipher === null
         ? null

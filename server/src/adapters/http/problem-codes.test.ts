@@ -13,6 +13,7 @@ import { isProblemCode, PROBLEM_CODES, type ProblemCode } from '@fire-watch/cont
 import { describe, expect, it } from 'vitest';
 
 import { ACCOUNT_EXPORT_PROBLEMS } from './account-export-route.js';
+import { ACCOUNT_PREFERENCES_PROBLEMS } from './account-preferences-route.js';
 import { ACCOUNT_PROBLEMS } from './account-route.js';
 import { AUTH_REFUSALS, INVALID_BODY, ORIGIN_REFUSED } from './auth-route.js';
 import { CHANNEL_PROBLEMS, CHANNEL_REFUSALS } from './channel-opt-in-route.js';
@@ -33,6 +34,7 @@ const EMITTED: readonly (readonly [string, readonly Emitted[]])[] = [
   ['shared origin and body checks', [ORIGIN_REFUSED, INVALID_BODY]],
   ['sign-in refusals', Object.values(AUTH_REFUSALS)],
   ['account', ACCOUNT_PROBLEMS],
+  ['account preferences', ACCOUNT_PREFERENCES_PROBLEMS],
   ['account export', ACCOUNT_EXPORT_PROBLEMS],
   ['channel refusals', Object.values(CHANNEL_REFUSALS)],
   ['channel routes', CHANNEL_PROBLEMS],

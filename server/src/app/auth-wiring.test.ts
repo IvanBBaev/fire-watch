@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { FetchLike } from '../adapters/alerts/channels/provider-http.js';
 import { ACCOUNT_EXPORT_PATH } from '../adapters/http/account-export-route.js';
+import { ACCOUNT_PREFERENCES_PATH } from '../adapters/http/account-preferences-route.js';
 import { ACCOUNT_PATH } from '../adapters/http/account-route.js';
 import { AUTH_LINK_PATH, AUTH_LOGOUT_PATH, type SignInFlows } from '../adapters/http/auth-route.js';
 import {
@@ -123,6 +124,10 @@ function recordingSurface(
     authenticate: authenticateFor(calls),
     erase: () => (calls.push('erase'), notUnderTest()),
     channels: channelsFor(calls),
+    preferences: {
+      read: () => (calls.push('preferences.read'), notUnderTest()),
+      write: () => (calls.push('preferences.write'), notUnderTest()),
+    },
     zones: zonesFor(calls),
     ...overrides,
   });
@@ -292,6 +297,8 @@ const ACCOUNT_ROUTES = [
   { method: 'POST', url: ZONES_PATH, payload: ZONE_BODY },
   { method: 'DELETE', url: `${ZONES_PATH}/${ZONE_ID}` },
   { method: 'GET', url: ACCOUNT_EXPORT_PATH },
+  { method: 'GET', url: ACCOUNT_PREFERENCES_PATH },
+  { method: 'PUT', url: ACCOUNT_PREFERENCES_PATH, payload: { schema: 'account_preferences_v1' } },
   { method: 'POST', url: CHANNEL_EMAIL_PATH, payload: { email: ADDRESS } },
   { method: 'POST', url: CHANNEL_EMAIL_CONFIRM_PATH, payload: { token: CONFIRM_TOKEN } },
   { method: 'POST', url: CHANNEL_TELEGRAM_LINK_PATH },
@@ -337,13 +344,15 @@ describe('wireAuthRoutes — the account routes (I2, I3, I4, I6)', () => {
     const wiring = wireAuthRoutes(server, config, { onProblem: () => undefined });
     try {
       expect(wiring).toMatchObject({ enabled: true, zonesEnabled: false });
-      const status = async (method: 'GET' | 'POST' | 'DELETE', url: string) =>
+      const status = async (method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string) =>
         (await server.inject({ method, url, headers: { origin: ORIGIN } })).statusCode;
       expect(await status('GET', ZONES_PATH)).toBe(404);
       expect(await status('POST', ZONES_PATH)).toBe(404);
       expect(await status('GET', ACCOUNT_EXPORT_PATH)).toBe(404);
       expect(await status('GET', ACCOUNT_PATH)).toBe(401);
       expect(await status('DELETE', ACCOUNT_PATH)).toBe(401);
+      expect(await status('GET', ACCOUNT_PREFERENCES_PATH)).toBe(401);
+      expect(await status('PUT', ACCOUNT_PREFERENCES_PATH)).toBe(401);
       expect(await status('POST', CHANNEL_EMAIL_PATH)).toBe(401);
       expect(await status('POST', CHANNEL_TELEGRAM_LINK_PATH)).toBe(401);
       expect(await status('POST', CHANNEL_TELEGRAM_WEBHOOK_PATH)).toBe(404);
@@ -548,6 +557,7 @@ describe('wireAuthRoutes — the account routes (I2, I3, I4, I6)', () => {
       createSurface: recordingSurface([], {
         erase: failing,
         channels: { ...channelsFor([]), confirmEmail: failing, unlink: failing },
+        preferences: { read: failing, write: failing },
         zones: zonesFor([], {
           create: failing,
           list: failing,
