@@ -1794,6 +1794,24 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   the list is a peer surface, not a map overlay: `ui/event-list.tsx` renders from
   the same store on `/` and `isMapRoute` decides only whether the map pane
   mounts.*
+  *2026-10-27 — two cold-load fixes on branch `fix/web-cold-load-geolocation`.
+  (1) A cold permalink open no longer flashes "not found" before its first
+  snapshot: `eventPageState` (`ui/logic/event-resolution.ts`) says not-found
+  only from a fresh, live snapshot that lacks the id; before the first snapshot
+  the page is `loading` (`aria-busy`, the existing `loading` string), and a
+  failing feed or a snapshot under the stale banner is `unavailable` — new key
+  `eventUnavailable` ("could not load"), bg draft in `PENDING_FOUNDER_REVIEW`.
+  The client has no per-event fetch, so the snapshot is the only thing that can
+  vouch for an absence. (2) No automatic geolocation: the map controls' mount
+  effect that asked for a position on a first visit is gone (07 §5.9.1 — a
+  location request only as the answer to a press of the locate control);
+  `shouldOfferLocation` is removed and `hasCameraHash` is now unused in
+  production. Tests: `pages/event.test.tsx`, `map-controls.test.tsx` (mounted,
+  no call on mount), and `web/e2e/cold-load.e2e.ts` — a held snapshot shows
+  `loading` then the event with no not-found state ever rendered, a 503 streak
+  shows "could not load", a first visit makes zero Geolocation calls and one
+  press makes exactly one. The CI-18 sweep's event ready-selector now skips the
+  loading state.*
 - [ ] **F4 — Honest-clock staleness UX + degraded banner.** Spec: ADR-005; A12
   §3b copy. Needs: F1, E5. Single-slot banner, freshness chip + "[?]" target,
   frozen-state label. **Done when:** copy strings come from the GLOSSARY tables
