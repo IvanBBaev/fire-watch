@@ -2,10 +2,15 @@
  * The ingest bookkeeping over Postgres (TASKS C2).
  *
  * Three statements, and each of them is idempotent on purpose. A cycle can be re-run —
- * after a crash between the append and the batch record, or by the golden replay — and
- * re-running it must produce the archive it would have produced the first time. So the
- * batch row conflicts on `(source, available_at)` and quarantine entries conflict on the
- * same pair plus what they point at, both DO NOTHING, exactly as the archive does.
+ * by the golden replay, or a response recorded twice — and re-running it must produce the
+ * archive it would have produced the first time. So the batch row conflicts on
+ * `(source, available_at)` and quarantine entries conflict on the same pair plus what they
+ * point at, both DO NOTHING, exactly as the archive does.
+ *
+ * Idempotence does not cover a crash between the append and the batch row: the next poll
+ * re-delivers those rows under a new `available_at`, and the archive keeps the old one.
+ * That is why the live cycle writes the two in one transaction (`pg-ingest-batch-writer`),
+ * which calls `recordBatch` on a checked-out client.
  *
  * Entries go in through `unnest` of one array per column, like `pg-detection-store.ts`:
  * a response that fails validation wholesale is the case that produces thousands of them

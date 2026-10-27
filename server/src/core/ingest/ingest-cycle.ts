@@ -8,12 +8,15 @@
  *
  * The stages, in the order they must run:
  *
- *   poll → validate → judge the batch → append → quarantine → record the batch → freshness
+ *   poll → validate → judge the batch → append + record the batch → quarantine → freshness
  *
  * Judging *before* the append is what lets the breaker's verdict be written with the rows
  * as a column, rather than applied afterwards by an UPDATE the runtime role does not hold
- * (ADR-002 A1.1). Quarantine after the append, because a quarantine entry is evidence
- * about a batch and the batch is the thing that either landed or did not.
+ * (ADR-002 A1.1). The append and the batch row are one transaction (`ingest-batch-writer`):
+ * the batch row is what the identity pipeline queues on, so rows without it would never be
+ * clustered, and no later poll could repair that. Quarantine after both, because a
+ * quarantine entry is evidence about a batch and the batch is the thing that either landed
+ * or did not.
  *
  * Three rules shape everything here:
  *
@@ -32,7 +35,12 @@ import type { SourceId } from '@fire-watch/contracts';
 import { INGEST_ANOMALY } from '../config/ingest-anomaly.js';
 import type { Clock } from '../ports/clock.js';
 import type { AppendResult, DetectionStore } from '../ports/detection-store.js';
-import type { QuarantineEntry, QuarantineStore } from '../ports/quarantine-store.js';
+import type { IngestBatchWriter } from '../ports/ingest-batch-writer.js';
+import type {
+  IngestBatchRecord,
+  QuarantineEntry,
+  QuarantineStore,
+} from '../ports/quarantine-store.js';
 import { evaluateBatch, type AnomalyDecision } from './anomaly-breaker.js';
 import { detectionRecords, pollAttempt } from './detection-records.js';
 import { evaluateUpstreamAvailability, type UpstreamAvailability } from './firms-availability.js';
@@ -93,8 +101,11 @@ export interface IngestCycleReport {
 }
 
 export interface IngestCycleDeps extends PollFirmsDeps {
+  /** Freshness only: the rows themselves go through `batchWriter`. */
   readonly store: DetectionStore;
   readonly quarantineStore: QuarantineStore;
+  /** The append and its batch row, in one transaction. */
+  readonly batchWriter: IngestBatchWriter;
   readonly clock: Clock;
   /** Defaults to the registry's active FIRMS sources; a backfill passes its own. */
   readonly sources?: readonly SourceId[];
@@ -148,21 +159,31 @@ async function ingestSource(source: SourceId, deps: IngestCycleDeps): Promise<So
     anomaly = judged.decision;
     bookkeepingError = judged.error;
 
+    // Only the rows that survived validation. A row we do not believe is quarantined
+    // instead of landing (C2's done-when), while a row in a batch the breaker tripped on
+    // lands flagged — the season cannot be re-polled, so a false trip must not delete it.
+    const stored: FirmsPollRun = { ...run, detections: partition.valid };
+    const records = detectionRecords(stored, { quarantined: anomaly.tripped });
+    const judgedBatch = { source, availableAt, run, invalid, anomaly };
     try {
-      // Only the rows that survived validation. A row we do not believe is quarantined
-      // instead of landing (C2's done-when), while a row in a batch the breaker tripped on
-      // lands flagged — the season cannot be re-polled, so a false trip must not delete it.
-      const stored: FirmsPollRun = { ...run, detections: partition.valid };
-      appended = await deps.store.appendDetections(
-        detectionRecords(stored, { quarantined: anomaly.tripped }),
-      );
+      appended = await deps.batchWriter.withBatch(async (tx) => {
+        const result = await tx.appendDetections(records);
+        await tx.recordBatch(batchRecord({ ...judgedBatch, appended: result }));
+        return result;
+      });
     } catch (error) {
+      // Rolled back: neither the rows nor their batch row landed, so nothing is waiting to
+      // be clustered and the next poll re-delivers the same rows.
       writeError = describeError(error);
     }
 
     bookkeepingError = joinErrors([
       bookkeepingError,
-      await recordBookkeeping({ source, availableAt, run, invalid, anomaly, appended }, deps),
+      await recordBookkeeping(
+        { ...judgedBatch, appended },
+        { batchRecorded: writeError === null },
+        deps,
+      ),
     ]);
   }
 
@@ -264,12 +285,19 @@ interface BookkeepingInput {
 }
 
 /**
- * Writes the evidence: what was thrown out and why, then the counts of the batch as a
- * whole. Both writes are attempted even if the first fails, because they answer different
- * questions and losing one is no reason to lose the other.
+ * Writes the evidence: what was thrown out and why, and — when the atomic write rolled
+ * back — the counts of the batch on their own. Both writes are attempted even if the first
+ * fails, because they answer different questions and losing one is no reason to lose the
+ * other.
+ *
+ * The lone batch row exists for the breaker: its trailing window is built from these rows,
+ * and a poll missing from it quietly lowers the bar for the next one (migration 002). It
+ * says `inserted: 0` because nothing landed, and it is safe to queue: the identity
+ * pipeline finds no rows under its `available_at` and records an empty batch.
  */
 async function recordBookkeeping(
   input: BookkeepingInput,
+  written: { readonly batchRecorded: boolean },
   deps: IngestCycleDeps,
 ): Promise<string | null> {
   const errors: (string | null)[] = [];
@@ -280,30 +308,36 @@ async function recordBookkeeping(
     errors.push(describeError(error));
   }
 
-  try {
-    await deps.quarantineStore.recordBatch({
-      source: input.source,
-      availableAt: input.availableAt,
-      // What the breaker judged, which is what arrived — not what landed. The two differ
-      // by the rows that failed validation and by whatever the archive already held.
-      received: input.run.detections.length,
-      inserted: input.appended.inserted,
-      alreadyPresent: input.appended.alreadyPresent,
-      rejected: input.run.rejections.length,
-      quarantined: input.invalid.length,
-      anomalyVerdict: input.anomaly.verdict,
-      anomalyTripped: input.anomaly.tripped,
-      baseline: input.anomaly.baseline,
-      ratio: input.anomaly.ratio,
-      ingestConfigVersion: input.anomaly.configVersion,
-      pollingBboxVersion: input.run.pollingBboxVersion,
-      sourceRegistryVersion: input.run.sourceRegistryVersion,
-    });
-  } catch (error) {
-    errors.push(describeError(error));
+  if (!written.batchRecorded) {
+    try {
+      await deps.quarantineStore.recordBatch(batchRecord(input));
+    } catch (error) {
+      errors.push(describeError(error));
+    }
   }
 
   return joinErrors(errors);
+}
+
+function batchRecord(input: BookkeepingInput): IngestBatchRecord {
+  return {
+    source: input.source,
+    availableAt: input.availableAt,
+    // What the breaker judged, which is what arrived — not what landed. The two differ
+    // by the rows that failed validation and by whatever the archive already held.
+    received: input.run.detections.length,
+    inserted: input.appended.inserted,
+    alreadyPresent: input.appended.alreadyPresent,
+    rejected: input.run.rejections.length,
+    quarantined: input.invalid.length,
+    anomalyVerdict: input.anomaly.verdict,
+    anomalyTripped: input.anomaly.tripped,
+    baseline: input.anomaly.baseline,
+    ratio: input.anomaly.ratio,
+    ingestConfigVersion: input.anomaly.configVersion,
+    pollingBboxVersion: input.run.pollingBboxVersion,
+    sourceRegistryVersion: input.run.sourceRegistryVersion,
+  };
 }
 
 /**

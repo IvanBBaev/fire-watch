@@ -15,6 +15,7 @@ import { detectionUid } from '@fire-watch/contracts/node';
 
 import { systemClock } from '../adapters/clock/system-clock.js';
 import { createPgDetectionStore } from '../adapters/db/pg-detection-store.js';
+import { createPgIngestBatchWriter } from '../adapters/db/pg-ingest-batch-writer.js';
 import { createPgPool } from '../adapters/db/pg-pool.js';
 import { createPgQuarantineStore } from '../adapters/db/pg-quarantine-store.js';
 import { createFirmsHttpClient } from '../adapters/firms/firms-http-client.js';
@@ -45,6 +46,8 @@ export function wireIngest(config: ServerConfig): IngestWiring {
       // its own connections would let the archive and the record of the archive disagree
       // about which of them the database is currently refusing.
       quarantineStore: createPgQuarantineStore(pool),
+      // The rows and their batch row, on one checked-out connection of that pool.
+      batchWriter: createPgIngestBatchWriter(pool),
       clock: systemClock,
     },
     close: () => pool.end(),

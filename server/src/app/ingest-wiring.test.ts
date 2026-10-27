@@ -20,6 +20,7 @@ describe('wireIngest', () => {
     expect(typeof wiring.deps.detectionUid).toBe('function');
     expect(typeof wiring.deps.store.appendDetections).toBe('function');
     expect(typeof wiring.deps.store.recordPollAttempt).toBe('function');
+    expect(typeof wiring.deps.batchWriter.withBatch).toBe('function');
     expect(typeof wiring.deps.clock.now).toBe('function');
 
     await wiring.close();

@@ -15,6 +15,7 @@ import type {
   FirmsAreaResponse,
   FirmsAvailabilityResponse,
 } from '../ports/firms-client.js';
+import type { IngestBatchWriter } from '../ports/ingest-batch-writer.js';
 import type {
   IngestBatchRecord,
   QuarantineEntry,
@@ -66,6 +67,8 @@ function stubClient(answer: (query: FirmsAreaQuery) => string | Error): StubClie
 interface StubStore extends DetectionStore {
   readonly appended: DetectionRecord[][];
   readonly attempts: PollAttempt[];
+  /** Set by `memoryStore`, whose archive a rollback must restore as well. */
+  readonly rows?: Map<string, DetectionRecord>;
 }
 
 interface StubStoreOptions {
@@ -153,15 +156,56 @@ const TEST_ANOMALY = defineConfig('ingest_anomaly', 'ingest_anomaly_test_v1', {
   windowSize: 4,
 });
 
-function deps(overrides: Partial<IngestCycleDeps> = {}): IngestCycleDeps {
+/**
+ * The unit of work as the database implements it, over the two stubs: the writes go
+ * through the stubs' own methods, and a rejection puts every array (and the memory
+ * archive) back the way it was. That is the whole of what `BEGIN … ROLLBACK` promises the
+ * cycle, so the atomicity claim can be tested here and only re-confirmed against Postgres.
+ */
+function memoryBatchWriter(
+  store: StubStore,
+  quarantineStore: StubQuarantineStore,
+): IngestBatchWriter {
+  return {
+    async withBatch(work) {
+      const appended = store.appended.length;
+      const batches = quarantineStore.batches.length;
+      const rows = store.rows === undefined ? undefined : new Map(store.rows);
+      try {
+        return await work({
+          appendDetections: (records) => store.appendDetections(records),
+          recordBatch: (batch) => quarantineStore.recordBatch(batch),
+        });
+      } catch (error) {
+        store.appended.splice(appended);
+        quarantineStore.batches.splice(batches);
+        if (rows !== undefined && store.rows !== undefined) {
+          store.rows.clear();
+          for (const [uid, record] of rows) store.rows.set(uid, record);
+        }
+        throw error;
+      }
+    },
+  };
+}
+
+type DepsOverrides = Partial<Omit<IngestCycleDeps, 'store' | 'quarantineStore'>> & {
+  readonly store?: StubStore;
+  readonly quarantineStore?: StubQuarantineStore;
+};
+
+function deps(overrides: DepsOverrides = {}): IngestCycleDeps {
+  const store = overrides.store ?? stubStore();
+  const quarantineStore = overrides.quarantineStore ?? stubQuarantineStore();
   return {
     client: stubClient(() => HEADER + row('41.85012')),
     detectionUid,
-    store: stubStore(),
-    quarantineStore: stubQuarantineStore(),
     clock: fixedClock(),
     sources: ['firms:viirs:snpp'],
+    batchWriter: memoryBatchWriter(store, quarantineStore),
     ...overrides,
+    store,
+    quarantineStore,
   };
 }
 
@@ -171,11 +215,14 @@ describe('runIngestCycle', () => {
 
     // Built without `sources` rather than with an undefined one — the point of the test is
     // the key being absent, which is what the CLI does.
+    const store = stubStore();
+    const quarantineStore = stubQuarantineStore();
     const report = await runIngestCycle({
       client,
       detectionUid,
-      store: stubStore(),
-      quarantineStore: stubQuarantineStore(),
+      store,
+      quarantineStore,
+      batchWriter: memoryBatchWriter(store, quarantineStore),
       clock: fixedClock(),
     });
 
@@ -520,17 +567,96 @@ describe('the anomaly breaker leg', () => {
     expect(quarantineStore.batches).toHaveLength(1);
   });
 
-  it('keeps the freshness row honest when only the bookkeeping failed', async () => {
+  it('keeps the freshness row honest when only the quarantine entries failed', async () => {
     // The rows did reach the archive, so freshness must not claim otherwise — what was
-    // lost is the record of how they were judged, not the data.
+    // lost is the record of why some lines were thrown out, not the data.
     const store = stubStore();
     const quarantineStore = stubQuarantineStore({
-      recordThrows: new Error('ingest_batches insert failed'),
+      quarantineThrows: new Error('ingest_quarantine insert failed'),
     });
 
     await runIngestCycle(deps({ store, quarantineStore }));
 
     expect(store.attempts[0]).toMatchObject({ succeeded: true, error: null });
+  });
+});
+
+describe('runIngestCycle atomicity', () => {
+  it('leaves neither the rows nor the batch row when the batch row fails', async () => {
+    // The batch row is the identity pipeline's queue. Rows that landed without it would
+    // never be clustered, and the next poll could not repair that: it re-delivers them
+    // under a new available_at, and the archive keeps the first copy.
+    const store = memoryStore();
+    const quarantineStore = stubQuarantineStore({
+      recordThrows: new Error('ingest_batches insert failed'),
+    });
+
+    const report = await runIngestCycle(deps({ store, quarantineStore }));
+
+    expect(store.rows.size).toBe(0);
+    expect(store.appended).toEqual([]);
+    expect(quarantineStore.batches).toEqual([]);
+    expect(report.sources[0]).toMatchObject({ outcome: 'write_failed', inserted: 0 });
+    // Freshness follows the archive, and the archive holds nothing from this poll.
+    expect(store.attempts[0]).toMatchObject({
+      succeeded: false,
+      error: 'ingest_batches insert failed',
+    });
+  });
+
+  it('heals on the next poll, which lands the rows under its own batch', async () => {
+    const store = memoryStore();
+    let failNext = true;
+    const quarantineStore = stubQuarantineStore();
+    const flaky: StubQuarantineStore = {
+      ...quarantineStore,
+      recordBatch(batch) {
+        if (failNext) {
+          failNext = false;
+          return Promise.reject(new Error('ingest_batches insert failed'));
+        }
+        return quarantineStore.recordBatch(batch);
+      },
+    };
+
+    // Ten minutes apart, as two live polls are: the re-delivery has its own available_at.
+    let availableAt = AVAILABLE_AT;
+    const client: FirmsAreaClient = {
+      fetchArea: () => {
+        const response = { csv: HEADER + row('41.85012'), availableAt };
+        availableAt += 600_000;
+        return Promise.resolve(response);
+      },
+    };
+
+    await runIngestCycle(deps({ client, store, quarantineStore: flaky }));
+    const second = await runIngestCycle(deps({ client, store, quarantineStore: flaky }));
+
+    expect(second.sources[0]).toMatchObject({ outcome: 'stored', inserted: 1 });
+    expect(store.rows.size).toBe(1);
+    // The first poll is left with only the breaker's lone, empty batch row; the rows sit
+    // under the second batch's available_at — the one the identity pipeline loads them by.
+    expect(quarantineStore.batches.map((batch) => batch.inserted)).toEqual([0, 1]);
+    expect([...store.rows.values()][0]?.availableAt).toBe(AVAILABLE_AT + 600_000);
+    expect(quarantineStore.batches[1]?.availableAt).toBe(AVAILABLE_AT + 600_000);
+  });
+
+  it('still records the batch alone when the append failed, for the breaker', async () => {
+    // Nothing landed, so the lone batch row says so; it is safe to queue because the
+    // identity pipeline finds no rows under it. Without it the breaker's trailing window
+    // would silently skip this poll.
+    const store = stubStore({ appendThrows: new Error('deadlock detected') });
+    const quarantineStore = stubQuarantineStore();
+
+    await runIngestCycle(deps({ store, quarantineStore }));
+
+    expect(store.appended).toEqual([]);
+    expect(quarantineStore.batches).toHaveLength(1);
+    expect(quarantineStore.batches[0]).toMatchObject({
+      received: 1,
+      inserted: 0,
+      alreadyPresent: 0,
+    });
   });
 });
 
