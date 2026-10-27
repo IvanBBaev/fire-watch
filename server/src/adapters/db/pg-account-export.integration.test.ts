@@ -123,6 +123,11 @@ describe.skipIf(!hasDocker)('account export', () => {
       [`session-${accountId}`, accountId, ISO, LATER],
     );
     await db.query(
+      `INSERT INTO account_preferences (account_id, document, revision, updated_at)
+       VALUES ($1, '{"schema":"account_preferences_v1","preferences":{"theme":"dark"}}', 1, $2)`,
+      [accountId, ISO],
+    );
+    await db.query(
       `INSERT INTO auth_link_requests (email, token_hash, ua_family, requested_at, expires_at)
        VALUES ($1, sha256(convert_to($2, 'UTF8')), 'firefox', $3, $4)`,
       [email, `link-${accountId}`, ISO, LATER],
@@ -193,6 +198,14 @@ describe.skipIf(!hasDocker)('account export', () => {
     expect(tables.channel_subscriptions).toHaveLength(1);
     expect(tables.channel_confirmations).toHaveLength(1);
     expect(tables.account_sessions).toHaveLength(1);
+    expect(tables.account_preferences).toEqual([
+      {
+        account_id: mine.accountId,
+        document: { schema: 'account_preferences_v1', preferences: { theme: 'dark' } },
+        revision: '1',
+        updated_at: expect.any(String) as unknown,
+      },
+    ]);
     expect(tables.auth_link_requests).toHaveLength(1);
     expect(tables.alerts_shadow).toEqual([]);
     expect(tables.alert_decision_log).toEqual([]);

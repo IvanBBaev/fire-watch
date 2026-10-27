@@ -64,6 +64,7 @@ export const DELETED_TABLE_COUNTS = {
   channel_confirmations: 'channelConfirmations',
   channel_subscriptions: 'subscriptions',
   account_sessions: 'sessions',
+  account_preferences: 'accountPreferences',
   auth_link_requests: 'linkRequests',
 } as const satisfies Record<string, keyof ErasureCounts>;
 
@@ -140,6 +141,7 @@ export function expectedErasureCounts(seed: ErasureDrillSeed): ErasureCounts {
     channelConfirmations: seed.rows.channel_confirmations,
     subscriptions: seed.rows.channel_subscriptions,
     sessions: seed.rows.account_sessions,
+    accountPreferences: seed.rows.account_preferences,
     linkRequests: seed.rows.auth_link_requests,
   };
 }

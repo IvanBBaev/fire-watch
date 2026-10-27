@@ -66,6 +66,7 @@ const LIVE: Partial<Record<Key, Answer>> = {
   deleteChannelConfirmations: { rows: [], rowCount: 3 },
   deleteSubscriptions: { rows: [], rowCount: 1 },
   deleteSessions: { rows: [], rowCount: 2 },
+  deleteAccountPreferences: { rows: [], rowCount: 1 },
   deleteLinkRequests: { rows: [], rowCount: 0 },
 };
 
@@ -83,6 +84,7 @@ describe('createPgAccountEraser', () => {
       'deleteChannelConfirmations',
       'deleteSubscriptions',
       'deleteSessions',
+      'deleteAccountPreferences',
       'deleteLinkRequests',
       'tombstoneAccount',
       'recordErasure',
@@ -104,6 +106,7 @@ describe('createPgAccountEraser', () => {
         channelConfirmations: 3,
         subscriptions: 1,
         sessions: 2,
+        accountPreferences: 1,
         linkRequests: 0,
       },
     });

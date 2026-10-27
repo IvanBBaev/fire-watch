@@ -31,6 +31,7 @@ Why a RoPA despite the Art. 30(5) derogation: the processing is continuous, not 
 | P7  | Public map, access logs, rate limiting     | Serve the map; security and abuse defence                        | 6(1)(f), see [lia.md](lia.md) LIA-1 | Any visitor          | none in Postgres (edge and host logs)                                    |
 | P8  | Backups                                    | Disaster recovery                                                | Same as the source activity          | As source            | the `personal` set (see §4)                                             |
 | P9  | Operator accountability                    | Record which operator approved or initiated a send               | 6(1)(f) (employment record)          | Operators (staff)    | `alert_outbox.approver_id`, `alert_outbox.actor_id`                      |
+| P10 | Cross-device preference sync (V2-C5)       | Carry the reader's own display settings between their devices    | 6(1)(b)                             | Account holders      | `account_preferences`                                                   |
 
 Not live and out of scope of this version: payments and invoicing (6(1)(b)+(c), ЗСч 10-year
 retention), marketing consent lists, analytics, crowdsourced reports, B2B contacts. Each
@@ -160,9 +161,21 @@ Columns: `account_hash` (SHA-256 of the account id; withheld from export), `eras
 inside the 30-day horizon (010:123). Backup class `personal` as a fail-closed default
 (010:170) — moving it to `main` is a **FOUNDER DECISION** (`ERASURE_OPEN_ITEMS`).
 
+### 3.11 `account_preferences` — P10 (`036_account_preferences.sql:30`)
+
+| Column                  | Personal? | Exp. | Source    |
+| ----------------------- | --------- | ---- | --------- |
+| `account_id`            | Yes       | yes  | 034:31    |
+| `document` (≤ 8 KiB JSON: map overlays, theme, locale, age window, sound) | Yes (low) | yes | 034:32 |
+| `revision`, `updated_at` | Yes (low) | yes | 034:33–34 |
+
+No location and no free text: the contract (`packages/contracts/src/account-preferences.ts`)
+admits only enumerated settings. Backup class `personal`. Deleted on erasure (selected by
+account); a refuse-write trigger stops a write under an erased account.
+
 ## 4. Backups (P8)
 
-The `personal` class (001:530–543, 006:106, 007:139–141, 010:170, 012:83) is dumped
+The `personal` class (001:530–543, 006:106, 007:139–141, 010:170, 012:83, 034) is dumped
 separately and expires at 28 days with no weeklies (`server/src/core/erasure/erasure-horizon.ts`;
 OPERATIONS §6.2 rules 5 and 9), inside the 30-day horizon of ADR-004 A1.3 and 05 §5.3.3.
 The `main` artifact carries only the pseudonymized projection of `alert_outbox`. Storage:

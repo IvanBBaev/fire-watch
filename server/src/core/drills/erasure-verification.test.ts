@@ -26,6 +26,7 @@ const ROWS: Record<DeletedTable, number> = {
   channel_confirmations: 2,
   channel_subscriptions: 1,
   account_sessions: 1,
+  account_preferences: 1,
   auth_link_requests: 1,
 };
 const ZERO: Record<DeletedTable, number> = Object.fromEntries(

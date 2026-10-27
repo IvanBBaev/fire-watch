@@ -4,7 +4,8 @@
  *
  * The drill: deleting an account cancels its pending and claimed outbox rows and
  * pseudonymizes every outbox row of its zones in the same transaction that removes its
- * zones, alert state, channel confirmations, subscriptions, sessions and link requests,
+ * zones, alert state, channel confirmations, subscriptions, sessions, synced preferences
+ * and link requests,
  * tombstones it and writes the ledger. Then the row-lock orderings against the dispatcher's `SKIP LOCKED` claim,
  * and the guards that stop the runtime role from undoing an erasure.
  *
@@ -256,6 +257,11 @@ describe.skipIf(!hasDocker)('account erasure', () => {
       ],
     );
     await db.query(
+      `INSERT INTO account_preferences (account_id, document, revision, updated_at)
+       VALUES ($1, '{"schema":"account_preferences_v1","preferences":{"theme":"dark"}}', 1, $2)`,
+      [seeded.accountId, new Date(DECIDED_AT).toISOString()],
+    );
+    await db.query(
       `INSERT INTO auth_link_requests (email, token_hash, ua_family, requested_at, expires_at)
        VALUES ($1, sha256('drill-link'::bytea), 'firefox', $2, $3)`,
       [seeded.email, new Date(DECIDED_AT).toISOString(), new Date(AT + 900_000).toISOString()],
@@ -292,6 +298,7 @@ describe.skipIf(!hasDocker)('account erasure', () => {
         channelConfirmations: 2,
         subscriptions: 1,
         sessions: 1,
+        accountPreferences: 1,
         linkRequests: 1,
       },
     });
@@ -320,6 +327,9 @@ describe.skipIf(!hasDocker)('account erasure', () => {
       await countWhere('channel_subscriptions WHERE account_id = $1', [seeded.accountId]),
     ).toBe(0);
     expect(await countWhere('account_sessions WHERE account_id = $1', [seeded.accountId])).toBe(0);
+    expect(await countWhere('account_preferences WHERE account_id = $1', [seeded.accountId])).toBe(
+      0,
+    );
     expect(await countWhere('auth_link_requests WHERE email = $1', [seeded.email])).toBe(0);
 
     const { rows: accounts } = await db.query<{

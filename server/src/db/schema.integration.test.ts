@@ -109,6 +109,7 @@ describe.skipIf(!hasDocker)('migrations — schema invariants', () => {
 
   it('creates every table the application expects', async () => {
     expect(await tableNames()).toEqual([
+      'account_preferences',
       'account_sessions',
       'accounts',
       'alert_decision_log',

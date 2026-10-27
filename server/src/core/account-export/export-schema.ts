@@ -30,6 +30,7 @@ export const ACCOUNT_EXPORT_TABLES = [
   'channel_confirmations',
   'channel_subscriptions',
   'account_sessions',
+  'account_preferences',
   'auth_link_requests',
   'accounts',
   'erasure_requests',
@@ -193,6 +194,13 @@ export const EXPORT_COLUMNS: Readonly<Record<AccountExportTable, ExportColumns>>
     expires_at: 'timestamp',
     revoked_at: 'timestamp',
   },
+  // 034 (V2-C5)
+  account_preferences: {
+    account_id: 'id',
+    document: 'json',
+    revision: 'bigint',
+    updated_at: 'timestamp',
+  },
   // 007
   auth_link_requests: {
     id: 'id',
@@ -308,6 +316,7 @@ export const EXPORT_SCOPES: Readonly<Record<AccountExportTable, ExportScopeKind>
   channel_confirmations: 'account',
   channel_subscriptions: 'account',
   account_sessions: 'account',
+  account_preferences: 'account',
   auth_link_requests: 'email',
   accounts: 'account',
   erasure_requests: 'account_hash',

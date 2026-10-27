@@ -34,6 +34,8 @@ export interface ErasureCounts {
   readonly channelConfirmations: number;
   readonly subscriptions: number;
   readonly sessions: number;
+  /** `account_preferences` rows (migration 034, V2-C5): zero or one. */
+  readonly accountPreferences: number;
   readonly linkRequests: number;
 }
 
@@ -78,6 +80,8 @@ export interface AccountErasureStore {
   deleteChannelConfirmations(accountId: string): Promise<number>;
   deleteSubscriptions(accountId: string): Promise<number>;
   deleteSessions(accountId: string): Promise<number>;
+  /** Deletes the account's synced preferences (migration 034). */
+  deleteAccountPreferences(accountId: string): Promise<number>;
   deleteLinkRequests(email: string): Promise<number>;
   tombstoneAccount(accountId: string, atIso: string): Promise<void>;
   record(entry: ErasureRecord): Promise<void>;

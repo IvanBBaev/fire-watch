@@ -112,6 +112,7 @@ const ORDER_BY: Readonly<Record<AccountExportTable, string>> = {
   channel_confirmations: 't.issued_at, t.id',
   channel_subscriptions: 't.created_at, t.id',
   account_sessions: 't.created_at, t.id',
+  account_preferences: 't.account_id',
   auth_link_requests: 't.requested_at, t.id',
   accounts: 't.id',
   erasure_requests: 't.erased_at',

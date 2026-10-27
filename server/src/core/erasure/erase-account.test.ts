@@ -56,6 +56,10 @@ function recordingStore(account: LockedAccount, zoneIds: readonly string[] = ZON
       note('deleteSessions', id);
       return Promise.resolve(2);
     },
+    deleteAccountPreferences: (id) => {
+      note('deleteAccountPreferences', id);
+      return Promise.resolve(1);
+    },
     deleteLinkRequests: (email) => {
       note('deleteLinkRequests', email);
       return Promise.resolve(6);
@@ -86,6 +90,7 @@ describe('eraseAccount', () => {
       'deleteChannelConfirmations',
       'deleteSubscriptions',
       'deleteSessions',
+      'deleteAccountPreferences',
       'deleteLinkRequests',
       'tombstoneAccount',
       'record',
@@ -106,6 +111,7 @@ describe('eraseAccount', () => {
       channelConfirmations: 7,
       subscriptions: 1,
       sessions: 2,
+      accountPreferences: 1,
       linkRequests: 6,
     };
     expect(outcome).toEqual({

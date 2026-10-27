@@ -77,6 +77,7 @@ describe('createPgErasurePurge', () => {
       'channel_subscriptions',
       'channel_confirmations',
       'account_sessions',
+      'account_preferences',
     ]) {
       expect(sql).toContain(`NOT EXISTS (SELECT 1 FROM ${table}`);
     }

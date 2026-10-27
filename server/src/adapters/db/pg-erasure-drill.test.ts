@@ -79,6 +79,7 @@ describe('seedDrillAccount', () => {
         channel_confirmations: 2,
         channel_subscriptions: 1,
         account_sessions: 1,
+        account_preferences: 1,
         auth_link_requests: 1,
       },
       outbox: [
@@ -165,6 +166,7 @@ const SEED: ErasureDrillSeed = {
     channel_confirmations: 2,
     channel_subscriptions: 1,
     account_sessions: 1,
+    account_preferences: 1,
     auth_link_requests: 1,
   },
   outbox: [{ id: '1', seededStatus: 'sent' }],
@@ -180,6 +182,7 @@ const ZERO_REMAINING = {
   channel_confirmations: 0,
   channel_subscriptions: 0,
   account_sessions: 0,
+  account_preferences: 0,
   auth_link_requests: 0,
 };
 

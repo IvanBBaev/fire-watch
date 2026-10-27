@@ -39,6 +39,13 @@ export interface Accounts {
   timezone: Generated<string>;
 }
 
+export interface AccountPreferences {
+  account_id: string;
+  document: Json;
+  revision: Int8;
+  updated_at: Timestamp;
+}
+
 export interface AccountSessions {
   account_id: string;
   created_at: Timestamp;
@@ -661,6 +668,7 @@ export interface WatchZones {
 }
 
 export interface DB {
+  account_preferences: AccountPreferences;
   account_sessions: AccountSessions;
   accounts: Accounts;
   alert_decision_log: AlertDecisionLog;

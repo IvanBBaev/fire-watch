@@ -159,6 +159,7 @@ describe('buildAccountExport', () => {
       channel_confirmations: { by: 'account', accountId: ACCOUNT },
       channel_subscriptions: { by: 'account', accountId: ACCOUNT },
       account_sessions: { by: 'account', accountId: ACCOUNT },
+      account_preferences: { by: 'account', accountId: ACCOUNT },
       auth_link_requests: { by: 'email', email: 'person@example.org' },
       erasure_requests: { by: 'account_hash', accountId: ACCOUNT },
     });
@@ -168,6 +169,7 @@ describe('buildAccountExport', () => {
     const fake = fakeSource({ account: { state: 'live', row: ACCOUNT_ROW, email: null } });
     const outcome = await buildAccountExport(ACCOUNT, AT, fake.source, CIPHER);
     expect(fake.reads.map((r) => r.table).sort()).toEqual([
+      'account_preferences',
       'account_sessions',
       'channel_confirmations',
       'channel_subscriptions',

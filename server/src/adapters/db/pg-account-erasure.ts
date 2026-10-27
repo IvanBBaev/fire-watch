@@ -141,6 +141,10 @@ const DELETE_SESSIONS = `
 DELETE FROM account_sessions
 WHERE account_id = $1::uuid`;
 
+const DELETE_ACCOUNT_PREFERENCES = `
+DELETE FROM account_preferences
+WHERE account_id = $1::uuid`;
+
 const DELETE_LINK_REQUESTS = `
 DELETE FROM auth_link_requests
 WHERE email = $1::text`;
@@ -174,6 +178,7 @@ export const ACCOUNT_ERASURE_SQL = {
   deleteChannelConfirmations: DELETE_CHANNEL_CONFIRMATIONS,
   deleteSubscriptions: DELETE_SUBSCRIPTIONS,
   deleteSessions: DELETE_SESSIONS,
+  deleteAccountPreferences: DELETE_ACCOUNT_PREFERENCES,
   deleteLinkRequests: DELETE_LINK_REQUESTS,
   tombstoneAccount: TOMBSTONE_ACCOUNT,
   recordErasure: RECORD_ERASURE,
@@ -245,6 +250,10 @@ export function createPgAccountErasureStore(db: PgErasureQueryable): AccountEras
     },
     async deleteSessions(accountId) {
       const result = await db.query(DELETE_SESSIONS, [accountId]);
+      return result.rowCount ?? 0;
+    },
+    async deleteAccountPreferences(accountId) {
+      const result = await db.query(DELETE_ACCOUNT_PREFERENCES, [accountId]);
       return result.rowCount ?? 0;
     },
     async deleteLinkRequests(email) {

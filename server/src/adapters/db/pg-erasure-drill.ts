@@ -71,6 +71,12 @@ INSERT INTO account_sessions (token_hash, account_id, ua_family, created_at, las
 VALUES (sha256(convert_to($2::text || ':session', 'UTF8')), $1::uuid, 'firefox',
         $3::timestamptz, $3::timestamptz, $4::timestamptz)`;
 
+/** A synced preferences document (migration 034, V2-C5): settings only, nothing personal. */
+const INSERT_PREFERENCES = `
+INSERT INTO account_preferences (account_id, document, revision, updated_at)
+VALUES ($1::uuid, '{"schema":"account_preferences_v1","preferences":{"theme":"dark"}}'::jsonb,
+        1, $2::timestamptz)`;
+
 const INSERT_LINK_REQUEST = `
 INSERT INTO auth_link_requests (email, token_hash, ua_family, requested_at, expires_at)
 VALUES ($1::text, sha256(convert_to($1::text || ':link', 'UTF8')), 'firefox',
@@ -147,6 +153,7 @@ SELECT
   (SELECT count(*)::integer FROM channel_confirmations WHERE account_id = $1::uuid) AS channel_confirmations,
   (SELECT count(*)::integer FROM channel_subscriptions WHERE account_id = $1::uuid) AS channel_subscriptions,
   (SELECT count(*)::integer FROM account_sessions WHERE account_id = $1::uuid) AS account_sessions,
+  (SELECT count(*)::integer FROM account_preferences WHERE account_id = $1::uuid) AS account_preferences,
   (SELECT count(*)::integer FROM auth_link_requests WHERE email = $3::text) AS auth_link_requests`;
 
 const ACCOUNT_ROW = `
@@ -179,6 +186,7 @@ export const ERASURE_DRILL_SQL = {
   insertSubscription: INSERT_SUBSCRIPTION,
   insertZones: INSERT_ZONES,
   insertSession: INSERT_SESSION,
+  insertPreferences: INSERT_PREFERENCES,
   insertLinkRequest: INSERT_LINK_REQUEST,
   insertConfirmations: INSERT_CONFIRMATIONS,
   newestFireEvent: NEWEST_FIRE_EVENT,
@@ -205,6 +213,7 @@ const DELETED_TABLES: readonly DeletedTable[] = [
   'channel_confirmations',
   'channel_subscriptions',
   'account_sessions',
+  'account_preferences',
   'auth_link_requests',
 ];
 
@@ -230,6 +239,7 @@ export async function seedDrillAccount(
     const zones = await db.query(INSERT_ZONES, [accountId, zoneCount]);
     const zoneIds = zones.rows.map((row) => string(field(row, 'id'), 'zone id'));
     await db.query(INSERT_SESSION, [accountId, email, now, inADay]);
+    await db.query(INSERT_PREFERENCES, [accountId, now]);
     await db.query(INSERT_LINK_REQUEST, [email, now, inADay]);
     await db.query(INSERT_CONFIRMATIONS, [accountId, subscriptionId, email, now, inADay]);
 
@@ -242,6 +252,7 @@ export async function seedDrillAccount(
       channel_confirmations: 2,
       channel_subscriptions: 1,
       account_sessions: 1,
+      account_preferences: 1,
       auth_link_requests: 1,
     };
     const unseeded: Partial<Record<DeletedTable | 'alert_outbox', string>> = {};

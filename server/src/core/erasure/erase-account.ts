@@ -15,8 +15,8 @@
  *      by the time the lock is released. A dispatcher that claimed a row before step 3
  *      finds its settle refused, because every settle is conditional on `status = 'claimed'`.
  *   4. Delete alert state, then the zones (the shadow log goes with them by cascade).
- *   5. Delete channel confirmations (migration 012), then subscriptions, sessions and link
- *      requests.
+ *   5. Delete channel confirmations (migration 012), then subscriptions, sessions, synced
+ *      preferences (migration 034) and link requests.
  *   6. Tombstone the account, then write the ledger row.
  *
  * Nothing here reads a clock; `at` is passed in.
@@ -74,6 +74,7 @@ export async function eraseAccount(
   const channelConfirmations = await store.deleteChannelConfirmations(accountId);
   const subscriptions = await store.deleteSubscriptions(accountId);
   const sessions = await store.deleteSessions(accountId);
+  const accountPreferences = await store.deleteAccountPreferences(accountId);
   const linkRequests = account.email === null ? 0 : await store.deleteLinkRequests(account.email);
 
   await store.tombstoneAccount(accountId, atIso);
@@ -89,6 +90,7 @@ export async function eraseAccount(
     channelConfirmations,
     subscriptions,
     sessions,
+    accountPreferences,
     linkRequests,
   };
   const deadline = erasureDeadline(at, options.horizon ?? ERASURE_HORIZON);

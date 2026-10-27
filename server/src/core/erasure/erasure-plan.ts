@@ -28,8 +28,9 @@
  *     zone cascade.
  * v6: `alert_outbox.delivery_attempts` and `alert_outbox.next_attempt_at` (migration 033,
  *     TASKS H4) joined what survives pseudonymization.
+ * v7: `account_preferences` (migration 034, TASKS V2-C5) joined the deleted tables.
  */
-export const ERASURE_PLAN_VERSION = 'erasure_plan_v6';
+export const ERASURE_PLAN_VERSION = 'erasure_plan_v7';
 
 export type ErasureAction = 'delete' | 'pseudonymize' | 'tombstone' | 'record';
 
@@ -163,6 +164,15 @@ export const ERASURE_PLAN: readonly TableErasureRule[] = [
     survives: [],
     reason: 'deletion is revocation plus erasure of the UA family and timestamps',
     spec: '05 §5.4.1',
+  },
+  {
+    table: 'account_preferences',
+    action: 'delete',
+    scope: "the account's synced preferences document",
+    survives: [],
+    reason:
+      "the reader's own display settings; nothing about a decision or a delivery depends on them",
+    spec: 'TASKS V2-C5',
   },
   {
     table: 'auth_link_requests',

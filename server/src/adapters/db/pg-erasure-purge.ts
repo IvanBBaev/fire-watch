@@ -76,6 +76,7 @@ WHERE id IN (
     AND NOT EXISTS (SELECT 1 FROM channel_subscriptions AS c WHERE c.account_id = a.id)
     AND NOT EXISTS (SELECT 1 FROM channel_confirmations AS k WHERE k.account_id = a.id)
     AND NOT EXISTS (SELECT 1 FROM account_sessions AS s WHERE s.account_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM account_preferences AS p WHERE p.account_id = a.id)
   ORDER BY a.deleted_at
   LIMIT $2::integer
 )`;

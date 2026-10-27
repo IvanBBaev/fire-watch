@@ -12,9 +12,10 @@ import {
   retainedTemplateParams,
 } from './erasure-plan.js';
 
-/** Every table 001–018 class `personal`. The integration test reads the live registry. */
+/** Every table 001–034 class `personal` that an account owns. The integration test reads the live registry. */
 const PERSONAL_TABLES = [
   'accounts',
+  'account_preferences',
   'account_sessions',
   'alert_decision_log',
   'alert_digest_log',

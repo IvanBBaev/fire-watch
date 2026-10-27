@@ -208,6 +208,7 @@ describe('createPgAccountExporter', () => {
       'channel_confirmations',
       'channel_subscriptions',
       'account_sessions',
+      'account_preferences',
       'auth_link_requests',
       'erasure_requests',
       'COMMIT',
