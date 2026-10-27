@@ -293,8 +293,8 @@ export interface MapControllerDeps {
    */
   readonly attributionLine: string;
   /**
-   * Where to open when the URL fragment does not say — a remembered camera, a geolocation
-   * fix, or the default view. A `#map=` fragment always wins: a shared link must land
+   * Where to open when the URL fragment does not say — a remembered camera, a fix the user
+   * asked for before the map loaded, or the default view. A `#map=` fragment always wins: a shared link must land
    * everyone on the same frame regardless of what each of their browsers remembers.
    */
   readonly initialView: MapCamera;

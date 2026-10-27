@@ -61,8 +61,8 @@ export function MapPane({ selectedId }: { readonly selectedId: string | null }) 
   // route() identity may change per render; the controller callback lives long.
   const routeRef = useRef(route);
   routeRef.current = route;
-  // A camera chosen (by geolocation) before the chunk finished loading. Applied as the
-  // opening frame rather than animated to, so nobody watches the map fly away from a
+  // A camera chosen (a press of "my location" or Home) before the chunk finished loading.
+  // Applied as the opening frame rather than animated to, so nobody watches the map fly away from a
   // default view they never asked to see.
   const pendingCameraRef = useRef<MapCamera | null>(null);
   const selectedIdRef = useRef(selectedId);

@@ -15,12 +15,7 @@
 import { signal } from '@preact/signals';
 
 import { DEFAULT_VIEW } from '../core/config.js';
-import {
-  CAMERA_STORAGE_KEY,
-  hasCameraHash,
-  parseCamera,
-  serializeCamera,
-} from '../core/geo/camera.js';
+import { CAMERA_STORAGE_KEY, parseCamera, serializeCamera } from '../core/geo/camera.js';
 import type { MapCamera, MapViewport } from '../core/geo/viewport.js';
 import { readStorage, writeStorage } from './storage.js';
 
@@ -33,16 +28,6 @@ export const HOME_CAMERA: MapCamera = DEFAULT_VIEW;
 /** The remembered camera, or the default. The `#map=` fragment outranks both (map/hash). */
 export function initialCamera(): MapCamera {
   return parseCamera(readStorage(CAMERA_STORAGE_KEY)) ?? HOME_CAMERA;
-}
-
-/**
- * Offer to locate the user only when nothing else has already decided where to look — no
- * `#map=` in the link, no camera from a previous visit. A returning user's own last frame
- * is a stronger signal of intent than their coordinates, and re-prompting someone who has
- * already positioned the map is noise.
- */
-export function shouldOfferLocation(hash: string): boolean {
-  return !hasCameraHash(hash) && parseCamera(readStorage(CAMERA_STORAGE_KEY)) === null;
 }
 
 /** Record a settled frame: the list reads the signal, the next visit reads the storage. */

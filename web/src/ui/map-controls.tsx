@@ -7,19 +7,21 @@
  * else. Both are plain buttons with visible labels — a compass glyph would need a tooltip
  * to be understood, and this product is used by people in a hurry.
  *
- * Location handling lives here in full, including the one automatic attempt on a first
- * visit. That attempt is silent when it fails: the user did not ask for it, so a refusal or
- * a timeout leaves them on the default frame with nothing to dismiss. A press of the button
- * is a question, and every outcome of a question gets an answer.
+ * Location handling lives here in full, and it starts only from a press of the button
+ * (07-product-ux §5.8, §5.9.1: no permission walls, locate is on demand). Nothing asks for
+ * the user's position on load — a first visit opens on the default frame or on the frame
+ * the link carries, and the browser's permission prompt appears only as the answer to a
+ * question the user just asked. A press is a question, and every outcome of a question
+ * gets an answer.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useRef, useState } from 'preact/hooks';
 
 import { resolveLocateOutcome } from '../core/geo/locate.js';
 import type { MapCamera } from '../core/geo/viewport.js';
 import { useApp } from './context.js';
 import { LayersPanel, LayersToggle } from './layers-panel.js';
-import { HOME_CAMERA, shouldOfferLocation } from './map-camera.js';
+import { HOME_CAMERA } from './map-camera.js';
 import { PlaybackPanel, PlaybackToggle } from './playback-panel.js';
 import { MeasurePanelHost, MeasureToggle } from './measure-control.js';
 
@@ -28,40 +30,31 @@ export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) =
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // The callback outlives any single render; the effect below must not re-run on it.
+  // A fix can land after a re-render; it must reach the current `onMove`, not the one the
+  // press closed over.
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
 
-  const locate = useCallback(
-    async (announceFailure: boolean): Promise<void> => {
-      setBusy(true);
-      setStatus(messages.mapControls.locating);
-      const outcome = resolveLocateOutcome(await geolocator.locate());
-      setBusy(false);
-      switch (outcome.kind) {
-        case 'moved':
-          setStatus(null);
-          onMoveRef.current(outcome.camera);
-          return;
-        case 'outsideCoverage':
-          setStatus(announceFailure ? messages.mapControls.locationOutsideCoverage : null);
-          return;
-        case 'denied':
-          setStatus(announceFailure ? messages.mapControls.locationDenied : null);
-          return;
-        case 'unavailable':
-          setStatus(announceFailure ? messages.mapControls.locationUnavailable : null);
-      }
-    },
-    [geolocator, messages],
-  );
-
-  // Once per mount (empty deps on purpose — `locate` is not a dependency here, a second
-  // permission prompt on a locale change would be a bug). The shell mounts these controls
-  // with the map, so "per mount" is "per visit", not per route change.
-  useEffect(() => {
-    if (shouldOfferLocation(location.hash)) void locate(false);
-  }, []);
+  const locate = useCallback(async (): Promise<void> => {
+    setBusy(true);
+    setStatus(messages.mapControls.locating);
+    const outcome = resolveLocateOutcome(await geolocator.locate());
+    setBusy(false);
+    switch (outcome.kind) {
+      case 'moved':
+        setStatus(null);
+        onMoveRef.current(outcome.camera);
+        return;
+      case 'outsideCoverage':
+        setStatus(messages.mapControls.locationOutsideCoverage);
+        return;
+      case 'denied':
+        setStatus(messages.mapControls.locationDenied);
+        return;
+      case 'unavailable':
+        setStatus(messages.mapControls.locationUnavailable);
+    }
+  }, [geolocator, messages]);
 
   return (
     <div class="map-controls">
@@ -81,7 +74,7 @@ export function MapControls({ onMove }: { readonly onMove: (camera: MapCamera) =
           class="map-control"
           disabled={busy}
           onClick={() => {
-            void locate(true);
+            void locate();
           }}
         >
           {messages.mapControls.locate}

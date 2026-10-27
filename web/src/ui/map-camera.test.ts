@@ -59,15 +59,6 @@ describe('map camera', () => {
     expect(camera.initialCamera()).toEqual(camera.HOME_CAMERA);
   });
 
-  it('offers location only when neither a link nor a remembered frame decided the view', () => {
-    expect(camera.shouldOfferLocation('')).toBe(true);
-    expect(camera.shouldOfferLocation('#map=8/42.7/23.3')).toBe(false);
-    expect(camera.shouldOfferLocation('#layers=wind&map=8/42.7/23.3')).toBe(false);
-
-    data.set(CAMERA_STORAGE_KEY, JSON.stringify({ zoom: 9, lat: 43.2, lon: 27.9 }));
-    expect(camera.shouldOfferLocation('')).toBe(false);
-  });
-
   it('publishes a settled frame to the list and remembers it, rounded, for the next visit', () => {
     camera.publishViewport(VIEWPORT);
     expect(camera.mapViewport.value).toBe(VIEWPORT);
