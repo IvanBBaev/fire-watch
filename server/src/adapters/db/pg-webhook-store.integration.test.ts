@@ -196,6 +196,7 @@ describe.skipIf(!hasDocker)('the webhook stores', () => {
     expect(await deliveries.lastAttempt(id, deliveryId)).toEqual({
       attempt: 3,
       nextAttemptAt: null,
+      delivered: false,
     });
 
     await deliveries.recordAttempt(attempt(accountId, id, { attemptedAtMs: NOW + 10 }), {
@@ -225,6 +226,7 @@ describe.skipIf(!hasDocker)('the webhook stores', () => {
     expect(await deliveries.lastAttempt(id, 'd-1')).toEqual({
       attempt: 1,
       nextAttemptAt: NOW + 60_000,
+      delivered: false,
     });
     const gone = await deliveries.recordAttempt(
       attempt(accountId, id, { deliveryId: 'd-1', attempt: 2, outcome: 'gone', statusCode: 410 }),
@@ -331,6 +333,7 @@ describe.skipIf(!hasDocker)('the webhook stores', () => {
     expect(await createPgWebhookDeliveryStore(pool).lastAttempt(id, outboxId)).toEqual({
       attempt: 1,
       nextAttemptAt: null,
+      delivered: true,
     });
     expect(await createPgWebhookDeliveryStore(pool).alertFacts('999999999')).toBeNull();
   });

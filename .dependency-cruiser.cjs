@@ -78,6 +78,10 @@ module.exports = {
           // request — for one transactional mail that is not an alert. What it may take
           // from the channels directory is pinned by the next rule.
           '^server/src/adapters/mail/ses-auth-mailer\\.ts$',
+          // The webhook test ping (V2-G2) is one signed POST its owner asks for, to their
+          // own endpoint; it borrows the webhook transport (SSRF guard, signing, bounded
+          // request). What it may take is pinned by `webhook-pinger-reuses-transport-only`.
+          '^server/src/adapters/webhooks/webhook-pinger\\.ts$',
           // A test may exercise an adapter directly; it ships nothing.
           '\\.test\\.ts$',
         ],
@@ -98,6 +102,19 @@ module.exports = {
           '^server/src/adapters/alerts/channels/email/sigv4\\.ts$',
           '^server/src/adapters/alerts/channels/provider-http\\.ts$',
         ],
+      },
+    },
+    {
+      name: 'webhook-pinger-reuses-transport-only',
+      severity: 'error',
+      comment:
+        'V2-G2: the webhook test ping may reuse the webhook transport and nothing else ' +
+        'from the alert channels. Importing the webhook channel adapter would make it a ' +
+        'second alert sender outside the gateway.',
+      from: { path: '^server/src/adapters/webhooks/webhook-pinger\\.ts$' },
+      to: {
+        path: '^server/src/adapters/alerts/',
+        pathNot: ['^server/src/adapters/alerts/channels/webhook/webhook-transport\\.ts$'],
       },
     },
     {

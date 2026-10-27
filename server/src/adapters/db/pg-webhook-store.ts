@@ -120,7 +120,7 @@ FROM webhook_endpoints
 WHERE id = $1::uuid`;
 
 const LAST_ATTEMPT = `
-SELECT attempt, next_attempt_at
+SELECT attempt, next_attempt_at, (outcome = 'delivered') AS delivered
 FROM webhook_deliveries
 WHERE webhook_endpoint_id = $1::uuid AND delivery_id = $2::text
 ORDER BY attempt DESC
@@ -291,6 +291,7 @@ export function createPgWebhookDeliveryStore(pool: PgWebhookPool): WebhookDelive
       return {
         attempt: number(field(row, 'attempt'), 'attempt'),
         nextAttemptAt: next === null ? null : epochMs(next, 'next_attempt_at'),
+        delivered: boolean(field(row, 'delivered'), 'delivered'),
       };
     },
 

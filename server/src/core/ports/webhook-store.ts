@@ -135,9 +135,18 @@ export type WebhookEndpointEffect =
   /** Logged only (a failed test ping does not count against the endpoint). */
   | { readonly kind: 'none' };
 
+/** The newest logged attempt of one delivery. */
+export interface WebhookPreviousAttempt extends PreviousAttempt {
+  /**
+   * True when it was delivered: a row re-claimed after a crash between the log write and
+   * the outbox settle is then settled as sent, not retried or failed.
+   */
+  readonly delivered: boolean;
+}
+
 export interface WebhookDeliveryStore {
   loadTarget(endpointId: string): Promise<WebhookDeliveryTarget | null>;
-  lastAttempt(endpointId: string, deliveryId: string): Promise<PreviousAttempt | null>;
+  lastAttempt(endpointId: string, deliveryId: string): Promise<WebhookPreviousAttempt | null>;
   /** The outbox row's alert facts and its event's; null when either is gone. */
   alertFacts(outboxId: string): Promise<WebhookAlertFacts | null>;
   /**

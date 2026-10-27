@@ -261,7 +261,7 @@ describe('createPgWebhookDeliveryStore', () => {
 
   it('reads the newest attempt and the alert facts', async () => {
     const stub = stubPool({
-      lastAttempt: { rows: [{ attempt: 2, next_attempt_at: new Date(AT + 60_000) }], rowCount: 1 },
+      lastAttempt: { rows: [{ attempt: 2, next_attempt_at: new Date(AT + 60_000), delivered: false }], rowCount: 1 },
       alertFacts: {
         rows: [
           {
@@ -281,6 +281,7 @@ describe('createPgWebhookDeliveryStore', () => {
     expect(await store.lastAttempt(ENDPOINT, '42')).toEqual({
       attempt: 2,
       nextAttemptAt: AT + 60_000,
+      delivered: false,
     });
     expect(await store.alertFacts('42')).toEqual({
       alertType: 'new_fire',
