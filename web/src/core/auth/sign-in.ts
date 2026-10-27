@@ -209,6 +209,9 @@ export const SIGN_IN_READING_BY_CODE: Readonly<Record<ProblemCode, SignInReading
   statement_conflict: 'status',
   statement_self_review: 'status',
   history_range_invalid: 'status',
+  preferences_invalid: 'status',
+  preferences_revision_required: 'status',
+  preferences_conflict: 'status',
 };
 
 const LINK_REFUSALS: ReadonlySet<SignInReading> = new Set<LinkRefusal>([

@@ -207,3 +207,26 @@ export {
   type CemsOverlayAttribution,
   type CemsOverlayBody,
 } from './cems.js';
+
+export {
+  ACCOUNT_PREFERENCES_MAX_BYTES,
+  ACCOUNT_PREFERENCES_SCHEMA,
+  ACCOUNT_PREFERENCE_FIELDS,
+  ACCOUNT_PREFERENCE_LOCALES,
+  ACCOUNT_PREFERENCE_OVERLAYS_MAX,
+  ACCOUNT_PREFERENCE_THEMES,
+  ACCOUNT_PREFERENCE_TOKEN,
+  EMPTY_ACCOUNT_PREFERENCES,
+  accountPreferencesSize,
+  parseAccountPreferencesDocument,
+  parsePreferencesEtag,
+  preferencesEtag,
+  type AccountPreferenceField,
+  type AccountPreferenceLocale,
+  type AccountPreferenceTheme,
+  type AccountPreferences,
+  type AccountPreferencesDocument,
+  type AccountPreferencesIssue,
+  type AccountPreferencesParse,
+  type AccountPreferencesState,
+} from './account-preferences.js';

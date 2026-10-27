@@ -9,7 +9,8 @@
  * meaning changes gets a new code.
  *
  * **Scope.** Every problem document on the account surface — sign-in
- * (`/api/v1/auth/*`), the account itself (`/api/v1/account`, `/api/v1/account/export`),
+ * (`/api/v1/auth/*`), the account itself (`/api/v1/account`, `/api/v1/account/export`,
+ * `/api/v1/account/preferences`),
  * watch zones (`/api/v1/zones`), alert channels (`/api/v1/channels/*`) and the staff
  * plane's curated statements (`/api/v1/staff/curated-statements`) — carries a code. So do the problem handler's two fallbacks (`request_refused`, `internal_error`),
  * on every route. The public data routes (snapshot, stream, client-config, overlays) are
@@ -68,6 +69,10 @@ export const PROBLEM_CODES = [
   'statement_self_review',
   // V2-A1 playback: `/api/v1/history` takes exactly one known range.
   'history_range_invalid',
+  // V2-C5 synced preferences (`/api/v1/account/preferences`).
+  'preferences_invalid',
+  'preferences_revision_required',
+  'preferences_conflict',
 ] as const;
 
 export type ProblemCode = (typeof PROBLEM_CODES)[number];
