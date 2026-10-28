@@ -5,7 +5,7 @@
  * routing link, and no location prompt on render.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import prerender from 'preact-iso/prerender';
 
 import { DEFAULT_CONFIG } from '../../core/config.js';
@@ -18,6 +18,7 @@ import type { AppServices } from '../context.js';
 import { detailStateOf } from './use-detection-summary.js';
 import type { DetailState } from './use-detection-summary.js';
 import { EventDetails, EventIdentity } from './event-details.js';
+import { loadSections } from './sections/registry.js';
 
 const NOW_MS = Date.parse('2026-08-09T12:00:00Z');
 
@@ -94,6 +95,11 @@ async function render(
 }
 
 describe('EventDetails', () => {
+  // Server rendering runs no effects: the sections' chunks load first, as on a second visit.
+  beforeAll(async () => {
+    await loadSections();
+  });
+
   it('states the timeline with honest ages and absolute times', async () => {
     const html = await render(READY);
     expect(html).toContain('Satellite timeline');

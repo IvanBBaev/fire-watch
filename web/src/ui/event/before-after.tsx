@@ -14,7 +14,8 @@
  * from the registry for the `imagery-compare` surface and exists only while the panel does
  * (CI-13).
  *
- * Loaded lazily by `BeforeAfterHost` (`event-details.tsx`), off the critical path (CI-12).
+ * Loaded lazily by the slot-800 event section (`sections/800-before-after.section.tsx`), off
+ * the critical path (CI-12).
  */
 
 import { useEffect, useMemo, useState } from 'preact/hooks';

@@ -1,18 +1,19 @@
 /**
- * The event panel's rich half: identity, satellite timeline, fire radiative power,
- * contributing sensors and an orientation-only "where". Everything here is a fact the
- * data carries; anything the detections file cannot support is left out and said so.
+ * The event panel's rich half: identity, satellite timeline, then the sections in
+ * `sections/` (static source, protected site, land cover, lightning, outline, CEMS, FRP and
+ * sensors, before/after, where). Everything here is a fact the data carries; anything the
+ * detections file cannot support is left out and said so.
+ *
+ * V3-P2: this file is not edited to add a section. A section is a
+ * `sections/<slot>-<name>.section.tsx` file, found and ordered by `sections/registry.ts`.
  *
  * GLOSSARY §5.2 ("no routing, ever"): the only outbound map link is an OpenStreetMap
  * *area* view at the rounded centre — no marker, no directions, no navigation apps. (The
  * V2-E3 Copernicus EMS badge links to an activation's page, not to a place.)
  */
 
-import type { FunctionComponent } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 
-import { relativePosition } from '../../core/geo/bearing.js';
-import type { RelativePosition } from '../../core/geo/bearing.js';
 import {
   formatDateTimeSofia,
   formatNumber,
@@ -22,49 +23,18 @@ import {
 import type { FireEvent } from '../../core/types.js';
 import { useApp } from '../context.js';
 import { eventPath } from '../logic/event-resolution.js';
-import type { BeforeAfterProps } from './before-after.js';
-import type { CemsBadgeProps } from './cems-badge.js';
-import { copyText } from './clipboard.js';
-import type { FrpSummary, Overpass } from './detection-detail.js';
-import { distanceText, orbitText, pixelText, sensorLabel } from './event-format.js';
-import { geolocationAlreadyGranted } from './location-permission.js';
-import { sparklineGeometry } from './sparkline.js';
-import { FireOutlineNote } from './fire-outline-note.js';
-import { LightningContextNote } from './lightning-context-note.js';
-import { LandCoverNote } from './land-cover-note.js';
-import { ProtectedSiteNote } from './protected-site-note.js';
-import { StaticSourceNote } from './static-source-note.js';
+import { CopyButton } from './copy-button.js';
+import { sensorLabel } from './event-format.js';
+import {
+  EVENT_SECTIONS,
+  loadSections,
+  loadedSections,
+  type EventSectionEntry,
+  type LoadedEventSection,
+} from './sections/registry.js';
 import type { DetailState } from './use-detection-summary.js';
-import { approximateCentre, coordinatesText, openStreetMapAreaUrl } from './where.js';
 
 import './event-details.css';
-
-type CopyStatus = 'idle' | 'copied' | 'failed';
-
-/** A copy button with a polite live line that reports the outcome. */
-function CopyButton({ label, text }: { readonly label: string; readonly text: () => string }) {
-  const { messages } = useApp();
-  const [status, setStatus] = useState<CopyStatus>('idle');
-  const onClick = (): void => {
-    void copyText(text()).then((ok) => {
-      setStatus(ok ? 'copied' : 'failed');
-    });
-  };
-  return (
-    <>
-      <button type="button" class="button-secondary" onClick={onClick}>
-        {label}
-      </button>
-      <span class="copy-status" role="status">
-        {status === 'copied'
-          ? messages.eventDetail.copied
-          : status === 'failed'
-            ? messages.eventDetail.copyFailed
-            : ''}
-      </span>
-    </>
-  );
-}
 
 /** The public id and a copy of the canonical deep link (never the current URL's hash). */
 export function EventIdentity({ eventId }: { readonly eventId: string }) {
@@ -94,259 +64,53 @@ function Age({ iso, nowMs }: { readonly iso: string; readonly nowMs: number }) {
   );
 }
 
-const SPARK_BOX = { width: 160, height: 40, pad: 4 } as const;
-
-function FrpSection({ frp }: { readonly frp: FrpSummary | null }) {
-  const { messages, locale } = useApp();
-  const t = messages.eventDetail;
-  if (frp === null) {
-    return (
-      <section class="event-section" aria-labelledby="event-frp-title">
-        <h2 id="event-frp-title">{t.frpTitle}</h2>
-        <p>{t.frpUnavailable}</p>
-      </section>
-    );
-  }
-  const mw = (pass: Overpass): string => formatNumber(pass.frpMw ?? 0, locale);
-  const line = (
-    template: (mw: string, sensor: string, time: string) => string,
-    pass: Overpass,
-  ): string =>
-    template(mw(pass), sensorLabel(pass.sourceId), formatDateTimeSofia(pass.observedAt, locale));
-  const values = frp.series.map((pass) => pass.frpMw ?? 0);
-  const geometry = sparklineGeometry(
-    frp.series.map((pass) => ({ tMs: pass.observedMs, value: pass.frpMw ?? 0 })),
-    SPARK_BOX,
-  );
-  return (
-    <section class="event-section" aria-labelledby="event-frp-title">
-      <h2 id="event-frp-title">{t.frpTitle}</h2>
-      <p>{line(t.frpLatest, frp.latest)}</p>
-      {frp.peak !== frp.latest && <p>{line(t.frpPeak, frp.peak)}</p>}
-      {geometry !== null && (
-        <svg
-          class="frp-sparkline"
-          role="img"
-          aria-label={t.frpChartLabel(
-            frp.series.length,
-            formatNumber(Math.min(...values), locale),
-            formatNumber(Math.max(...values), locale),
-          )}
-          viewBox={`0 0 ${String(SPARK_BOX.width)} ${String(SPARK_BOX.height)}`}
-          width={SPARK_BOX.width}
-          height={SPARK_BOX.height}
-        >
-          <path d={geometry.path} />
-          {geometry.points.map((point, index) => (
-            <circle key={index} cx={point.x} cy={point.y} r="2" />
-          ))}
-        </svg>
-      )}
-      <p class="event-note">{t.frpNote}</p>
-    </section>
-  );
-}
-
-function DetectionSections({ detail }: { readonly detail: DetailState }) {
-  const { messages, locale } = useApp();
-  const t = messages.eventDetail;
-  if (detail.kind === 'loading') return null;
-  if (detail.kind === 'unavailable') return <p class="event-note">{t.detailUnavailable}</p>;
-  const { summary } = detail;
-  return (
-    <>
-      <FrpSection frp={summary.frp} />
-      <section class="event-section" aria-labelledby="event-sensors-title">
-        <h2 id="event-sensors-title">{t.sensorsTitle}</h2>
-        <ul class="sensor-list">
-          {summary.sensors.map((sensor) => {
-            const size = pixelText(sensor.sourceId, messages, locale);
-            const facts = [
-              orbitText(sensor.sourceId, messages),
-              size === null ? null : t.sensorPixel(size),
-              messages.detectionCount(sensor.detections),
-            ].filter((fact): fact is string => fact !== null);
-            return (
-              <li key={sensor.sourceId}>
-                <strong>{sensorLabel(sensor.sourceId)}</strong> · {facts.join(' · ')}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-    </>
-  );
-}
-
-type WhereState =
-  | { readonly kind: 'idle' }
-  | { readonly kind: 'locating' }
-  | { readonly kind: 'fix'; readonly position: RelativePosition }
-  | { readonly kind: 'denied' }
-  | { readonly kind: 'unavailable' };
-
-function WhereSection({ event }: { readonly event: FireEvent }) {
-  const { messages, locale, geolocator } = useApp();
-  const t = messages.eventDetail;
-  const centre = approximateCentre(event.lon, event.lat);
-  const [where, setWhere] = useState<WhereState>({ kind: 'idle' });
-
-  const locate = (): void => {
-    setWhere({ kind: 'locating' });
-    void geolocator.locate().then((outcome) => {
-      setWhere(
-        outcome.kind === 'fix'
-          ? { kind: 'fix', position: relativePosition(outcome, event) }
-          : { kind: outcome.kind },
-      );
-    });
-  };
-
-  // Only a permission the reader already granted is used silently; otherwise the button
-  // asks, on their press. The page never raises a location prompt on its own.
-  useEffect(() => {
-    let cancelled = false;
-    void geolocationAlreadyGranted().then((granted) => {
-      if (granted && !cancelled) locate();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [event.id]);
-
-  return (
-    <section class="event-section" aria-labelledby="event-where-title">
-      <h2 id="event-where-title">{t.whereTitle}</h2>
-      <p class="event-id-line">
-        <span>
-          {t.approxCentreLabel}: <code>{coordinatesText(centre)}</code>
-        </span>{' '}
-        <CopyButton label={t.copyCoordinates} text={() => coordinatesText(centre)} />
-      </p>
-      {where.kind === 'fix' ? (
-        <p class="key-fact">{distanceText(where.position, messages, locale)}</p>
-      ) : (
-        <p>
-          <button
-            type="button"
-            class="button-secondary"
-            onClick={locate}
-            disabled={where.kind === 'locating'}
-          >
-            {t.showDistance}
-          </button>{' '}
-          <span role="status">
-            {where.kind === 'locating'
-              ? t.locating
-              : where.kind === 'denied'
-                ? t.locationDenied
-                : where.kind === 'unavailable'
-                  ? t.locationUnavailable
-                  : ''}
-          </span>
-        </p>
-      )}
-      <p class="event-note">{t.orientationNote}</p>
-      <p>
-        <a
-          class="external-link"
-          href={openStreetMapAreaUrl(centre)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t.openStreetMap}
-        </a>
-      </p>
-    </section>
-  );
-}
-
 export interface EventDetailsProps {
   readonly event: FireEvent;
   readonly nowMs: number;
   readonly detail: DetailState;
+  /** The registry's sections; a test passes its own list. */
+  readonly sections?: readonly EventSectionEntry[];
 }
 
-/**
- * The V2-E3 Copernicus EMS badge, loaded on first use: its parser and matching stay off the
- * critical path (CI-12). Renders nothing when no activation list is configured.
- */
-function CemsBadgeHost({ event }: { readonly event: FireEvent }) {
-  const { config } = useApp();
-  const url = config.cemsActivationsUrl;
-  const [Badge, setBadge] = useState<FunctionComponent<CemsBadgeProps> | null>(null);
+/** The registry's sections in slot order, rendered together once every chunk has loaded. */
+function EventSections({
+  sections,
+  ...props
+}: Omit<EventDetailsProps, 'sections'> & { readonly sections: readonly EventSectionEntry[] }) {
+  const [ready, setReady] = useState<readonly LoadedEventSection[] | null>(() =>
+    loadedSections(sections),
+  );
   useEffect(() => {
-    if (url === undefined || Badge !== null) return undefined;
+    if (ready !== null) return undefined;
     let live = true;
-    import('./cems-badge.js').then(
-      (module) => {
-        if (live) setBadge(() => module.CemsBadge);
+    loadSections(sections).then(
+      (loaded) => {
+        if (live) setReady(loaded);
       },
       () => {
-        // A failed chunk load leaves the page without the badge; nothing else depends on it.
+        // A failed chunk load leaves the timeline alone; the next event page tries again.
       },
     );
     return () => {
       live = false;
     };
-  }, [url, Badge]);
-  if (url === undefined || Badge === null) return null;
-  return <Badge url={url} event={event} />;
-}
-
-/**
- * The V2-E2 before/after comparison, opened on the reader's press: until then nothing is
- * fetched from NASA, and the panel's code and credit line do not exist (CI-12, CI-13). The
- * button stays in place, so closing returns focus to it.
- */
-function BeforeAfterHost({ event, nowMs }: { readonly event: FireEvent; readonly nowMs: number }) {
-  const { messages } = useApp();
-  const [open, setOpen] = useState(false);
-  const [Panel, setPanel] = useState<FunctionComponent<BeforeAfterProps> | null>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    setOpen(false);
-  }, [event.id]);
-  const toggle = (): void => {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    setOpen(true);
-    if (Panel !== null) return;
-    import('./before-after.js').then(
-      (module) => {
-        setPanel(() => module.BeforeAfter);
-      },
-      () => {
-        // A failed chunk load leaves the button closed; nothing else depends on the panel.
-        setOpen(false);
-      },
-    );
-  };
-  const close = (): void => {
-    setOpen(false);
-    button.current?.focus();
-  };
+  }, [sections, ready]);
+  if (ready === null) return null;
   return (
     <>
-      <p>
-        <button
-          ref={button}
-          type="button"
-          class="button-secondary before-after-open"
-          aria-expanded={open}
-          onClick={toggle}
-        >
-          {messages.beforeAfter.open}
-        </button>
-      </p>
-      {open && Panel !== null && <Panel event={event} nowMs={nowMs} onClose={close} />}
+      {ready.map(({ slot, Section }) => (
+        <Section key={slot} {...props} />
+      ))}
     </>
   );
 }
 
-export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
+export function EventDetails({
+  event,
+  nowMs,
+  detail,
+  sections = EVENT_SECTIONS,
+}: EventDetailsProps) {
   const { messages, locale } = useApp();
   const t = messages.eventDetail;
   // "Last seen by" only when the detections file reaches the snapshot's own last
@@ -379,24 +143,7 @@ export function EventDetails({ event, nowMs, detail }: EventDetailsProps) {
           )}
         </dl>
       </section>
-      <StaticSourceNote
-        event={event}
-        positions={detail.kind === 'ready' ? detail.summary.positions : null}
-      />
-      <ProtectedSiteNote
-        event={event}
-        positions={detail.kind === 'ready' ? detail.summary.positions : null}
-      />
-      <LandCoverNote
-        event={event}
-        positions={detail.kind === 'ready' ? detail.summary.positions : null}
-      />
-      <LightningContextNote eventId={event.id} />
-      <FireOutlineNote eventId={event.id} />
-      <CemsBadgeHost event={event} />
-      <DetectionSections detail={detail} />
-      <BeforeAfterHost event={event} nowMs={nowMs} />
-      <WhereSection event={event} />
+      <EventSections event={event} nowMs={nowMs} detail={detail} sections={sections} />
     </>
   );
 }

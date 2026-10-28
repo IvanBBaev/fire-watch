@@ -118,6 +118,11 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // V2-E2: the before/after comparison and its date and tile maths, fetched on the
   // reader's press on an event page.
   { role: 'page', src: /^src\/ui\/event\/before-after\.tsx$/ },
+  // V3-P2: the event page's sections, one lazy chunk per `<slot>-<name>.section.tsx` file
+  // (`import.meta.glob`), fetched when an event page first opens. The map and the first
+  // render never wait for them, so they take the on-demand pages' role and budget. One rule
+  // for the directory: a v3 section adds a file, never a line here.
+  { role: 'page', src: /^src\/ui\/event\/sections\/\d{3}-[a-z0-9-]+\.section\.tsx$/ },
   // TASKS F6: the share card's layout and rasterizer, fetched on the first share click.
   { role: 'page', src: /^src\/ui\/share\/share-action\.ts$/ },
   // V2-C5: cross-device sync, loaded after first paint and only for a browser with a

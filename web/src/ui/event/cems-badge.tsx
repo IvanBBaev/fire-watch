@@ -4,8 +4,8 @@
  * the event under `CEMS_MATCH` (DATA-SOURCES §V2-E3). The link's title carries the
  * activation-level citation the Copernicus EMS citation guidelines ask for.
  *
- * Loaded lazily by `CemsBadgeHost` (`event-details.tsx`), so neither the parser nor the
- * matching sits on the critical path.
+ * Loaded lazily by the slot-600 event section (`sections/600-cems.section.tsx`), so neither
+ * the parser nor the matching sits on the critical path.
  *
  * Nothing renders while loading, on a failed, stale (503) or malformed answer, or when no
  * activation matches: the absence of the badge is not a claim that Copernicus was not
