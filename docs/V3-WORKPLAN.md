@@ -54,7 +54,7 @@ item ships dark (feature flag off, or not linked) until the gate clears.
 | ID | Item | Status | Deps | Build needs (outside V3) | Go-live gate | Migration | Est h |
 |---|---|---|---|---|---|---|---|
 | V3-P1 | Per-feature i18n catalog fragments | todo | — | — | — | — | 6 |
-| V3-P2 | Event-detail section registry | todo | — | — | — | — | 4 |
+| V3-P2 | Event-detail section registry | done | — | — | — | — | 4 |
 | V3-P3 | Outline time-series reader | todo | — | — | — | — | 6 |
 | V3-P4 | Reserve the v3 source IDs | todo | — | — | — | 060 | 4 |
 | V3-A1 | FireSat ingest adapter (fixtures first) | todo | V3-P4 | — | EFA access + terms (V3-Q5) | — | 24 |
