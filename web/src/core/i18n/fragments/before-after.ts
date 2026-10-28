@@ -9,7 +9,7 @@
  * Own voice; every key is implementer copy held in `PENDING_FOUNDER_REVIEW`. Dates are
  * pre-worded (`formatDateSofia`); no label may call either image cloud-free.
  */
-export interface BeforeAfterMessages {
+export type BeforeAfterMessages = {
   readonly open: string;
   readonly close: string;
   readonly title: string;
@@ -30,4 +30,4 @@ export interface BeforeAfterMessages {
   readonly note: string;
   readonly unavailable: string;
   readonly tilesFailed: string;
-}
+};

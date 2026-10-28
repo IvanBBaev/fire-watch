@@ -4,10 +4,12 @@
  * A feature that brings its own copy does not edit `messages.ts`, `en.ts` or `bg.ts`. It adds
  * three files here, named after its namespace in kebab case:
  *
- * - `<name>.ts` — the namespace's interface. It must not import `../messages.js` (that would
- *   close a type cycle through {@link FragmentMessages}).
+ * - `<name>.ts` — the namespace's shape, as a `type` alias of an object literal rather than
+ *   an interface (as the inline namespaces were): only a literal type is assignable to an index
+ *   signature, so `Object.values(messages.<namespace>)` stays typed. It must not import
+ *   `../messages.js` (that would close a type cycle through {@link FragmentMessages}).
  * - `<name>.en.ts`, `<name>.bg.ts` — a default export `{ <namespace>: { … } }` typed with
- *   that interface.
+ *   that shape.
  *
  * and appends one line to each of three lists: {@link FragmentMessages} below (the
  * namespace's key in `Messages`, which extends it), `en-fragments.ts` and `bg-fragments.ts`.
