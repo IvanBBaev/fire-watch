@@ -171,6 +171,9 @@ per source.
 5. **Wave 5, public sector and scale (~110 h):** G1, G2, H1, H2, I1, I2.
 6. **Later or on demand:** A4, A5, C5, D5, E1, E2, F1, F2.
 
+How to build these waves in parallel branches without conflicts (claim table, file ownership,
+shared-file rules, reserved migration numbers) is in [`V3-WORKPLAN.md`](V3-WORKPLAN.md).
+
 The strongest differentiators:
 
 - **A1 + A6:** first Balkan service with FireSat detections and a cross-source agreement score.
@@ -197,7 +200,7 @@ The strongest differentiators:
 ## 7. Implementation status
 
 *2026-10-28 — proposal only, nothing built. Items move to `TASKS.md` as a Track V3 when the founder
-ticks them.*
+ticks them.* Parallel-work plan: [`V3-WORKPLAN.md`](V3-WORKPLAN.md).
 
 ## Sources
 
