@@ -19,14 +19,20 @@ free-text state.
 
 | Type | Meaning | Public label |
 |---|---|---|
-| `officially_contained` | An authority declared the spread stopped (*локализиран*) | [FOUNDER SIGN-OFF] normative Bulgarian label |
-| `officially_extinguished` | An authority declared the fire finished (*ликвидиран*) | [FOUNDER SIGN-OFF] normative Bulgarian label |
-| `curated_correction` | Our correction of our own earlier curated statement (§6) | [FOUNDER SIGN-OFF] |
+| `officially_contained` | An authority declared the spread stopped (*локализиран*) | Proposed: the frozen GLOSSARY §3 `officially_contained` row, unchanged ("Обявен за локализиран от властите на \<дата\> — източник. …"). [FOUNDER SIGN-OFF] adopt |
+| `officially_extinguished` | An authority declared the fire finished (*ликвидиран*) | Proposed: the frozen GLOSSARY §3 `officially_extinguished` row, unchanged ("Обявен за ликвидиран от властите на \<дата\> — източник."). [FOUNDER SIGN-OFF] adopt |
+| `curated_correction` | Our correction of our own earlier curated statement (§6) | Proposed: "Поправка" / "Correction", with the §7 sentence. [FOUNDER SIGN-OFF] adopt |
 
 The staff form shows the two official types as "Official milestone 1" and "Official
 milestone 2". The never-send lint keeps the plain words out of the web catalogs. Those
 staff labels are themselves pending founder review (`PENDING_FOUNDER_REVIEW`,
 `staffCuration.*`).
+
+The proposed public labels come from the 2026-10-30 copy review
+(`docs/decisions/founder-2026-10-30/copy.md`, C-L15). The official types reuse the frozen
+GLOSSARY §3 lifecycle rows instead of new wording, so the public page and the event panel
+say the same thing in the same words. They take effect when the founder signs this
+standard off.
 
 ## 2. The source ladder
 
@@ -77,7 +83,15 @@ read free text for meaning, so these rules are the reviewer's to apply:
 - casualty or damage counts before an official figure exists;
 - any instruction to act in our own voice. Only quoted official instructions are allowed.
 
-[FOUNDER SIGN-OFF] the final Bulgarian wording of this list for the public page.
+Proposed Bulgarian for the public page (copy review 2026-10-30, C-L15; [FOUNDER SIGN-OFF]
+adopt):
+
+- твърдение от наше име, че пожарът е изгасен, безопасен или вече не е заплаха;
+- прогноза за развитието на пожара;
+- твърдение за причина или отговорно лице;
+- брой пострадали или щети, преди да има официални данни;
+- указание какво да се прави, дадено от наше име. Допустими са само цитирани официални
+  указания.
 
 ## 5. What every statement carries (the WP6 form)
 
@@ -141,6 +155,15 @@ in GLOSSARY):
 > Correction, \<date\>: we previously reported that \<authority\> declared this fire
 > \<state\> on \<date\>. That was incorrect: \<what is now known\>. Source: \<link\>.
 
+Proposed Bulgarian (copy review 2026-10-30, C-L15; it moves into GLOSSARY as a frozen row
+when the founder signs this standard off):
+
+> Поправка, \<дата\>: по-рано съобщихме, че \<орган\> е обявил този пожар за
+> \<състояние\> на \<дата\>. Това не е вярно: \<какво се знае сега\>. Източник: \<връзка\>.
+
+\<състояние\> is the bare official participle (локализиран / ликвидиран). It appears only
+inside this attributed sentence, never on its own.
+
 [FOUNDER SIGN-OFF] Not built yet:
 
 - how the corrected statement renders on the public event page;
@@ -172,7 +195,8 @@ people. That needs:
 
 ## 9. Open for the founder
 
-1. The normative Bulgarian labels for the three statement types and for the correction copy.
+1. Adopt the proposed Bulgarian labels for the three statement types, the correction copy
+   and the never-publishable list (§1, §4, §7; copy review 2026-10-30, C-L15).
 2. ~~T2 alone~~: decided 2026-10-30, the stricter §5.3 reading (§2).
 3. ~~`life_safety_relay` and pushes of curated states~~: decided 2026-10-30, never a state and
    never pushed (§3, §7). The 12 Q2 legal answer is still owed.
