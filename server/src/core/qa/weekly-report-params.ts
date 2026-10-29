@@ -26,7 +26,7 @@ export interface QaWeeklyReportParams {
   readonly week: {
     readonly calendar: 'iso8601';
     readonly timeZone: 'UTC';
-    /** False until the founder rules on the week boundary (see `iso-week.ts`). */
+    /** True since v3: the founder ratified ISO-8601 weeks in UTC on 2026-10-30. */
     readonly ratified: boolean;
   };
   readonly plb: {
@@ -61,9 +61,11 @@ export interface QaWeeklyReportParams {
 export const QA_WEEKLY_REPORT: VersionedConfig<QaWeeklyReportParams> = defineConfig(
   'qa_weekly_report',
   // v2 (2026-09-26): FER and FLR measured from the transition log (migration 020).
-  'qa_weekly_report_v2',
+  // v3 (2026-10-30): week boundary ratified — ISO-8601, Monday 00:00 UTC (founder decision
+  // record docs/decisions/founder-2026-10-30/thresholds-ops.md, D8-week).
+  'qa_weekly_report_v3',
   {
-    week: { calendar: 'iso8601', timeZone: 'UTC', ratified: false },
+    week: { calendar: 'iso8601', timeZone: 'UTC', ratified: true },
     plb: { excludedProductTiers: ['SP'], eventUpdatedProxy: 'first_live_attachment' },
     dar: {
       population: 'alert_outbox_automatic',
@@ -77,12 +79,6 @@ export const QA_WEEKLY_REPORT: VersionedConfig<QaWeeklyReportParams> = defineCon
     },
     flr: { population: 'not_merged_moved_or_active', activeMeans: 'status_active' },
     openDecisions: [
-      {
-        id: 'week_boundary',
-        question:
-          'GLOSSARY §8 says "per calendar week in season" without a week start or a time zone.',
-        interim: 'ISO-8601 week, Monday 00:00 UTC to Monday 00:00 UTC.',
-      },
       {
         id: 'season_bounds',
         question: 'Which weeks are "in season" for D8? L-12 set season bounds for another use.',

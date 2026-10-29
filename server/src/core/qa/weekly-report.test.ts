@@ -82,7 +82,7 @@ function input(overrides: Partial<WeeklyReportInput> = {}): WeeklyReportInput {
 }
 
 describe('buildWeeklyReport', () => {
-  it('stamps both configs, the window and the unratified week boundary', () => {
+  it('stamps both configs, the window and the ratified week boundary', () => {
     const report = buildWeeklyReport(input());
     expect(report.kind).toBe(REPORT_KIND);
     expect(report.metricsVersion).toBe(QA_METRICS.version);
@@ -95,10 +95,12 @@ describe('buildWeeklyReport', () => {
       to: '2026-09-21T00:00:00Z',
       calendar: 'iso8601',
       timeZone: 'UTC',
-      boundaryRatified: false,
+      boundaryRatified: true,
     });
     expect(report.complete).toBe(true);
-    expect(report.openDecisions.map((d) => d.id)).toContain('week_boundary');
+    // Ratified in qa_weekly_report_v3, so it is no longer an open decision.
+    expect(report.openDecisions.map((d) => d.id)).not.toContain('week_boundary');
+    expect(report.openDecisions.map((d) => d.id)).toContain('season_bounds');
   });
 
   it('marks a report built before the window closed as partial', () => {
@@ -210,7 +212,7 @@ describe('rendering', () => {
   it('renders the summary a person reads', () => {
     const markdown = renderReportMarkdown(buildWeeklyReport(input()));
     expect(markdown).toContain('# Fire Watch weekly QA report: 2026-W38');
-    expect(markdown).toContain('boundary NOT ratified');
+    expect(markdown).toContain('boundary ratified)');
     expect(markdown).toContain(
       '| DAR | measured | 25.00 % (1/4) | 4 alerts | <= 5.00 % shadow, <= 1.00 % steady | ' +
         'shadow no, steady no |',
@@ -222,8 +224,8 @@ describe('rendering', () => {
 
   it('keeps the golden bytes', () => {
     const report = buildWeeklyReport(input());
-    expect(fnv1a(renderReportJson(report))).toMatchInlineSnapshot(`"29dd5320"`);
-    expect(fnv1a(renderReportMarkdown(report))).toMatchInlineSnapshot(`"1fb94930"`);
+    expect(fnv1a(renderReportJson(report))).toMatchInlineSnapshot(`"09e35148"`);
+    expect(fnv1a(renderReportMarkdown(report))).toMatchInlineSnapshot(`"86a3c8ae"`);
   });
 });
 

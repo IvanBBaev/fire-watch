@@ -5,7 +5,7 @@
  * `qa_weekly_reports`, and a test of the job should be able to fake either alone. The
  * inclusion rules are stated here so an adapter cannot quietly pick others; the choices
  * that are not the documents' own are also stamped on every report through
- * `qa_weekly_report_v2` (`core/qa/weekly-report-params.ts`).
+ * `qa_weekly_report_v3` (`core/qa/weekly-report-params.ts`).
  *
  * ## PLB traces (`loadPlbTraces`)
  *

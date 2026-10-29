@@ -25,7 +25,7 @@
  * report for `[from, to)` therefore grades declarations made in
  * `[from − 72 h, to − 72 h)`: consecutive weeks grade every declaration exactly once, and
  * every one of them had its full window before the report could be built. The reading is
- * stamped in the report (`qa_weekly_report_v2`, open decision `fer_declaration_window`).
+ * stamped in the report (`qa_weekly_report_v3`, open decision `fer_declaration_window`).
  *
  * ## Populations
  *

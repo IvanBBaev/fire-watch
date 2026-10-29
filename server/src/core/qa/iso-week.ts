@@ -2,9 +2,9 @@
  * The weekly QA report's week (TASKS D8; GLOSSARY §8).
  *
  * GLOSSARY §8 and 06 §5.1.2 say only "per calendar week in season". Neither names the week
- * start nor the time zone, and H8 left "UTC day vs Sofia day" open. Until the founder rules,
- * the report uses **ISO-8601 weeks (Monday 00:00 to Monday 00:00) in UTC**, and every report
- * says so, with `ratified: false` (`weekly-report-params.ts`). UTC was picked because every
+ * start nor the time zone, and H8 left "UTC day vs Sofia day" open. The founder ratified
+ * **ISO-8601 weeks (Monday 00:00 to Monday 00:00) in UTC** on 2026-10-30, and every report
+ * says so, with `ratified: true` (`qa_weekly_report_v3`). UTC was picked because every
  * instant the pipeline stores is UTC and a UTC week has exactly 7 × 24 h in every season;
  * a Europe/Sofia week would have 167 h or 169 h twice a year, and the D8 report would be
  * the only artifact in the repository that has to know about DST.
