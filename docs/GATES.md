@@ -226,6 +226,13 @@ the minimum-n rule, and the named news-log curator; its checklist also carries t
 14 M6). The checkpoint record is a dated report artifact in `docs/reports/`, linked
 from this section once it exists.
 
+*2026-10-30 — the protocol was not written in September. It now exists, written late
+and saying so: [`reports/cp1-protocol.md`](reports/cp1-protocol.md). With no host
+provisioned, no live shadow season was recorded, so shadow-PLB has no evidence artifact
+and **CP1 is missed**: the consequence below applies from 2026-10-31
+([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-5).
+The report goes in [`reports/`](reports/README.md).*
+
 Both criteria are computable from **WP1 + WP2 outputs alone** — no alert stack (WP6)
 and no user zones (WP7) exist in October 2026:
 
