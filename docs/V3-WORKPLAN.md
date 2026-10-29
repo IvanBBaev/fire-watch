@@ -55,7 +55,7 @@ item ships dark (feature flag off, or not linked) until the gate clears.
 |---|---|---|---|---|---|---|---|
 | V3-P1 | Per-feature i18n catalog fragments | done | — | — | — | — | 6 |
 | V3-P2 | Event-detail section registry | done | — | — | — | — | 4 |
-| V3-P3 | Outline time-series reader | todo | — | — | — | — | 6 |
+| V3-P3 | Outline time-series reader | done | — | — | — | — | 6 |
 | V3-P4 | Reserve the v3 source IDs | done | — | — | — | 060 | 4 |
 | V3-A1 | FireSat ingest adapter (fixtures first) | todo | V3-P4 | — | EFA access + terms (V3-Q5) | — | 24 |
 | V3-A2 | Sentinel-3 SLSTR FRP adapter | todo | V3-P4 | — | CDSE account, NRT latency check | — | 20 |
