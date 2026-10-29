@@ -1,4 +1,4 @@
-import { SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
+import { LIVE_SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { DIURNAL_PHASES } from '../ports/pass-predictor.js';
@@ -26,18 +26,20 @@ describe('lifecycle_params_v1 identity', () => {
 
 describe('pass miss weights', () => {
   it('covers every registry id, including retired ones a replay still needs', () => {
-    expect(Object.keys(PARAMS.passMissWeights).slice().sort()).toEqual(SOURCE_IDS.slice().sort());
+    expect(Object.keys(PARAMS.passMissWeights).slice().sort()).toEqual(
+      LIVE_SOURCE_IDS.slice().sort(),
+    );
   });
 
   it('maps exactly the geostationary sources to null — they have no pass to miss', () => {
-    const withoutWeight = SOURCE_IDS.filter((id) => PARAMS.passMissWeights[id] === null);
-    const geostationary = SOURCE_IDS.filter((id) => SOURCE_REGISTRY[id].productTier === 'GEO');
+    const withoutWeight = LIVE_SOURCE_IDS.filter((id) => PARAMS.passMissWeights[id] === null);
+    const geostationary = LIVE_SOURCE_IDS.filter((id) => SOURCE_REGISTRY[id].productTier === 'GEO');
     expect(withoutWeight).toEqual(geostationary);
     expect(geostationary).toEqual(['lsasaf:seviri:frp-pixel', 'lsasaf:fci:frp-pixel']);
   });
 
   it('weighs both halves of the day for every polar source, and weighs night no lighter', () => {
-    for (const id of SOURCE_IDS) {
+    for (const id of LIVE_SOURCE_IDS) {
       const weight = PARAMS.passMissWeights[id];
       if (weight === null) continue;
       for (const phase of DIURNAL_PHASES) {

@@ -25,7 +25,7 @@
  * selected config as its base. Its axis lives here so it is cited under the same digest.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import type { LiveSourceId } from '@fire-watch/contracts';
 
 import type { ClusteringParams, EpsRule } from '../clustering/clustering-params.js';
 import { defineConfig, type VersionedConfig } from '../config/versioned-config.js';
@@ -70,13 +70,13 @@ export interface GridCell {
   readonly tLinkHours: number;
 }
 
-const VIIRS_SOURCES: readonly SourceId[] = [
+const VIIRS_SOURCES: readonly LiveSourceId[] = [
   'firms:viirs:snpp',
   'firms:viirs:noaa20',
   'firms:viirs:noaa21',
 ];
 
-const GEO_SOURCES: readonly SourceId[] = ['lsasaf:seviri:frp-pixel', 'lsasaf:fci:frp-pixel'];
+const GEO_SOURCES: readonly LiveSourceId[] = ['lsasaf:seviri:frp-pixel', 'lsasaf:fci:frp-pixel'];
 
 /** Every cell, fixed slice first, each slice in index order. */
 export function gridCells(axes: FitGridAxes = FIT_GRID.values): readonly GridCell[] {
@@ -123,7 +123,7 @@ export function cellParams(
   base: ClusteringParams,
   axes: FitGridAxes = FIT_GRID.values,
 ): ClusteringParams {
-  const epsBySource: Record<SourceId, EpsRule> = { ...base.epsBySource };
+  const epsBySource: Record<LiveSourceId, EpsRule> = { ...base.epsBySource };
   for (const source of VIIRS_SOURCES) epsBySource[source] = { kind: 'fixed', km: cell.epsViirsKm };
   if (cell.epsModisKm !== null) {
     epsBySource['firms:modis'] = { kind: 'fixed', km: cell.epsModisKm };
@@ -138,7 +138,7 @@ export function cellParams(
 
 /** The base with every GEO source at `epsGeoKm` — the ε_geo sweep (11 §9.1 exemption). */
 export function geoParams(epsGeoKm: number, base: ClusteringParams): ClusteringParams {
-  const epsBySource: Record<SourceId, EpsRule> = { ...base.epsBySource };
+  const epsBySource: Record<LiveSourceId, EpsRule> = { ...base.epsBySource };
   for (const source of GEO_SOURCES) epsBySource[source] = { kind: 'fixed', km: epsGeoKm };
   return { ...base, epsBySource };
 }

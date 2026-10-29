@@ -13,7 +13,7 @@
     "lifecycle_params": "lifecycle_params_v1",
     "pass_table": "pass_table_v0",
     "score_params": "score_params_v0",
-    "sources": "source_registry_v1",
+    "sources": "source_registry_v2",
     "alert_gating": "alert_gating_v1",
     "digest_params": "digest_params_v1",
     "static_source_policy": "static_source_policy_v2",

@@ -10,12 +10,19 @@
  *
  * Config-as-data (ADR-002 D5): a constellation is a versioned value whose digest the
  * replay report cites, and "after any constellation change" (L-14's second trigger) means
- * a new version here. Every source id is classified exactly once: `membership` is typed
- * as a total record over {@link SourceId}, so a source appended to the frozen registry
- * does not compile until somebody decides which side of the constellation it is on.
+ * a new version here. Every live source id is classified exactly once: `membership` is
+ * typed as a total record over {@link LiveSourceId}, so a source going live does not
+ * compile until somebody decides which side of the constellation it is on. A reserved id
+ * (V3-P4) has never produced a row and is in no constellation.
  */
 
-import { SOURCE_IDS, SOURCE_REGISTRY, type SourceId } from '@fire-watch/contracts';
+import {
+  LIVE_SOURCE_IDS,
+  requireLiveSourceId,
+  SOURCE_REGISTRY,
+  type LiveSourceId,
+  type SourceId,
+} from '@fire-watch/contracts';
 
 import { defineConfig, type VersionedConfig } from '../config/versioned-config.js';
 import type { FitDetection } from './label-join.js';
@@ -31,7 +38,7 @@ export type ConstellationRole = 'live' | 'attach_only' | 'dropped';
 export interface Constellation {
   /** The season the constellation describes (UTC calendar year). */
   readonly season: number;
-  readonly membership: Readonly<Record<SourceId, ConstellationRole>>;
+  readonly membership: Readonly<Record<LiveSourceId, ConstellationRole>>;
   /** Why each dropped source is dropped, quoted into the report. */
   readonly droppedBecause: Readonly<Partial<Record<SourceId, string>>>;
 }
@@ -72,7 +79,7 @@ export function constellationByVersion(version: string): VersionedConfig<Constel
  */
 export function constellationProblems(constellation: Constellation): string[] {
   const problems: string[] = [];
-  for (const id of SOURCE_IDS) {
+  for (const id of LIVE_SOURCE_IDS) {
     const role = constellation.membership[id];
     const entry = SOURCE_REGISTRY[id];
     if (entry.attachOnly !== (role === 'attach_only')) {
@@ -90,7 +97,7 @@ export function constellationProblems(constellation: Constellation): string[] {
       problems.push(`${id}: has a drop reason but is ${role}`);
     }
   }
-  if (!SOURCE_IDS.some((id) => constellation.membership[id] === 'live')) {
+  if (!LIVE_SOURCE_IDS.some((id) => constellation.membership[id] === 'live')) {
     problems.push('no live source: the stream could never create an event');
   }
   return problems;
@@ -99,8 +106,8 @@ export function constellationProblems(constellation: Constellation): string[] {
 export function sourcesWithRole(
   constellation: Constellation,
   role: ConstellationRole,
-): readonly SourceId[] {
-  return SOURCE_IDS.filter((id) => constellation.membership[id] === role);
+): readonly LiveSourceId[] {
+  return LIVE_SOURCE_IDS.filter((id) => constellation.membership[id] === role);
 }
 
 export interface Restriction {
@@ -120,7 +127,7 @@ export function restrictToConstellation(
   const kept: FitDetection[] = [];
   const droppedRows: Partial<Record<SourceId, number>> = {};
   for (const row of rows) {
-    if (constellation.membership[row.source] === 'dropped') {
+    if (constellation.membership[requireLiveSourceId(row.source)] === 'dropped') {
       droppedRows[row.source] = (droppedRows[row.source] ?? 0) + 1;
     } else {
       kept.push(row);

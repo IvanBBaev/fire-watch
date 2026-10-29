@@ -659,7 +659,7 @@ function replayOf(clockStart: string, polls: readonly PollSpec[]): unknown[] {
         lifecycle_params: 'lifecycle_params_v1',
         pass_table: 'pass_table_v0',
         score_params: 'score_params_v0',
-        sources: 'source_registry_v1',
+        sources: 'source_registry_v2',
       },
       inputs: polls.map((_, i) => `poll-${String(i)}.json`),
       expected: 'expected.json',

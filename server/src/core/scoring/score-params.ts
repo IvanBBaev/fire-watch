@@ -32,7 +32,7 @@
  * `NADIR_SCAN_KM`/`NADIR_TRACK_KM`, so the two cannot drift instead.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import { requireLiveSourceId, type LiveSourceId, type SourceId } from '@fire-watch/contracts';
 
 import type { PlanarMetric } from '../clustering/clustering-params.js';
 import { defineConfig, type VersionedConfig } from '../config/versioned-config.js';
@@ -132,8 +132,8 @@ export interface ScoreParams {
   readonly detectionPriors: Readonly<Record<DetectionClass, DetectionPrior>>;
 
   /**
-   * Registry id + normalized confidence → §3.2 class. A `Record` over `SourceId` on
-   * purpose: adding a source without deciding what its detections are worth is a type
+   * Registry id + normalized confidence → §3.2 class. A `Record` over `LiveSourceId` on
+   * purpose: a source going live without deciding what its detections are worth is a type
    * error, not a runtime surprise where a new instrument silently scores as VIIRS.
    *
    * The three confidence entries are identical for SLSTR and for the two GEO sources
@@ -144,11 +144,11 @@ export interface ScoreParams {
    * where the QC flags are.
    */
   readonly classBySource: Readonly<
-    Record<SourceId, Readonly<Record<DetectionConfidence, DetectionClass>>>
+    Record<LiveSourceId, Readonly<Record<DetectionConfidence, DetectionClass>>>
   >;
 
   /** Which platform each registry id speaks for (x3). */
-  readonly platformBySource: Readonly<Record<SourceId, PlatformGroup>>;
+  readonly platformBySource: Readonly<Record<LiveSourceId, PlatformGroup>>;
 
   /**
    * How the detections of a polar source are grouped into "one overpass" for x2 and x5.
@@ -203,7 +203,7 @@ export interface ScoreParams {
    * choice"; reusing them here would put a MODIS-shaped reference under a 375 m pixel and
    * make x9 unreachable for VIIRS.
    */
-  readonly nadirPixelBySource: Readonly<Record<SourceId, NadirPixel | null>>;
+  readonly nadirPixelBySource: Readonly<Record<LiveSourceId, NadirPixel | null>>;
 
   /** x9's multiple: strictly greater than this many nadir areas is "swath edge". */
   readonly edgeAreaMultiple: number;
@@ -346,7 +346,7 @@ export function detectionPrior(
   dayNight: 'D' | 'N' | null,
   params: ScoreParams = SCORE_PARAMS.values,
 ): number {
-  const byConfidence = params.classBySource[source];
+  const byConfidence = params.classBySource[requireLiveSourceId(source)];
   const detectionClass = byConfidence[confidence];
   const prior = params.detectionPriors[detectionClass];
   // A row with no `day_night` — every GEO row, by construction (`detection-records.ts`

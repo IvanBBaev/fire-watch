@@ -19,7 +19,7 @@
  * catches an edit that forgot to bump.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import type { LiveSourceId } from '@fire-watch/contracts';
 
 import { defineConfig, type VersionedConfig } from '../config/versioned-config.js';
 
@@ -96,11 +96,11 @@ export interface PlanarMetric {
 
 export interface ClusteringParams {
   /**
-   * ε per source, keyed by the frozen §1a registry id. A `Record` over `SourceId` on
-   * purpose: adding a source to the registry without deciding its ε is a type error, not
+   * ε per source, keyed by the frozen §1a registry id. A `Record` over `LiveSourceId` on
+   * purpose: a source going live without deciding its ε is a type error, not
    * a runtime surprise where the new source silently clusters at someone else's radius.
    */
-  readonly epsBySource: Readonly<Record<SourceId, EpsRule>>;
+  readonly epsBySource: Readonly<Record<LiveSourceId, EpsRule>>;
   /** Same-event temporal gap. Fitted as the p99 intra-fire gap; expected 36–60 h. */
   readonly tLinkHours: number;
   /** Trailing window a cluster stays attach-eligible for past its last detection. */

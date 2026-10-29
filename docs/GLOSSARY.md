@@ -44,7 +44,7 @@
 | **FRP** | Fire Radiative Power (MW) — radiometric intensity of a detection. | data sources |
 | **FWI** | Canadian Fire Weather Index as harmonized by EFFIS — a **~8 km weather-based danger index**, never a statement that fire is present (§7). | review 12 §5.1 |
 
-## 1a. Source-id registry — **frozen v1**
+## 1a. Source-id registry — **frozen v2**
 
 These are the *only* strings that may appear as `source` in a `detection_uid`. The id
 is a permanent hash input over an append-only archive: it is written once and read
@@ -59,12 +59,19 @@ forever, so this table is **closed** — see the rules below for how it may grow
 | `eumetsat:slstr:frp` | EUMETSAT Data Store `SL_2_FRP___` NRT | SLSTR 1 km / Sentinel-3A + 3B | `NRT` | active | One product name covers both platforms — see rule 2 |
 | `lsasaf:seviri:frp-pixel` | LSA SAF LSA-502 (MSG SEVIRI) | SEVIRI ~4 km over BG | `GEO` | active | Attach-only, never creates or merges events (ADR-002 D2) |
 | `lsasaf:fci:frp-pixel` | LSA SAF LSA-509 (MTG FCI) | FCI ~3–4.5 km over BG | `GEO` | active | Demonstration maturity — paired with LSA-502, never trusted alone (DATA-SOURCES A4) |
+| `efa:firesat` | Earth Fire Alliance FireSat (product name provisional: `FIRESAT_NRT`) | FireSat constellation | `NRT` | **reserved** | v2 (V3-P4). Not polled until V3-A1; going live flips `Status` to `active`, never the id |
+| `firms:landsat` | FIRMS `LANDSAT_NRT` | OLI 30 m / Landsat 8 + 9 | `NRT` | **reserved** | v2 (V3-P4). Attach-only confirmation (V3-A3); one id for both platforms — see rule 2 |
+| `ororatech:frp` | OroraTech FRP feed (product name provisional: `ORORATECH_FRP`) | OroraTech thermal constellation | `NRT` | **reserved** | v2 (V3-P4). Not polled until V3-A4 |
 
 **Not registered** (produce no detection rows, therefore no uids): MSG `FIR`/`FIRC`
 CAP alerts — a re-poll tripwire, not a detection source (DATA-SOURCES A5); EFFIS
-burnt-area perimeters; FireSat and OroraTech (no v1 access); crowdsourced reports
-(evidence, never detections). Any of them entering the pipeline requires a registry
-version bump under rule 1.
+burnt-area perimeters; crowdsourced reports (evidence, never detections). Any of them
+entering the pipeline requires a registry version bump under rule 1.
+
+**v2 (2026-10-29, V3-P4)** appends three **reserved** rows: the id is frozen now so the
+v3 adapters (V3-A1/A3/A4) cannot invent one, but a reserved source is not polled, is in
+no live or monitored set and has no per-source parameters until its adapter flips it to
+`active`. SLSTR (V3-A2) needs no new row — `eumetsat:slstr:frp` has been frozen since v1.
 
 **Rules (all frozen with the table):**
 

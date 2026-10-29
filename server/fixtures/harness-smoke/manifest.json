@@ -9,7 +9,7 @@
   "mode": "live",
   "allowRevive": false,
   "configVersions": {
-    "sources": "source_registry_v1",
+    "sources": "source_registry_v2",
     "smoke": "smoke_engine_v1"
   },
   "inputs": ["poll-01.json", "poll-02.json"],

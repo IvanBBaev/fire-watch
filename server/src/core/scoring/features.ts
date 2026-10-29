@@ -34,7 +34,7 @@
  * outside the formula.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import { requireLiveSourceId, type SourceId } from '@fire-watch/contracts';
 
 import {
   distanceKm,
@@ -194,7 +194,7 @@ export function computeFeatures(
     const acqTs = epochMsFromIso(detection.acqTsIso);
     const key = overpassKey(detection, acqTs, params);
     overpassKeys.add(key);
-    platforms.add(params.platformBySource[detection.source]);
+    platforms.add(params.platformBySource[requireLiveSourceId(detection.source)]);
     const group = byOverpass.get(key);
     if (group === undefined) byOverpass.set(key, [detection]);
     else group.push(detection);
@@ -221,7 +221,7 @@ export function computeFeatures(
       allDaytimeLowConfidence = false;
     }
 
-    const nadir = params.nadirPixelBySource[detection.source];
+    const nadir = params.nadirPixelBySource[requireLiveSourceId(detection.source)];
     if (nadir !== null) {
       scanningCount += 1;
       if (!atSwathEdge(detection, nadir, params)) allScanningAtSwathEdge = false;
@@ -267,12 +267,13 @@ export function computeFeatures(
  * UTC midnight, and 3 h divides the day evenly, so a bucket never straddles a UTC day.
  */
 function overpassKey(detection: ScoringDetection, acqTs: EpochMs, params: ScoreParams): string {
-  const nadir = params.nadirPixelBySource[detection.source];
+  const source = requireLiveSourceId(detection.source);
+  const nadir = params.nadirPixelBySource[source];
   if (nadir === null) {
     const bucket = Math.floor(acqTs / (params.geoOverpassEquivalentHours * HOUR_MS));
     return `geo|${String(bucket)}`;
   }
-  const platform = params.platformBySource[detection.source];
+  const platform = params.platformBySource[source];
   const utcDay = Math.floor(acqTs / DAY_MS);
   const phase =
     detection.dayNight === 'N' ? 'night' : detection.dayNight === 'D' ? 'day' : 'unknown';

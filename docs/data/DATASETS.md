@@ -78,6 +78,7 @@ NOAA-21 rows no SP product will ever contain.
 
 - 2026-09-03 — entry opened (review 23 E1, E5). No row recorded yet.
 - 2026-09-28 — `effis_layers_v1` → `v2`: the v1 names are not routed by the live mapserver (`LayerNotDefined` / 502), so v1 never produced a servable copy. No row had been recorded under v1, so the bump opens no DS-2.1.
+- 2026-10-29 — `source_registry_v1` → `v2` (V3-P4): appends three reserved ids that are not polled, so which products are recorded is unchanged and the bump opens no DS-2.1. Rows written from here on carry `source_registry_v2`.
 
 ### DS-3 — EFFIS burnt-area labels, 2020–2025
 

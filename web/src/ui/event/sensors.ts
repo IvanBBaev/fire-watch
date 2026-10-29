@@ -10,7 +10,7 @@
  * like the product name; only the words around them go through the catalogs.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import type { LiveSourceId } from '@fire-watch/contracts';
 
 export type Orbit = 'polar' | 'geostationary';
 
@@ -26,7 +26,7 @@ export interface SensorInfo {
   readonly approximate: boolean;
 }
 
-export const SENSORS: Readonly<Record<SourceId, SensorInfo>> = {
+export const SENSORS: Readonly<Record<LiveSourceId, SensorInfo>> = {
   'firms:viirs:snpp': {
     label: 'VIIRS · Suomi NPP',
     orbit: 'polar',
@@ -81,7 +81,7 @@ export const SENSORS: Readonly<Record<SourceId, SensorInfo>> = {
 /** The table's rows in registry order — the order sensors are listed on the page. */
 const ORDER: readonly string[] = Object.keys(SENSORS);
 
-export function isKnownSource(sourceId: string): sourceId is SourceId {
+export function isKnownSource(sourceId: string): sourceId is LiveSourceId {
   return Object.hasOwn(SENSORS, sourceId);
 }
 

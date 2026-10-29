@@ -1,15 +1,15 @@
-import { SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
+import { LIVE_SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { SENSORS, isKnownSource, pixelSize, sensorOrder } from './sensors.js';
 
 describe('SENSORS', () => {
   it('covers exactly the frozen source-id registry', () => {
-    expect(Object.keys(SENSORS).toSorted()).toEqual([...SOURCE_IDS].toSorted());
+    expect(Object.keys(SENSORS).toSorted()).toEqual([...LIVE_SOURCE_IDS].toSorted());
   });
 
   it('marks the GEO product tier as geostationary and nothing else', () => {
-    for (const id of SOURCE_IDS) {
+    for (const id of LIVE_SOURCE_IDS) {
       const geo = SOURCE_REGISTRY[id].productTier === 'GEO';
       expect(SENSORS[id].orbit === 'geostationary', id).toBe(geo);
     }

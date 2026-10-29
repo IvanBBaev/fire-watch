@@ -6,14 +6,20 @@
  */
 
 export {
+  LIVE_SOURCE_IDS,
+  RESERVED_SOURCE_IDS,
   SOURCE_IDS,
   SOURCE_REGISTRY,
   SOURCE_REGISTRY_VERSION,
   activeSources,
   assertSourceId,
   expectedOverpassSources,
+  isLiveSourceId,
+  requireLiveSourceId,
   isSourceId,
+  type LiveSourceId,
   type ProductTier,
+  type ReservedSourceId,
   type SourceId,
   type SourceRegistryEntry,
   type SourceStatus,

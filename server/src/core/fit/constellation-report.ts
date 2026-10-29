@@ -4,7 +4,7 @@
  * `refit/` (`fit-report.ts`), so this report carries only its headline.
  */
 
-import { SOURCE_IDS } from '@fire-watch/contracts';
+import { LIVE_SOURCE_IDS } from '@fire-watch/contracts';
 
 import type { ClusteringParams } from '../clustering/clustering-params.js';
 import { canonicalJson } from '../determinism/canonical-json.js';
@@ -92,7 +92,7 @@ function coverageTable(
   return [
     '| Source | Role | Fit rows | Calibrate rows |',
     '| --- | --- | --- | --- |',
-    ...SOURCE_IDS.map(
+    ...LIVE_SOURCE_IDS.map(
       (id) =>
         `| \`${id}\` | ${membership[id]} | ${String(fit.rowsBySource[id] ?? 0)} | ${String(calibrate.rowsBySource[id] ?? 0)} |`,
     ),

@@ -22,7 +22,7 @@
  * version is `_v1`.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import type { LiveSourceId } from '@fire-watch/contracts';
 
 import type { DiurnalPhase } from '../ports/pass-predictor.js';
 import { defineConfig, type VersionedConfig } from './versioned-config.js';
@@ -83,7 +83,7 @@ export interface LifecycleParams {
    * including retired ones: a replay of a period before a retirement still needs the
    * weight that applied then (A2.3(2)).
    */
-  readonly passMissWeights: Readonly<Record<SourceId, PassMissWeight | null>>;
+  readonly passMissWeights: Readonly<Record<LiveSourceId, PassMissWeight | null>>;
   readonly geoSlot: GeoSlotRule;
   readonly cloudGate: CloudGate;
 

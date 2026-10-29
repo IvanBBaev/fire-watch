@@ -1,6 +1,6 @@
 import {
   SCORE_BUCKET_FLOOR,
-  SOURCE_IDS,
+  LIVE_SOURCE_IDS,
   SOURCE_REGISTRY,
   scoreBucket,
 } from '@fire-watch/contracts';
@@ -127,22 +127,26 @@ describe('the c_i table of 11 §3.2', () => {
 
 describe('the per-source reading rules', () => {
   it('covers every registry id, including retired ones a replay still needs', () => {
-    expect(Object.keys(PARAMS.classBySource).slice().sort()).toEqual(SOURCE_IDS.slice().sort());
-    expect(Object.keys(PARAMS.platformBySource).slice().sort()).toEqual(SOURCE_IDS.slice().sort());
+    expect(Object.keys(PARAMS.classBySource).slice().sort()).toEqual(
+      LIVE_SOURCE_IDS.slice().sort(),
+    );
+    expect(Object.keys(PARAMS.platformBySource).slice().sort()).toEqual(
+      LIVE_SOURCE_IDS.slice().sort(),
+    );
     expect(Object.keys(PARAMS.nadirPixelBySource).slice().sort()).toEqual(
-      SOURCE_IDS.slice().sort(),
+      LIVE_SOURCE_IDS.slice().sort(),
     );
   });
 
   it('names only platforms from the declared list', () => {
-    for (const id of SOURCE_IDS) {
+    for (const id of LIVE_SOURCE_IDS) {
       expect(PLATFORM_GROUPS).toContain(PARAMS.platformBySource[id]);
     }
   });
 
   it('gives exactly the geostationary sources no nadir pixel — they have no swath edge', () => {
-    const withoutPixel = SOURCE_IDS.filter((id) => PARAMS.nadirPixelBySource[id] === null);
-    const geostationary = SOURCE_IDS.filter((id) => SOURCE_REGISTRY[id].productTier === 'GEO');
+    const withoutPixel = LIVE_SOURCE_IDS.filter((id) => PARAMS.nadirPixelBySource[id] === null);
+    const geostationary = LIVE_SOURCE_IDS.filter((id) => SOURCE_REGISTRY[id].productTier === 'GEO');
     expect(withoutPixel).toEqual(geostationary);
     expect(geostationary).toEqual(['lsasaf:seviri:frp-pixel', 'lsasaf:fci:frp-pixel']);
   });

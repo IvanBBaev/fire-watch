@@ -48,7 +48,7 @@ const PINNED = Object.freeze({
   lifecycle_params: 'lifecycle_params_v1',
   pass_table: 'pass_table_v0',
   score_params: 'score_params_v0',
-  sources: 'source_registry_v1',
+  sources: 'source_registry_v2',
 });
 
 /** The four the engine insists on; the source registry is the one it merely checks. */
@@ -226,7 +226,7 @@ describe('pinned config versions', () => {
 
   it('refuses a fixture that pins no parameter version', () => {
     expect(() =>
-      replay({ ...oneBatch, configVersions: { sources: 'source_registry_v1' } }),
+      replay({ ...oneBatch, configVersions: { sources: 'source_registry_v2' } }),
     ).toThrow(/does not pin "clustering_params"/);
   });
 
@@ -290,9 +290,9 @@ describe('pinned config versions', () => {
     expect(() =>
       replay({
         ...oneBatch,
-        configVersions: { ...PINNED, sources: 'source_registry_v2' },
+        configVersions: { ...PINNED, sources: 'source_registry_v1' },
       }),
-    ).toThrow(/pins sources=source_registry_v2/);
+    ).toThrow(/pins sources=source_registry_v1/);
   });
 
   it('accepts a fixture that pins the parameters and stays silent about the registry', () => {

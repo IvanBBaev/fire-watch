@@ -170,7 +170,7 @@ describe('pollFirmsSource — a successful poll', () => {
 
     expect(run.pollingBboxVersion).toBe('polling_bbox_v1');
     expect(run.pollingBboxDigest).toBe('91e946a7');
-    expect(run.sourceRegistryVersion).toBe('source_registry_v1');
+    expect(run.sourceRegistryVersion).toBe('source_registry_v2');
     expect(run.query).toEqual({
       source: 'firms:viirs:snpp',
       product: 'VIIRS_SNPP_NRT',

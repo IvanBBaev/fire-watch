@@ -1,4 +1,4 @@
-import { SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
+import { LIVE_SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { configDigest } from '../config/versioned-config.js';
@@ -16,7 +16,7 @@ describe('clustering_params_v1', () => {
     // A source without an ε would either crash mid-batch or, worse, silently borrow a
     // neighbour's radius. MODIS is retired but still reachable through backfill and
     // fixture replay, so "retired" is not a reason to leave it out.
-    for (const source of SOURCE_IDS) {
+    for (const source of LIVE_SOURCE_IDS) {
       expect(CLUSTERING_PARAMS.values.epsBySource[source]).toBeDefined();
     }
   });
@@ -72,8 +72,8 @@ describe('clustering_params_v1', () => {
       const rule = eps[source];
       return rule.kind === 'fixed' ? rule.km : rule.floorKm;
     };
-    const coarse = SOURCE_IDS.filter((source) => SOURCE_REGISTRY[source].attachOnly);
-    const fine = SOURCE_IDS.filter((source) => !SOURCE_REGISTRY[source].attachOnly);
+    const coarse = LIVE_SOURCE_IDS.filter((source) => SOURCE_REGISTRY[source].attachOnly);
+    const fine = LIVE_SOURCE_IDS.filter((source) => !SOURCE_REGISTRY[source].attachOnly);
     for (const geo of coarse) {
       for (const other of fine) {
         expect(fixedKm(geo)).toBeGreaterThan(fixedKm(other));
@@ -117,7 +117,7 @@ describe('clustering_params_v1', () => {
     // it, the flag would fire on ordinary two-detection events and mean nothing.
     const params = CLUSTERING_PARAMS.values;
     const widestEpsKm = Math.max(
-      ...SOURCE_IDS.map((source) => {
+      ...LIVE_SOURCE_IDS.map((source) => {
         const rule = params.epsBySource[source];
         return rule.kind === 'fixed' ? rule.km : rule.floorKm;
       }),

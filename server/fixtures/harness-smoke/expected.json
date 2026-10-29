@@ -2,7 +2,7 @@
   "fixtureId": "harness-smoke",
   "mode": "live",
   "configVersions": {
-    "sources": "source_registry_v1",
+    "sources": "source_registry_v2",
     "smoke": "smoke_engine_v1"
   },
   "batches": [

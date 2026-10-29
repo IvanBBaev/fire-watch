@@ -1,4 +1,4 @@
-import { SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
+import { LIVE_SOURCE_IDS, SOURCE_REGISTRY } from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -41,7 +41,7 @@ describe('the 2027 constellation (GATES L-14)', () => {
 
   it('every shipped constellation is consistent with the source registry', () => {
     for (const c of CONSTELLATIONS) expect(constellationProblems(c.values)).toEqual([]);
-    for (const id of SOURCE_IDS) {
+    for (const id of LIVE_SOURCE_IDS) {
       if (SOURCE_REGISTRY[id].status === 'retired') {
         expect(CONSTELLATION_2027.values.membership[id]).toBe('dropped');
       }
@@ -79,10 +79,10 @@ describe('constellationProblems', () => {
 
   it('flags a constellation that could never create an event', () => {
     const membership = Object.fromEntries(
-      SOURCE_IDS.map((id) => [id, SOURCE_REGISTRY[id].attachOnly ? 'attach_only' : 'dropped']),
+      LIVE_SOURCE_IDS.map((id) => [id, SOURCE_REGISTRY[id].attachOnly ? 'attach_only' : 'dropped']),
     ) as Constellation['membership'];
     const droppedBecause = Object.fromEntries(
-      SOURCE_IDS.filter((id) => membership[id] === 'dropped').map((id) => [id, 'test']),
+      LIVE_SOURCE_IDS.filter((id) => membership[id] === 'dropped').map((id) => [id, 'test']),
     );
     expect(constellationProblems(edit({ membership, droppedBecause }))).toEqual([
       'no live source: the stream could never create an event',

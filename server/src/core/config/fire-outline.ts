@@ -23,7 +23,7 @@
  *     picture of the instrument, not of the burn.
  */
 
-import type { SourceId } from '@fire-watch/contracts';
+import type { LiveSourceId } from '@fire-watch/contracts';
 
 import { CLUSTERING_PARAMS, type PlanarMetric } from '../clustering/clustering-params.js';
 import { defineConfig, type VersionedConfig } from './versioned-config.js';
@@ -39,7 +39,7 @@ export interface FireOutlineValues {
    * Which sources draw an outline, keyed by every registry id so adding a source without
    * deciding whether it draws is a type error. `null` leaves the source out.
    */
-  readonly footprintBySource: Readonly<Record<SourceId, OutlineFootprint | null>>;
+  readonly footprintBySource: Readonly<Record<LiveSourceId, OutlineFootprint | null>>;
   /** Morphological closing radius: footprints closer than twice this join into one shape. */
   readonly closingKm: number;
   /** The raster's cell edge. Doubled until the grid fits {@link maxGridCells}. */
