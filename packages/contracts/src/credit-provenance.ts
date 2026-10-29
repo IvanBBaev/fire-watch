@@ -20,15 +20,15 @@ export interface CreditProvenance {
 }
 
 export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
-  'osm': {
+  osm: {
     source: 'OpenStreetMap (basemap, place names, static hot-source mask)',
     authority: 'OSMF Attribution Guidelines',
   },
-  'openfreemap': {
+  openfreemap: {
     source: 'OpenFreeMap / OpenMapTiles (beta tiles)',
     authority: 'openfreemap.org',
   },
-  'protomaps': {
+  protomaps: {
     source: 'Protomaps self-hosted build',
     authority: 'Protomaps LICENSE_DATA',
   },
@@ -44,13 +44,14 @@ export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
     source: 'NASA LANCE — "as is" clause',
     authority: 'LANCE disclaimer, replication requested',
   },
-  'gibs': {
+  gibs: {
     source: 'NASA GIBS / Worldview imagery',
     authority: 'GIBS citation guidance',
   },
   'gibs-short': {
     source: 'NASA GIBS true-colour imagery (event-page before/after comparison, TASKS V2-E2)',
-    authority: 'GIBS citation guidance (nasa-gibs.github.io/gibs-api-docs/) — attribution requested; short form ours',
+    authority:
+      'GIBS citation guidance (nasa-gibs.github.io/gibs-api-docs/) — attribution requested; short form ours',
   },
   'eumetsat-meteosat': {
     source: 'EUMETSAT data (Meteosat/MTG products)',
@@ -76,11 +77,11 @@ export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
     source: 'Copernicus Service outputs (EFFIS, CAMS, CLMS)',
     authority: 'Copernicus legal notice',
   },
-  'effis': {
+  effis: {
     source: 'EFFIS (fire danger, burnt areas)',
     authority: 'EFFIS data-licence page',
   },
-  'gwis': {
+  gwis: {
     source: 'GWIS',
     authority: 'GWIS data-licence page',
   },
@@ -132,7 +133,7 @@ export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
     source: 'Terrarium terrain tiles — NOAA ETOPO1 component',
     authority: 'tilezen/joerd attribution.md — wording not yet checked against source',
   },
-  'landsat': {
+  landsat: {
     source: 'Landsat 8/9',
     authority: 'USGS courtesy line',
   },
@@ -140,7 +141,7 @@ export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
     source: 'Esri World Imagery (optional toggle)',
     authority: 'Esri Master Agreement + ArcGIS attribution docs',
   },
-  'geonames': {
+  geonames: {
     source: 'GeoNames gazetteer (place search, built by infra/geodata)',
     authority: 'GeoNames export readme + CC BY 4.0 §3(a) — our chosen form',
   },
@@ -148,7 +149,7 @@ export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
     source: 'Natural Earth admin-1 (oblast boundaries for the region filter)',
     authority: 'naturalearthdata.com terms of use — requested, not required',
   },
-  'celestrak': {
+  celestrak: {
     source: 'CelesTrak GP orbital elements (satellite-pass predictions, TASKS F15)',
     authority: 'CelesTrak GP data documentation — citation requested; our chosen form',
   },
@@ -160,15 +161,16 @@ export const CREDIT_PROVENANCE: Readonly<Record<string, CreditProvenance>> = {
     source: 'ESA WorldCover 2021 v200 (land-cover note, V2-F4)',
     authority: 'WorldCover PUM V2.0 §5.2',
   },
-  'meteoalarm': {
+  meteoalarm: {
     source: 'MeteoAlarm national warning feeds (forest-fire and heat warnings, V2-B3)',
     authority: 'MeteoAlarm legacy Atom feed <rights> element (read 2026-10-24)',
   },
   'copernicus-ems': {
     source: 'Copernicus EMS Rapid Mapping activations (event-page badge, TASKS V2-E3)',
-    authority: 'Copernicus EMS citation guidelines (mapping.emergency.copernicus.eu/about/citation-guidelines/); Regulation (EU) 2021/696',
+    authority:
+      'Copernicus EMS citation guidelines (mapping.emergency.copernicus.eu/about/citation-guidelines/); Regulation (EU) 2021/696',
   },
-  'derivation': {
+  derivation: {
     source: 'Fire Watch — derivation sentence',
     authority: 'ADR-001 A1.4',
   },
