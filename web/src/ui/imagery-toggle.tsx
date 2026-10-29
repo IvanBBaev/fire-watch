@@ -12,7 +12,7 @@
  *
  * The imagery option's label stays `mapControls.imagery`; `layers.basemapTitle` and
  * `layers.basemapMap` name the group and the plain option. All three are implementer copy
- * held in `PENDING_FOUNDER_REVIEW`.
+ * approved in the 2026-10-30 copy review.
  */
 
 import { useApp } from './context.js';

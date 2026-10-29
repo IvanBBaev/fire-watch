@@ -118,8 +118,8 @@ export interface Messages extends FragmentMessages {
   /**
    * The share card (TASKS F6, 07-product-ux §5.4.2): an image of the event that leaves the
    * app, so every stamp it carries is an absolute Europe/Sofia date and time — never a
-   * relative age, which is false by the time the image is read. All three strings are
-   * PENDING FOUNDER REVIEW (`PENDING_FOUNDER_REVIEW` in catalog-governance.ts).
+   * relative age, which is false by the time the image is read. All three strings were
+   * approved in the 2026-10-30 copy review.
    */
   readonly shareCard: {
     /** The event-page action that produces the card. */
@@ -132,8 +132,8 @@ export interface Messages extends FragmentMessages {
 
   /**
    * V2-D1 — export: the Download control on the list and on the event page, and the words
-   * the downloaded file carries. Own voice; every key is implementer copy held in
-   * `PENDING_FOUNDER_REVIEW`. The file's column names are a machine schema, not copy.
+   * the downloaded file carries. Own voice; implementer copy approved in the
+   * 2026-10-30 copy review. The file's column names are a machine schema, not copy.
    */
   readonly dataExport: {
     /** The list's control: downloads exactly the events the list shows. */
@@ -153,7 +153,7 @@ export interface Messages extends FragmentMessages {
     readonly notice: string;
   };
 
-  /** V2-D4 — og:image: the link-preview image of a shared event. Pending founder review. */
+  /** V2-D4 — og:image: the link-preview image of a shared event. */
   readonly ogImage: {
     /** `og:image:alt`; `place` is the event's place name. */
     readonly alt: (place: string) => string;
@@ -249,7 +249,7 @@ export interface Messages extends FragmentMessages {
 
   /**
    * The Layers panel (TASKS G4): the basemap choice and the EFFIS context overlays. Own
-   * voice; every key is implementer copy held in `PENDING_FOUNDER_REVIEW`.
+   * voice; implementer copy approved in the 2026-10-30 copy review.
    */
   /** V2-D3: the measure tool — distance, area, and the distance to the nearest active fire. */
   readonly measure: {
@@ -367,7 +367,7 @@ export interface Messages extends FragmentMessages {
   /**
    * Satellite passes (TASKS F15), a section of the Layers panel: when the fire-detecting
    * polar orbiters last passed over the area and when they are next predicted to. Own voice;
-   * every key is implementer copy held in `PENDING_FOUNDER_REVIEW`. Every time is a
+   * implementer copy approved in the 2026-10-30 copy review. Every time is a
    * prediction and the copy says so — it never promises a pass will happen or that one
    * will detect anything.
    */
@@ -411,8 +411,8 @@ export interface Messages extends FragmentMessages {
 
   /**
    * Playback (V2-A1): the time scrubber that replays one window of satellite detections
-   * over the last 24 hours, 3 days or 7 days. Own voice; every key is implementer copy held
-   * in `PENDING_FOUNDER_REVIEW`. The dots are hotspots a satellite saw, never confirmed
+   * over the last 24 hours, 3 days or 7 days. Own voice; implementer copy approved
+   * in the 2026-10-30 copy review. The dots are hotspots a satellite saw, never confirmed
    * fires, and nothing here predicts where anything will go.
    */
   readonly playback: {
@@ -454,8 +454,8 @@ export interface Messages extends FragmentMessages {
   /**
    * Official warnings (V2-B3), a section of the Layers panel: the forest-fire warnings, and
    * high-temperature warnings as context, that national weather services have in force,
-   * relayed through MeteoAlarm. Own voice around relayed content; every key is implementer
-   * copy held in `PENDING_FOUNDER_REVIEW`. The copy never issues, rewords or grades a
+   * relayed through MeteoAlarm. Own voice around relayed content; implementer copy
+   * approved in the 2026-10-30 copy review. The copy never issues, rewords or grades a
    * warning, and an empty list only ever means "none in force from the services read".
    */
   readonly meteoalarm: {
@@ -591,7 +591,7 @@ export interface Messages extends FragmentMessages {
   /**
    * Sign-in by email link (TASKS I1; review 05 §5.4.1 C1–C2): the request form, the
    * landing page that finishes signing in, and the Settings account section. Plain strings
-   * only. All PENDING FOUNDER REVIEW. Shown only where the server serves sign-in.
+   * only, approved in the 2026-10-30 copy review. Shown only where the server serves sign-in.
    */
   readonly signIn: {
     readonly title: string;
@@ -756,8 +756,8 @@ export interface Messages extends FragmentMessages {
   /**
    * The event page's detail sections (TASKS B-wave, rich event panel): the satellite
    * timeline, fire radiative power, contributing sensors, and where the event is relative
-   * to the reader. Instrument names are proper nouns and never pass through here. All
-   * PENDING FOUNDER REVIEW. Nothing here may read as directions (GLOSSARY §5.2 "No routing,
+   * to the reader. Instrument names are proper nouns and never pass through here.
+   * Approved in the 2026-10-30 copy review. Nothing here may read as directions (GLOSSARY §5.2 "No routing,
    * ever"): distance and bearing are orientation, and the only map link is an area view.
    */
   readonly eventDetail: {
@@ -880,7 +880,7 @@ export interface Messages extends FragmentMessages {
     readonly landCoverWetland: string;
     /**
      * V2-E3: the badge naming a Copernicus EMS Rapid Mapping activation that matches the
-     * event; it links to the activation page. Pending founder review.
+     * event; it links to the activation page.
      */
     readonly cemsActivation: (code: string) => string;
   };

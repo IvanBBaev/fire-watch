@@ -839,10 +839,14 @@ export const CATALOG_GOVERNANCE = {
  * reviewable diff, like every other change to this file. `pending-founder-review.test.ts`
  * asserts the register exactly, so adding to it or clearing it is always a visible edit.
  *
- * - `shareCard.*` — TASKS F6, the share card. The card must say *when* the satellite saw
- *   the fire in words that survive a screenshot, and no existing string says that without
- *   a relative age (`observedShort`, `status.freshnessChip*`), which is false by the time
- *   a shared image is read.
+ * The 2026-10-30 copy review (`docs/decisions/founder-2026-10-30/copy.md`) read every
+ * entry and approved the product copy — the share card, sign-in, the new-signals counter,
+ * the event panel, filters and search, the Layers panel, passes, playback, MeteoAlarm,
+ * export, the link preview, measure, before/after and the could-not-load state — with the
+ * edits that record lists. Approving the words did not decide the numbers behind some of
+ * them (the sensitivity thresholds, the CEMS match rule, the export tier); those stay with
+ * their own decisions. What is still listed waits on something a copy review cannot give:
+ *
  * - `privacy.*`, `disclaimer.*` — TASKS I5, the privacy page and the layered ЗЗП/LANCE
  *   disclaimers. Drafted by an implementer from reviews 05, 07 and 09 and needing **legal**
  *   review as well as the founder's: the controller does not exist yet, retention periods
@@ -850,41 +854,6 @@ export const CATALOG_GOVERNANCE = {
  *   that no Bulgarian lawyer has read. The page shows `privacy.draftNotice` above all of
  *   it; `privacy-page.test.tsx` holds the notice on the page for as long as any of these
  *   paths is still listed here.
- * - `mapControls.imagery` — TASKS G6, the satellite-imagery toggle label. Written by an
- *   implementer so the toggle can render; the word the product uses for the basemap
- *   alternative (and its placement among the map controls) is the founder's call.
- * - `signIn.*` — TASKS I1, sign-in by email link. Written by an implementer so the pages can
- *   render; the product's word for an account, the tone of the neutral "sent" answer (it
- *   must not reveal whether an address has an account) and the Bulgarian drafts are the
- *   founder's call.
- * - `newSignals.*` — TASKS F, the "new since you last looked" counter and its sound option.
- *   Written by an implementer so the counter can render; the product's word for a new or
- *   grown fire, the tone of a cue that must not read as an alarm, and the Bulgarian drafts
- *   are the founder's call.
- * - `eventDetail.*` — the rich event panel: satellite timeline, FRP with its
- *   not-comparable-across-sensors caveat, contributing sensors, and distance/bearing from
- *   the reader. Written by an implementer so the sections can render; the Bulgarian drafts
- *   (МВт, the compass adverbs, "не е указание за път") and whether FRP belongs in a citizen
- *   panel at all are the founder's call.
- * - `ageWindow.option.{1h,3h,12h}`, `ageWindow.emptyShortWindow`, `filters.*`, `search.*` —
- *   the finer time presets, the source and region filters and place search. Written by an
- *   implementer so the filter bar can render; the product's word for a sensor family, the
- *   "shown under every sensor" fail-open wording, the short-window explanation and the
- *   Bulgarian drafts are the founder's call. The oblast names themselves live in
- *   `core/filter/oblasts.ts` (a geographic table, not copy) and need the same review for
- *   "София (столица)" / "София (област)".
- * - `layers.*` — TASKS G4, the Layers panel: basemap choice, the EFFIS fire-danger (FWI)
- *   and burnt-area overlays, the FWI legend and the copy-age lines. Written by an
- *   implementer so the panel can render; the class names (EFFIS's current six, which differ
- *   from GLOSSARY §7's table), the "not a forecast" note and the Bulgarian drafts are the
- *   founder's call.
- * - `passes.*` — TASKS F15, the satellite-pass section of the Layers panel: last and next
- *   predicted pass per platform, the "predicted" label, stale/missing-elements notes and
- *   the future-tense relative time. Written by an implementer; the wording of "a chance to
- *   detect, not a promise", the three-day staleness line and the Bulgarian drafts are the
- *   founder's call. The F17 cloud keys (`passes.cloud*`: the per-pass forecast cloud and
- *   its "may be missed under cloud" caveat) likewise — the three level words, the okta
- *   boundaries behind them (25 % / 75 %) and the caveat's wording are the founder's call.
  * - `accessibility.*` — TASKS L16, the accessibility statement (review 19 §5.10.1, review 09
  *   §4.3). Drafted by an implementer and needing **legal** review as well as the founder's:
  *   the WCAG 2.1/2.2 target is an open founder decision, the microenterprise exemption is a
@@ -897,35 +866,8 @@ export const CATALOG_GOVERNANCE = {
  *   statement-type labels are placeholders that avoid the official words on purpose (the
  *   founder's normative Bulgarian wording replaces them), and the tier, exception and
  *   refusal wording follows the editorial standard draft, which awaits sign-off itself.
- * - `dataExport.*` — TASKS V2-D1, the GeoJSON/KML/CSV download. Written by an implementer so
- *   the control can render; the button words, the file titles, the "not confirmed fires"
- *   caveat every file carries and the Bulgarian drafts are the founder's call — as is
- *   whether exports belong to a paid tier at all (V2-Q3).
- * - `ogImage.*` — TASKS V2-D4, the link-preview image's alt text. Written by an implementer;
- *   the wording and the Bulgarian draft are the founder's call.
- * - `filters.sensitivity*` — V2-A2, the sensitivity filter. Written by an implementer so the
- *   picker can render; the preset names, the thresholds behind them
- *   (`core/filter/sensitivity.ts` `SENSITIVITY_PRESETS`), and the "may still be a real
- *   fire" note are the founder's call.
- * - `measure.*` — V2-D3, the measure tool. Written by an implementer so the panel can
- *   render; the labels, the "nearest active fire" wording and the approximation note are
- *   the founder's call.
- * - `eventDetail.cemsActivation` — V2-E3, the Copernicus EMS activation badge. Written by an
- *   implementer so the badge can render; its wording, and the match rule behind it
- *   (`@fire-watch/contracts` `CEMS_MATCH`), are the founder's call.
- * - `eventUnavailable` — TASKS F3 (2026-10-27), the event page's "could not load" state: a
- *   permalink whose first snapshot failed, or whose feed is failing or stale, must not say
- *   "not found". Written by an implementer; whether to name the cause and the Bulgarian
- *   draft are the founder's call.
- * - `beforeAfter.*` — V2-E2, the before/after satellite comparison. Written by an
- *   implementer so the panel can render; its labels, the honesty note (resolution, cloud,
- *   smoke, not a burned-area map) and the date rule behind them (`core/before-after.ts`)
- *   are the founder's call.
  */
 export const PENDING_FOUNDER_REVIEW = [
-  'shareCard.share',
-  'shareCard.observedAt',
-  'shareCard.madeAt',
   'privacy.title',
   'privacy.draftNotice',
   'privacy.summaryTitle',
@@ -971,34 +913,6 @@ export const PENDING_FOUNDER_REVIEW = [
   'accessibility.contact.title',
   'accessibility.contact.paragraphs',
   'accessibility.linkLabel',
-  'mapControls.imagery',
-  'signIn.title',
-  'signIn.accountTitle',
-  'signIn.accountNote',
-  'signIn.emailLabel',
-  'signIn.send',
-  'signIn.sending',
-  'signIn.sent',
-  'signIn.rateLimited',
-  'signIn.invalidEmail',
-  'signIn.failed',
-  'signIn.unavailable',
-  'signIn.continueTitle',
-  'signIn.continueIntro',
-  'signIn.continue',
-  'signIn.working',
-  'signIn.noLink',
-  'signIn.expired',
-  'signIn.used',
-  'signIn.invalid',
-  'signIn.superseded',
-  'signIn.otherBrowser',
-  'signIn.requestNew',
-  'signIn.signedInTitle',
-  'signIn.accountCreated',
-  'signIn.signedIn',
-  'signIn.signOut',
-  'signIn.signedOut',
   'staffCuration.title',
   'staffCuration.draftNotice',
   'staffCuration.intro',
@@ -1081,276 +995,6 @@ export const PENDING_FOUNDER_REVIEW = [
   'staffCuration.issue.correction_text_missing',
   'staffCuration.issue.correction_text_invalid',
   'staffCuration.issue.correction_text_not_allowed',
-  'newSignals.regionLabel',
-  'newSignals.count',
-  'newSignals.latest',
-  'newSignals.showNewest',
-  'newSignals.markAllSeen',
-  'newSignals.soundTitle',
-  'newSignals.soundLabel',
-  'newSignals.soundNote',
-  'eventDetail.eventIdLabel',
-  'eventDetail.copied',
-  'eventDetail.copyFailed',
-  'eventDetail.timelineTitle',
-  'eventDetail.firstDetected',
-  'eventDetail.lastDetected',
-  'eventDetail.detectionsLabel',
-  'eventDetail.lastSensorLabel',
-  'eventDetail.frpTitle',
-  'eventDetail.frpLatest',
-  'eventDetail.frpPeak',
-  'eventDetail.frpChartLabel',
-  'eventDetail.frpNote',
-  'eventDetail.frpUnavailable',
-  'eventDetail.sensorsTitle',
-  'eventDetail.orbit.polar',
-  'eventDetail.orbit.geostationary',
-  'eventDetail.sensorPixel',
-  'eventDetail.metres',
-  'eventDetail.kilometres',
-  'eventDetail.detailUnavailable',
-  'eventDetail.whereTitle',
-  'eventDetail.approxCentreLabel',
-  'eventDetail.copyCoordinates',
-  'eventDetail.openStreetMap',
-  'eventDetail.showDistance',
-  'eventDetail.locating',
-  'eventDetail.locationDenied',
-  'eventDetail.locationUnavailable',
-  'eventDetail.distance',
-  'eventDetail.nearby',
-  'eventDetail.compass.N',
-  'eventDetail.compass.NE',
-  'eventDetail.compass.E',
-  'eventDetail.compass.SE',
-  'eventDetail.compass.S',
-  'eventDetail.compass.SW',
-  'eventDetail.compass.W',
-  'eventDetail.compass.NW',
-  'eventDetail.orientationNote',
-  'ageWindow.option.1h',
-  'ageWindow.option.3h',
-  'ageWindow.option.12h',
-  'ageWindow.emptyShortWindow',
-  'filters.label',
-  'filters.sourceLabel',
-  'filters.sourceAll',
-  'filters.sourceOption',
-  'filters.family.v',
-  'filters.family.m',
-  'filters.family.s',
-  'filters.family.g',
-  'filters.sourceUnreported',
-  'filters.regionLabel',
-  'filters.regionAll',
-  'filters.regionLoading',
-  'filters.regionFailed',
-  'filters.hiddenByFilters',
-  'filters.clear',
-  'filters.emptyFiltered',
-  'search.label',
-  'search.placeholder',
-  'search.loading',
-  'search.failed',
-  'search.noResults',
-  'search.goToCoordinates',
-  'search.resultCount',
-  'layers.toggle',
-  'layers.panelLabel',
-  'layers.basemapTitle',
-  'layers.basemapMap',
-  'layers.overlaysTitle',
-  'layers.fwi',
-  'layers.fwiNote',
-  'layers.fwiLegendTitle',
-  'layers.fwiClasses',
-  'layers.fwiValidFor',
-  'layers.fwiNotToday',
-  'layers.ba',
-  'layers.baNote',
-  'layers.copyDated',
-  'layers.suspect',
-  'layers.loading',
-  'layers.unavailable',
-  'layers.wind',
-  'layers.windNote',
-  'layers.windLegendTitle',
-  'layers.windClasses',
-  'layers.windValidFor',
-  'layers.staticSources',
-  'layers.staticSourcesNote',
-  'eventDetail.staticSourceSolar',
-  'eventDetail.staticSourceIndustrial',
-  'eventDetail.staticSourceDetectionsSolar',
-  'eventDetail.staticSourceDetectionsIndustrial',
-  'eventDetail.staticSourceServer',
-  'eventDetail.lightningContextFlashes',
-  'eventDetail.lightningContextNone',
-  'eventDetail.lightningContextNoData',
-  'layers.swaths',
-  'layers.swathsNote',
-  'layers.swathsNext',
-  'layers.swathsRecent',
-  'layers.swathsPassAt',
-  'layers.lightning',
-  'layers.lightningNote',
-  'layers.lightningLegendTitle',
-  'layers.lightningClasses',
-  'layers.lightningAsOf',
-  'layers.lightningNone',
-  // V2-B1 — FWI forecast
-  'layers.fwiDayLabel',
-  'layers.fwiDayOption',
-  'layers.fwiForecastNote',
-  'layers.fwiForecastFor',
-  'layers.fwiForecastBehind',
-  'passes.title',
-  'passes.note',
-  'passes.forMapCentre',
-  'passes.forEvent',
-  'passes.outsideArea',
-  'passes.predicted',
-  'passes.computedFor',
-  'passes.expired',
-  'passes.lastPass',
-  'passes.nextPass',
-  'passes.none',
-  'passes.inTime',
-  'passes.day',
-  'passes.night',
-  'passes.elementsStale',
-  'passes.elementsMissing',
-  'passes.cloudClear',
-  'passes.cloudPartly',
-  'passes.cloudCloudy',
-  'passes.cloudForecast',
-  'passes.cloudCaveat',
-  // V2-D1 — export
-  'dataExport.downloadList',
-  'dataExport.downloadDetections',
-  'dataExport.formatsLabel',
-  'dataExport.preparing',
-  'dataExport.failed',
-  'dataExport.eventsTitle',
-  'dataExport.detectionsTitle',
-  'dataExport.notice',
-  // V2-D4 — og:image
-  'ogImage.alt',
-  // V2-A4 — estimated outlines
-  'layers.outlines',
-  'layers.outlinesNote',
-  'layers.outlinesLegend',
-  'layers.outlinesAsOf',
-  'layers.outlinesTruncated',
-  'layers.outlinesNone',
-  'eventDetail.fireOutlineArea',
-  'eventDetail.fireOutlineCaveat',
-  // V2-F1 — Natura 2000
-  'layers.protectedSites',
-  'layers.protectedSitesNote',
-  'eventDetail.protectedSiteInside',
-  'eventDetail.protectedSiteInsideSome',
-  'eventDetail.protectedSiteNear',
-  // V2-F4 — land cover
-  'eventDetail.landCover',
-  'eventDetail.landCoverPart',
-  'eventDetail.landCoverTree',
-  'eventDetail.landCoverShrub',
-  'eventDetail.landCoverGrass',
-  'eventDetail.landCoverCrop',
-  'eventDetail.landCoverBuilt',
-  'eventDetail.landCoverBare',
-  'eventDetail.landCoverWater',
-  'eventDetail.landCoverWetland',
-  // V2-A1 — playback
-  'playback.toggle',
-  'playback.title',
-  'playback.note',
-  'playback.rangeLabel',
-  'playback.ranges',
-  'playback.scrubberLabel',
-  'playback.play',
-  'playback.pause',
-  'playback.stepBack',
-  'playback.stepForward',
-  'playback.speed',
-  'playback.backToLive',
-  'playback.cursorAt',
-  'playback.shownCount',
-  'playback.loading',
-  'playback.unavailable',
-  'playback.empty',
-  'playback.truncated',
-  'playback.legendTitle',
-  'playback.ageClasses',
-  'playback.sizeNote',
-  // V2-B3 — MeteoAlarm
-  'meteoalarm.title',
-  'meteoalarm.note',
-  'meteoalarm.checkedAt',
-  'meteoalarm.forestFire',
-  'meteoalarm.highTemperature',
-  'meteoalarm.level2',
-  'meteoalarm.level3',
-  'meteoalarm.level4',
-  'meteoalarm.validFromTo',
-  'meteoalarm.validUntil',
-  'meteoalarm.officialLink',
-  'meteoalarm.noneInForce',
-  'meteoalarm.notChecked',
-  // V2-A2 — sensitivity
-  'filters.sensitivityLabel',
-  'filters.sensitivityPreset.all',
-  'filters.sensitivityPreset.balanced',
-  'filters.sensitivityPreset.multi',
-  'filters.sensitivityCustom',
-  'filters.sensitivityOption',
-  'filters.sensitivityAdvanced',
-  'filters.sensitivityMinBand',
-  'filters.sensitivityMinDetections',
-  'filters.sensitivityMinSensors',
-  'filters.sensitivityAtLeast',
-  'filters.sensitivityHint',
-  'filters.sensitivityUnreported',
-  // V2-D3 — measure
-  'measure.toggle',
-  'measure.panelLabel',
-  'measure.modeLabel',
-  'measure.mode.distance',
-  'measure.mode.area',
-  'measure.mode.nearest',
-  'measure.hint.distance',
-  'measure.hint.area',
-  'measure.hint.nearest',
-  'measure.addCentre',
-  'measure.undo',
-  'measure.clear',
-  'measure.distanceResult',
-  'measure.areaResult',
-  'measure.nearestResult',
-  'measure.nearestNone',
-  'measure.approxNote',
-  // V2-E3 — CEMS badge
-  'eventDetail.cemsActivation',
-  'eventUnavailable',
-  // V2-E2 — before/after comparison
-  'beforeAfter.open',
-  'beforeAfter.close',
-  'beforeAfter.title',
-  'beforeAfter.sliderLabel',
-  'beforeAfter.sliderValue',
-  'beforeAfter.beforeLabel',
-  'beforeAfter.afterLabel',
-  'beforeAfter.afterLatestLabel',
-  'beforeAfter.beforeEarlier',
-  'beforeAfter.beforeLater',
-  'beforeAfter.afterEarlier',
-  'beforeAfter.afterLater',
-  'beforeAfter.imageLabel',
-  'beforeAfter.note',
-  'beforeAfter.unavailable',
-  'beforeAfter.tilesFailed',
 ] as const satisfies readonly CatalogPath[];
 
 /* -------------------------------------------------------------------------- */

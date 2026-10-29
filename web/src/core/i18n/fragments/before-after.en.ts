@@ -22,7 +22,7 @@ const fragment: { readonly beforeAfter: BeforeAfterMessages } = {
       'NASA VIIRS daily mosaics, about 375 m per pixel, taken in the early afternoon. Cloud or ' +
       'smoke may hide the ground on either day, and nothing here checks for it. Not a ' +
       'burned-area map.',
-    unavailable: "No satellite day before this event's first detection is available yet.",
+    unavailable: "No satellite image from before this event's first detection is available yet.",
     tilesFailed: 'Some of the imagery could not be loaded.',
   },
 };

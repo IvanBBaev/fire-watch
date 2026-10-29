@@ -102,49 +102,19 @@ interface Finding {
  * the register being updated. Softening copy or narrowing a rule does not make it green;
  * only changing the register does, and that is a visible diff.
  *
- * Two distinct defects are recorded:
+ * One defect is recorded: `lifecycle.officially*` and `status.officialThenRedetected` are
+ * genuinely quoted copy whose rendered span carries neither a source link nor a statement
+ * timestamp, because `FireEvent` has no field for either. See the test below, which shows
+ * these clear the lint the moment the span carries both.
  *
- * 1. `statusShort.officially_*` — a bare badge rendered by `event-list.tsx` in our own
- *    voice, with no attribution anywhere near it. `messages.ts` documents `statusShort`
- *    as own voice, so there is no quote to exempt: the product says "Officially
- *    contained" itself.
- * 2. `lifecycle.officially*` and `status.officialThenRedetected` — genuinely quoted copy
- *    whose rendered span carries neither a source link nor a statement timestamp, because
- *    `FireEvent` has no field for either. See the test below, which shows these clear the
- *    lint the moment the span carries both.
+ * A second defect, the `statusShort.officially_*` badges that said "Officially contained"
+ * in our own voice with nothing attributing it, was resolved by the 2026-10-30 copy review
+ * (`docs/decisions/founder-2026-10-30/copy.md`, C-NS): the badge now says only that an
+ * official statement exists, and the lifecycle line carries the official term.
  */
 const KNOWN_FINDINGS: readonly Finding[] = [
-  // 1. Own-voice badges.
-  {
-    locale: 'bg',
-    path: 'statusShort.officially_contained',
-    variant: 0,
-    ruleId: 'own-voice-extinguished',
-    match: 'локализиран',
-  },
-  {
-    locale: 'bg',
-    path: 'statusShort.officially_extinguished',
-    variant: 0,
-    ruleId: 'own-voice-extinguished',
-    match: 'ликвидиран',
-  },
-  {
-    locale: 'en',
-    path: 'statusShort.officially_contained',
-    variant: 0,
-    ruleId: 'own-voice-extinguished',
-    match: 'contained',
-  },
-  {
-    locale: 'en',
-    path: 'statusShort.officially_extinguished',
-    variant: 0,
-    ruleId: 'own-voice-extinguished',
-    match: 'extinguished',
-  },
-  // 2. Quoted copy with no rendered provenance. The EN catalog relays the Bulgarian term
-  //    alongside the English one, so each EN line trips twice — once per spelling.
+  // Quoted copy with no rendered provenance. The EN catalog relays the Bulgarian term
+  // alongside the English one, so each EN line trips twice — once per spelling.
   {
     locale: 'bg',
     path: 'lifecycle.officiallyContained',
@@ -285,12 +255,12 @@ describe('what the findings are, and are not', () => {
     },
   );
 
-  it('the statusShort badges do not clear, because they are not a quote', () => {
+  it('the statusShort badges are clean in our own voice, because they are not a quote', () => {
     // The counterpart to the test above. `messages.ts` documents `statusShort` as own
     // voice and `event-list.tsx` renders it as a bare badge with nothing attributing it,
-    // so no provenance field can rescue it: the exemption is for relayed statements, and
-    // this is the product speaking. Resolving it means changing what the badge says,
-    // which is a founder decision about frozen copy, not a test fixture.
+    // so no provenance field could rescue it: the exemption is for relayed statements, and
+    // this is the product speaking. The 2026-10-30 copy review (C-NS) changed what the
+    // badge says instead, so it must stay clean with no exemption at all.
     for (const [, messages] of catalogs) {
       for (const label of Object.values(messages.statusShort)) {
         const asQuote = lintAlertText(label, {
@@ -306,7 +276,7 @@ describe('what the findings are, and are not', () => {
         lintAlertText(label, { voice: 'own' }),
       ),
     );
-    expect(ownVoiceBadges).toHaveLength(4);
+    expect(ownVoiceBadges).toHaveLength(0);
   });
 });
 

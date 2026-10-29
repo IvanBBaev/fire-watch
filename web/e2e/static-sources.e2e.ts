@@ -15,7 +15,7 @@
  * - The caveat follows the server's verdict. A copy of the fixture marks `fw-2026-x4k6m`
  *   (no bundled source within 5 km of its centre or any detection) `static_source_verdict:
  *   "annotated"` — a server mask newer than the bundle — so its page must carry the
- *   kind-neutral "server check" sentence. The shipped fixture is left alone.
+ *   kind-neutral "known heat source" sentence. The shipped fixture is left alone.
  * - On the real map (a local stand-in basemap, `harness/map-inspect.ts`, so the style
  *   loads), the mask's layers sit below the fire layers and are gone when switched off.
  *   The map corner carries the OSM credit throughout: the corner line always does,

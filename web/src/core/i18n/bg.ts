@@ -35,15 +35,15 @@ const messages: Messages = {
   unverifiedNote:
     'Единично засичане с ниска увереност — може все пак да е истински пожар, а може и да е фалшив сигнал. Следващите сателитни наблюдения ще внесат яснота.',
 
-  // Own voice, §4/§5 bans apply. The curated pair may name the official terms
-  // (локализиран/ликвидиран) because those states exist only via an attributed official
-  // statement — the full lifecycle line below the badge carries the date and source.
+  // Own voice, §4/§5 bans apply. The curated pair says only that an official statement
+  // exists: a bare badge has no source or time beside it, so it may not name the official
+  // term (copy review 2026-10-30, C-NS). The lifecycle line carries term, date and source.
   statusShort: {
     active: 'Активно засичане',
     signal_weakening: 'Отслабващ сигнал',
     no_longer_detected: 'Не се засича',
-    officially_contained: 'Официално локализиран',
-    officially_extinguished: 'Официално ликвидиран',
+    officially_contained: 'Официално съобщение',
+    officially_extinguished: 'Официално съобщение',
     archived: 'Архивиран',
   },
 
@@ -128,13 +128,13 @@ const messages: Messages = {
   copyLink: 'Копирай връзката',
   loading: 'Зареждане…',
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   shareCard: {
     share: 'Сподели',
     observedAt: (dateTime) => `Последно сателитно наблюдение: ${dateTime} (българско време)`,
     madeAt: (dateTime) => `Изображението е създадено на ${dateTime}`,
   },
-  // V2-D1 — export. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // V2-D1 — export. Approved in the 2026-10-30 copy review.
   dataExport: {
     downloadList: 'Изтегли списъка',
     downloadDetections: 'Изтегли засичанията',
@@ -144,10 +144,10 @@ const messages: Messages = {
     eventsTitle: 'Fire Watch: сателитно засечени пожари',
     detectionsTitle: (place) => `Fire Watch: сателитни засичания на пожара край ${place}`,
     notice:
-      'Сателитни засичания, а не потвърдени пожари: спътникът може да пропусне пожар или да засече топлина, която не е пожар. ' +
+      'Сателитни засичания, а не потвърдени пожари: сателитът може да пропусне пожар или да засече топлина, която не е пожар. ' +
       'score_bucket е степен на сателитната оценка, а не потвърждение на място. Всички часове са в UTC.',
   },
-  // V2-D4 — og:image. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // V2-D4 — og:image. Approved in the 2026-10-30 copy review.
   ogImage: {
     alt: (place) => `Картичка на Fire Watch за сателитно засечения пожар край ${place}`,
   },
@@ -172,7 +172,7 @@ const messages: Messages = {
     showOlder: 'Покажи по-старите',
     emptyInWindow: 'Няма сателитни засичания в този период. Разширете го, за да видите по-старите.',
     emptyShortWindow:
-      'Няма нови сателитни засичания в този период. Спътниците преминават само няколко пъти на ден, затова краткият период често е празен.',
+      'Няма нови сателитни засичания в този период. Сателитите преминават само няколко пъти на ден, затова краткият период често е празен.',
   },
 
   filters: {
@@ -207,15 +207,15 @@ const messages: Messages = {
     sensitivityAdvanced: 'Критерии за сигналите',
     sensitivityMinBand: 'Най-ниска степен',
     sensitivityMinDetections: 'Засичания',
-    sensitivityMinSensors: 'Спътници',
+    sensitivityMinSensors: 'Сателити',
     sensitivityAtLeast: (count) =>
       count === 1 ? 'Без минимум' : `Поне ${formatNumber(count, 'bg')}`,
     sensitivityHint:
       'По-слабите сигнали са скрити. Скритият сигнал може все пак да е истински пожар.',
     sensitivityUnreported: (count) =>
       count === 1
-        ? 'За 1 пожар данните не казват колко спътника са го засекли; той се показва въпреки това.'
-        : `За ${formatNumber(count, 'bg')} пожара данните не казват колко спътника са ги засекли; те се показват въпреки това.`,
+        ? 'За 1 пожар данните не казват колко сателита са го засекли; той се показва въпреки това.'
+        : `За ${formatNumber(count, 'bg')} пожара данните не казват колко сателита са ги засекли; те се показват въпреки това.`,
   },
 
   search: {
@@ -311,13 +311,13 @@ const messages: Messages = {
     windValidFor: (time, run) => `За ${time} (прогноза на ECMWF от ${run})`,
     staticSources: 'Известни източници на топлина',
     staticSourcesNote:
-      'Соларни паркове, електроцентрали, газови факли и тежка промишленост от OpenStreetMap. Сателитите може да засекат топлината им като огнище.',
+      'Соларни паркове, електроцентрали, газови факли и тежка промишленост от OpenStreetMap. Сателитите може да засекат топлината им като гореща точка.',
     protectedSites: 'Защитени зони (Натура 2000)',
     protectedSitesNote:
       'Защитени зони за птиците и за местообитанията по данни на Европейската агенция за околна среда. Само за България, Гърция и Румъния: Северна Македония, Сърбия и Турция не са част от Натура 2000.',
-    swaths: 'Ивици на спътниците (прогноза)',
+    swaths: 'Ивици на сателитите (прогноза)',
     swathsNote:
-      'Къде всеки спътник за засичане на пожари е гледал през последните 6 часа и къде се очаква да гледа през следващите 12, по прогноза от орбитата му. Ивицата е шанс да се засече пожар, не обещание.',
+      'Къде всеки сателит за засичане на пожари е гледал през последните 6 часа и къде се очаква да гледа през следващите 12, по прогноза от орбитата му. Ивицата е шанс да се засече пожар, не обещание.',
     swathsNext: 'Следващи преминавания (контур)',
     swathsRecent: 'Скорошни преминавания (засенчени)',
     swathsPassAt: (platform, time) => `${platform} в ${time}`,
@@ -328,7 +328,7 @@ const messages: Messages = {
     lightningClasses: ['До 15 минути', 'От 15 минути до 1 час', 'От 1 до 6 часа'],
     lightningAsOf: (time) => `Светкавици, записани до ${time}`,
     lightningNone: 'Няма записани светкавици над района през последните 6 часа.',
-    outlines: 'Приблизителни очертания',
+    outlines: 'Приблизителни очертания на пожари',
     outlinesNote:
       'Приблизително очертание по сателитни засичания: пикселите, отчели топлина. Не е официален периметър, нито прогноза.',
     outlinesLegend: 'Приблизително очертание',
@@ -337,10 +337,10 @@ const messages: Messages = {
     outlinesNone: 'В момента на картата няма приблизителни очертания.',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   passes: {
-    title: 'Преминавания на спътници',
-    note: 'Прогнозни часове, в които спътниците, засичащи пожари, преминават над района, изчислени по орбитите им. Преминаването е възможност за засичане, не обещание: облаци, дим или малък пожар могат да го скрият.',
+    title: 'Преминавания на сателити',
+    note: 'Прогнозни часове, в които сателитите, засичащи пожари, преминават над района, изчислени по орбитите им. Преминаването е възможност за засичане, не обещание: облаци, дим или малък пожар могат да го скрият.',
     forMapCentre: 'Район: центърът на картата',
     forEvent: 'Район: избраното събитие',
     outsideArea:
@@ -354,7 +354,7 @@ const messages: Messages = {
     inTime: (age) => {
       switch (age.unit) {
         case 'now':
-          return 'около сега';
+          return 'в момента';
         case 'minutes':
           return `след ${String(age.minutes)} мин`;
         case 'hours':
@@ -368,7 +368,7 @@ const messages: Messages = {
     day: 'през деня',
     night: 'през нощта',
     elementsStale: 'Орбиталните елементи са на повече от три дни; тези часове са по-несигурни.',
-    elementsMissing: 'Няма актуални орбитални елементи за този спътник, затова няма прогноза.',
+    elementsMissing: 'Няма актуални орбитални елементи за този сателит, затова няма прогноза.',
     cloudClear: 'предимно ясно',
     cloudPartly: 'разкъсана облачност',
     cloudCloudy: 'облачно',
@@ -377,7 +377,7 @@ const messages: Messages = {
       'Облачността е прогноза на ECMWF за часа на всяко преминаване, не наблюдение. Пожар под облаци може да остане незасечен.',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   playback: {
     toggle: 'Възпроизвеждане',
     title: 'Възпроизвеждане на минали засичания',
@@ -403,10 +403,10 @@ const messages: Messages = {
       'Периодът съдържа повече засичания, отколкото могат да се покажат; най-старите са пропуснати.',
     legendTitle: 'Възраст към показания момент',
     ageClasses: ['До 1 час', 'От 1 до 6 часа', 'От 6 до 24 часа', 'Над 24 часа'],
-    sizeNote: 'По-голямата точка е засичане с по-висока радиационна мощност на пожара (FRP).',
+    sizeNote: 'По-голямата точка е засичане с по-висока излъчвана мощност на пожара (FRP).',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   meteoalarm: {
     title: 'Официални метеорологични предупреждения',
     note: 'Предупреждения за горски пожари и горещини, в сила от националните метеорологични служби на България и съседите ѝ, предадени така, както ги публикуват чрез MeteoAlarm. Fire Watch не издава предупреждения: следвайте издаващата служба.',
@@ -769,10 +769,10 @@ const messages: Messages = {
     soundTitle: 'Звуков сигнал',
     soundLabel: 'Кратък звук при нови сателитни засичания, докато страницата е отворена',
     soundNote:
-      'Тих сигнал, а не аларма. Сателитните данни може да пристигнат часове след прелитането, а браузърът може да държи звука изключен, докато не докоснете или щракнете върху страницата.',
+      'Тих сигнал, а не аларма. Сателитните данни може да пристигнат часове след преминаването, а браузърът може да държи звука изключен, докато не докоснете или щракнете върху страницата.',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   eventDetail: {
     eventIdLabel: 'Идентификатор на събитието',
     copied: 'Копирано.',
@@ -784,7 +784,7 @@ const messages: Messages = {
     lastSensorLabel: 'Последно засечено от',
     frpTitle: 'Излъчвана мощност на пожара (FRP)',
     frpLatest: (mw, sensor, time) => `Последно преминаване: ${mw} МВт (${sensor}, ${time})`,
-    frpPeak: (mw, sensor, time) => `Най-високо преминаване: ${mw} МВт (${sensor}, ${time})`,
+    frpPeak: (mw, sensor, time) => `Най-висока стойност: ${mw} МВт (${sensor}, ${time})`,
     frpChartLabel: (passes, min, max) =>
       passes === 1
         ? `Графика на FRP: 1 сателитно преминаване, ${max} МВт`
@@ -792,8 +792,8 @@ const messages: Messages = {
     frpNote:
       'FRP е топлината, измерена от сателитните пиксели, в мегавати, сумирана за едно преминаване. Стойностите от различни сензори не са сравними: по-едър пиксел отчита същия пожар различно, затова разлика между сензори не е промяна в пожара.',
     frpUnavailable: 'Засичанията, с които разполагаме за това събитие, нямат стойности на FRP.',
-    sensorsTitle: 'Сензори с принос',
-    orbit: { polar: 'полярна орбита', geostationary: 'геостационарен' },
+    sensorsTitle: 'Сензори, засекли събитието',
+    orbit: { polar: 'полярна орбита', geostationary: 'геостационарна орбита' },
     sensorPixel: (size) => `пиксел ${size}`,
     metres: (value) => `${value} м`,
     kilometres: (value) => `${value} км`,
@@ -836,7 +836,7 @@ const messages: Messages = {
           : `Всички ${formatNumber(total, 'bg')} засичания са в близост до известен промишлен източник на топлина — може да не е пожар.`
         : `${formatNumber(near, 'bg')} от ${formatNumber(total, 'bg')} засичания ${near === 1 ? 'е' : 'са'} в близост до известен промишлен източник на топлина — ${near === 1 ? 'то може да не е пожар' : 'те може да не са пожар'}.`,
     staticSourceServer:
-      'Според проверката на нашия сървър е в близост до известен източник на топлина — това засичане може да не е пожар.',
+      'В близост до известен източник на топлина — това засичане може да не е пожар.',
     lightningContextFlashes: (count, radiusKm, hours, nearestKm) =>
       count === 1
         ? `Мълнии наоколо: 1 светкавица е засечена в радиус ${formatNumber(radiusKm, 'bg')} км през ${formatNumber(hours, 'bg')}-те часа преди първото засичане, на ${formatNumber(nearestKm, 'bg')} км. Само за контекст: не означава, че мълния е причинила този пожар.`
@@ -846,7 +846,7 @@ const messages: Messages = {
     lightningContextNoData:
       'Мълнии наоколо: няма данни за мълнии за часовете преди първото засичане.',
     fireOutlineArea: (area, low, high, edgeKm, pixels) =>
-      `Приблизително очертание по сателитни засичания: ${area}${low === null ? `, до ${high}` : ` (от ${low} до ${high})`}, по ${pixels === 1 ? '1 пиксел' : `${formatNumber(pixels, 'bg')} пиксела`}; ръбовете ±${formatNumber(edgeKm, 'bg')} км.`,
+      `Приблизително очертание по сателитни засичания: ${area}${low === null ? `, до ${high}` : ` (от ${low} до ${high})`}, от ${pixels === 1 ? '1 пиксел' : `${formatNumber(pixels, 'bg')} пиксела`}; ръбовете ±${formatNumber(edgeKm, 'bg')} км.`,
     fireOutlineCaveat:
       'Оценка, а не официален периметър на пожара, нито прогноза: пикселът е по-голям от пожара, който отчита, така че изгорялата площ може да е много по-малка.',
     protectedSiteInside: (name, code) => `В защитената зона от Натура 2000 ${name} (${code}).`,

@@ -36,15 +36,15 @@ const messages: Messages = {
   unverifiedNote:
     'A single low-confidence detection — it may still be a real fire, and it may be a false positive. Further satellite passes will clarify.',
 
-  // Own voice, §4/§5 bans apply ("out" never appears). The curated pair may use the
-  // contained/extinguished vocabulary because those states exist only via an attributed
-  // official statement — the full lifecycle line below the badge carries date and source.
+  // Own voice, §4/§5 bans apply ("out" never appears). The curated pair says only that an
+  // official statement exists: a bare badge has no source or time beside it, so it may not
+  // name the official term (copy review 2026-10-30, C-NS). The lifecycle line carries it.
   statusShort: {
     active: 'Actively detected',
     signal_weakening: 'Signal weakening',
     no_longer_detected: 'No longer detected',
-    officially_contained: 'Officially contained',
-    officially_extinguished: 'Officially extinguished',
+    officially_contained: 'Official statement',
+    officially_extinguished: 'Official statement',
     archived: 'Archived',
   },
 
@@ -129,13 +129,13 @@ const messages: Messages = {
   copyLink: 'Copy link',
   loading: 'Loading…',
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   shareCard: {
     share: 'Share',
     observedAt: (dateTime) => `Last satellite observation: ${dateTime} (Bulgarian time)`,
     madeAt: (dateTime) => `Image created ${dateTime}`,
   },
-  // V2-D1 — export. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // V2-D1 — export. Approved in the 2026-10-30 copy review.
   dataExport: {
     downloadList: 'Download list',
     downloadDetections: 'Download detections',
@@ -148,7 +148,7 @@ const messages: Messages = {
       'Satellite detections, not confirmed fires: a satellite can miss a fire or detect heat that is not one. ' +
       'score_bucket is a satellite score band, not a confirmation on the ground. All times are UTC.',
   },
-  // V2-D4 — og:image. PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // V2-D4 — og:image. Approved in the 2026-10-30 copy review.
   ogImage: {
     alt: (place) => `Fire Watch card for the satellite-detected fire near ${place}`,
   },
@@ -334,7 +334,7 @@ const messages: Messages = {
     outlinesNone: 'No estimated outline on the map right now.',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   passes: {
     title: 'Satellite passes',
     note: 'Predicted times when the fire-detecting satellites pass over this area, computed from their orbits. A pass is a chance to detect a fire, not a promise: cloud, smoke or a small fire can hide it.',
@@ -373,7 +373,7 @@ const messages: Messages = {
       'Cloud is an ECMWF forecast for each pass time, not an observation. A fire under cloud may be missed.',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   playback: {
     toggle: 'Replay',
     title: 'Replay past detections',
@@ -400,7 +400,7 @@ const messages: Messages = {
     sizeNote: 'A larger dot is a detection with higher fire radiative power (FRP).',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   meteoalarm: {
     title: 'Official weather warnings',
     note: 'Forest-fire and heat warnings in force from the national weather services of Bulgaria and its neighbours, relayed as they publish them through MeteoAlarm. Fire Watch does not issue warnings: follow the issuing service.',
@@ -761,7 +761,7 @@ const messages: Messages = {
       'A quiet cue, not an alarm. Satellite data can arrive hours after a pass, and your browser may keep the sound muted until you tap or click on the page.',
   },
 
-  // PENDING FOUNDER REVIEW — see PENDING_FOUNDER_REVIEW in catalog-governance.ts.
+  // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).
   eventDetail: {
     eventIdLabel: 'Event ID',
     copied: 'Copied.',
@@ -773,7 +773,7 @@ const messages: Messages = {
     lastSensorLabel: 'Last seen by',
     frpTitle: 'Fire radiative power (FRP)',
     frpLatest: (mw, sensor, time) => `Latest pass: ${mw} MW (${sensor}, ${time})`,
-    frpPeak: (mw, sensor, time) => `Highest pass: ${mw} MW (${sensor}, ${time})`,
+    frpPeak: (mw, sensor, time) => `Highest value: ${mw} MW (${sensor}, ${time})`,
     frpChartLabel: (passes, min, max) =>
       passes === 1
         ? `FRP chart: 1 satellite pass, ${max} MW`
@@ -782,7 +782,7 @@ const messages: Messages = {
       'FRP is the heat that satellite pixels measured, in megawatts, summed over one pass. It is not comparable across sensors: a coarser pixel reads the same fire differently, so a difference between sensors is not a change in the fire.',
     frpUnavailable: 'The detections we hold for this event carry no FRP values.',
     sensorsTitle: 'Contributing sensors',
-    orbit: { polar: 'polar orbit', geostationary: 'geostationary' },
+    orbit: { polar: 'polar orbit', geostationary: 'geostationary orbit' },
     sensorPixel: (size) => `${size} pixel`,
     metres: (value) => `${value} m`,
     kilometres: (value) => `${value} km`,
@@ -822,8 +822,7 @@ const messages: Messages = {
           ? 'Its only detection is near a known industrial heat source — this hotspot may not be a fire.'
           : `All ${formatNumber(total, 'en')} detections are near a known industrial heat source — this hotspot may not be a fire.`
         : `${formatNumber(near, 'en')} of ${formatNumber(total, 'en')} detections ${near === 1 ? 'is' : 'are'} near a known industrial heat source — ${near === 1 ? 'it' : 'they'} may not be a fire.`,
-    staticSourceServer:
-      'Near a known heat source, according to our server check — this hotspot may not be a fire.',
+    staticSourceServer: 'Near a known heat source — this hotspot may not be a fire.',
     lightningContextFlashes: (count, radiusKm, hours, nearestKm) =>
       count === 1
         ? `Lightning context: 1 flash was recorded within ${formatNumber(radiusKm, 'en')} km in the ${formatNumber(hours, 'en')} hours before the first detection, ${formatNumber(nearestKm, 'en')} km away. Context only: it does not mean lightning started this fire.`

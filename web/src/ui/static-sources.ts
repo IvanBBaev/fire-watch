@@ -156,7 +156,7 @@ export function staticSourceDetectionCaveat(
 
 /**
  * What the event page's caveat says (TASKS F16): a kind-specific sentence from the bundled
- * mask — per detection, or from the centre — or the kind-neutral "server check" sentence.
+ * mask — per detection, or from the centre — or the kind-neutral "known heat source" sentence.
  */
 export type EventStaticSourceCaveat =
   | ({ readonly basis: 'detections' } & StaticSourceDetectionCaveat)

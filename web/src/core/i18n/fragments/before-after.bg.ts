@@ -8,7 +8,7 @@ const fragment: { readonly beforeAfter: BeforeAfterMessages } = {
     close: 'Затвори сравнението',
     title: 'Преди / след (сателит)',
     sliderLabel: 'Разделител между изображенията преди и след',
-    sliderValue: (percent) => `Разделител на ${String(percent)}%`,
+    sliderValue: (percent) => `Разделител на ${String(percent)} %`,
     beforeLabel: (date) => `Преди: ${date}`,
     afterLabel: (date) => `След: ${date}`,
     afterLatestLabel: (date) => `Последно налично: ${date}, не след последното засичане`,
@@ -22,7 +22,7 @@ const fragment: { readonly beforeAfter: BeforeAfterMessages } = {
       'Дневни мозайки от NASA VIIRS, около 375 м на пиксел, заснети в ранния следобед. Облаци ' +
       'или дим може да скриват земята и в двата дни, а това тук не се проверява. Не е карта ' +
       'на изгорелите площи.',
-    unavailable: 'Все още няма наличен сателитен ден преди първото засичане на това събитие.',
+    unavailable: 'Все още няма сателитно изображение отпреди първото засичане на това събитие.',
     tilesFailed: 'Част от изображенията не се заредиха.',
   },
 };

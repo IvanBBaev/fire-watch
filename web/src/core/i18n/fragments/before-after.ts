@@ -6,7 +6,7 @@
 
 /**
  * V2-E2: the before/after satellite comparison on an event page (NASA GIBS true colour).
- * Own voice; every key is implementer copy held in `PENDING_FOUNDER_REVIEW`. Dates are
+ * Own voice; implementer copy approved in the 2026-10-30 copy review. Dates are
  * pre-worded (`formatDateSofia`); no label may call either image cloud-free.
  */
 export type BeforeAfterMessages = {

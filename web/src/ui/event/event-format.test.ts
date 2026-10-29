@@ -32,7 +32,7 @@ describe('pixelText', () => {
 describe('orbitText', () => {
   it('labels polar and geostationary sensors', () => {
     expect(orbitText('eumetsat:slstr:frp', en)).toBe('polar orbit');
-    expect(orbitText('lsasaf:seviri:frp-pixel', en)).toBe('geostationary');
+    expect(orbitText('lsasaf:seviri:frp-pixel', en)).toBe('geostationary orbit');
     expect(orbitText('someone:new', en)).toBeNull();
   });
 });

@@ -13,7 +13,7 @@
  *
  * The server's verdict can only add to this: when the snapshot says `annotated` and the
  * bundled mask finds nothing (the server's mask is newer, or the bundle has not loaded), a
- * kind-neutral "server check" sentence appears instead; a `clear` verdict never removes a
+ * kind-neutral "known heat source" sentence appears instead; a `clear` verdict never removes a
  * sentence the bundled mask supports (`eventStaticSourceCaveat` has the rule).
  *
  * A caveat, never a filter: the event, its score and its detections render exactly as

@@ -114,7 +114,7 @@ describe('EventDetails', () => {
   it('shows FRP per pass with a labelled sparkline and the cross-sensor warning', async () => {
     const html = await render(READY);
     expect(html).toContain('Latest pass: 22.4 MW (SLSTR · Sentinel-3A/3B');
-    expect(html).toContain('Highest pass: 60 MW (SEVIRI · Meteosat');
+    expect(html).toContain('Highest value: 60 MW (SEVIRI · Meteosat');
     expect(html).toContain('role="img"');
     expect(html).toContain(
       'aria-label="FRP chart: 3 satellite passes, oldest to newest, from 10 to 60 MW"',
@@ -126,7 +126,7 @@ describe('EventDetails', () => {
     const html = await render(READY);
     expect(html).toContain('VIIRS · Suomi NPP</strong> · polar orbit · 375 m pixel · 2 detections');
     expect(html).toContain(
-      'SEVIRI · Meteosat</strong> · geostationary · ~4 km pixel · 1 detection',
+      'SEVIRI · Meteosat</strong> · geostationary orbit · ~4 km pixel · 1 detection',
     );
   });
 
