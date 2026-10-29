@@ -47,6 +47,7 @@ export interface ServerConfig {
    * `area` is the keyed Area API; `keyless` reads NASA's public regional NRT files and
    * clips them to the polling bbox. Unset, it is `area` when `FIRMS_MAP_KEY` is set at all
    * and `keyless` otherwise — so a developer machine without a key still ingests real data.
+   * `keyless` is refused when `FIRE_WATCH_ENVIRONMENT=production` (F9 ruling 2026-10-30).
    */
   readonly firmsMode: FirmsMode;
   /**
@@ -313,6 +314,7 @@ export function loadConfig(env: Environment, applicationName = 'fire-watch'): Se
   const databaseUrl = required('DATABASE_URL');
   const firmsMode = readFirmsMode(env['FIRE_WATCH_FIRMS_MODE'], env['FIRMS_MAP_KEY']);
   const firmsMapKey = firmsMode === 'area' ? required('FIRMS_MAP_KEY') : null;
+  refuseKeylessInProduction(firmsMode, env['FIRE_WATCH_ENVIRONMENT']);
 
   if (missing.length > 0) {
     throw new ConfigError(
@@ -815,6 +817,24 @@ function readFirmsMode(raw: string | undefined, mapKey: string | undefined): Fir
   if (mode === 'area' || mode === 'keyless') return mode;
   throw new ConfigError(
     `FIRE_WATCH_FIRMS_MODE must be area or keyless, got ${JSON.stringify(raw)}`,
+  );
+}
+
+/**
+ * Keyless FIRMS is a development and staging mode (founder ruling 2026-10-30, F9;
+ * docs/decisions/founder-2026-10-30/data-policy.md). It cannot run the data-availability
+ * check (DATA-SOURCES §A1.2, pitfall 10), cannot backfill and carries no latency
+ * guarantee, so a box that declares itself production via `FIRE_WATCH_ENVIRONMENT` —
+ * the same variable the metrics agent labels series with — refuses to start on it rather
+ * than ingest quietly through it. Unset or any other value leaves the mode alone, so a
+ * developer machine without a key keeps ingesting real data.
+ */
+function refuseKeylessInProduction(mode: FirmsMode, environment: string | undefined): void {
+  if (mode !== 'keyless') return;
+  if (environment?.trim().toLowerCase() !== 'production') return;
+  throw new ConfigError(
+    'FIRMS keyless mode is not allowed when FIRE_WATCH_ENVIRONMENT=production: ' +
+      'set FIRMS_MAP_KEY (area mode) on a production box.',
   );
 }
 

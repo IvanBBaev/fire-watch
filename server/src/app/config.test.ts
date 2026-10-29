@@ -87,6 +87,19 @@ describe('loadConfig', () => {
     );
   });
 
+  it('refuses keyless FIRMS on a box that declares itself production (F9)', () => {
+    expect(() => loadConfig({ DATABASE_URL, FIRE_WATCH_ENVIRONMENT: 'production' })).toThrow(
+      /keyless mode is not allowed when FIRE_WATCH_ENVIRONMENT=production/,
+    );
+    expect(() =>
+      loadConfig(env({ FIRE_WATCH_FIRMS_MODE: 'keyless', FIRE_WATCH_ENVIRONMENT: ' Production ' })),
+    ).toThrow(ConfigError);
+    expect(loadConfig(env({ FIRE_WATCH_ENVIRONMENT: 'production' })).firmsMode).toBe('area');
+    expect(loadConfig({ DATABASE_URL, FIRE_WATCH_ENVIRONMENT: 'staging' }).firmsMode).toBe(
+      'keyless',
+    );
+  });
+
   it('never silently degrades a blank key to keyless', () => {
     expect(() => loadConfig({ DATABASE_URL, FIRMS_MAP_KEY: '' })).toThrow(/FIRMS_MAP_KEY/);
   });

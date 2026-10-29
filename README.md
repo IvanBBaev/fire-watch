@@ -99,10 +99,11 @@ secret. Values reach the process from the VM env file (`OPERATIONS.md` §8).
 |---|---|---|---|
 | `DATABASE_URL` | yes | — | The same variable dbmate reads, on purpose |
 | `FIRMS_MAP_KEY` | in `area` mode | — | Never logged; only its length is |
-| `FIRE_WATCH_FIRMS_MODE` | no | `area` if `FIRMS_MAP_KEY` is set, else `keyless` | `keyless` reads NASA's public regional files, clipped to the bbox (`docs/DATA-SOURCES.md` §A1.2) |
+| `FIRE_WATCH_FIRMS_MODE` | no | `area` if `FIRMS_MAP_KEY` is set, else `keyless` | `keyless` reads NASA's public regional files, clipped to the bbox (`docs/DATA-SOURCES.md` §A1.2); refused when `FIRE_WATCH_ENVIRONMENT=production` |
 | `FIRMS_BASE_URL` | no | the NASA Area API | Point a drill or smoke test at a stub |
 | `FIRE_WATCH_FIRMS_KEYLESS_BASE_URL` | no | NASA's `data/active_fire` | The same, for `keyless` mode |
 | `FIRE_WATCH_DB_ROLE` | no | `fire_watch_app` | Assumed in the connection startup packet |
+| `FIRE_WATCH_ENVIRONMENT` | no | — | `production` or `staging`; `production` refuses keyless FIRMS (also the metrics `env` label) |
 | `FIRE_WATCH_POLL_INTERVAL_MS` | no | `600000` | Bounded to 1 min … 1 h |
 | `FIRE_WATCH_HEARTBEAT_URL` | no | — | healthchecks.io ping base for the dead-man's switch. The whole value is a secret and is never logged or echoed; absent on a developer box, where no check should page |
 
