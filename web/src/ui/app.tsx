@@ -26,18 +26,26 @@ import { isMapRoute, selectedEventIdFrom } from './logic/layout.js';
 import type { RouteId } from './logic/routes.js';
 import { ROUTES } from './logic/routes.js';
 import { AboutPage } from './pages/about.js';
-import { AccessibilityPage } from './pages/accessibility.js';
 import { CreditsPage } from './pages/credits.js';
 import { EventPage } from './pages/event.js';
 import { HomePage } from './pages/home.js';
-import { PrivacyPage } from './pages/privacy.js';
-import { SettingsPage } from './pages/settings.js';
 
 // Sign-in (TASKS I1) is a page few readers ever open, so it stays out of the entry chunk:
 // both routes load one lazy chunk (CI-12 lazy role `page`).
 const SignInPage = lazy(() => import('./pages/sign-in.js').then((m) => m.SignInPage));
 const SignInContinuePage = lazy(() =>
   import('./pages/sign-in.js').then((m) => m.SignInContinuePage),
+);
+// Settings, privacy and accessibility are reference pages, never on the first-render or
+// map path: each is its own lazy chunk, which is how CI-12's critical path stays inside
+// ADR-005's 350 KiB instead of the budget being raised (founder decision 2026-10-30,
+// docs/decisions/founder-2026-10-30/thresholds-ops.md F8-a). About and Credits stay in
+// the entry: the freshness chip deep-links `/about#data-freshness`, and the credits page
+// is the attribution surface the licences require to be one click away.
+const SettingsPage = lazy(() => import('./pages/settings.js').then((m) => m.SettingsPage));
+const PrivacyPage = lazy(() => import('./pages/privacy.js').then((m) => m.PrivacyPage));
+const AccessibilityPage = lazy(() =>
+  import('./pages/accessibility.js').then((m) => m.AccessibilityPage),
 );
 // The staff curation form (TASKS L15) is staff-only: its own lazy chunk.
 const StaffCurationPage = lazy(() =>

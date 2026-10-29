@@ -36,7 +36,7 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
-import { ecmwfComponents, renderCredit } from '@fire-watch/contracts';
+import { creditSource, ecmwfComponents, renderCredit } from '@fire-watch/contracts';
 
 import type { VersionedConfig } from '../../core/config/versioned-config.js';
 import { WIND_OVERLAY, type WindOverlayValues } from '../../core/config/wind-overlay.js';
@@ -173,7 +173,7 @@ export function ecmwfAttribution(runAt: string): readonly SnapshotAttribution[] 
   };
   return ecmwfComponents().map((credit) => ({
     id: credit.id,
-    source: credit.source,
+    source: creditSource(credit.id),
     text: renderCredit(credit, context),
     ...(credit.href === undefined ? {} : { href: credit.href }),
   }));

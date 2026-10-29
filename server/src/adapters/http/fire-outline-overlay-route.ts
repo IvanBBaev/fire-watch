@@ -22,7 +22,7 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 
-import { CREDITS, renderCredit } from '@fire-watch/contracts';
+import { creditSource, CREDITS, renderCredit } from '@fire-watch/contracts';
 
 import { createRateLimiter } from '../../core/http/rate-limiter.js';
 import { isoFromEpochMs, type Clock, type EpochMs } from '../../core/ports/clock.js';
@@ -118,7 +118,7 @@ export function fireOutlineAttribution(at: EpochMs): readonly SnapshotAttributio
   return [
     {
       id: credit.id,
-      source: credit.source,
+      source: creditSource(credit.id),
       text: renderCredit(credit, { year, productName: PRODUCT_NAME }),
       ...(credit.href === undefined ? {} : { href: credit.href }),
     },

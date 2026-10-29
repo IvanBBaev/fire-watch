@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { CREDITS, renderCredit, type CemsActivation } from '@fire-watch/contracts';
+import { creditSource, CREDITS, renderCredit, type CemsActivation } from '@fire-watch/contracts';
 import prerender from 'preact-iso/prerender';
 import { describe, expect, it } from 'vitest';
 
@@ -124,7 +124,7 @@ describe('the CEMS fixture and config', () => {
     expect(attribution).toEqual([
       {
         id: credit.id,
-        source: credit.source,
+        source: creditSource(credit.id),
         text: renderCredit(credit, { year: 2026, productName: 'Fire Watch' }),
         href: credit.href,
       },

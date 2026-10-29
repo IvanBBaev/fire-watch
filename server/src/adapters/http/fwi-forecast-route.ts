@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 
-import { CREDITS, renderCredit } from '@fire-watch/contracts';
+import { creditSource, CREDITS, renderCredit } from '@fire-watch/contracts';
 
 import { POLLING_BBOX, type BoundingBox } from '../../core/config/polling-bbox.js';
 import {
@@ -152,7 +152,7 @@ export function fwiForecastAttribution(baseDate: string): readonly SnapshotAttri
   return [
     {
       id: credit.id,
-      source: credit.source,
+      source: creditSource(credit.id),
       text: renderCredit(credit, { year, productName: PRODUCT_NAME }),
       ...(credit.href === undefined ? {} : { href: credit.href }),
     },

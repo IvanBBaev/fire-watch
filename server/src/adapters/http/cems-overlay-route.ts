@@ -27,7 +27,7 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
-import { CREDITS, renderCredit, type CemsOverlayBody } from '@fire-watch/contracts';
+import { creditSource, CREDITS, renderCredit, type CemsOverlayBody } from '@fire-watch/contracts';
 
 import {
   CEMS_CURRENT_META_PATH,
@@ -156,7 +156,7 @@ export function cemsAttribution(availableAt: string): readonly SnapshotAttributi
   return [
     {
       id: credit.id,
-      source: credit.source,
+      source: creditSource(credit.id),
       text: renderCredit(credit, { year, productName: PRODUCT_NAME }),
       ...(credit.href === undefined ? {} : { href: credit.href }),
     },

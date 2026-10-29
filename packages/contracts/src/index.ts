@@ -97,6 +97,8 @@ export {
   type RenderedAttribution,
 } from './credits.js';
 
+export { CREDIT_PROVENANCE, creditSource, type CreditProvenance } from './credit-provenance.js';
+
 export {
   CLIENT_POLL_INTERVAL_MAX_MS,
   CLIENT_POLL_INTERVAL_MIN_MS,

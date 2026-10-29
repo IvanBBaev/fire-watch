@@ -86,6 +86,9 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // leave the entry budget, just by being written as an `import()`.
   { role: 'page', src: /^src\/ui\/pages\/sign-in\.tsx$/ },
   { role: 'page', src: /^src\/ui\/pages\/staff-curation\.tsx$/ },
+  // Founder decision 2026-10-30 (F8-a): reference pages leave the entry instead of the
+  // critical-path budget being raised.
+  { role: 'page', src: /^src\/ui\/pages\/(settings|privacy|accessibility)\.tsx$/ },
   // TASKS V2-D1: code that runs only when a reader presses a button, loaded at the press —
   // the GeoJSON/KML/CSV serialisers behind "Download". Like a page, on neither the
   // first-render nor the map path, so charged to no budget; listed by name for the same

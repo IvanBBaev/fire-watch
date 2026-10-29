@@ -38,7 +38,12 @@ const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
 // with the opt-in overlays' map layers (swaths, lightning, outlines) already lazy. Moving the
 // credit provenance out (~1.15 KB) no longer clears it alone; the rest has to come from the
 // bg catalog's strings for on-demand features or from a lazy Layers-panel body. Founder call.
-const KNOWN_OVER_BUDGET: readonly BudgetName[] = ['criticalPath'];
+//
+// Empty again from 2026-10-30 (founder decision F8-a, docs/decisions/founder-2026-10-30/
+// thresholds-ops.md): the budget is not raised. The cut — credit provenance moved to
+// `credit-provenance.ts` (server-only) and the settings, privacy and accessibility pages
+// made lazy — took the critical path from 360,293 B to about 358,100 B.
+const KNOWN_OVER_BUDGET: readonly BudgetName[] = [];
 
 describe('CI-12 bundle budgets (ADR-005 D3)', () => {
   const report = checkBuild(readBuild(distDir, publicDir));

@@ -16,7 +16,7 @@
  */
 
 import type { Credit, LifecycleState, ScoreBucket } from '@fire-watch/contracts';
-import { creditsFor, renderCredit, scoreBucket } from '@fire-watch/contracts';
+import { creditSource, creditsFor, renderCredit, scoreBucket } from '@fire-watch/contracts';
 
 import { isoFromEpochMs, type EpochMs } from '../ports/clock.js';
 import type {
@@ -188,7 +188,7 @@ export function attributionFor(generatedAtMs: EpochMs): readonly SnapshotAttribu
   const context = { year: new Date(generatedAtMs).getUTCFullYear(), productName: PRODUCT_NAME };
   return creditsFor('api', []).map((credit: Credit) => ({
     id: credit.id,
-    source: credit.source,
+    source: creditSource(credit.id),
     text: renderCredit(credit, context),
     ...(credit.href === undefined ? {} : { href: credit.href }),
   }));

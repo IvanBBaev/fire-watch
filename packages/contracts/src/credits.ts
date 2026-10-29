@@ -74,8 +74,6 @@ export type CreditCondition =
 export interface Credit {
   /** Stable key. Referenced by CI-13 failure messages; never reused for a new string. */
   readonly id: string;
-  /** Which source or layer this credit pays for. */
-  readonly source: string;
   /**
    * The string as rendered, verbatim from the provider, possibly containing the
    * placeholders below.
@@ -105,8 +103,9 @@ export interface Credit {
    * string can never harden into a "verified" one just by sitting in CI.
    */
   readonly verified: boolean;
-  /** Where the wording comes from, for the next person who is asked to change it. */
-  readonly authority: string;
+  // Which source a credit pays for and where its wording comes from live in
+  // `credit-provenance.ts`, keyed by `id`: the web never renders them, so they stay out of
+  // the shipped bundle (CI-12, founder decision 2026-10-30 F8-a).
 }
 
 /** Substituted with the year of publication or distribution of the data actually used. */
@@ -121,29 +120,24 @@ export const CREDITS: readonly Credit[] = [
     // Also pays for the static hot-source mask (TASKS F16), an ODbL derived database of
     // OSM: the same string and link, owed always, because the scorer uses the mask whether
     // or not the reader draws it (docs/licenses/openstreetmap-static-sources.md).
-    source: 'OpenStreetMap (basemap, place names, static hot-source mask)',
     text: '© OpenStreetMap contributors',
     href: 'https://www.openstreetmap.org/copyright',
     surfaces: ['map-corner', 'credits-page', 'api'],
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'OSMF Attribution Guidelines',
   },
   {
     id: 'openfreemap',
-    source: 'OpenFreeMap / OpenMapTiles (beta tiles)',
     // The "OpenFreeMap" part is optional; the rest is not.
     text: 'OpenFreeMap © OpenMapTiles Data from OpenStreetMap',
     surfaces: ['map-corner'],
     condition: 'basemap:openfreemap',
     required: true,
     verified: true,
-    authority: 'openfreemap.org',
   },
   {
     id: 'protomaps',
-    source: 'Protomaps self-hosted build',
     // Requested, not required — but the OSM row above stays mandatory regardless,
     // because a Protomaps tileset is an ODbL produced work.
     text: 'Protomaps',
@@ -151,11 +145,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'basemap:protomaps',
     required: false,
     verified: true,
-    authority: 'Protomaps LICENSE_DATA',
   },
   {
     id: 'firms-acknowledgement',
-    source: 'NASA FIRMS / LANCE',
     text:
       "We acknowledge the use of data and/or imagery from NASA's Fire Information for " +
       "Resource Management System (FIRMS), part of NASA's Land, Atmosphere Near real-time " +
@@ -165,11 +157,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'FIRMS official citation',
   },
   {
     id: 'lance-tactical-disclaimer',
-    source: 'NASA LANCE — redistribution disclaimer',
     text:
       'Due to the spatial resolution and other characteristics of these data, their use ' +
       'for tactical decision-making or informing about conditions at a local scale are ' +
@@ -178,11 +168,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'LANCE disclaimer, replication requested',
   },
   {
     id: 'lance-as-is',
-    source: 'NASA LANCE — "as is" clause',
     // Only the clause is the provider's; the subject in front of it is ours, which is
     // why the asserted substring is narrower than the rendered sentence.
     text:
@@ -193,11 +181,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'LANCE disclaimer, replication requested',
   },
   {
     id: 'gibs',
-    source: 'NASA GIBS / Worldview imagery',
     text:
       "We acknowledge the use of imagery provided by services from NASA's Global Imagery " +
       "Browse Services (GIBS), part of NASA's Earth Science Data and Information System " +
@@ -209,11 +195,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'GIBS citation guidance',
   },
   {
     id: 'gibs-short',
-    source: 'NASA GIBS true-colour imagery (event-page before/after comparison, TASKS V2-E2)',
     // NASA imagery carries no use restriction; GIBS asks for an acknowledgement. The short
     // form names the service and its system where the imagery is drawn; the long sentence
     // above is the full acknowledgement on /credits. Our connective word stays editable.
@@ -224,12 +208,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'layer:gibs',
     required: true,
     verified: true,
-    authority:
-      'GIBS citation guidance (nasa-gibs.github.io/gibs-api-docs/) — attribution requested; short form ours',
   },
   {
     id: 'eumetsat-meteosat',
-    source: 'EUMETSAT data (Meteosat/MTG products)',
     // Instantiation of the Art. 6.3 pattern
     // "[Contains modified] EUMETSAT [Meteosat/Metop] [data/product] [Year]".
     text: `Contains modified EUMETSAT Meteosat data ${YEAR_PLACEHOLDER}`,
@@ -237,61 +218,49 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'EUMETSAT Data Policy Art. 6.3',
   },
   {
     id: 'lsa-saf-short',
-    source: 'LSA SAF FRP-PIXEL (LSA-502 / LSA-509)',
     text: 'EUMETSAT LSA SAF',
     surfaces: ['map-corner'],
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'LSA SAF data-access pages',
   },
   {
     id: 'lsa-saf-long',
-    source: 'LSA SAF FRP-PIXEL (LSA-502 / LSA-509)',
     text: 'Data source: EUMETSAT LSA SAF, FRP-PIXEL (LSA-502 / LSA-509)',
     surfaces: ['credits-page', 'api'],
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'LSA SAF data-access pages',
   },
   {
     id: 'sentinel-modified',
-    source: 'Copernicus Sentinel data — modified',
     text: `Contains modified Copernicus Sentinel data ${YEAR_PLACEHOLDER}`,
     surfaces: ['credits-page', 'api'],
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'Sentinel Data Legal Notice',
   },
   {
     id: 'sentinel-unmodified',
-    source: 'Copernicus Sentinel data — unmodified renders',
     text: `Copernicus Sentinel data ${YEAR_PLACEHOLDER}`,
     surfaces: ['credits-page'],
     condition: 'imagery:sentinel-unmodified',
     required: true,
     verified: true,
-    authority: 'Sentinel Data Legal Notice',
   },
   {
     id: 'copernicus-service',
-    source: 'Copernicus Service outputs (EFFIS, CAMS, CLMS)',
     text: `Contains modified Copernicus Service information ${YEAR_PLACEHOLDER}`,
     surfaces: ['map-corner', 'credits-page', 'api'],
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'Copernicus legal notice',
   },
   {
     id: 'effis',
-    source: 'EFFIS (fire danger, burnt areas)',
     // Our chosen form: EFFIS publishes no canonical string and CC BY only requires
     // appropriate credit. Pairs with copernicus-service.
     text: `© European Union, ${YEAR_PLACEHOLDER}, European Forest Fire Information System (EFFIS)`,
@@ -299,17 +268,14 @@ export const CREDITS: readonly Credit[] = [
     condition: 'layer:effis',
     required: true,
     verified: true,
-    authority: 'EFFIS data-licence page',
   },
   {
     id: 'gwis',
-    source: 'GWIS',
     text: `© European Union, ${YEAR_PLACEHOLDER}, Global Wildfire Information System (GWIS)`,
     surfaces: ['credits-page'],
     condition: 'layer:gwis',
     required: true,
     verified: true,
-    authority: 'GWIS data-licence page',
   },
   // ECMWF Open Data, the *service* form (DATA-SOURCES row 22). We compute from the
   // fields and publish a derived product rather than republishing GRIB, so the Terms'
@@ -323,7 +289,6 @@ export const CREDITS: readonly Credit[] = [
   // state but not enforce.
   {
     id: 'ecmwf-service',
-    source: 'ECMWF Open Data (IFS/AIFS) — copyright statement',
     text:
       'This service is based on data and products of the European Centre for ' +
       'Medium-Range Weather Forecasts (ECMWF)',
@@ -331,22 +296,18 @@ export const CREDITS: readonly Credit[] = [
     condition: 'derived:ecmwf',
     required: true,
     verified: true,
-    authority: 'ECMWF Terms of Use for Open Data Products (retrieved 2026-08-15)',
   },
   {
     id: 'ecmwf-source',
-    source: 'ECMWF Open Data — source line',
     text: 'Source www.ecmwf.int',
     href: 'https://www.ecmwf.int',
     surfaces: ['credits-page'],
     condition: 'derived:ecmwf',
     required: true,
     verified: true,
-    authority: 'ECMWF Terms of Use for Open Data Products (retrieved 2026-08-15)',
   },
   {
     id: 'ecmwf-licence',
-    source: 'ECMWF Open Data — licence statement',
     text:
       'This ECMWF data is published under a Creative Commons Attribution 4.0 ' +
       'International (CC BY 4.0). https://creativecommons.org/licenses/by/4.0/',
@@ -355,11 +316,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'derived:ecmwf',
     required: true,
     verified: true,
-    authority: 'ECMWF Terms of Use for Open Data Products (retrieved 2026-08-15)',
   },
   {
     id: 'ecmwf-liability',
-    source: 'ECMWF Open Data — disclaimer',
     text:
       'ECMWF does not accept any liability whatsoever for any error or omission in the ' +
       'data, their availability, or for any loss or damage arising from their use.',
@@ -367,11 +326,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'derived:ecmwf',
     required: true,
     verified: true,
-    authority: 'ECMWF Terms of Use for Open Data Products (retrieved 2026-08-15)',
   },
   {
     id: 'ecmwf-modified',
-    source: 'ECMWF Open Data — modification indication',
     // Our wording, not a provider-mandated string: ECMWF dictates that the indication be
     // present ("where applicable") and CC BY 4.0 independently requires "indicate if
     // changes were made", but neither dictates the sentence. It is mandatory for us
@@ -383,11 +340,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'derived:ecmwf',
     required: true,
     verified: true,
-    authority: 'ECMWF Terms of Use + CC BY 4.0 §3(a)(1)(B); wording ours',
   },
   {
     id: 'copernicus-dem-distribution',
-    source: 'Copernicus DEM GLO-30 — distribution/communication',
     text:
       '© DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under ' +
       'COPERNICUS by the European Union and ESA; all rights reserved.',
@@ -395,11 +350,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'COP-DEM-GLO-30-F licence, Art. 6(a)',
   },
   {
     id: 'copernicus-dem-adapted',
-    source: 'Copernicus DEM GLO-30 — adapted (slope, aspect, hillshade)',
     text:
       'produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence ' +
       'and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; ' +
@@ -408,11 +361,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'COP-DEM-GLO-30-F licence, Art. 6(b)',
   },
   {
     id: 'copernicus-dem-liability',
-    source: 'Copernicus DEM GLO-30 — liability sentence',
     text:
       'The organisations in charge of the Copernicus programme by law or by delegation ' +
       'do not incur any liability for any use of the Copernicus WorldDEM-30',
@@ -420,21 +371,17 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'COP-DEM-GLO-30-F licence, Art. 6(c)',
   },
   {
     id: 'terrarium-short',
-    source: 'Terrarium terrain tiles (Tilezen/Mapzen composite)',
     text: 'Terrain: Mapzen/Tilezen & sources',
     surfaces: ['map-corner'],
     condition: 'layer:terrain',
     required: true,
     verified: true,
-    authority: 'tilezen/joerd attribution.md',
   },
   {
     id: 'terrarium-eu-dem',
-    source: 'Terrarium terrain tiles — EU-DEM component',
     text:
       'Produced using Copernicus data and information funded by the European Union - ' +
       'EU-DEM layers',
@@ -442,21 +389,17 @@ export const CREDITS: readonly Credit[] = [
     condition: 'layer:terrain',
     required: true,
     verified: true,
-    authority: 'tilezen/joerd attribution.md',
   },
   {
     id: 'terrarium-usgs',
-    source: 'Terrarium terrain tiles — USGS component',
     text: 'courtesy of the U.S. Geological Survey',
     surfaces: ['credits-page'],
     condition: 'layer:terrain',
     required: true,
     verified: true,
-    authority: 'tilezen/joerd attribution.md',
   },
   {
     id: 'terrarium-etopo1',
-    source: 'Terrarium terrain tiles — NOAA ETOPO1 component',
     // UNVERIFIED: docs/DATA-SOURCES.md records that an ETOPO1 credit is owed but not its
     // exact wording. Copy it verbatim from tilezen/joerd attribution.md in the same PR
     // that lands the terrain layer, then flip verified to true.
@@ -465,21 +408,17 @@ export const CREDITS: readonly Credit[] = [
     condition: 'layer:terrain',
     required: true,
     verified: false,
-    authority: 'tilezen/joerd attribution.md — wording not yet checked against source',
   },
   {
     id: 'landsat',
-    source: 'Landsat 8/9',
     text: 'Landsat imagery courtesy of USGS',
     surfaces: ['credits-page'],
     condition: 'layer:landsat',
     required: true,
     verified: true,
-    authority: 'USGS courtesy line',
   },
   {
     id: 'esri-world-imagery',
-    source: 'Esri World Imagery (optional toggle)',
     // Never hand-coded: the ArcGIS MapLibre plugin renders "Powered by Esri" plus a live
     // provider list that changes without notice (Maxar became Vantor). CI-13 asserts the
     // plugin's element is present, not our copy of its words.
@@ -489,11 +428,9 @@ export const CREDITS: readonly Credit[] = [
     required: true,
     pluginInjected: true,
     verified: true,
-    authority: 'Esri Master Agreement + ArcGIS attribution docs',
   },
   {
     id: 'geonames',
-    source: 'GeoNames gazetteer (place search, built by infra/geodata)',
     // CC BY 4.0 requires appropriate credit and a licence link but prescribes no sentence;
     // this is our chosen form, as for EFFIS. The derivation sentence below indicates changes.
     text: 'Place names: GeoNames (geonames.org), CC BY 4.0',
@@ -503,11 +440,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'GeoNames export readme + CC BY 4.0 §3(a) — our chosen form',
   },
   {
     id: 'natural-earth',
-    source: 'Natural Earth admin-1 (oblast boundaries for the region filter)',
     // Public domain: no credit is owed; Natural Earth asks for this line and we give it.
     text: 'Made with Natural Earth.',
     href: 'https://www.naturalearthdata.com/',
@@ -515,11 +450,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: false,
     verified: true,
-    authority: 'naturalearthdata.com terms of use — requested, not required',
   },
   {
     id: 'celestrak',
-    source: 'CelesTrak GP orbital elements (satellite-pass predictions, TASKS F15)',
     // CelesTrak asks to be cited when its data is used publicly and prescribes no sentence;
     // the wording is ours. We publish predicted pass times computed from the elements,
     // never the elements themselves.
@@ -530,11 +463,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: false,
     verified: true,
-    authority: 'CelesTrak GP data documentation — citation requested; our chosen form',
   },
   {
     id: 'eea-natura2000',
-    source: 'EEA Natura 2000 sites (protected-site layer and event note, V2-F1)',
     // CC BY 4.0 requires appropriate credit and a licence link but the EEA prescribes no
     // sentence; this is our chosen form. Always owed: the event note reads the sites
     // whether or not the layer is drawn. The derivation sentence indicates the changes
@@ -546,11 +477,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'EEA legal notice + CC BY 4.0 §3(a) — our chosen form',
   },
   {
     id: 'esa-worldcover',
-    source: 'ESA WorldCover 2021 v200 (land-cover note, V2-F4)',
     // The PUM §5.2 string, verbatim. Always owed: the event note reads the grid on every
     // opened event. The derivation sentence indicates the changes (pooled to 0.02°, eight
     // class groups, shares in tenths).
@@ -563,11 +492,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'WorldCover PUM V2.0 §5.2',
   },
   {
     id: 'meteoalarm',
-    source: 'MeteoAlarm national warning feeds (forest-fire and heat warnings, V2-B3)',
     // The legacy Atom feeds carry this sentence in their <rights> element. The warnings
     // themselves stay the national services' own: we relay level, area and validity and
     // link back to MeteoAlarm, never rewording a warning as ours.
@@ -578,11 +505,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'MeteoAlarm legacy Atom feed <rights> element (read 2026-10-24)',
   },
   {
     id: 'copernicus-ems',
-    source: 'Copernicus EMS Rapid Mapping activations (event-page badge, TASKS V2-E3)',
     // The citation guidelines prescribe "Copernicus Emergency Management Service (© YEAR
     // European Union), [activation code]" for a map or product; the badge itself carries
     // that form with its code, and this line names what the rest of the product uses: the
@@ -594,12 +519,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority:
-      'Copernicus EMS citation guidelines (mapping.emergency.copernicus.eu/about/citation-guidelines/); Regulation (EU) 2021/696',
   },
   {
     id: 'derivation',
-    source: 'Fire Watch — derivation sentence',
     // Satisfies CC BY "indicate changes" for every row above and keeps our output from
     // reading as an official product.
     text:
@@ -610,11 +532,9 @@ export const CREDITS: readonly Credit[] = [
     condition: 'always',
     required: true,
     verified: true,
-    authority: 'ADR-001 A1.4',
   },
   {
     id: 'eox-cloudless',
-    source: 'EOX Sentinel-2 cloudless 2018+',
     // Layer dropped (ADR-001 A1.3): 2018+ is non-commercial without a paid contract.
     // Kept here as a tripwire so re-adding the layer means re-reading this line.
     text:
@@ -624,7 +544,6 @@ export const CREDITS: readonly Credit[] = [
     condition: 'never',
     required: true,
     verified: true,
-    authority: 'EOX licence page — layer not shipped',
   },
 ];
 

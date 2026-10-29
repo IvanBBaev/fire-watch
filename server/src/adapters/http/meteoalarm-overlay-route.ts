@@ -27,7 +27,7 @@ import { readFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
-import { CREDITS, renderCredit } from '@fire-watch/contracts';
+import { creditSource, CREDITS, renderCredit } from '@fire-watch/contracts';
 
 import { createRateLimiter } from '../../core/http/rate-limiter.js';
 import {
@@ -163,7 +163,7 @@ export function meteoalarmAttribution(generatedAt: string): readonly SnapshotAtt
   return [
     {
       id: credit.id,
-      source: credit.source,
+      source: creditSource(credit.id),
       text: renderCredit(credit, context),
       ...(credit.href === undefined ? {} : { href: credit.href }),
     },
