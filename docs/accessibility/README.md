@@ -26,16 +26,19 @@ L-16 fails only on `serious` and `critical` violations. The axe sweep prints `mo
 
 ## Founder and legal decisions this item waits on
 
-1. **WCAG target version** — 2.1 AA (review 09 §4.3, EN 301 549 v3.2.1) or 2.2 AA (review 19
-   §6 Q1, GATES L-16 wording). TASKS.md lists this as an open decision. The draft statement
-   says 2.2 AA because the gate does.
+1. ~~**WCAG target version**~~ — *decided 2026-10-30: **WCAG 2.2 AA**, scoped as in review 19
+   Appendix A ([founder decision record](../decisions/founder-2026-10-30/governance-product.md),
+   GP-11).* 2.2 AA contains every 2.1 AA criterion, so it also meets EN 301 549 v3.2.1 (review
+   09 §4.3). It matches GATES L-16 and what the draft statement already says, so the statement
+   text needs no change for this item.
 2. **Statement copy and the legal position.** The statement claims the EAA microenterprise
    exemption (Directive 2019/882 Art. 4(5); Bulgarian Act on the Accessibility Requirements
    for Products and Services, Art. 46(3)) and makes a voluntary commitment. A lawyer has to
    confirm that position, and the Bulgarian text needs review.
 3. **Reporting address.** Review 19 §5.10.1 wants a contact route, which is the support inbox
    of review 18 §5.3. It does not exist yet. The statement says it will be published before
-   launch.
+   launch. *2026-10-30: the scheme is decided, `support@<project domain>` (GP-19). Creating the
+   mailbox waits on the domain, which is an owner action.*
 4. **Skip link and `<h1>` copy.** Both are new user-facing strings (GLOSSARY change), and both
    appear in the statement's known-gaps list or in the advisory findings above.
 
