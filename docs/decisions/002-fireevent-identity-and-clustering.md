@@ -308,6 +308,14 @@ blown, 04); large events fade on the map but persist listed ("fade-and-persist")
 >    reported as its own class in the decay-honesty dashboard (11 §9.3 "cloud-frozen
 >    events"), so the fallback can never be used to flatter the FER metric.
 >
+>    *Ruling 2026-10-30 (founder decisions, `docs/decisions/founder-2026-10-30/data-policy.md`):*
+>    "excluded from the FER numerator" is read as **excluded from the FER population** —
+>    numerator *and* denominator. Excluding it from the numerator only would count every
+>    unobservable closure as a correct closure and lower FER, which is exactly the
+>    flattering the sentence forbids. The class is reported on its own (count and share of
+>    closures) next to FER. This is what `qa_metrics_params_v1`
+>    (`fer.excludeUnobservableClosures: true`) already does; no code change.
+>
 > Asserted by fixture **S11**.
 
 > **Amendment A1.3 (2026-08 · review 13 §3.3(15); 00-summary T8, 07) — display window.**

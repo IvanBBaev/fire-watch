@@ -226,6 +226,20 @@ discontinuity in semantics.
 > from this table, and once with the features as §3.4 defines them, each divergence
 > carried in a comment so it stays visible instead of being silently absorbed. Correcting
 > the table itself is a founder's edit and is deliberately not made here.
+>
+> **Ruling 2026-10-30 (founder decisions, `docs/decisions/founder-2026-10-30/data-policy.md`).**
+> The table above stays as printed, because this review is a dated record. The corrected
+> worked examples below are the normative ones: features as §3.4 defines them, the
+> weights of `score_params_v0` unchanged. They are what `score.test.ts` asserts as the
+> corrected set and what the D7 refit is checked against.
+>
+> | Case | Corrected features | z | score | Bucket |
+> |---|---|---|---|---|
+> | 1 | as printed | −3.95 | 0.0189 | Unverified |
+> | 2 | as printed | −0.53 | 0.3705 | Unverified |
+> | 3 | x_frp = ln 26 / ln 101 = 0.70596 | +1.663 | 0.8406 | Confirmed |
+> | 4 | x_persist = 1/3, x_frp = ln 41 / ln 101 = 0.80465 | +2.546 | 0.9273 | Confirmed |
+> | 5 | x_persist = 0 (GEO cap: four 10-min slots are one overpass-equivalent) | −1.01 | 0.2670 | Unverified |
 
 The night-high single-pass case scoring "Confirmed" is intentional and consistent with
 03-geodata §5.2.3's alert rule ("1 detection if night + high"): night high-confidence VIIRS

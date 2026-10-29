@@ -76,8 +76,9 @@ API client over them, selected by `FIRE_WATCH_FIRMS_MODE=keyless` (the default w
   adapter sends both anyway and treats an identical `ETag` as unchanged.
 - **Cannot:** backfill (`startDate` is refused), the data-availability check (pitfall 10
   runs unchecked), and any latency guarantee beyond the file's regeneration cadence.
-  Whether keyless is acceptable in production or stays a developer convenience is an
-  open founder decision; until then production sets `FIRMS_MAP_KEY`.
+  **Ruling 2026-10-30 (F9):** keyless is a development and staging mode only. Production
+  sets `FIRMS_MAP_KEY`, and `loadConfig` refuses keyless when
+  `FIRE_WATCH_ENVIRONMENT=production` (`docs/decisions/founder-2026-10-30/data-policy.md`).
 
 ### A2. MODIS — archive/backfill only (end of life)
 
@@ -455,7 +456,7 @@ Anything not listed here is corroboration, fallback or fixture material.
 |---|---|---|---|
 | Published fire-danger layer (FWI, danger classes) | **EFFIS** (§D1) | wave 1 | The canonical daily service; we display it, we do not recompute it |
 | Our own weather inputs (wind, RH, temperature, precipitation for scoring and context) | **ECMWF Open Data** (§D2) | wave 2 | CC BY 4.0 with no service-tier condition; own-FWI computation also runs off this |
-| Cloud gating of the miss-evidence accumulator (ADR-002 D6) | **Open-Meteo hourly `cloud_cover`** (§D3) | shadow season → **CP1 inclusive** | Explicitly declared *sufficient for CP1* (11 §5.7): a model proxy is good enough to calibrate the accumulator against a recorded season. Dev/shadow-only usage, so the §D3 licence fence holds |
+| Cloud gating of the miss-evidence accumulator (ADR-002 D6) | **ECMWF Open Data `tcc`** (§D2; `cloud_cover_v1`, linear interpolation) | shadow season → **CP1 inclusive** | Explicitly declared *sufficient for CP1* (11 §5.7): a model proxy is good enough to calibrate the accumulator against a recorded season. Ruling 2026-10-30: the code already records `tcc` (`weather_context_v1`), it is CC BY 4.0 and licence-clean for a public product, so it is the proxy of record; Open-Meteo stays dev-only (§D3) and no server code reads it |
 | Cloud gating of the miss-evidence accumulator | **FCI/SEVIRI CLM observability sidecar** (§E2) | **pre-season 2027**, before the beta | Observed cloud at overpass time; ECMWF `tcc` (§D2) is the fallback if the sidecar slips, never Open-Meteo |
 | "Did it rain on the fire" (reignition-window resets) | **GPM IMERG Early** (§E3) | wave 3 | ECMWF total precip (§D2) is the corroboration leg over Balkan terrain, not a second source of record |
 | FWI climatology / percentile anomaly | **CEMS on EWDS** (§D4) | offline, any time | Never in the live path |
@@ -496,7 +497,9 @@ licence — avoid as dependency), ATDnet/EUCLID (closed/paid); MTG LI covers the
 Fit — **which cloud source is load-bearing when** (§D6 is the index; this is the
 reasoning):
 
-- **Shadow season → CP1 inclusive: Open-Meteo hourly `cloud_cover`.** ADR-002 D6's
+- **Shadow season → CP1 inclusive: ECMWF Open Data `tcc` (`cloud_cover_v1`).** (Ruling
+  2026-10-30: formerly Open-Meteo hourly `cloud_cover`; aligned to the code, which records
+  `tcc` and never reads Open-Meteo.) ADR-002 D6's
   gate is coarse by construction (>80% → no evidence, 50–80% → half, <50% → full), and
   calibrating E against one recorded season does not need sub-pixel truth. 11 §5.7
   declares the model proxy **sufficient for CP1** — so CP1 is not blocked on the
@@ -824,8 +827,8 @@ link title carries exactly that, and `/credits` carries row 28 below.
 3. **EFFIS** (D1) — FWI danger layer + in-season burnt-area perimeters.
 4. **MTG/MSG cloud mask** (E2) — **recorded** from the shadow season (raw CLM archive;
    the season cannot be re-run). It becomes the *source of record* for E-accumulator
-   cloud gating pre-season 2027; through CP1 the gate runs on the Open-Meteo
-   `cloud_cover` proxy, which §D6 declares sufficient for CP1.
+   cloud gating pre-season 2027; through CP1 the gate runs on the ECMWF `tcc`
+   model proxy, which §D6 declares sufficient for CP1.
 5. **Static ingests** (F) — fuel, agri mask, DEM, population, settlements.
 
 **Wave 2 — visual confirmation & context:**
@@ -853,8 +856,8 @@ link title carries exactly that, and `/credits` carries row 28 below.
   register interest now; commercial terms needed before any paid tier uses it.
 - **Sentinel-5P** beyond design life — plan MetOp-SG Sentinel-5 migration season 2+.
 - **Cloud-observability handover — pre-season 2027 (before the beta):** stand up the
-  FCI/SEVIRI CLM sidecar and cut E-accumulator gating over from the Open-Meteo
-  `cloud_cover` proxy (§D6/§E2). Prerequisite — raw CLM recorded from the shadow
+  FCI/SEVIRI CLM sidecar and cut E-accumulator gating over from the ECMWF `tcc`
+  proxy (§D6/§E2). Prerequisite — raw CLM recorded from the shadow
   season, so the cutover is a backfill, not a new dependency.
 - **Blitzortung/Open-Meteo/GEE/EOX-2018+/Planet-E&R/Maxar-OD** all carry
   non-commercial clauses — the recurring licence trap; every new source gets a licence
