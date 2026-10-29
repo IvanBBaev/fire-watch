@@ -89,6 +89,8 @@ export const LAZY_ROLES: readonly { readonly role: LazyRole; readonly src: RegEx
   // Founder decision 2026-10-30 (F8-a): reference pages leave the entry instead of the
   // critical-path budget being raised.
   { role: 'page', src: /^src\/ui\/pages\/(settings|privacy|accessibility)\.tsx$/ },
+  // Same decision: the F15 passes section, fetched the first time the Layers panel opens.
+  { role: 'page', src: /^src\/ui\/satellite-passes\.tsx$/ },
   // TASKS V2-D1: code that runs only when a reader presses a button, loaded at the press —
   // the GeoJSON/KML/CSV serialisers behind "Download". Like a page, on neither the
   // first-render nor the map path, so charged to no budget; listed by name for the same

@@ -770,6 +770,9 @@ export const CATALOG_GOVERNANCE = {
   'layers.outlinesAsOf': { governance: 'own-voice', reason: 'composed-value' },
   'layers.outlinesTruncated': { governance: 'own-voice', reason: 'client-condition' },
   'layers.outlinesNone': { governance: 'own-voice', reason: 'client-condition' },
+  // F4-b: wording decided 2026-10-30 (docs/decisions/founder-2026-10-30/thresholds-ops.md),
+  // so it is deliberately not in PENDING_FOUNDER_REVIEW.
+  'layers.viirsQuiet': { governance: 'own-voice', reason: 'client-condition' },
   'passes.title': { governance: 'own-voice', reason: 'chrome' },
   'passes.note': { governance: 'own-voice', reason: 'capability-prose' },
   'passes.forMapCentre': { governance: 'own-voice', reason: 'chrome' },

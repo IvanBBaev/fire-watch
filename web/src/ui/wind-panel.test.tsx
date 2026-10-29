@@ -61,7 +61,11 @@ const fixtureAnswer = () => new Response(FIXTURE_TEXT, { status: 200 });
 
 function services(messages: Messages): AppServices {
   return {
-    store: {} as FireEventStore,
+    // The F4 VIIRS note reads `sources`; an empty list renders no note.
+    store: {
+      state: () => ({ sources: [] }),
+      subscribe: () => () => {},
+    } as unknown as FireEventStore,
     clock,
     serverNow: () => NOW,
     config: DEFAULT_CONFIG,

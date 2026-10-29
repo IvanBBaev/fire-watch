@@ -335,6 +335,8 @@ const messages: Messages = {
     outlinesAsOf: (time) => `Очертанията са преизчислени към ${time}`,
     outlinesTruncated: 'Само най-големите очертания.',
     outlinesNone: 'В момента на картата няма приблизителни очертания.',
+    viirsQuiet: (age) =>
+      `VIIRS: последно засичане ${age}. Толкова дълги паузи има при облачност и тогава пожар може да остане незабелязан.`,
   },
 
   // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).

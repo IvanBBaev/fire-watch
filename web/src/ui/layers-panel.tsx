@@ -14,8 +14,17 @@
  * Neither ever shows the time we fetched it — that would make a week-old copy look fresh.
  */
 
-import { formatDateSofia, formatShortDateTimeSofia, formatTimeSofia } from '../core/i18n/format.js';
+import { signal } from '@preact/signals';
+import type { ComponentType } from 'preact';
+
+import {
+  formatDateSofia,
+  formatShortDateTimeSofia,
+  formatTimeSofia,
+  relativeAgeFrom,
+} from '../core/i18n/format.js';
 import type { Messages } from '../core/i18n/messages.js';
+import { SOURCE_STALENESS_THRESHOLDS_MS, viirsQuietSince } from '../core/store/source-staleness.js';
 import type { Locale } from '../core/types.js';
 import { WIND_SPEED_CLASSES, type WindOverlayBody } from '../core/wind.js';
 import { useApp } from './context.js';
@@ -28,9 +37,9 @@ import { eumetsatCreditText } from './lightning.js';
 import { celestrakCredit } from './passes.js';
 import { playbackPanelOpen } from './playback.js';
 import { MeteoalarmWarnings } from './meteoalarm-warnings.js';
-import { SatellitePasses } from './satellite-passes.js';
 import { ProtectedSitesOption } from './protected-sites-option.js';
 import { StaticSourcesOption } from './static-sources-option.js';
+import { useStoreState } from './use-store.js';
 import {
   FWI_CLASSES,
   FWI_FORECAST_DAYS,
@@ -253,6 +262,24 @@ const OVERLAY_NOTE = {
   outlines: 'outlinesNote',
 } as const;
 
+/**
+ * F4-b: the per-source staleness surface — a note at the top of the panel when every VIIRS
+ * satellite has been silent past its threshold, never the banner slot (GLOSSARY §3b).
+ * Its own component so a store update re-renders this line, not the whole panel.
+ */
+function ViirsQuietNote() {
+  const { messages, store, serverNow } = useApp();
+  const { sources } = useStoreState(store);
+  const nowMs = serverNow();
+  const since = viirsQuietSince(sources, SOURCE_STALENESS_THRESHOLDS_MS, nowMs);
+  if (since === null) return null;
+  return (
+    <p class="layers-note">
+      {messages.layers.viirsQuiet(messages.relativeAge(relativeAgeFrom(nowMs, since)))}
+    </p>
+  );
+}
+
 export function LayersPanel() {
   const { messages, locale, clock, serverNow } = useApp();
   const open = layersPanelOpen.value;
@@ -268,6 +295,7 @@ export function LayersPanel() {
       aria-label={messages.layers.panelLabel}
       hidden={!open}
     >
+      <ViirsQuietNote />
       <BasemapChoice />
       <fieldset class="layers-group">
         <legend class="layers-group-title">{messages.layers.overlaysTitle}</legend>
@@ -332,8 +360,31 @@ export function LayersPanel() {
       {outlinesChosen.value ? (
         <p class="layers-credit">{firmsCreditText(clock, messages)}</p>
       ) : null}
-      <SatellitePasses />
+      <LazySatellitePasses />
       <MeteoalarmWarnings />
     </section>
   );
+}
+
+const satellitePassesSection = signal<ComponentType | null>(null);
+
+/**
+ * The F15 passes section is its own chunk, fetched the first time the panel opens, so its
+ * markup is on neither the first-render nor the map path (CI-12, `LAZY_ROLES`; founder
+ * decision 2026-10-30 F8-a). Until the chunk arrives — or if it never does — the slot is
+ * empty and the panel's other sections do not depend on it; the next opening asks again.
+ */
+function LazySatellitePasses() {
+  if (!layersPanelOpen.value) return null;
+  const Section = satellitePassesSection.value;
+  if (Section === null) {
+    void import('./satellite-passes.js').then(
+      (module) => {
+        satellitePassesSection.value = module.SatellitePasses;
+      },
+      () => {},
+    );
+    return null;
+  }
+  return <Section />;
 }

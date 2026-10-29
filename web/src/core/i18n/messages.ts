@@ -362,6 +362,14 @@ export interface Messages extends FragmentMessages {
     readonly outlinesTruncated: string;
     /** A current copy in which no event on the map has an outline. */
     readonly outlinesNone: string;
+    /**
+     * F4-b (founder decision 2026-10-30): every VIIRS satellite has been silent past its
+     * 36 h threshold. `age` is the formatted relative age of the newest VIIRS detection
+     * (`relativeAge`). Honest both ways: it never reassures (CI-10 bans "no fires") and
+     * never alarms — a long gap is usually cloud, so this is a panel note and never the
+     * banner slot (GLOSSARY §3b).
+     */
+    readonly viirsQuiet: (age: string) => string;
   };
 
   /**

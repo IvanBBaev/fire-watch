@@ -8,7 +8,7 @@ import type {
   FreshnessStatus,
 } from '@fire-watch/contracts';
 import type { StoreState } from '../../core/types.js';
-import { pickBanner } from './pick-banner.js';
+import { pickBanner, reportIsCurrent } from './pick-banner.js';
 
 const NOW = Date.parse('2026-08-09T12:00:00Z');
 // A snapshot and an observation age at completely different rates: the push runs every
@@ -40,8 +40,16 @@ function makeRow(
   };
 }
 
-function makeReport(status: FreshnessStatus, rows: readonly FreshnessRow[]): FreshnessReport {
-  return { generatedAt: AN_HOUR_AGO, status, budgetVersion: 'test-1', rows };
+// The side-poll refreshes the report every minute and the origin stamps it "now", so a
+// current report is seconds old; its rows' `lastDataAt` are what age (F4-c).
+const REPORT_JUST_NOW = '2026-08-09T11:59:30Z';
+
+function makeReport(
+  status: FreshnessStatus,
+  rows: readonly FreshnessRow[],
+  generatedAt: string = REPORT_JUST_NOW,
+): FreshnessReport {
+  return { generatedAt, status, budgetVersion: 'test-1', rows };
 }
 
 function makeState(overrides: Partial<StoreState> = {}): StoreState {
@@ -258,5 +266,34 @@ describe('single-slot discipline and quiet defaults', () => {
 
   it('renders nothing when no freshness report has arrived yet', () => {
     expect(pickBanner(makeState(), NOW)).toBeNull();
+  });
+});
+
+describe('report-age budget (F4-c)', () => {
+  it('trusts a report up to 2x the push warn budget old, and not a second past it', () => {
+    const rows = allMonitoredRows('critical', TWO_HOURS_AGO);
+    const atBudget = makeState({ freshness: makeReport('critical', rows, SNAPSHOT_AT_THRESHOLD) });
+    expect(pickBanner(atBudget, NOW)).toEqual({ kind: 'stale-sources', sinceIso: TWO_HOURS_AGO });
+    const aged = makeState({ freshness: makeReport('critical', rows, SNAPSHOT_PAST_THRESHOLD) });
+    expect(pickBanner(aged, NOW)).toBeNull();
+    expect(reportIsCurrent(makeReport('critical', rows, SNAPSHOT_AT_THRESHOLD), NOW)).toBe(true);
+    expect(reportIsCurrent(makeReport('critical', rows, SNAPSHOT_PAST_THRESHOLD), NOW)).toBe(false);
+  });
+
+  it('gives no verdict from an unparseable stamp, and treats a future stamp as current', () => {
+    const rows = allMonitoredRows('critical', TWO_HOURS_AGO);
+    expect(reportIsCurrent(makeReport('critical', rows, 'not-a-time'), NOW)).toBe(false);
+    expect(reportIsCurrent(makeReport('critical', rows, IN_THE_FUTURE), NOW)).toBe(true);
+  });
+
+  it('leaves a frozen pipeline to the snapshot-age trigger once the report has aged', () => {
+    const state = makeState({
+      lastSnapshotAt: SNAPSHOT_PAST_THRESHOLD,
+      freshness: makeReport('ok', allMonitoredRows('ok', AN_HOUR_AGO), THREE_HOURS_AGO),
+    });
+    expect(pickBanner(state, NOW)).toEqual({
+      kind: 'stale-sources',
+      sinceIso: SNAPSHOT_PAST_THRESHOLD,
+    });
   });
 });

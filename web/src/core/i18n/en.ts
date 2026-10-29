@@ -332,6 +332,8 @@ const messages: Messages = {
     outlinesAsOf: (time) => `Outlines redrawn as of ${time}`,
     outlinesTruncated: 'Only the largest outlines.',
     outlinesNone: 'No estimated outline on the map right now.',
+    viirsQuiet: (age) =>
+      `VIIRS: last detection ${age}. Gaps this long happen under cloud, and fires can go unseen meanwhile.`,
   },
 
   // Approved in the 2026-10-30 copy review (docs/decisions/founder-2026-10-30/copy.md).

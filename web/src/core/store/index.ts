@@ -14,5 +14,11 @@ export { createFireEventStore } from './store.js';
 export type { FireEventStoreDeps } from './store.js';
 export { resolveEvent, sortedEvents, visibleMapEvents } from './selectors.js';
 export type { ResolvedEvent } from './selectors.js';
-export { SOURCE_STALENESS_THRESHOLDS_MS, staleSources } from './source-staleness.js';
+export {
+  SOURCE_STALENESS_THRESHOLDS_MS,
+  VIIRS_SOURCE_IDS,
+  VIIRS_STALE_AFTER_MS,
+  staleSources,
+  viirsQuietSince,
+} from './source-staleness.js';
 export type { SourceStalenessThresholds, StaleSource } from './source-staleness.js';

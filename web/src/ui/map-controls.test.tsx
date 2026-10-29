@@ -143,7 +143,11 @@ const hasClass = (name: string) => (element: FakeElement) =>
 
 function services(locate: () => Promise<GeoFixOutcome>): AppServices {
   return {
-    store: {} as FireEventStore,
+    // The F4 VIIRS note reads `sources`; an empty list renders no note.
+    store: {
+      state: () => ({ sources: [] }),
+      subscribe: () => () => {},
+    } as unknown as FireEventStore,
     clock: { epochNow: () => 0, monotonicNow: () => 0 },
     serverNow: () => 0,
     config: DEFAULT_CONFIG,

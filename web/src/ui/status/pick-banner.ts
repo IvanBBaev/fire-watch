@@ -27,7 +27,13 @@
  *   data delayed", which cannot be said honestly without a satellite-source row);
  * - rows in `muted`/`unknown` states do not count as degraded;
  * - no banner without an honest "since" instant, and never one in the future of
- *   server time (clock skew / garbage data).
+ *   server time (clock skew / garbage data);
+ * - a freshness report older than the same 2x budget (or with an unparseable
+ *   `generatedAt`) gives no verdict either way: the side-poll refreshes it every minute,
+ *   so an aged report means the path that carries it is broken, and what it says —
+ *   cheerful or critical — is no longer evidence. The snapshot-age trigger stays the
+ *   guard for that case (founder decision 2026-10-30, report-age budget,
+ *   docs/decisions/founder-2026-10-30/thresholds-ops.md F4-c).
  *
  * Pure: state in, verdict out. `serverNowMs` comes from `serverNow()` (core/ports.ts).
  */
@@ -51,13 +57,24 @@ const SNAPSHOT_STALE_AFTER_MS = 2 * SNAPSHOT_PUSH_WARN_SECONDS * 1_000;
 
 export function pickBanner(state: StoreState, serverNowMs: number): Banner | null {
   if (isOffline(state)) return { kind: 'offline' };
-  if (state.freshness !== null) {
+  if (state.freshness !== null && reportIsCurrent(state.freshness, serverNowMs)) {
     const sinceIso = staleSince(state.freshness, state.lastSnapshotAt, serverNowMs);
     if (sinceIso !== null) return { kind: 'stale-sources', sinceIso };
   }
   const staleSnapshotIso = staleSnapshotSince(state.lastSnapshotAt, serverNowMs);
   if (staleSnapshotIso !== null) return { kind: 'stale-sources', sinceIso: staleSnapshotIso };
   return null;
+}
+
+/**
+ * F4-c: the report-age budget. A report is current while its own `generatedAt` is no
+ * older than `SNAPSHOT_STALE_AFTER_MS` in server time; a future stamp (skew) counts as
+ * current, the same as the snapshot branch treats one.
+ */
+export function reportIsCurrent(report: FreshnessReport, serverNowMs: number): boolean {
+  const generatedMs = Date.parse(report.generatedAt);
+  if (!Number.isFinite(generatedMs)) return false;
+  return serverNowMs - generatedMs <= SNAPSHOT_STALE_AFTER_MS;
 }
 
 function isOffline(state: StoreState): boolean {

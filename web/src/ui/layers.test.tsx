@@ -11,7 +11,7 @@ import { DEFAULT_CONFIG } from '../core/config.js';
 import bg from '../core/i18n/bg.js';
 import en from '../core/i18n/en.js';
 import type { Messages } from '../core/i18n/messages.js';
-import type { FireEventStore } from '../core/types.js';
+import type { FireEventStore, SnapshotSourceRow } from '../core/types.js';
 import { AppContext } from './context.js';
 import type { AppServices } from './context.js';
 import { activeCreditConditions } from './logic/credits.js';
@@ -100,9 +100,13 @@ const answerBoth = (url: string): Response =>
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function services(messages: Messages): AppServices {
+function services(messages: Messages, sources: readonly SnapshotSourceRow[] = []): AppServices {
   return {
-    store: {} as FireEventStore,
+    // The F4 VIIRS note reads `sources`; an empty list renders no note.
+    store: {
+      state: () => ({ sources }),
+      subscribe: () => () => {},
+    } as unknown as FireEventStore,
     clock: { epochNow: () => NOW, monotonicNow: () => 0 },
     serverNow: () => NOW,
     config: DEFAULT_CONFIG,
@@ -113,9 +117,12 @@ function services(messages: Messages): AppServices {
   };
 }
 
-async function renderPanel(messages: Messages = en): Promise<string> {
+async function renderPanel(
+  messages: Messages = en,
+  sources: readonly SnapshotSourceRow[] = [],
+): Promise<string> {
   const { html } = await prerender(
-    <AppContext.Provider value={services(messages)}>
+    <AppContext.Provider value={services(messages, sources)}>
       <LayersToggle />
       <LayersPanel />
     </AppContext.Provider>,
@@ -299,6 +306,24 @@ describe('startOverlaySync', () => {
 });
 
 describe('LayersPanel', () => {
+  it('notes a VIIRS silence past 36 h at the top of the panel, never as a banner (F4-b)', async () => {
+    setLayersPanelOpen(true);
+    const ago = (hours: number) => new Date(NOW - hours * 3_600_000).toISOString();
+    const quiet: SnapshotSourceRow[] = [
+      { sourceId: 'firms:viirs:snpp', lastObservedAt: ago(40) },
+      { sourceId: 'firms:viirs:noaa20', lastObservedAt: ago(38) },
+      { sourceId: 'firms:viirs:noaa21', lastObservedAt: ago(50) },
+    ];
+    expect(await renderPanel(en, quiet)).toContain(
+      'VIIRS: last detection 1 day 14 h ago. Gaps this long happen under cloud',
+    );
+    expect(await renderPanel(bg, quiet)).toContain('VIIRS: последно засичане преди 1 ден и 14 ч.');
+    const oneReporting = quiet.map((row, index) =>
+      index === 1 ? { ...row, lastObservedAt: ago(3) } : row,
+    );
+    expect(await renderPanel(en, oneReporting)).not.toContain('VIIRS: last detection');
+  });
+
   it('is a closed disclosure by default, its panel present but hidden', async () => {
     const html = await renderPanel();
     expect(html).toContain(`aria-controls="${LAYERS_PANEL_ID}"`);
