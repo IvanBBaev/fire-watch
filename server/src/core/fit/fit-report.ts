@@ -26,7 +26,14 @@ import type { InputFile, TestTouch, TouchDecision } from './test-season.js';
 export const FIT_REPORT_VERSION = 'clustering_fit_report_v1';
 export const CANDIDATE_FILE = 'clustering-params-v2.candidate.json';
 
-/** Every open choice the spec left, as decided in code. Repeated verbatim in each report. */
+/**
+ * Every open choice the spec left, as decided in code. Repeated verbatim in each report.
+ * All 18 were ratified by the founder ruling of 2026-10-30
+ * (`docs/decisions/founder-2026-10-30/data-policy.md`, D7), with two pre-registered
+ * revisions that change an entry only by a new, versioned config: the gated bottom stratum
+ * (entry 13) follows the R5-DATA-5 power rule, and the grid (entry 14) is re-cut for the
+ * 2027 constellation as `clustering_fit_grid_v2` (review 30 E-4).
+ */
 export const FIT_DECISIONS: readonly string[] = [
   'Label join buffers with the baseline (v1) ε, not the candidate ε, so the labelled population is identical for every grid cell.',
   'Label join time window: [FIREDATE − 1 d, FINALDATE (or FIREDATE) + 3 d], inclusive; buffer max(ε_source, 1 km); perimeter holes ignored; a perimeter without AREA_HA is dropped.',
