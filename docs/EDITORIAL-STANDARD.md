@@ -40,10 +40,10 @@ Every cited source has a tier. The tier belongs to the **statement**, not the ou
 | **T3** journalistic | БТА, national broadcasters, established regional outlets | Never an official state in our voice. May be cited by a correction |
 | **T4** unverified | Posts by non-officials, user reports, forums | **Nothing.** The form and the server both refuse it |
 
-[FOUNDER SIGN-OFF] Review 16 §5.2 lets a T2 source stand alone for a de-escalating fact,
-but §5.3 asks for two sources unless an exception applies. The code applies the stricter
-§5.3 reading: T2 alone is refused (`second_source_required`). The founder decides which
-reading is the standard.
+*Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-21):* the stricter §5.3 reading is the standard. **T2 alone is
+refused** (`second_source_required`), as the code already does. Review 16 §5.2 let a T2 source
+stand alone for a de-escalating fact, but a de-escalation is exactly the statement that makes
+people stop watching, so it gets the second source.
 
 ## 3. The two-source rule
 
@@ -57,10 +57,12 @@ There are three named exceptions. Choosing one is recorded on the statement.
 
 1. **`t1_de_escalation`.** A T1 bulletin declaring one of the two official states may be
    published alone. It applies only to a T1 primary source and only to an official state.
-2. **`life_safety_relay`.** [FOUNDER SIGN-OFF] This covers relaying an official evacuation
-   instruction from a single source, as a quoted, linked item that is shown, never pushed.
-   Whether it can ever carry a curated *state* is open (review 16 §6 Q2, tied to the 12 Q2
-   legal question). Until that is decided, the form refuses it as `exception_not_applicable`.
+2. **`life_safety_relay`.** This covers relaying an official evacuation instruction from a
+   single source, as a quoted, linked item that is shown, never pushed. *Decided 2026-10-30
+   ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-22):* it **never carries a curated state** and is **never pushed**. The form keeps
+   refusing it as `exception_not_applicable` until the lawyer answers the 12 Q2 question on
+   relaying official instructions. After that answer it may open only as a shown, quoted,
+   linked item.
 3. **`own_correction`.** A correction of our own statement never waits for a second source.
    It applies only to `curated_correction`.
 
@@ -99,11 +101,16 @@ server names a refusal by its problem code (`statement_source_unverified`,
 `statement_capture_missing`, `statement_invalid`) and never echoes the draft back.
 
 **The capture is evidence, not publication.** It is kept for review and audit and is never
-served (`publicViewOf` drops it). [FOUNDER SIGN-OFF] Where the capture is stored (an object
-key in the R2 bucket, or an archive URL) and how long it is kept.
+served (`publicViewOf` drops it). *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-24):* a capture is stored as an
+object key in a **private** R2 prefix that no public route or CDN rule serves. A third-party
+archive URL is not a capture, because we do not control whether it survives. A capture is kept
+as long as the statement it supports: published versions are frozen and never deleted (§6), so
+their captures are kept with them. A capture of a draft that was never published is deleted
+after 90 days.
 
-**Quotation.** Until the lawyer session (review 09 §10) answers the licensing question, a
-statement quotes one or two sentences at most and links the source. [FOUNDER SIGN-OFF]
+**Quotation.** *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-25), until the lawyer session (review 09 §10)
+answers the licensing question:* a statement quotes **at most two sentences** and always links
+the source. Never a full bulletin, never an image of the source.
 
 ## 6. Two-person approval and the record
 
@@ -138,8 +145,8 @@ in GLOSSARY):
 
 - how the corrected statement renders on the public event page;
 - reverting the event's machine state (it must not create a `new_fire`);
-- whether a curated state change ever triggers a push. Review 16 §5.5.3 recommends never
-  in v1.
+- push on a curated state change: *decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-23)*, **never in v1**
+  (review 16 §5.5.3, §6 Q2). A curated statement is shown on the map and the event page only.
 
 ## 8. The rehearsal
 
@@ -166,12 +173,14 @@ people. That needs:
 ## 9. Open for the founder
 
 1. The normative Bulgarian labels for the three statement types and for the correction copy.
-2. T2 alone: §5.2 or the stricter §5.3 (§2 above).
-3. `life_safety_relay` and pushes of curated states (review 16 §6 Q1–Q2).
-4. Capture storage and retention.
+2. ~~T2 alone~~: decided 2026-10-30, the stricter §5.3 reading (§2).
+3. ~~`life_safety_relay` and pushes of curated states~~: decided 2026-10-30, never a state and
+   never pushed (§3, §7). The 12 Q2 legal answer is still owed.
+4. ~~Capture storage and retention~~: decided 2026-10-30 (§5).
 5. Who the named news-log curator is, and the second reviewer: GATES L-15 passes only when
    the curator is not the sole reviewer.
-6. Quotation length and licensing (review 09 §10).
+6. Quotation licensing (review 09 §10). The length cap is decided (§5); the licence answer
+   is the lawyer's.
 7. The staff host, the cookie and the mail sender. The routes
    (`server/src/adapters/http/staff-curation-route.ts`) are built and tested, but they are
    not registered in `api.ts` until these exist.
