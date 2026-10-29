@@ -98,8 +98,13 @@ describe('createMonitorCycle', () => {
       status: 'ok',
       page_above: 600,
     });
-    expect(report.readings.identity_pending_batches.status).toBe('unarmed');
-    expect(report.readings.canary_round_trip_seconds.value).toBeNull();
+    expect(report.readings.identity_pending_batches.status).toBe('ok');
+    // No probe has completed yet: an armed rule with nothing to measure is not a page.
+    expect(report.readings.canary_round_trip_seconds).toEqual({
+      value: null,
+      status: 'no_data',
+      page_above: 600,
+    });
     // The level is reported on every successful cycle — that is the dead-man's switch.
     expect(pager.reports).toEqual([[]]);
   });
@@ -184,8 +189,8 @@ describe('createMonitorCycle', () => {
     const done = await cycle.runOnce();
     expect(done.readings.canary_round_trip_seconds).toEqual({
       value: 70,
-      status: 'unarmed',
-      page_above: null,
+      status: 'ok',
+      page_above: 600,
     });
     expect(injected).toEqual([T0, T0 + 120_000]);
   });

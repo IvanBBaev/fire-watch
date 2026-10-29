@@ -50,11 +50,12 @@ Gaps:
   same bearer token as `/metrics`, never the public server) answers the monitors loop's
   last run: `200 ok`/`starting`, `500 paging` (keys in `paging`), `500 failed` (the cycle
   threw; read `meta_alerts_failed`), `500 stale` (no run finished for 3 cycles).
-- `NOT YET BUILT (J1)`: the dispatch canary (`canary_round_trip_seconds` is `null`;
-  needs the operator channel, a founder decision), thresholds for every other monitor key (`outbox_pending_rows`,
-  `outbox_claimed_rows`, `outbox_claimed_oldest_seconds`,
-  `outbox_awaiting_approval_oldest_seconds`, `identity_pending_batches`,
-  `identity_oldest_pending_seconds` are all unarmed).
+- All eight monitor keys page (founder decision 2026-10-30, J1 / R5-SRE-8): queue age
+  above 600 s, more than 6,000 pending rows, more than 200 claimed rows, a claimed row
+  older than 600 s, an approval waiting more than 1,800 s, more than 24 pending identity
+  batches, identity lag above 600 s, a canary round trip above 600 s.
+- `NOT YET BUILT (J1)`: the deployed canary probe. Until it exists
+  `canary_round_trip_seconds` is `null` and reports `no_data`, never a page.
 - The 2-in-a-row hysteresis is stored in `meta_alert_states` (migration 036), so a
   worker restart or a standby's takeover keeps a live page instead of clearing it for a
   cycle. A cycle within half a minute of another worker's is reported as
@@ -161,7 +162,7 @@ one cannot be unsent (R4, "fail closed").
 2. `outbox_queue_oldest_seconds` is back under 600 s. The `meta_alerts` pages list
    clears after 2 consecutive clean cycles.
 3. The outbox status counts are stable: no `claimed` rows older than the recovery
-   window (`outbox_claimed_oldest_seconds`, unarmed, so read it from the
+   window (`outbox_claimed_oldest_seconds` back at or under 600 s on the
    `meta_alerts` line).
 4. For a wrong send, count the affected users and rows from provenance, and confirm
    the corrected rule version is what new rows carry.

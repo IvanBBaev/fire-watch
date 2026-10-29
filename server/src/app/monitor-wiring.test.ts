@@ -1,3 +1,10 @@
+import {
+  DISPATCH_ROWS_PER_TICK,
+  DISPATCH_TICK_SECONDS,
+  IDENTITY_BATCHES_PER_CYCLE,
+} from '../core/monitoring/meta-alert-params.js';
+import { DISPATCH_BATCH_SIZE, DISPATCH_INTERVAL_MS } from './dispatch-wiring.js';
+import { IDENTITY_MAX_BATCHES_PER_CYCLE } from './identity-wiring.js';
 import { describe, expect, it } from 'vitest';
 
 import type { MonitorCycleReport } from '../core/monitoring/monitor-cycle.js';
@@ -117,5 +124,14 @@ describe('createMonitorHealth', () => {
 
     clock.advanceMs(3 * MONITOR_INTERVAL_MS + 1);
     expect(health.verdict()).toMatchObject({ statusCode: 500, body: { status: 'stale' } });
+  });
+});
+
+describe('meta-alert capacity thresholds (J1, R5-SRE-8)', () => {
+  it('restate the dispatch and identity capacities the worker actually ships', () => {
+    // core cannot import app, so the params copy these; this keeps the copies honest.
+    expect(DISPATCH_ROWS_PER_TICK).toBe(DISPATCH_BATCH_SIZE);
+    expect(DISPATCH_TICK_SECONDS * 1000).toBe(DISPATCH_INTERVAL_MS);
+    expect(IDENTITY_BATCHES_PER_CYCLE).toBe(IDENTITY_MAX_BATCHES_PER_CYCLE);
   });
 });
