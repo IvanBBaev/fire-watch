@@ -225,9 +225,11 @@ describe('the rows the classification claims to transcribe', () => {
    * nobody can see. A third unclaimed row is red, and so is claiming one of these without
    * striking it off here.
    *
-   * Both entries are one founder decision: either the web owes these strings, which is new
-   * copy, or they are alert-channel-only and §5.2 should say which of its rows the web is
-   * expected to render. Not resolvable from the code, so it is written down instead.
+   * Both are settled by the GLOSSARY §5.2 rendering-scope amendment of 2026-10-30
+   * (`docs/decisions/founder-2026-10-30/copy.md`, C-52). `agri_burn_tag` is alert-channel
+   * only until the snapshot carries a cropland flag. `defer_road_closures` is owed only by
+   * a surface that mentions roads, and none does. The surface that changes either fact
+   * claims the row and strikes it off here.
    */
   const UNCLAIMED_ROWS: readonly string[] = ['agri_burn_tag', 'defer_road_closures'];
 

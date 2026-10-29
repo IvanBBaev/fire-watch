@@ -345,6 +345,17 @@ id with fixed EN/BG copy, in CI-11 scope and allowlisted for CI-10 where needed.
 | `defer_road_closures` | Road status is **always deferred**, never asserted. | Road status: check the police / АПИ (link). | Състояние на пътищата: проверете при полицията или АПИ (връзка). |
 | `area_both_units` | Area is always rendered in both units, дка first for BG readers. | ~320 ha (3 200 дка) | ~3 200 дка (320 ha) |
 
+**Amendment 2026-10-30, rendering scope (`docs/decisions/founder-2026-10-30/copy.md`,
+C-52).** Not every row is owed by every surface:
+
+- `agri_burn_tag` is rendered by the **alert channel** only (`frozen.agriBurnTag` in the
+  server alert catalog). The web owes it once the public snapshot carries a cropland flag.
+  It does not carry one today, so the web catalog does not claim it.
+- `defer_road_closures` is **conditional**. It is the only wording allowed *if* a surface
+  mentions roads at all. No surface does today: the no-routing rule below keeps road state
+  off the event page. A surface that adds road wording must claim this row, frozen.
+- `safety_no_travel` and `area_both_units` stay unconditional.
+
 **Supporting rules:**
 
 - **No routing, ever.** `safety_no_travel` is paired with a hard product rule: no
@@ -403,6 +414,15 @@ inadequate mop-up by firefighters (the Slavyanka lawsuit precedent).
 
 FWI is a ~8 km **weather** index. Copy renders it as "danger level today", never as
 "fire expected here".
+
+**Amendment 2026-10-30 (`docs/decisions/founder-2026-10-30/copy.md`, C-FWI).** The table
+above is the 12 §5.1 harmonised scale and stays as the definition. The Layers-panel legend
+(G4) is a *relay* of the EFFIS raster, and EFFIS currently publishes six classes on
+different bounds: < 11.2, 11.2–21.3, 21.3–38.0, 38.0–50.0, 50.0–70.0, ≥ 70.0, named Low,
+Moderate, High, Very high, Extreme, Very extreme (BG: Ниска, Умерена, Висока, Много висока,
+Екстремна, Много екстремна). A legend must describe the colours actually drawn, so the web
+legend follows the EFFIS classes (`web/src/ui/layers.ts` `FWI_CLASSES`). Our own voice, such
+as an alert line that grades FWI, uses this table. The two never appear side by side.
 
 ## 8. Correctness metrics (ADR-004 D9, review 06 §5.1.2, review 11 §5.8)
 
