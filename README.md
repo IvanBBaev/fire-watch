@@ -23,13 +23,16 @@ founding analysis, twelve role reviews, five accepted ADRs, a verified data-sour
 catalog, and the consolidated gates/risks/plan documents below. A third review round
 (August 2026) filled four senior seats the first two rounds never staffed. A fourth
 (September 2026) reviewed the implementation itself and filled the three seats it opened:
-platform/release, engineering practice, and data stewardship.
+platform/release, engineering practice, and data stewardship. A fifth (October 2026)
+read the build as it stands through eight seats — architecture, product delivery, SRE,
+security, QA, data science, frontend/UX and legal/business — and found no code flaw that
+blocks the launch, and the launch path waiting on founder acts.
 
-Current focus is WP0–WP1 (task-level breakdown in [`docs/TASKS.md`](docs/TASKS.md)):
-the monorepo, CI and supply-chain hardening are in place, and the shadow ingestion
-pipeline — the single highest priority — is under way: CSV validation and quarantine,
-freshness budgets and the health/status API are implemented; live shadow recording
-starts once the VM and the FIRMS credentials are provisioned. Public launch target:
+The v1 system is built (ingestion, identity, lifecycle, read path, map, alerts, accounts,
+staff, ops CLIs) but has not yet run on a host: the VM, storage, domain, mail sender and
+FIRMS credentials are not provisioned, so live shadow recording has not started. Work is
+tracked task by task in [`docs/TASKS.md`](docs/TASKS.md); Track R5 holds the round-5
+actions. Public launch target:
 **May 2027**, pre-season. **Season 1 (2027) is fully free.**
 
 ## Core invariants
@@ -59,7 +62,7 @@ Rules that outrank any feature. Enforcement details in
 | [`docs/DATA-SOURCES.md`](docs/DATA-SOURCES.md) | Satellite & environmental data-source catalog (verified July 2026): licences, quotas, integration waves |
 | [`docs/DATA-SOURCES-EXTENDED.md`](docs/DATA-SOURCES-EXTENDED.md) | Maximum-coverage survey (August 2026), Parts H–N: the complete satellite inventory over Bulgaria (incl. the Chinese Fengyun fleet), reception hardware and latency, ground truth, proxy signals, sense-side devices |
 | [`docs/decisions/`](docs/decisions/README.md) | Architecture Decision Records 001–005 (index in its README) |
-| [`docs/reviews/`](docs/reviews/00-summary.md) | Nineteen role reviews across four rounds (01–12, 16–19, 21–23) + two audits (13–14), two role-gap analyses (15, 20) and `00-summary.md` — the design corpus the ADRs distill, and since round 4 the build's reviewers too |
+| [`docs/reviews/`](docs/reviews/00-summary.md) | Twenty-seven role reviews across five rounds (01–12, 16–19, 21–23, 25–32) + two audits (13–14), two role-gap analyses (15, 20), a round-5 state analysis (24) and `00-summary.md` — the design corpus the ADRs distill, and since round 4 the build's reviewers too |
 | [`docs/data/`](docs/data/DATASETS.md) | Dataset register: one dated entry per corpus a fit, calibration, replay or checkpoint report cites (DS-1…DS-4) |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | Canonical vocabulary: entities, lifecycle wording ladder (EN/BG), never-send list |
 | [`docs/GATES.md`](docs/GATES.md) | Every gate in one place: CI invariants, launch/season gates, business checkpoints CP1–CP3 |

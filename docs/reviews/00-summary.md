@@ -596,17 +596,211 @@ Those with a decider and a date first:
   (21 Q4); who reviews the harness (22 Q6); output licence memo (23 Q5); whether 23 persists
   as a seat (23 Q7); what the corpus is now called (20 Q6).
 
+# Round 5 synthesis — the project as built, through eight seats (24–32)
+
+Round 5 was commissioned by the founder on 2026-10-30 with a direct request: analyse what the
+project is now, decide which roles must read it, and have each role review it as a senior
+expert. That request meets the stopping rule's condition (a founder request), so the round
+needed no ownerless-decision test. Review 24 still applied one, its test T-C ("as-built
+exposure"): a seat is opened only if the built system exposes a decision in that seat that no
+earlier review could see, because it did not yet exist.
+
+## Why a fifth round
+
+Round 4 reviewed a build of about 35,000 uncommitted lines. Since then the project has grown to
+180 commits, about 141,000 lines of source (server 103k, web 32k, packages 6k), 37 migrations,
+618 test files and 8,506 tests green locally. It also gained a 14-item V2 track and the first
+five V3 items. Review 24 §3 measures what that build is, what is ticked, and what runs: the
+answer to the last is nothing. There is no host, no account, no domain, no mail sender, and the
+2026 fire season was not recorded. Review 24 §4 opens eight seats, one per discipline a
+pre-launch product of this shape needs read as built; §5 folds or rejects the rest (hardware/RF
+stays rejected).
+
+| # | Seat | Code | Verdict |
+|---|---|---|---|
+| 25 | Principal architecture | ARCH | CONDITIONAL GO |
+| 26 | Product & delivery | PROD | **NO-GO as run now**; CONDITIONAL GO on five acts by 2026-11-15 |
+| 27 | SRE & platform | SRE | CONDITIONAL GO (NO-GO today) |
+| 28 | Security & privacy | SEC | CONDITIONAL GO |
+| 29 | QA & test engineering | QA | CONDITIONAL GO |
+| 30 | Fire data science | DATA | CONDITIONAL GO |
+| 31 | Frontend, UX & accessibility | UX | CONDITIONAL GO |
+| 32 | Legal & business | BIZ | CONDITIONAL GO, one missed month from NO-GO |
+
+## Verdicts
+
+No seat found a fatal flaw in the design or the code. Every seat found that the conditions for
+May 2027 are now calendar conditions, and that most of them are human acts, not agent work:
+
+- **25:** green, protected CI; a V3 freeze until v1 has run a week on a host; the registry
+  version fix; ADR-006 for plain-TS contracts; a written connection budget.
+- **26:** by 15 Nov — a written V2/V3 freeze, Day 0 accounts with the DS-1 backfill started, CI
+  green on a protected `main`, CP1 recorded as missed with CP1′ on 18 Dec, weekly decision
+  batches.
+- **27:** CI green and noticed by 15 Nov; accounts by 15 Jan; a rehearsed deploy path and a
+  real-VM boot by 28 Feb; a committed restore drill by 31 Mar.
+- **28:** repository security controls on before the first host secret exists; CSP and headers;
+  magic-link budgets; retention armed; the staff two-person rule bound to people.
+- **29:** remote-green enforced; real-Postgres tests for the security-critical stores; fixture
+  provenance; a live shadow by 2027-02-01.
+- **30:** MAP_KEY plus DS-1 and DS-3 by 20 Nov; D7 by 31 Jan; L-13 by 31 Mar; FireSat
+  attach-only until validated.
+- **31:** the replay indicator; a time limit on the boot-blocking config fetch; an offline
+  shell; the copy sign-off batched.
+- **32:** CP1 report by 14 Nov; ЕООД and lawyer by 30 Nov; legal set current by 15 Dec; a
+  repository licence by 31 Dec; EUTM by 15 Dec.
+
+## Convergent themes (found independently by several seats)
+
+### T17. Nothing runs, and the season it was built for has passed (24, 26, 27, 30, 32)
+
+Every v1 component exists and none has run outside a laptop and GitHub's runners. There is no
+Dockerfile, compose file or deploy script; the deploy job is a stub; restore is two exit-64
+stubs (27 R-2, R-3). No FIRMS key is on a host, so DS-1, which needs only a free key and a
+laptop, is unfetched (30 R-2). The 2026 season's latency and live-decision record cannot be
+backfilled (30, 23 E5). Round 4's "three clocks are one clock" has now run out: the clock it
+described has expired for 2026, and the same clock restarts for the 2027 shadow
+(March–April), which needs a host by February (27, 29 R-4).
+
+### T18. "Green" meant local; remote CI has been red since 2026-09-26 (25, 27, 28, 29)
+
+The last green `main` run is `1e0bba7` on 2026-09-26. Nine runs over 34 days failed, for three
+successive causes: the `pnpm audit` highs, then stale generated database types, then the
+`source_registry_v1` literal asserted in integration tests after V3-P4 bumped the constant
+(27 §5.1, 29 R-1). Nobody saw it because `main` is unprotected (the branch-protection API
+returns 404) and every session's "gates green" ran the local unit verify. Review 22's rule 8
+(no item done without a green remote run) was proposed in round 4 and never landed. The repair
+is small — about 0.5–1.5 h (29 E-1, 27 R5-SRE-1) — and the process fix is a ruleset plus a
+remote-green rule (proposed CI-19, L-18).
+
+### T19. Scope ran ahead of v1 (25, 26, 28, 32)
+
+Fourteen V2 items and five V3 items are built and unticked while no v1 component runs. About
+30 % of server lines are unreachable from `api.ts` and `worker.ts` (25 R-3). V3 work has already
+broken v1 provenance: v1 FIRMS rows are stamped `source_registry_v2` (25 R-2), and that is the
+current CI failure. B2B surfaces (webhooks, staff plane) are built ahead of a civic launch that
+has no entity to sign a contract (32). In the last week, agents spent more hours off-release
+than the whole workable remainder of the release (26 §5). Three seats independently ask for
+the same act: a written freeze on V2/V3 until v1 has run on a host.
+
+### T20. The founder queue is the binding constraint (24, 26, 30, 31, 32)
+
+Seventeen decisions in TASKS §1, at least six past due; 205 copy keys in
+`PENDING_FOUNDER_REVIEW` (review 31 measures 416 of ~503 catalog paths by leaf); 18
+`FIT_DECISIONS`; the V2 and V3 founder questions; and now 57 round-5 questions. Review 26
+puts the queue at 380+ items. Review 18 named the solo operator as the binding constraint in
+round 3; round 5 measures it. Every seat's critical path passes through a founder act: accounts,
+the ЕООД, a lawyer, a licence, MAP_KEY, the freeze. Review 26 proposes weekly decision batches
+and that no new feature lands while the queue grows.
+
+### T21. CP1 is missed, so the business is paused by its own rule (26, 30, 32)
+
+CP1 is due 2026-10-31 and has no report, because there was no live shadow to read. GATES §4
+says a missed checkpoint pauses the business until it is re-baselined. All three seats propose
+recording the miss and reading a CP1′ from backfill replay: on 18 Dec 2026 (26) or 15 Jan 2027
+(30), on 2024–25 data against DS-3. The date is one of the founder's first decisions.
+
+### T22. The edges are unarmed where the core is strong (28, 31, 32)
+
+The core is launch-grade: cookie sessions, single-use magic links, Origin CSRF, a DNS-pinned
+webhook guard, complete erasure, a framework-free map core with enforced byte budgets, and
+candid copy. Everything at the edge is missing or off: no CSP or HSTS despite B3 being ticked
+(28 R-2); every retention purge is null (28 R-4); no offline shell (31 R-3); no repository
+licence and six inputs without licence files (32 R-4); secret scanning, push protection and
+Dependabot are off on a public repository (28 R-1).
+
+## Extensions and corrections to earlier themes
+
+- **Round 4 T1 ("the three clocks are one clock"):** expired for 2026 (T17). The 2027 shadow
+  is the next instance.
+- **21 E5 / 05 §5.6.1 (branch protection):** still unset after two rounds; the cost of that
+  is now measured as 34 days of silent red (T18).
+- **22 E2 (rule 8):** escalated in round 4, never adopted; round 5 shows the failure it was
+  written to prevent. 29 asks for it as gate CI-19.
+- **21 R-1 (no delivery path):** unchanged. 27 finds review 21's E-items 1 done, 3 partial,
+  3 not done (E3, E5, E8).
+- **23 E3 (retention with an owner):** the stores exist and the purge is wired, but every
+  window is null (28 R-4). The decision, not the code, is missing.
+- **ADR-005 D3 (TypeBox contracts):** never built; 25 proposes ADR-006 to record plain-TS
+  contracts and move the wire versions into `packages/contracts`.
+- **Release progress (71.9 %):** stale since 2026-10-13 and measures built hours, not proven
+  ones. 26 proposes three numbers — built / proven-on-host / founder-accepted — reading about
+  72 / 0 / 41 today.
+- **Review 20 §6.5 (no new TASKS track for reviews):** reversed for round 5 at the founder's
+  request; the rows live in TASKS Track R5.
+
+## Notable single-role findings
+
+- **25:** about 30 % of server lines (8.4k with no entrypoint at all) are unreachable from
+  production; ~18 loops share 16 Postgres pools on one VM with no written budget, and only 3
+  loops hold a lock.
+- **26:** the critical path to May 2027 is about 26 weeks of human acts and calendar time; the
+  Day 0 slip date for CP2 is 30 Nov 2026.
+- **27:** 1 of 8 meta-alerts is armed and 6 heartbeats cover ~18 loops; there is no VM memory
+  budget; 2.7 GB of tiles, DEM and data exist as single copies on one laptop.
+- **28:** magic-link mail has no per-IP or global budget, so a mail-bombing run can get SES
+  suspended and silence fire alerts; the first second factor can be enrolled from a
+  mailbox-only session.
+- **29:** 17 of 47 `pg-*` adapters, `pg-auth` among them, have no real-Postgres test; 29 test
+  files assert SQL strings; replay fixtures carry no provenance.
+- **30:** about 35 user-facing numbers are unfitted priors; 120 of 150 grid cells cover retired
+  MODIS; the 10–50 ha stratum rests on EFFIS labels reliable only from about 30 ha; there is no
+  agricultural-burn class; FireSat is `attachOnly: false` behind a misleading comment.
+- **31:** a replay stays active after its panel closes and current outlines draw over past
+  detections — the honest clock breaks; boot waits on an untimed config fetch, so a hung origin
+  gives a blank page; criticalPath is 0.66 % over budget.
+- **32:** the RoPA, DPIA and LIA cite only migrations 001–012; the DPA inventory misses
+  processors; FireSat's terms are non-commercial; ISKRA (2026-09) has materialised RISKS R6.
+
+## Consolidated new actions (TASKS Track R5)
+
+Ninety rows land in `docs/TASKS.md` Track R5, grouped by seat: ARCH 9, PROD 9, SRE 14,
+SEC 10, QA 9, DATA 14, UX 12, BIZ 12, plus R5-SYN-1 to land the accepted RISKS/GATES
+proposals. Ordered by date:
+
+1. **This week (agent, ~1.5 h):** restore remote green — assert against the constant, regenerate
+   `types.generated.ts`, run the five CI jobs green (R5-QA-1 = R5-SRE-1 = part of R5-ARCH-1/3).
+2. **This week (founder, ~1 h):** protect `main` with a ruleset and turn on secret scanning,
+   push protection and Dependabot (R5-SRE-3, R5-SEC-1); write the V2/V3 freeze (R5-PROD-1,
+   R5-ARCH-2, R5-BIZ-9); mint MAP_KEY and start DS-1 (R5-DATA-1).
+3. **By 15 Nov:** CP1 recorded as missed and CP1′ dated (R5-PROD-3, R5-DATA-3, R5-BIZ-1);
+   Day 0 accounts (R5-PROD-2, R5-SRE-6); weekly decision batches (R5-PROD-4).
+4. **By 30 Nov:** ЕООД filing and a lawyer (R5-BIZ-2/3); DS-3 (R5-DATA-2); CSP/headers,
+   magic-link budgets, retention armed (R5-SEC-2/3/4); the UX honesty fixes (R5-UX-1/2).
+5. **By 31 Dec:** repository licence and input licence files (R5-BIZ-5/6); legal set current
+   (R5-BIZ-4); rehearsed deploy path on a local VM (R5-SRE-5); real-PG adapter tests
+   (R5-QA-4).
+6. **Q1 2027:** CP1′, D7 run and score v1 (R5-DATA-6), real-VM boot by 28 Feb, restore drill by
+   31 Mar, L-13, a live shadow from 1 Feb, PWA shell (R5-UX-9).
+
+## Open questions escalated across reviews
+
+The eight reviews carry 57 founder questions (each review's §6). The ones that gate
+everything else:
+
+- **This week:** freeze V2/V3 until v1 runs a week on a host (25 Q1, 26 Q1, 32); protect `main`
+  and enable repository security (25, 27, 28 Q1); does an item count as done only on a green
+  remote run (29 Q1, 22 E2); a standing push permission per finished item (29 Q2 — conflicts
+  with the owner's "push only when asked", so it is the owner's call alone).
+- **By 15 Nov:** the CP1′ date and data (26, 30, 32); the CP2 rule (≥ 200 users plus L-1, 26);
+  Eurostars recorded as missed and CASSINI or НИФ as the target (26, 32); the release percent
+  excluding V2/V3 (26).
+- **By 30 Nov:** the ЕООД and the lawyer (32); a monthly cost ceiling, proposed €25 (27); the
+  retention windows (28); WCAG 2.2 AA as the target (31).
+- **By 31 Dec:** AGPL-3.0 for code and CC BY 4.0 for data (32); registry version semantics and
+  ADR-006 (25); one worker as an invariant (25); a kill date for unwired code, proposed
+  2027-03-01 (25).
+
 ## Where the corpus stands
 
-Nineteen role reviews across four rounds, two audits, two role-gap analyses, four syntheses.
-Rounds 1 and 2 tested the *skeleton* and found no fatal flaw. Round 3 tested the *seats* and
-found four decisions with no owner. Round 4 tested the *build* and found three more — none
-fatal, all three of the dangerous shape, all three now carrying a dated condition, a risk row
-and a named decider instead of an assumption.
+Twenty-seven role reviews across five rounds, two audits, two role-gap analyses, one state
+analysis (24), five syntheses. Rounds 1 and 2 tested the *skeleton* and found no fatal flaw.
+Round 3 tested the *seats* and found four decisions with no owner. Round 4 tested the *build*
+and found three more. Round 5 tested the *build as it stands before a launch*, through eight
+seats, and found no flaw in the code that blocks May 2027 — and no act yet taken outside the
+code that makes May 2027 reachable.
 
-The stopping rule stands as review 15 wrote it, with review 20 §7 Q1's amendment proposed and
-not yet adopted: **after round 4 the corpus grows only on a founder request that names the
-ownerless decision.** The practice seats were the last structural gap a review could fill.
-What remains is not review. It is the founder decisions with dates on them — the cap, the
-integration ask, retention, the CP1 protocol — the gates that now exist and must be met, and a
-host running code that has been committed.
+The stopping rule stands: **the corpus grows only on a founder request**, as round 5 did.
+What remains is not review. It is a short list of founder acts this month — the freeze,
+protected and green CI, accounts, the CP1 record, the ЕООД and a lawyer — then a host running
+the code that has been committed, and the gates that already exist.
