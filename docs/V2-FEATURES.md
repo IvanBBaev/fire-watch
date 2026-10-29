@@ -189,10 +189,19 @@ None of the competitors reviewed combine these for the Balkans.
 - **V2-Q3:** The free/paid line (CP3). Proposed: life-safety alerts, the map and basic zones stay
   free. More zones, groups, history, exports and API go into paid tiers. Watch Duty's reference
   prices are $24.99 and $99.99 per year.
+  *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-13):* the line is adopted as proposed. **Free forever:** every
+  life-safety alert, the map, basic zones, the public credits and the methodology pages. A
+  safety feature never moves behind the paywall later. **Paid:** extra zones and groups, history
+  beyond the public window, bulk exports, the API above a free quota, and org features. Prices
+  stay provisional, and nothing paid is built or charged before CP3 passes (GATES §4).
 - **V2-Q4:** API redistribution terms per source (FIRMS, EFFIS, CAMS and others), before G1 is
   published.
 - **V2-Q5:** Which expansion country goes first (H1). Greece has the highest demand but also local
   competitors.
+  *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-14):* no country is chosen now. The choice is made after CP2 and
+  after V2-Q4's redistribution terms are known for that country. Greece is the working
+  candidate. A country ships only with a native safety-translation reviewer and its own
+  official-source list for the editorial ladder.
 
 ## 7. Implementation status
 

@@ -188,14 +188,24 @@ The strongest differentiators:
   the V2-Q1 spread-estimate line.
 - **V3-Q2:** Templated event briefs only, or an optional LLM rewrite. The LLM option adds liability
   and a review path (L15).
+  *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-15):* **templated only.** Every sentence comes from a catalog
+  string that the never-send lint and the wording contract (GLOSSARY §3–§5) check. Generated
+  text cannot be checked that way before it is sent.
 - **V3-Q3:** Whether an "often agricultural burning here" hint is ever shown. Proposed: never on
   alerts, only as historical context on the event page.
 - **V3-Q4:** Whether CAP-XML output is offered at all, given the "not an official warning" rule.
+  *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-16):* **not offered.** CAP is the format of an issuing
+  authority, and a CAP feed from us would be read as an official warning. Webhook, Slack and
+  Teams templates (G-track) are allowed, because they carry our own descriptive wording.
 - **V3-Q5:** Which partner to approach for FireSat early access, and under what redistribution
   terms.
 - **V3-Q6:** Which accuracy and latency numbers to publish (H1), and the threshold below which the
   page says so plainly.
 - **V3-Q7:** Embed and API pricing (D4, G3), as part of the V2-Q3 free/paid line.
+  *Decided 2026-10-30 ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-17), the model only:* the embed is free for media, public bodies
+  and non-profits, with attribution and the "not an official warning" line locked in. It is
+  licensed for commercial sites. The API has a free quota, and use above it is paid. Bulk
+  screening (G3) is paid. Prices are provisional and nothing is charged before CP3.
 
 ## 7. Implementation status
 
