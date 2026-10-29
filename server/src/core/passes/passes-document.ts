@@ -45,7 +45,8 @@ export const PASSES_SCHEMA_VERSION = 1;
 /**
  * Three days. Along-track error of a sun-synchronous LEO grows by very roughly a few km
  * per day of element age — seconds of timing — so this is the age at which "predicted"
- * deserves a second word, not the age at which the prediction is wrong.
+ * deserves a second word, not the age at which the prediction is wrong. Ratified 2026-10-30
+ * (TASKS F15).
  */
 export const TLE_STALE_AFTER_MS = 72 * 3_600_000;
 

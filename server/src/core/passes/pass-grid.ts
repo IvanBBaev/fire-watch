@@ -19,6 +19,11 @@ import { POLLING_BBOX } from '../config/polling-bbox.js';
 import type { EpochMs } from '../ports/clock.js';
 import type { GroundPoint } from './pass-compute.js';
 
+/**
+ * Half a degree (about 55 x 40 km here): a cell id says which part of the country a
+ * visitor looks at, never which village. Ratified 2026-10-30 (TASKS F15), with out-of-swath
+ * passes hidden — a pass that does not image the cell is not a chance of a detection.
+ */
 export const PASS_CELL_DEG = 0.5;
 
 /** How far back and forward a document looks, relative to its time bucket. */

@@ -59,7 +59,8 @@ export interface DeliveryParams {
  * The jitter is what keeps a provider outage from ending in a thundering herd: every row
  * that failed in the same cycle would otherwise come back in the same cycle.
  *
- * **Founder review — none of these four numbers is stated by ADR-004 or 05.** D6 gives
+ * **None of these four numbers is stated by ADR-004 or 05; ratified as provisional on
+ * 2026-10-30** (docs/decisions/founder-2026-10-30/thresholds-ops.md). D6 gives
  * deadlines, not a retry policy. The shipped values are chosen to fit inside them:
  *
  *   * `baseDelaySeconds` 20 — two dispatch intervals (10 s), so the first retry is not the

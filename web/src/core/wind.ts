@@ -42,7 +42,8 @@ export interface WindOverlayBody {
 /**
  * Speed classes, m/s, lowest first. `upper` is the exclusive ceiling; `null` for the open
  * top class. The bands follow Beaufort roughly (light air, light/gentle breeze, moderate,
- * fresh, strong and above), coarse on purpose: a 0.5° model grid cannot say more.
+ * fresh, strong and above), coarse on purpose: a 0.5° model grid cannot say more. The ramp
+ * stays teal to violet so no class reads as fire. Ratified 2026-10-30 (TASKS F14).
  */
 export const WIND_SPEED_CLASSES = [
   { upper: 2, color: '#8fd3c8' },

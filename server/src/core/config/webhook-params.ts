@@ -2,8 +2,9 @@
  * `webhook_params_v1` — every number the signed-webhook channel runs against (TASKS V2-G2;
  * ADR-002 D5 config-as-data; docs/WEBHOOKS.md).
  *
- * All of these are **founder decisions awaiting review**: the values below are defensible
- * defaults chosen to match what established webhook senders do (a few seconds of timeout,
+ * These values were **ratified as provisional on 2026-10-30**
+ * (docs/decisions/founder-2026-10-30/thresholds-ops.md, V2-G2): defensible defaults
+ * chosen to match what established webhook senders do (a few seconds of timeout,
  * hours of retry, a cap on endpoints), not numbers anyone has measured against Fire Watch
  * traffic. They are versioned like every other config so that a delivery log row can be
  * read against the rules it ran under.

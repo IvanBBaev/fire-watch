@@ -31,7 +31,7 @@ export interface PassesCloud {
 /**
  * The level boundaries, in percent of sky covered. They follow the okta convention
  * (2 oktas ≈ 25 %, 6 oktas = 75 %): up to a quarter of the sky is "mostly clear", three
- * quarters or more is "cloudy". A founder decision (TASKS F17); the percentage is shown
+ * quarters or more is "cloudy". Ratified 2026-10-30 (TASKS F17); the percentage is shown
  * next to the word, so the boundary never hides the number.
  */
 export const PASS_CLOUD_CLEAR_MAX_PCT = 25;
