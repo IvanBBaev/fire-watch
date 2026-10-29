@@ -71,6 +71,14 @@ describe('withDataSource', () => {
       '/api/v1/history?range={range}',
     );
   });
+
+  // V3-P3
+  it('points the outline series at a committed fixture, and at the API route in live mode', () => {
+    expect(DEFAULT_CONFIG.outlineSeriesUrlTemplate).toBe('/fixtures/outline-series/{id}.json');
+    expect(withDataSource(DEFAULT_CONFIG, 'live').outlineSeriesUrlTemplate).toBe(
+      '/api/v1/events/{id}/outline-series',
+    );
+  });
 });
 
 describe('local tiles (TASKS G3)', () => {

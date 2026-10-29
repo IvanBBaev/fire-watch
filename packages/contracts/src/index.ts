@@ -257,3 +257,14 @@ export {
   type WebhookPayloadType,
   type WebhookPingPayload,
 } from './webhook.js';
+
+// V3-P3
+export {
+  OUTLINE_SERIES_SCHEMA_VERSION,
+  OUTLINE_SERIES_URL_TEMPLATE,
+  outlineSeriesUrl,
+  parseOutlineSeries,
+  type OutlineSeriesAttribution,
+  type OutlineSeriesDocument,
+  type OutlineSeriesPointWire,
+} from './outline-series.js';

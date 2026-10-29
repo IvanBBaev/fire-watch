@@ -27,6 +27,11 @@ web/src/assets/geodata/
 # as canonical single-line JSON and compared byte-for-byte; reformatting would read as drift.
 web/public/fixtures/passes/swaths.json
 
+# Written by the outline-series fixture test (`vitest -u` on
+# server/src/adapters/http/outline-series-fixtures.test.ts, V3-P3) as canonical single-line
+# JSON and compared byte-for-byte; reformatting would read as drift.
+web/public/fixtures/outline-series/
+
 # Written by `pnpm run geodata:effis-ba` (TASKS D5) with one fire record per line, so a
 # refresh diffs fire by fire; regenerated, never hand-edited.
 server/fixtures/effis-ba-candidates.json

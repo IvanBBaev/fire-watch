@@ -82,6 +82,7 @@ import {
   type EventLoopLagSampler,
 } from '../adapters/system/event-loop-lag.js';
 import { createHostCpuSampler, type HostCpuSampler } from '../adapters/system/host-cpu.js';
+import { FIRE_OUTLINE_PARAMS } from '../core/config/fire-outline.js'; // V3-P3
 import { liveFirmsSources } from '../core/ingest/firms-poller.js';
 import {
   SSE_REJECT_REASONS,
@@ -339,6 +340,13 @@ export function wireHealthServer(
     fireOutlineOverlay: {
       reader: createPgFireOutlineStore(snapshotPool),
       clock: systemClock,
+      onProblem,
+    },
+    // V3-P3: the detections read, redrawn per observation; the route caps its own draws.
+    outlineSeries: {
+      reader: createPgEventDetectionsReader(snapshotPool),
+      clock: systemClock,
+      params: FIRE_OUTLINE_PARAMS,
       onProblem,
     },
     stream: {

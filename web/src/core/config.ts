@@ -7,6 +7,8 @@
  * is a values change here — no contract moves (ADR-001 A1.1, IMPLEMENTATION-PLAN WP5).
  */
 
+import { OUTLINE_SERIES_URL_TEMPLATE } from '@fire-watch/contracts'; // V3-P3
+
 import type { OutdoorBasemapConfig, ThemeName } from './types.js';
 
 export interface ClientConfig {
@@ -102,6 +104,12 @@ export interface ClientConfig {
    * by default, the API's route in live mode. Optional; absent hides the section.
    */
   readonly meteoalarmUrl?: string;
+  /**
+   * V3-P3: one event's estimated outline over time (`{id}` is its public id), the series
+   * V3-B1 and V3-B2 read. Committed fixtures by default, the API's route in live mode.
+   * Optional; absent hides whatever reads it.
+   */
+  readonly outlineSeriesUrlTemplate?: string;
 }
 
 export const DEFAULT_CONFIG: ClientConfig = {
@@ -127,6 +135,7 @@ export const DEFAULT_CONFIG: ClientConfig = {
   passesUrlTemplate: '/fixtures/passes/sample.json',
   historyUrlTemplate: '/fixtures/history/{range}.json',
   meteoalarmUrl: '/fixtures/meteoalarm/warnings.json',
+  outlineSeriesUrlTemplate: '/fixtures/outline-series/{id}.json', // V3-P3
   basemapStyleUrl: {
     light: 'https://tiles.openfreemap.org/styles/positron',
     dark: 'https://tiles.openfreemap.org/styles/dark',
@@ -257,5 +266,6 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
     passesUrlTemplate: LIVE_PASSES_URL_TEMPLATE,
     historyUrlTemplate: LIVE_HISTORY_URL_TEMPLATE,
     meteoalarmUrl: LIVE_METEOALARM_URL,
+    outlineSeriesUrlTemplate: OUTLINE_SERIES_URL_TEMPLATE, // V3-P3
   };
 }

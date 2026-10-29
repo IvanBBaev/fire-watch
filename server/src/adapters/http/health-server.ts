@@ -26,6 +26,9 @@
  *   GET /overlays/outlines/active.json
  *                                V2-A4 estimated fire outlines for the events on the map,
  *                                only with `fireOutlineOverlay` deps. Its own per-IP limit.
+ *   GET /api/v1/events/:publicId/outline-series
+ *                                V3-P3 one event's estimated outline over time, only with
+ *                                `outlineSeries` deps. Its own per-IP limit.
  *
  *   GET /api/v1/history          V2-A1 playback: archived detections over 24 h, 3 d or 7 d,
  *                                only with `history` deps. Its own per-IP limit.
@@ -127,6 +130,12 @@ import {
   registerMeteoalarmOverlayRoute,
   type MeteoalarmOverlayRouteDeps,
 } from './meteoalarm-overlay-route.js';
+// V3-P3
+import {
+  OUTLINE_SERIES_PATH,
+  registerOutlineSeriesRoute,
+  type OutlineSeriesRouteDeps,
+} from './outline-series-route.js';
 import { sendProblem, type CodedProblemSpec } from './problem.js';
 import {
   WIND_OVERLAY_PATH,
@@ -273,6 +282,8 @@ export interface HealthServerDeps {
    * Edge-cached, with its own per-IP limit, so the hook exempts it from the probe limiter.
    */
   readonly cemsOverlay?: CemsOverlayRouteDeps | undefined;
+  /** V3-P3 outline series, with a database. Edge-cached, with its own per-IP limit. */
+  readonly outlineSeries?: OutlineSeriesRouteDeps | undefined;
 }
 
 export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
@@ -340,7 +351,8 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
       matched === HISTORY_PATH ||
       matched === FWI_FORECAST_PATH ||
       matched === METEOALARM_OVERLAY_PATH ||
-      matched === CEMS_OVERLAY_PATH
+      matched === CEMS_OVERLAY_PATH ||
+      matched === OUTLINE_SERIES_PATH // V3-P3
     ) {
       done();
       return;
@@ -515,6 +527,13 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     registerCemsOverlayRoute(app, {
       ...deps.cemsOverlay,
       clientIpHeader: deps.cemsOverlay.clientIpHeader ?? deps.clientIpHeader,
+    });
+  }
+  // V3-P3
+  if (deps.outlineSeries !== undefined) {
+    registerOutlineSeriesRoute(app, {
+      ...deps.outlineSeries,
+      clientIpHeader: deps.outlineSeries.clientIpHeader ?? deps.clientIpHeader,
     });
   }
 
