@@ -258,8 +258,10 @@ plus any live Nov–Dec rows**. 2025 is D7's touch-once test season and is not r
 is **18 Dec 2026** if the FIRMS MAP_KEY exists and the DS-1 fetch has started by
 2026-11-15; otherwise it is **15 Jan 2027**, with no further decision. shadow-PLB needs live
 `available_at` timestamps. With no live rows, it is reported as "no evidence" and deferred
-to the first live month instead of being graded. The report goes in [`reports/`](reports/README.md).
-A CP1′ pass lifts the CP1 business pause.
+to the first live month instead of being graded. Protocol:
+[`reports/cp1-prime-protocol.md`](reports/cp1-prime-protocol.md). The CP1 business pause lifts
+only when **both** criteria have passed on evidence. A replay-only CP1′ can pass shadow-PCR, but
+the pause holds until shadow-PLB passes on live rows ([`cp1-protocol.md`](reports/cp1-protocol.md) §4.5).
 
 ### CP2 — 30 April 2027 (beta + business legs)
 
