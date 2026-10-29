@@ -418,7 +418,7 @@ cash or high-advance, ≤ 40 h of application effort:**
 
 | Window | Action | Default |
 |---|---|---|
-| by 10 Sep 2026 | Eurostars-3 S11 — only if a foreign SME partner already exists | **skip** (write the formal skip decision by 1 Sep) |
+| by 10 Sep 2026 | Eurostars-3 S11 — only if a foreign SME partner already exists | **skip** (write the formal skip decision by 1 Sep). *Recorded 2026-10-30: the deadline lapsed with no partner and no application, so the outcome is skip ([founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-12)* |
 | Q4 2026 | EUSPA Space Academy; Project Galileo + Mapbox applications; subscribe to НИФ announcements | do all three (< 10 h) |
 | **Q1 2027** | **CASSINI Accelerator Batch 8 + CASSINI Challenges 2027** | do — the highest-fit instruments on the board |
 | Q2 2027 | CASSINI Hackathon #12; НИФ session if opened | hackathon yes; НИФ if confirmed |
