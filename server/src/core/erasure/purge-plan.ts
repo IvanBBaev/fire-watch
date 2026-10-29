@@ -2,20 +2,20 @@
  * The retention purge planner (TASKS I4): which rows past their retention the purge job
  * deletes this run, and which targets are not armed.
  *
- * **Every retention here is null, on purpose.** No ratified document states how long an
- * erasure ledger row, an expired magic-link request, an ended session or an account
- * tombstone is kept: 05 §5.4.1 gives the link TTL and the session expiry, not a retention,
- * and the ledger's lifetime is an accountability question for the founder and counsel; nor
- * does any say how long the alert decision log (migration 014) answers "why no alert?". A
- * null target is reported `armed: false` and deletes nothing. Arming one is a one-line
- * change to {@link PURGE_RETENTION} by PR, and the planner then holds it to its floor.
+ * **Six retentions are armed; the ledger's stays null, on purpose.** Founder decision
+ * 2026-10-30 (`docs/decisions/founder-2026-10-30/thresholds-ops.md`, I4) set the six
+ * operational retentions by data minimisation: each row is kept as long as an operational
+ * question can still need it, and no longer. They are provisional, sit at or above their
+ * floors, and move only by PR. The erasure ledger's lifetime is an accountability question
+ * for the founder and counsel, so it stays null — reported `armed: false`, deleting
+ * nothing — until counsel answers. The planner holds every armed value to its floor.
  *
  * **`alert_digest_log` (migration 018) is purged only around its watermark.** Its newest
  * spent window per account *is* the digest watermark, so a plain age cutoff would reset it
  * and re-owe yesterday's window. Migration 019's `purge_alert_digest_log` therefore never
  * deletes a row of an account's newest spent window (or of any later one), whatever its
- * age; older rows go once they pass the retention. The retention is unarmed like every
- * other, and the table is still erased with the account (`erasure-plan.ts`).
+ * age; older rows go once they pass the retention, and the table is still erased with the
+ * account (`erasure-plan.ts`).
  *
  * **Floors are what the system itself needs, not policy.** A ledger row must outlive the
  * erasure horizon, because it is what a restore from inside the backup window replays; a
@@ -26,6 +26,7 @@
 
 import { AUTH_POLICY } from '../auth/auth-policy.js';
 import { DELIVERY_PARAMS } from '../config/delivery-params.js';
+import { WEBHOOK_PARAMS } from '../config/webhook-params.js';
 import { isoFromEpochMs, type EpochMs } from '../ports/clock.js';
 import { ERASURE_HORIZON } from './erasure-horizon.js';
 
@@ -47,22 +48,27 @@ export type PurgeTarget = (typeof PURGE_TARGETS)[number];
 export type PurgeRetention = Readonly<Record<PurgeTarget, number | null>>;
 
 export const PURGE_RETENTION: PurgeRetention = {
-  // Open: an accountability record; how long it is kept is a founder/legal decision.
+  // Open, still an owner action: an accountability record whose lifetime counsel decides.
   erasure_ledger: null,
-  // Open: 05 §5.4.1 states a 15-minute TTL, not a retention.
-  expired_link_requests: null,
-  // Open: 05 §5.4.1 states a 30-day sliding expiry, not a retention of the ended row.
-  ended_sessions: null,
-  // Open: no document states how long a scrubbed account row stays.
-  account_tombstones: null,
-  // Open: how long "why no alert?" stays answerable (TASKS H7) is a founder decision.
-  alert_decision_log: null,
-  // Open: how long a digest decision stays on record is a founder decision. The watermark
-  // is protected structurally by the function, not by this number.
-  alert_digest_log: null,
-  // Open: the webhook delivery log (migration 035) is the owner's debugging aid and the retry
-  // schedule; `webhook_params_v1.deliveryLogRetentionDays` proposes 30 days (TASKS V2-G2).
-  webhook_deliveries: null,
+  // 30 days: the proposal in docs/legal/ropa.md §3.2. 05 §5.4.1's 15-minute TTL ends the
+  // request's use; a month leaves room for an abuse review of sign-in mail, far above the
+  // 1 h issue-window floor.
+  expired_link_requests: 30,
+  // 30 days: the proposal in docs/legal/ropa.md §3.3, one more 05 §5.4.1 sliding expiry,
+  // so a "was that me?" question about a session that just ended can still be answered.
+  ended_sessions: 30,
+  // 30 days: the erasure horizon. The scrubbed row outlives every request in flight and
+  // every restore the backup window can replay.
+  account_tombstones: ERASURE_HORIZON.horizonDays,
+  // 400 days: one whole fire season plus the start of the next, so "why no alert?" (TASKS
+  // H7) about last season stays answerable at the post-season review.
+  alert_decision_log: 400,
+  // 90 days: a digest decision matters for a few cycles. The watermark is protected
+  // structurally by the function, not by this number.
+  alert_digest_log: 90,
+  // `webhook_params_v1.deliveryLogRetentionDays` (30 days, TASKS V2-G2): the owner's
+  // debugging aid, long after the retry schedule has given up.
+  webhook_deliveries: WEBHOOK_PARAMS.values.deliveryLogRetentionDays,
 };
 
 export interface PurgeTargetSpec {

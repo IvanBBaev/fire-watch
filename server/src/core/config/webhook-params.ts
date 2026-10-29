@@ -31,9 +31,8 @@ export interface WebhookParams {
    */
   readonly disableAfterConsecutiveFailures: number;
   /**
-   * The proposed delivery-log retention. Not armed here: arming is setting
-   * `PURGE_RETENTION.webhook_deliveries` (`core/erasure/purge-plan.ts`) to this number,
-   * which, like every retention there, waits for ratification.
+   * The delivery-log retention. `PURGE_RETENTION.webhook_deliveries`
+   * (`core/erasure/purge-plan.ts`) reads this number; ratified 2026-10-30.
    */
   readonly deliveryLogRetentionDays: number;
   /** Live endpoints one account may register. */

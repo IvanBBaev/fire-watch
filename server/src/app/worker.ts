@@ -32,8 +32,8 @@
  * the internal metrics listener (never the public server). The E3 R2 mirror (T2) pushes the snapshot and checks
  * its public age every minute, only when the FIRE_WATCH_R2_* group is configured. The D8
  * loop checks hourly whether the last closed ISO week has a stored QA report and builds it
- * if not. The I4 erasure purge runs daily; every retention is unarmed until ratified, so
- * today it reports and deletes nothing. The H3 alert evaluation loop and the D9 digest pass
+ * if not. The I4 erasure purge runs daily; six retentions are armed (founder decision
+ * 2026-10-30) and the erasure ledger's waits on counsel. The H3 alert evaluation loop and the D9 digest pass
  * each run on their own pool only once their blockers (zone keyring, routing, a ratified
  * cadence) are gone; until then each writes one `…_disabled` line naming them.
  */

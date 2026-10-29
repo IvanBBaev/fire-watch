@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { PURGE_RETENTION, PURGE_ROW_LIMIT, type PurgeReport } from '../core/erasure/purge-plan.js';
+import {
+  PURGE_RETENTION,
+  PURGE_ROW_LIMIT,
+  type PurgeReport,
+  type PurgeRetention,
+} from '../core/erasure/purge-plan.js';
 import { VirtualClock } from '../core/ports/clock.js';
 import type { JobRun } from '../core/scheduler/repeating-job.js';
 import { loadConfig, type Environment } from './config.js';
@@ -15,6 +20,17 @@ import {
 const ENV: Environment = {
   DATABASE_URL: 'postgres://fire_watch:hunter2@127.0.0.1:1/fire_watch',
   FIRMS_MAP_KEY: 'testtesttesttesttesttesttesttest',
+};
+
+/** Every retention unset, so a run's only armed target is the one a test supplies. */
+const UNARMED: PurgeRetention = {
+  erasure_ledger: null,
+  expired_link_requests: null,
+  ended_sessions: null,
+  account_tombstones: null,
+  alert_decision_log: null,
+  alert_digest_log: null,
+  webhook_deliveries: null,
 };
 
 const REPORT: PurgeReport = {
@@ -38,7 +54,7 @@ const run = (value: PurgeReport | undefined, error: unknown = null): JobRun<Purg
 });
 
 describe('wireErasurePurge', () => {
-  it('wires the shipped, unarmed retention and the row cap', async () => {
+  it('wires the shipped retention and the row cap', async () => {
     const wiring = wireErasurePurge(loadConfig(ENV, 'fire-watch-test'));
     expect(wiring.deps.retention).toBe(PURGE_RETENTION);
     expect(wiring.deps.limit).toBe(PURGE_ROW_LIMIT);
@@ -51,10 +67,11 @@ describe('wireErasurePurge', () => {
 });
 
 describe('runErasurePurge', () => {
-  it('with the shipped retention touches no table even though the pool is unreachable', async () => {
+  it('with every retention unarmed touches no table even though the pool is unreachable', async () => {
     const wiring = wireErasurePurge(loadConfig(ENV, 'fire-watch-test'));
     const report = await runErasurePurge({
       ...wiring.deps,
+      retention: UNARMED,
       clock: new VirtualClock('2026-09-23T03:00:00Z'),
     });
     expect(Object.values(report.targets).every((target) => !target.armed)).toBe(true);
@@ -71,7 +88,7 @@ describe('runErasurePurge', () => {
         },
       },
       clock: new VirtualClock('2026-09-23T03:00:00Z'),
-      retention: { ...PURGE_RETENTION, ended_sessions: 7 },
+      retention: { ...UNARMED, ended_sessions: 7 },
       limit: 10,
     });
     expect(calls).toEqual(['ended_sessions@2026-09-16T03:00:00Z']);

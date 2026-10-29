@@ -35,15 +35,27 @@ function recordingExecutor(answer: (target: PurgeTarget) => number = () => 0) {
   return { executor, calls };
 }
 
-describe('the shipped retention', () => {
-  it('arms nothing: no retention is ratified', () => {
-    expect(PURGE_RETENTION).toEqual(UNARMED);
-    expect(planPurge(AT).every((step) => !step.armed)).toBe(true);
+describe('the shipped retention (I4, founder decision 2026-10-30)', () => {
+  it('arms the six operational targets and leaves the ledger to counsel', () => {
+    expect(PURGE_RETENTION).toEqual({
+      erasure_ledger: null,
+      expired_link_requests: 30,
+      ended_sessions: 30,
+      account_tombstones: 30,
+      alert_decision_log: 400,
+      alert_digest_log: 90,
+      webhook_deliveries: 30,
+    });
+    // Every armed value clears its floor, or planPurge would throw here.
+    const steps = planPurge(AT);
+    expect(steps.filter((step) => step.armed).map((step) => step.target)).toEqual(
+      PURGE_TARGETS.filter((target) => target !== 'erasure_ledger'),
+    );
   });
 
-  it('runs without touching the executor and says so for every target', async () => {
+  it('runs without touching the executor and says so for every target, when unarmed', async () => {
     const { executor, calls } = recordingExecutor();
-    const report = await runPurge(AT, executor);
+    const report = await runPurge(AT, executor, UNARMED);
     expect(calls).toEqual([]);
     expect(report).toEqual({
       at: '2026-09-23T03:00:00Z',

@@ -12,8 +12,8 @@
  * also keeps every account's newest spent window (the digest watermark). The other targets
  * use the role's existing grants.
  *
- * Every target ships unarmed (`PURGE_RETENTION` is all null), so in production nothing
- * here runs until a retention is ratified.
+ * Six targets ship armed (founder decision 2026-10-30); the ledger's function runs only
+ * once counsel sets its retention.
  */
 
 import type { PurgeExecutor, PurgeTarget } from '../../core/erasure/purge-plan.js';

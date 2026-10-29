@@ -189,7 +189,7 @@ re-encrypts the existing secrets in bulk (§7).
 | Backoff | exponential with full jitter: `random × min(60 min, 1 min × 2^(n−1))` |
 | Auto-disable after consecutive failed attempts (alerts and pings alike) | 20 |
 | `410 Gone` | disables the endpoint at once |
-| Delivery-log retention | 30 days proposed, **not armed** (`PURGE_RETENTION.webhook_deliveries`) |
+| Delivery-log retention | 30 days, armed 2026-10-30 (`PURGE_RETENTION.webhook_deliveries`) |
 
 How each answer is treated (`server/src/core/webhooks/webhook-retry.ts`):
 

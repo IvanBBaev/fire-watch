@@ -5,10 +5,10 @@
  * hookup stays a handful of lines, and what one run prints sits where a test can reach it.
  * Nothing here connects: `createPgPool` opens a socket only when a query asks for one.
  *
- * **Every target is unarmed** (`PURGE_RETENTION` is all null), so a run deletes nothing
- * and its line says `armed: false` for each target. The loop is wired anyway, so arming a
+ * Six targets are armed since founder decision 2026-10-30 (`PURGE_RETENTION`); the erasure
+ * ledger stays unarmed until counsel rules, and its line says `armed: false`. Changing a
  * retention is a one-line change to the core rather than a change to the worker, and the
- * daily line is visible evidence that nothing is being purged.
+ * daily line is visible evidence of what was purged.
  *
  * The cadence is daily, the lifecycle-sweep cadence OPERATIONS §6.2 assumes. A run deletes
  * at most `PURGE_ROW_LIMIT` rows per target; `more: true` in its line means a backlog the
