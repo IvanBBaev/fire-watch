@@ -250,6 +250,17 @@ alongside it and both recorded.
 **pauses the business**: engineering may continue, no marketing, no spend beyond
 infrastructure. A pass unblocks the CP2 track.
 
+### CP1′ — 18 December 2026, or 15 January 2027 (re-dated read)
+
+*Decided 2026-10-30 ([round-5 record](decisions/founder-2026-10-30/round5.md), R5-2).*
+CP1's criteria, thresholds and consequence, read on the **2024 season backfill replay
+plus any live Nov–Dec rows**. 2025 is D7's touch-once test season and is not read. The date
+is **18 Dec 2026** if the FIRMS MAP_KEY exists and the DS-1 fetch has started by
+2026-11-15; otherwise it is **15 Jan 2027**, with no further decision. shadow-PLB needs live
+`available_at` timestamps. With no live rows, it is reported as "no evidence" and deferred
+to the first live month instead of being graded. The report goes in [`reports/`](reports/README.md).
+A CP1′ pass lifts the CP1 business pause.
+
 ### CP2 — 30 April 2027 (beta + business legs)
 
 One **delivery** criterion and **three business legs**. This resolves the

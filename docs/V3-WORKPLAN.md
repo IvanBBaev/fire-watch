@@ -47,9 +47,14 @@ several run together. Keep the Mac awake (`caffeinate`) during a wave.
 ## 2. Items
 
 `Status` is `todo` (claimable once its `Deps` are `done`), `blocked` (needs something outside
-v3, listed under *Build needs*) or `done` (merged). There is no `taken` status: the `wp/<ID>`
-branch is the claim. `Deps` lists only IDs in this table. *Go-live gate* does not block building: the
-item ships dark (feature flag off, or not linked) until the gate clears.
+v3, listed under *Build needs*), `frozen` (not claimable while the v2/v3 freeze holds) or `done`
+(merged). There is no `taken` status: the `wp/<ID>` branch is the claim. `Deps` lists only IDs
+in this table. *Go-live gate* does not block building: the item ships dark (feature flag off, or
+not linked) until the gate clears.
+
+> **Frozen 2026-10-30** ([founder record](decisions/founder-2026-10-30/round5.md), R5-1). Every
+> row that was `todo` is `frozen` until v1 has run seven days on a provisioned host with green
+> CI on a protected `main`. Lifting the freeze sets them back to `todo` on `main`.
 
 | ID | Item | Status | Deps | Build needs (outside V3) | Go-live gate | Migration | Est h |
 |---|---|---|---|---|---|---|---|
@@ -58,39 +63,39 @@ item ships dark (feature flag off, or not linked) until the gate clears.
 | V3-P3 | Outline time-series reader | done | — | — | — | — | 6 |
 | V3-P4 | Reserve the v3 source IDs | done | — | — | — | 060 | 4 |
 | V3-A1 | FireSat ingest adapter (fixtures first) | done | V3-P4 | — | EFA access + terms (V3-Q5) | — | 24 |
-| V3-A2 | Sentinel-3 SLSTR FRP adapter | todo | V3-P4 | — | CDSE account, NRT latency check | — | 20 |
-| V3-A3 | Landsat active fire as confirmation | todo | V3-P4 | — | Balkan coverage confirmed | — | 10 |
+| V3-A2 | Sentinel-3 SLSTR FRP adapter | frozen | V3-P4 | — | CDSE account, NRT latency check | — | 20 |
+| V3-A3 | Landsat active fire as confirmation | frozen | V3-P4 | — | Balkan coverage confirmed | — | 10 |
 | V3-A4 | Commercial constellation adapter | blocked | V3-P4 | Commercial contract (data format) | Paid tier | — | 16 |
 | V3-A5 | GEO-created events, gated | blocked | — | V2-A3, GATE-v2 evidence, ADR-002 amendment | Same | — | 24 |
-| V3-A6 | Cross-source agreement score | todo | V3-P2 | — | — | — | 10 |
-| V3-B1 | Observed growth direction | todo | V3-P2, V3-P3 | — | V3-Q1 label | — | 16 |
-| V3-B2 | Area-over-time chart | todo | V3-P2, V3-P3 | — | — | — | 8 |
-| V3-B3 | "Quiet since" indicator | todo | V3-P2 | — | Copy keys | — | 8 |
-| V3-B4 | Templated event brief | todo | V3-P2 | — | V3-Q2 | — | 16 |
+| V3-A6 | Cross-source agreement score | frozen | V3-P2 | — | — | — | 10 |
+| V3-B1 | Observed growth direction | frozen | V3-P2, V3-P3 | — | V3-Q1 label | — | 16 |
+| V3-B2 | Area-over-time chart | frozen | V3-P2, V3-P3 | — | — | — | 8 |
+| V3-B3 | "Quiet since" indicator | frozen | V3-P2 | — | Copy keys | — | 8 |
+| V3-B4 | Templated event brief | frozen | V3-P2 | — | V3-Q2 | — | 16 |
 | V3-C1 | Trip mode | blocked | — | v1 I2 polygon zones | — | 063 | 20 |
-| V3-C2 | "Near me now", in-browser only | todo | — | — | — | — | 10 |
+| V3-C2 | "Near me now", in-browser only | frozen | — | — | — | — | 10 |
 | V3-C3 | Offline and low-bandwidth mode | blocked | — | v1 PWA / service worker | — | — | 24 |
-| V3-C4 | Accessible alert formats | todo | — | — | Founder copy | — | 12 |
-| V3-C5 | Household readiness profile | todo | — | — | Founder content, DPIA note | 064 | 10 |
+| V3-C4 | Accessible alert formats | frozen | — | — | Founder copy | — | 12 |
+| V3-C5 | Household readiness profile | frozen | — | — | Founder content, DPIA note | 064 | 10 |
 | V3-D1 | OGC API – Features endpoint | blocked | — | V2-G1 public API | V2-Q4 terms | — | 20 |
 | V3-D2 | TypeScript SDK | blocked | — | V2-G1 OpenAPI document | npm org | — | 12 |
 | V3-D3 | Fire Watch MCP server | blocked | — | V2-G1 public API | V2-Q4 terms | — | 16 |
 | V3-D4 | Embeddable map widget | blocked | — | V2-G1 API keys | V2-Q3 / V3-Q7 pricing | 065 | 24 |
-| V3-D5 | Changelog and status feed | todo | — | — | — | — | 6 |
+| V3-D5 | Changelog and status feed | frozen | — | — | — | — | 6 |
 | V3-E1 | Recovery monitoring (NDVI) | blocked | V3-P2, V3-P3 | V2-E1 dNBR job | — | 066 | 24 |
-| V3-E2 | Post-fire hazard context | todo | V3-P2 | — | Founder wording | — | 16 |
+| V3-E2 | Post-fire hazard context | frozen | V3-P2 | — | Founder wording | — | 16 |
 | V3-E3 | Repeat-burn history | blocked | V3-P2 | V2-A5 history | — | — | 8 |
-| V3-F1 | EDO drought indicator layer | todo | — | — | Licence confirmation | — | 10 |
+| V3-F1 | EDO drought indicator layer | frozen | — | — | Licence confirmation | — | 10 |
 | V3-F2 | Season-start digest | blocked | — | V2-B5, V2-C7 | — | — | 8 |
 | V3-G1 | Municipal dashboard | blocked | — | V2-G3 org accounts, V2-A5 | — | 067 | 32 |
 | V3-G2 | Cross-border picture | blocked | — | V2-H1 coverage, V2-H2 languages | — | — | 20 |
 | V3-G3 | Bulk asset exposure screening | blocked | — | V2-G3, V2-A5, V2-D2 import | V2-Q3 pricing | 068 | 24 |
-| V3-G4 | Org webhook templates (Teams, Slack, CAP) | todo | — | — | V3-Q4 for CAP only | 069 | 16 |
-| V3-H1 | Public accuracy and latency page | todo | — | — | Founder sign-off (V3-Q6) | 062 | 16 |
+| V3-G4 | Org webhook templates (Teams, Slack, CAP) | frozen | — | — | V3-Q4 for CAP only | 069 | 16 |
+| V3-H1 | Public accuracy and latency page | frozen | — | — | Founder sign-off (V3-Q6) | 062 | 16 |
 | V3-H2 | "Why did / didn't I get an alert" | blocked | V3-P2 | V2-C6 decision log UI | — | — | 12 |
-| V3-H3 | Detection provenance | todo | V3-P2 | — | — | 061 | 8 |
+| V3-H3 | Detection provenance | frozen | V3-P2 | — | — | 061 | 8 |
 | V3-I1 | Multi-region read path | blocked | — | Second host | — | — | 32 |
-| V3-I2 | Partitioned detection history | todo | V3-P4, V3-H3 | — | — | 070 | 16 |
+| V3-I2 | Partitioned detection history | frozen | V3-P4, V3-H3 | — | — | 070 | 16 |
 | V3-I3 | Per-tenant rate limits and metering | blocked | — | V2-G6 billing hooks | — | 071 | 16 |
 
 When a *Build needs* prerequisite lands on `main`, a commit on `main` flips that row from

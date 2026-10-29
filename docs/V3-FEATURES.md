@@ -209,6 +209,10 @@ The strongest differentiators:
 
 ## 7. Implementation status
 
+> **Frozen 2026-10-30** ([founder record](decisions/founder-2026-10-30/round5.md), R5-1). No V3
+> item is started until v1 has run seven days on a provisioned host with green CI on a
+> protected `main`. Unstarted rows in [`V3-WORKPLAN.md`](V3-WORKPLAN.md) §2 are `frozen`.
+
 *2026-10-28 — proposal only, nothing built. Items move to `TASKS.md` as a Track V3 when the founder
 ticks them.* Parallel-work plan: [`V3-WORKPLAN.md`](V3-WORKPLAN.md).
 
