@@ -131,15 +131,15 @@ describe('checkBuild — classification', () => {
   it('fails on a lazy chunk no role claims', () => {
     const manifest: Manifest = {
       ...MANIFEST,
-      'src/ui/pages/settings.tsx': {
-        file: 'assets/settings.js',
-        src: 'src/ui/pages/settings.tsx',
+      'src/ui/pages/unclaimed.tsx': {
+        file: 'assets/unclaimed.js',
+        src: 'src/ui/pages/unclaimed.tsx',
         isDynamicEntry: true,
         imports: ['index.html'],
       },
     };
     expect(checkBuild(build({ manifest })).errors).toStrictEqual([
-      'lazy chunk "assets/settings.js" (from src/ui/pages/settings.tsx) has no role in ' +
+      'lazy chunk "assets/unclaimed.js" (from src/ui/pages/unclaimed.tsx) has no role in ' +
         'LAZY_ROLES; decide which budget it belongs to before it can ship',
     ]);
   });
