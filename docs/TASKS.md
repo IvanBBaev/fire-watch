@@ -58,11 +58,11 @@ GATES §3 launch gates with no TASKS item yet.
 | C7 | C7 remainder: dry-run on a real backfill month — needs B8 data | TASKS.md:674 | `blocked-external` | 0.4 |
 | C8 | C8 remainder: EFFIS/EUMETSAT licence text — Data Store registration; founder wording | TASKS.md:694 | `blocked-external` | 0.6 |
 | C9 | C9 remainder: week-one parity run — host + MAP_KEY; founder tolerances | TASKS.md:775 | `blocked-external` | 1 |
-| D1 | D1 remainder: fixture half + 19 open decisions — D5 fixtures, founder | TASKS.md:792 | `blocked-owner` | 1.2 |
+| D1 | D1 remainder: fixture half — D5 fixtures; the 19 decisions ruled 2026-10-30 (data-policy D1-a..h) | TASKS.md:792 | `blocked-owner` | 1.2 |
 | D4 | D4 remainder: WP1 validation on real arrival times — live data | TASKS.md:887 | `blocked-external` | 0.8 |
-| D5 | D5 remainder: candidate picks, recut, S3/S4 — founder picks; measured lag | TASKS.md:950 | `blocked-owner` | 3 |
-| D6 | D6 remainder: S10 re-author — founder alert-before-quarantine call | TASKS.md:1042 | `blocked-owner` | 0.7 |
-| D7 | D7 remainder: real fit run, commit clustering_params_v2 — DS-1/DS-3 data; FIT_DECISIONS review | TASKS.md:1149 | `blocked-external` | 2.5 |
+| D5 | D5 remainder: recut S1/S2/S6 to the picked candidates (data-policy D5), S3/S4 — measured lag | TASKS.md:950 | `blocked-owner` | 3 |
+| D6 | D6 remainder: S10 re-authored 2026-10-30 (data-policy F16); withdrawn-alert copy gap left | TASKS.md:1042 | `todo` | 0.7 |
+| D7 | D7 remainder: real fit run, commit clustering_params_v2 — DS-1/DS-3 data (FIT_DECISIONS ratified 2026-10-30) | TASKS.md:1149 | `blocked-external` | 2.5 |
 | D8 | D8 remainder: shadow-PCR, real weekly report — EFFIS perimeters + live season | TASKS.md:1189 | `blocked-external` | 1.4 |
 | D10 | D10 remainder: CORINE, ERA5 cloud join, runtime consumer — CORINE/CDS accounts | TASKS.md:1310 | `blocked-external` | 7.2 |
 | E1 | E1 remainder: final verification + tick (no blocker) | TASKS.md:1424 | `done` | 0.4 |
@@ -71,22 +71,22 @@ GATES §3 launch gates with no TASKS item yet.
 | E6 | E6 remainder: staging + real R2 failover run — staging + R2 | TASKS.md:1652 | `blocked-external` | 1.4 |
 | F4 | F4 remainder: armed staleness thresholds + copy — founder | TASKS.md:1772 | `blocked-owner` | 0.8 |
 | F8 | F8 remainder: real-basemap timing — G1 tile host | TASKS.md:1962 | `blocked-external` | 1 |
-| F10 | F10 remainder: 40 copy keys — founder copy review | TASKS.md:1978 | `blocked-owner` | 0.5 |
-| F11 | F11 remainder: 17 keys, FWI classes — founder | TASKS.md:1984 | `blocked-owner` | 0.9 |
-| F12 | F12 remainder: 27 keys, ON_DEMAND_DATA rule — founder | TASKS.md:1991 | `blocked-owner` | 0.5 |
-| F13 | F13 remainder: 8 keys, "seen" semantics — founder | TASKS.md:1998 | `blocked-owner` | 0.4 |
+| F10 | F10 remainder: none for copy — keys cleared 2026-10-30 (copy C-REG) | TASKS.md:1978 | `done` | 0.5 |
+| F11 | F11 remainder: none — EFFIS six classes, imagery in panel, keys cleared 2026-10-30 (copy C-FWI, C-F11) | TASKS.md:1984 | `done` | 0.9 |
+| F12 | F12 remainder: ON_DEMAND_DATA budget rule — keys cleared 2026-10-30 (copy C-F12) | TASKS.md:1991 | `blocked-owner` | 0.5 |
+| F13 | F13 remainder: none for copy — cleared 2026-10-30 (copy C-F13) | TASKS.md:1998 | `done` | 0.4 |
 | F14 | F14 remainder: 5 keys, speed ramp, credit — founder | TASKS.md:2004 | `blocked-owner` | 0.5 |
 | F15 | F15 remainder: keys, thresholds, CelesTrak terms — founder | TASKS.md:2011 | `blocked-owner` | 0.6 |
-| F16 | F16 remainder: override-vs-annotate policy, S3 — founder | TASKS.md:2018 | `blocked-owner` | 0.7 |
+| F16 | F16 remainder: S3 — annotate policy v3 implemented 2026-10-30 (data-policy F16-1..7); mask refresh sign-off is owner | TASKS.md:2018 | `blocked-owner` | 0.7 |
 | F17 | F17 remainder: 5 keys, okta thresholds — founder | TASKS.md:2028 | `blocked-owner` | 0.5 |
 | F18 | F18 remainder: real LFL lightning product — EUMETSAT account | TASKS.md:2034 | `blocked-external` | 1.1 |
 | G1 | G1 remainder: tile upload + full tiers — R2 bucket / tile host | TASKS.md:2046 | `blocked-external` | 1.8 |
 | G3 | G3 remainder: hosted DEM — DEM host; founder mirror location | TASKS.md:2053 | `blocked-external` | 1.3 |
-| G5 | G5 remainder: corner-credit wording — founder | TASKS.md:2089 | `blocked-owner` | 0.6 |
+| G5 | G5 remainder: licence checks for Copernicus/OSM/OpenFreeMap/Terrarium/Protomaps (copy C-G5a..c) | TASKS.md:2089 | `blocked-external` | 0.6 |
 | G6 | G6 remainder: usage.json writer, tile endpoint — imagery provider key; founder ceiling | TASKS.md:2111 | `blocked-external` | 1.3 |
 | H4 | H4 remainder: fixtures, rehearsal — founder breaker floor; staging; approval surface | TASKS.md:2263 | `blocked-owner` | 2.3 |
 | H5 | H5 remainder: L-5 physical-device test — VAPID keys + device (human act) | TASKS.md:2300 | `blocked-external` | 0.3 |
-| H7 | H7 remainder: explain route, missing codes — founder §5.5.6 shape / descope | TASKS.md:2353 | `blocked-owner` | 2.4 |
+| H7 | H7 remainder: build `GET /api/zones/:zoneId/events/:publicId/explanation` — shape ruled 2026-10-30 (data-policy H7) | TASKS.md:2353 | `todo` | 2.4 |
 | H8 | H8 remainder: nightly shadow report in staging — staging host | TASKS.md:2363 | `blocked-external` | 1 |
 | I1 | I1 remainder: OAuth, staff accounts, audit (mail sender/domain still founder; staff pure rules, staff storage, audit log and incident log (migration 026) WebAuthn (migration 027) and staff sessions, key removal and member changes (migration 029), TOTP sign-in, TOTP removal, wrong-code cap and off-boarding (migration 030), TOTP enrollment and the TOTP keyring env (migration 031) built 2026-10-22; re-admission of an off-boarded member built 2026-10-27) | TASKS.md:2382 | `open` | 6.3 |
 | I2 | I2 remainder: polygon edit, matcher — ЕООД before first stored zone (L-10) | TASKS.md:2395 | `blocked-owner` | 1.4 |
@@ -110,7 +110,7 @@ GATES §3 launch gates with no TASKS item yet.
 | L6 | SES production-quota raise (human act) | GATES.md §3 L-6 | `blocked-owner` | 1 |
 | L7 | Correctness metrics as a launch gate (no own task) | GATES.md §3 L-7 | `blocked-external` | 4 |
 | L13 | v1 score calibration: ECE ≤ 0.07, Platt, bucket thresholds | GATES.md §3 L-13 | `blocked-external` | 8 |
-| L14 | L14 remainder: real reduced-stream run on DS-1/DS-3 + NOAA-21/SLSTR archive entries — data; NOAA-20 proxy and test-season scope — founder | GATES.md §3 L-14 | `blocked-external` | 2 |
+| L14 | L14 remainder: real reduced-stream run on DS-1/DS-3 + NOAA-21/SLSTR archive entries — data (NOAA-20 proxy ruled 2026-10-30, data-policy L14) | GATES.md §3 L-14 | `blocked-external` | 2 |
 | L15 | L15 remainder: founder sign-off of EDITORIAL-STANDARD.md (Bulgarian normative labels + correction copy, T2-alone rule, life_safety_relay/push, capture storage, quotation licence, named curator + second reviewer), staff host/cookie + mail sender so the routes register in api.ts, public rendering + machine-state reversion, staging rehearsal with two real people (L-17 profile) | GATES.md §3 L-15 | `blocked-owner` | 4 |
 | L16 | L16 remainder: dated manual AT pass M-1..M-3 (human), WCAG 2.1/2.2 choice + statement legal sign-off + reporting address (founder), CI-16 parity, alert-path items (statement draft /accessibility, protocol docs/accessibility/, axe-core e2e sweep built 2026-10-22) | GATES.md §3 L-16 | `blocked-owner` | 2.5 |
 | L17 | Restore-proven single deploy path (no own task) | GATES.md §3 L-17 | `blocked-external` | 4 |
@@ -182,17 +182,17 @@ when deferred → due; struck through or moved to the WORKLOG when taken):**
 *2026-10-30 — the founder delegated every decision analysis can settle. The records are in
 `docs/decisions/founder-2026-10-30/` (one file per domain); each struck line names its row.*
 
-- ADR-002 A2.3(3)'s FER exclusion contradicts itself: removing the 14-day
+- ~~ADR-002 A2.3(3)'s FER exclusion contradicts itself: removing the 14-day
   unobservability closures from the numerator **only**, while leaving them in the
   denominator, *lowers* FER — the flattery the same sentence forbids. Implemented as the
   intent (the class leaves the whole population, excluded ids enumerated); the literal
   reading is one version bump away behind `fer.excludeUnobservableClosures` → D8,
-  2026-09-03 → before the CP1 protocol, which grades FER.
-- Whether review 11 §3.5's worked-examples table is corrected in place or left standing
+  2026-09-03 → before the CP1 protocol, which grades FER.~~ → **decided 2026-10-30**: population reading, both numerator and denominator, excluded ids enumerated (data-policy ADR-002 A2.3(3)).
+- ~~Whether review 11 §3.5's worked-examples table is corrected in place or left standing
   under its errata blockquote — four arithmetic defects across the five rows, none of
   which touch the formula and none of which move a bucket. Correcting a review's own
   table is a founder's edit → D12, 2026-09-03 → before D7's refit, which would otherwise
-  be checked against a table that does not reproduce.
+  be checked against a table that does not reproduce.~~ → **decided 2026-10-30**: original kept, corrected table appended under a ruling blockquote (data-policy Review 11 §3.5).
 - ~~User-data cap for `infra/cloud-init.yaml` (slim the contract vs pre-signed
   `#include`) → 21 E1/Q1, 2026-09-02 → this week; nothing deploys until then.
   2026-10-10: the size half no longer blocks (gzip+base64 user_data is 22,184 of
@@ -210,9 +210,9 @@ when deferred → due; struck through or moved to the WORKLOG when taken):**
   September 2026, before the season it grades.~~ → **decided 2026-10-30**: `docs/reports/cp1-protocol.md`, written late; CP1 missed (GP-5, `docs/reports/cp1-2026-10-31.md`).
 - ~~Stopping-rule amendment for the review corpus ("grows only on a founder request
   that names the ownerless decision") → 20 Q1, 2026-09-02 → September 2026.~~ → **decided 2026-10-30**: adopted (GP-7).
-- Cloud-proxy wording: A19 and DATA-SOURCES §D6 say Open-Meteo `cloud_cover`, the
+- ~~Cloud-proxy wording: A19 and DATA-SOURCES §D6 say Open-Meteo `cloud_cover`, the
   code records ECMWF `tcc` → 23 E4/Q3 (with the 11 author), 2026-09-02 → before the
-  CP1 protocol is written.
+  CP1 protocol is written.~~ → **decided 2026-10-30**: ECMWF Open Data `tcc` is the proxy of record; DATA-SOURCES §D6/§E2 aligned (data-policy Cloud proxy).
 - ~~`COVERED_AREA` stays Bulgaria + 100 km (published promise; not widened when the
   default frame moved) → WORKLOG 2026-08-26 (07, 08, ADR-005) → decided by default;
   reopen only with a product reason.~~ → **decided 2026-10-30**: confirmed (GP-26).
@@ -888,6 +888,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   batch is applied after newer ones, so the live registry can differ from a replay in
   `(available_at, source)` order; one older than both bounds is still not clustered. No
   migration. Not ticked.*
+  *2026-10-30 — the 19 open decisions are ruled (data-policy D1-a..h). Left: the fixture half (D5). Cluster retention is FD-4.*
 - [x] **D2 — Merge semantics + `migrateAlertState`.** Spec: ADR-002 D4, I2/I3.
   Needs: D1, B4 (alert-state tables exist). Survivor rule, tombstones + path
   compression, same-transaction alert-state migration, 20 km hull →
@@ -1088,6 +1089,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   full resolution. The selection is unchanged. Still open for the founder: whether S3's
   "agricultural" means WorldCover cropland (then no candidate fits as cut, and the
   selection needs a stricter rule) or cropland + grassland.*
+  *2026-10-30 — candidates picked (data-policy D5: S1 239071, S2 41712 + 41713, S6 233724). The recut is FD-2.*
 - [ ] **D6 — Fixture suite S7–S16.** Spec: A4 register. Needs: D5 harness.
   S7–S10 (per GATES) + S11 (retired source), S12 (officially_* re-detection),
   S16 (bbox-edge fire); S13–S15 stubs handed to their owner tracks. **Done
@@ -1195,6 +1197,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   item and its tick. CI-2 rerun on the current register: `--gate=pre-season` under
   `TZ=UTC`/`en_US` and `TZ=Pacific/Kiritimati`/`tr_TR`, byte-identical (45,365 B). Both
   runs exit 0, and `--gate=suite` and `--gate=pre-merge` also exit 0.*
+  *2026-10-30 — S10 re-authored to annotate-not-override (data-policy F16, `b3a0e5f`). The withdrawn-alert copy is FD-6.*
 - [ ] **D7 — Parameter fit.** Spec: GATES §2; ADR-002 D2. Inputs by register id: DS-1 (detections), DS-3 (labels), DS-4 (eps_geo only) in `docs/data/DATASETS.md`; does not start until DS-1 and DS-3 carry a `--check` date (23 E1). Needs: B8 (backfill),
   D1. Grid search (~600 configs) vs EFFIS BA labels; plateau rule; fitted params
   land as versioned config-as-data. **Done when:** GATES §2 acceptance thresholds
@@ -1228,6 +1231,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   plateau ties and the empty case, the label join's edges, and one end-to-end synthetic
   fit through the CLI (selects `modis_footprint/v1.25/t48`, then touches the test
   season once and is refused the second time).*
+  *2026-10-30 — the 18 FIT_DECISIONS are ratified with two pre-registered revisions (data-policy D7, `523efdd`). Left: the real fit run on DS-1/DS-3.*
 
   *What remains is data and a decision, not code: DS-1 backfilled and `--check`ed (B8),
   DS-3 fetched under a pinned plan and `--check`ed, DS-4 planned (its input file shape
@@ -2079,19 +2083,21 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   **Done when:** a fresh checkout shows real FIRMS events on the map with one
   command, and CI-7 still runs on fixtures.
   *2026-09-28 — done. `server/src/adapters/firms/firms-keyless-client.ts` reads the public `data/active_fire/*/csv/*_Europe_24h.csv` files (SNPP, NOAA-20, NOAA-21, MODIS) behind the same port: bbox clip, `day_range` anchored on the UTC day (the "24h" file spans ~48 h), VIIRS `low/nominal/high` → `l/n/h` (the strict parser would have rejected every row), no backfill, no availability check, ETag compared locally (the server ignores conditional GET). `FIRE_WATCH_FIRMS_MODE=area|keyless`, default keyless when no `FIRMS_MAP_KEY`. `pnpm dev:live` (`server/src/app/dev-live-cli.ts`) starts PostGIS `fire-watch-dev-pg` on colima `fwtest` (:55433), applies migrations, runs worker + API + Vite with `VITE_FIRE_WATCH_DATA=live` (`withDataSource` in `web/src/core/config.ts`); fixtures remain the default. Evidence: first cycle stored 510 detections → 171 events on the live snapshot, freshness ok. New read route `GET /api/v1/events/:publicId/detections` (`event-detections-route.ts`, `pg-event-detections-reader.ts`: live runs only, newest 1000, `truncated`, merged ids 200 + `merged_into`, ETag `"d1-<seq>"`, 120/min/IP) gives the live event page per-detection FRP; integration 286/286. Founder decision: keyless in production or dev-only (DATA-SOURCES §A1.2).*
-- [ ] **F10 — Rich event detail.** Spec: GLOSSARY; 2026-09-28 competitor
+- [x] **F10 — Rich event detail.** Spec: GLOSSARY; 2026-09-28 competitor
   review. Needs: F3. FRP sparkline over time, contributing sensors with pixel
   size, honest ages, distance/bearing from the viewer (only on consent), copyable
   coordinates, navigation links. **Done when:** the event panel shows all of
   these from snapshot/detections data, unit-tested, catalogs pass CI-11.
   *2026-09-28 — built, unticked (40 `eventDetail.*` keys pending founder copy review). `web/src/ui/event/` (`event-details.tsx`, `sensors.ts`, `sparkline.ts`, `detection-detail.ts`, `where.ts`, `location-permission.ts`, …) + `core/geo/bearing.ts`: copy-link, honest ages, "last seen by" only when the detections reach the snapshot's `lastObservedAt`, per-pass FRP (latest/highest, zero-based sparkline, never a drawn zero), sensor pixel table over all `SOURCE_IDS`, distance/bearing only after consent, OSM area link. No Google/Waze routing — GLOSSARY §5.2 "No routing, ever". Detections fixtures carry optional `frp_mw`.*
-- [ ] **F11 — Layers panel + context overlays.** Spec: ADR-001 A1.2–A1.4;
+  *2026-10-30 — ticked: the 40 `eventDetail.*` keys cleared from the register (copy C-REG, C-TERM).*
+- [x] **F11 — Layers panel + context overlays.** Spec: ADR-001 A1.2–A1.4;
   2026-09-28 competitor review. Needs: G4. Accessible layer panel; EFFIS FWI and
   burnt areas through the G4 proxy with legend and data date; imagery as a
   basemap choice. **Done when:** overlays render through the proxy, credits
   follow the active layers (CI-13), CI-14 findings recorded, CI-18 green.
   Later: wind (ECMWF), satellite passes, lightning (MTG LI), cloud per pass.
   *2026-09-28 — panel + EFFIS built, unticked (17 `layers.*` keys pending copy review). `web/src/ui/layers-panel.tsx`, `ui/layers.ts` (URL seam `parseOverlayParam`/`formatOverlayParam`), `map/effis-overlays.ts`, shared `map/layer-host.ts`. FWI raster (opacity 0.55, "For DD/MM", "not today") and burnt areas (violet) via `/overlays/effis/*` only; server layers moved to `effis_layers_v2` — the v1 names could never have been served. CI-14: two recorded findings (FWI legend swatches repeat EFFIS's palette). CI-13: new `effis-on` dimension. Open: GLOSSARY §7 FWI classes ≠ EFFIS's six-class legend; imagery moved from the controls row into the panel (placement is a founder call).*
+  *2026-10-30 — ticked: keys cleared; the FWI legend relays EFFIS's six classes credited to EFFIS (copy C-FWI, GLOSSARY amendment); imagery stays in the panel (copy C-F11).*
 - [ ] **F12 — Filters, search, URL state.** Spec: ADR-005; 2026-09-28 competitor
   review. Needs: F3. Period presets, sensor filter with counts, oblast filter,
   settlement and coordinate search (licence-clean gazetteer), filters in the
@@ -2099,12 +2105,14 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   the gazetteer and oblast assets fit CI-12.
   *2026-09-28 — built, unticked (27 keys pending copy review; `ON_DEMAND_DATA` CI-12 rule needs ratifying). Presets 1/3/6/12/24/48 h + all (no 7d: the snapshot carries 48 h). Source families (`core/filter/source-families.ts`, typed over `SourceId`), oblast filter (Natural Earth admin-1, 8 KiB gz), settlement + decimal/DMS search (GeoNames CC BY 4.0, 6,058 places, 65 KiB gz, lazy; `pnpm run geodata`), `#map=…&t=&src=&r=` with old `#map=` permalinks intact. Gap: snapshot/stream carry no `source_ids`, so every event counts as "unreported" and the source filter fails open until `pg-snapshot-reader` joins `event_detections`.*
   *2026-09-30 — gap closed: every snapshot/stream event carries `source_ids: string[] | null` (from `fire_events.source_mix`, same MVCC read and `seq`; a pipeline integration test pins it equal to the live-run `event_detections` join); additive on schema_version 2 (ADR-003 A1.3 rule); web `familiesOf` keeps unknown ids, no ids → "unreported" (fail-open). URL state now survives in-app navigation (`ui/url-state.ts` `repairAppFragment`; overlays in `ov=`). e2e `web/e2e/map-roadmap.e2e.ts` covers filters + reload, place search, FWI toggle + credit, and the new-signals counter/title badge.*
-- [ ] **F13 — New-signals cue.** Spec: GLOSSARY; 2026-09-28 competitor review.
+  *2026-10-30 — the 27 keys are cleared (copy C-F12). Still open: ratifying the `ON_DEMAND_DATA` CI-12 rule (thresholds/ops record).*
+- [x] **F13 — New-signals cue.** Spec: GLOSSARY; 2026-09-28 competitor review.
   Needs: F1. Counter of new/updated events since last look, "show" and "mark
   all seen", opt-in sound, title badge while hidden; never-send clean.
   **Done when:** pure diff/persistence logic and the component are unit-tested.
   *2026-09-28 — built, unticked (8 `newSignals.*` keys pending copy review; "seen" semantics need confirming — hiding the page marks everything seen). `core/store/new-signals.ts`, `ui/new-signals{.ts,-counter.tsx}`, `adapters/{page-visibility,audio-cue}.ts`; storage `fw:new-signals` (7 d / 500 cap), title badge while hidden, opt-in chime from Settings. CI-7 caught a real defect: in the header the counter's first appearance grew the header, shrank the map frame and re-scoped the in-view list — on map routes it now sits at the top of the side panel.*
 
+  *2026-10-30 — ticked: keys cleared; "seen" keeps the built semantics (copy C-F13).*
 - [ ] **F14 — Wind context layer.** Spec: DATA-SOURCES §D2; 2026-09-28
   competitor review. Needs: C4, F11. ECMWF Open Data 10u/10v decoded server-side,
   a coarse wind grid over the polling box through a cacheable route, arrows by
@@ -2129,6 +2137,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-10-01 — gaps closed, still unticked (2 more keys pending). `static_source_policy_v2`: pre-clustering `static_source` tag, S10 day-only repeat quarantine (3 / 2 days / 750 m), per-kind override|annotate switch (all override today); migration 021 stores verdict + mask/policy versions per event, reason renamed `static_source`; worker sweep rescores rows whose versions differ (not sticky); replay loads a pinned inline mask, S4 + S10 unblocked; per-detection caveat, `ov=static`, e2e `static-sources.e2e.ts`. Founder: override vs annotate per kind, quarantine thresholds, non-sticky invalidation. Gaps: no mask hot reload, S3 blocked (no land-cover mask), live event pages fall back to the centre caveat (no detections route).*
   *2026-10-02 — wave 4, still unticked. Mask hot reload: the worker checks size/mtime every identity cycle, confirms by sha256, rejects half-written files and new bytes under an old `version`, logs `static_source_mask_reloaded`/`_reload_rejected`. Snapshot + stream carry an additive `static_source_verdict` (`annotated`/`clear`/null, schema_version stays 2, ADR-003 note); migration 023 adds it to 004's seq trigger so a verdict flip moves the ETag. Live event pages already read the per-event detections route (comments corrected; counts over the 1000 newest when truncated). Founder: should the event caveat follow the server's `annotated` verdict when the bundled mask finds nothing (needs a kind-neutral string), "known industrial source" label. Gaps: the event caveat still ignores the verdict, S3 blocked.*
   *2026-10-10 — the event caveat follows the server verdict, still unticked (1 more key pending). Pure `eventStaticSourceCaveat(verdict, bundled)` in `web/src/ui/static-sources.ts` (rule: the verdict can only add, never hide what the reader already sees): a bundled-mask hit keeps its kind-specific sentence (per detection or centre) whatever the verdict; no bundled hit + `annotated` → new kind-neutral `eventDetail.staticSourceServer` ("Near a known heat source, according to our server check …"; also shown while the bundle loads or after it fails); no hit + `clear`/absent → nothing, as before. Unit table verdict × lookup, component tests in both locales, e2e `static-sources.e2e.ts` marks `fw-2026-x4k6m` (no bundled source within 5 km) `annotated` on an in-memory fixture copy. Founder: the new key's copy, and whether naming a "server check" to readers is wanted. Gaps: S3 blocked.*
+  *2026-10-30 — `static_source_policy_v3`: solar parks are annotated, not overridden; the event caveat follows the server verdict (data-policy F16-1..7, `b3a0e5f`). Left: S3; each mask refresh needs owner sign-off (F16-6).*
 - [ ] **F17 — Cloud cover per pass.** Spec: DATA-SOURCES §D2 (F17 paragraph);
   2026-09-28 competitor review. Needs: F14, F15. ECMWF `tcc` forecast at each
   pass's culmination, labelled a forecast, with a "fires under cloud may be missed"
@@ -2467,6 +2476,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   delivery-failed and source-outage are not produced by `decideAlert`.*
   *2026-09-25 — decision log built, still unticked: migration **014** `alert_decision_log` (append-only for `fire_watch_app`, zone ON DELETE CASCADE, backup class personal, unique per zone/event/trigger seq/pass, code + reason + `rule_version`, no score or copy), written in the evaluation loop's D1 transaction; `explainPersisted` rebuilds all 13 defer/suppress branches from it. Erasure plan v3, account export and an unarmed purge (`purge_alert_decision_log`) cover it. Not yet: HTTP route (founder), seed-pass logging, retention, migration 014 on Postgres.*
   *2026-09-25 — seed-pass logging done: `createWatchZone` writes one `alert_decision_log` row per seed candidate (seed/suppress, reason, rule version, `fire_event_id`, seq, `pass='zone_creation'`) in the zone-creation transaction; nothing is logged if the upsert fails; entries carry no coordinate or distance.*
+  *2026-10-30 — ship, not descope; shape ruled (data-policy H7). The route is FD-1.*
 - [ ] **H8 — Shadow-diff machinery as code.** Spec: A8. Needs: H1–H4.
   `events_shadow`/`alerts_shadow`, nightly diff report, fixture-refresh policy,
   "what you would have received" beta UI hook. **Done when:** one nightly report
@@ -2786,6 +2796,7 @@ host or data.
 - [x] **R5-DATA-3 — CP1 report recording the miss, and the CP1′ spec.** Spec: review 30 E-3. Writes: `docs/reports/cp1-2026-10-31.md`, `docs/GATES.md` (CP1′ row). Done when: the report lists every CP1 criterion with evidence or "missed", and CP1′ has a date, a metric and a dataset. Est: 2 h. Status: open. *2026-10-30 — done with R5-PROD-3. CP1′ has a date (18 Dec or 15 Jan, by trigger), a metric (shadow-PCR graded, PLB live only) and a dataset (DS-1 2024 + DS-3).*
 - [ ] **R5-DATA-4 — D7 grid re-cut for the 2027 constellation.** Spec: review 30 E-4. Writes: `server/src/core/fit/fit-params.ts`, `server/src/core/fit/fit-report.ts`. Done when: `clustering_fit_grid_v2` sweeps VIIRS ε × T_LINK × active window with MODIS ε fixed, and a FIT_DECISIONS entry records the change. Est: 3 h. Status: open.
 - [ ] **R5-DATA-5 — Bottom-stratum power analysis before the fit.** Spec: review 30 E-5. Writes: `server/src/core/fit/` (power report), `docs/GATES.md` §2. Done when: n per stratum per season and the Wilson bound are reported from DS-3, and the founder has chosen the gated stratum before any recall is computed. Est: 4 h. Status: blocked-external.
+  *2026-10-30 — the stratum rule is fixed (data-policy R5-DATA-5). The report code is FD-3.*
 - [ ] **R5-DATA-6 — D7 run, score v1 fit, p_det and FER replay.** Spec: review 30 E-6. Writes: `server/src/core/clustering/clustering-params.ts`, `server/src/core/scoring/score-params.ts`, `server/src/core/config/lifecycle-params.ts` (candidates, `active: false`). Done when: the fit report shows a plateau or "no candidate", and `score_params_v1` and `lifecycle_params_v2` candidates exist with digests. Est: 24 h. Status: blocked-external.
 - [ ] **R5-DATA-7 — L-13 calibration on 2024 and test on 2025.** Spec: review 30 E-7. Writes: `server/src/core/scoring/score-params.ts`, `docs/data/DATASETS.md`. Done when: ECE ≤ 0.07, Confirmed ≥ 0.90 and Likely ≥ 0.60 on the 2025 test season, logged once in the ledger. Est: 8 h. Status: blocked-external.
 - [ ] **R5-DATA-8 — Estimated-outline validation against EFFIS.** Spec: review 30 E-8. Writes: `server/src/core/outlines/` (validation CLI), `server/src/core/config/fire-outline.ts`. Done when: the IoU and area-ratio distribution by size and scan angle for 2024 ≥ 50 ha is published, and the help text cites the measured bias. Est: 8 h. Status: blocked-external.
@@ -2804,7 +2815,7 @@ host or data.
 - [ ] **R5-UX-4 — Axe and CI-18 sweep over the open Layers and Playback panels.** Spec: review 31 E-4. Writes: `web/e2e/a11y.e2e.ts`, fixes in `web/src/ui/`. Done when: both panels are opened on all four legs with zero serious or critical findings. Est: 2 h. Status: open.
 - [ ] **R5-UX-5 — Event sections isolated per chunk, "where" after the timeline.** Spec: review 31 E-5. Writes: `web/src/ui/event/event-details.tsx`, `web/src/ui/event/sections/registry.ts`, the where section's slot. Done when: a test with one rejecting section import still renders the others, and "where" is the first section. Est: 2 h. Status: open.
 - [ ] **R5-UX-6 — Launch defaults and a launch flag for v2 tools.** Spec: review 31 E-6. Writes: `web/src/ui/map-controls.tsx`, `web/src/ui/layers.ts`, client config. Done when: the founder's launch list is encoded and an e2e shows only the listed controls on a first visit. Est: 4 h. Status: blocked-owner.
-- [ ] **R5-UX-7 — Founder review of the public pending copy keys.** Spec: review 31 E-7. Writes: `web/src/core/i18n/catalog-governance.ts`, `en.ts`, `bg.ts`. Done when: `PENDING_FOUNDER_REVIEW` holds no public-facing key in a launch-visible namespace. Est: 1 h agent + 15–25 founder-hours. Status: blocked-owner.
+- [ ] **R5-UX-7 — Founder review of the public pending copy keys.** Spec: review 31 E-7. Writes: `web/src/core/i18n/catalog-governance.ts`, `en.ts`, `bg.ts`. Done when: `PENDING_FOUNDER_REVIEW` holds no public-facing key in a launch-visible namespace. Est: 1 h agent + 15–25 founder-hours. Status: blocked-owner. *2026-10-30 — every public non-legal group cleared (copy C-REG); left: 45 privacy/disclaimer/accessibility keys for counsel (R5-BIZ-3) and 82 internal staffCuration keys behind L15 sign-off.*
 - [ ] **R5-UX-8 — Redundant channel for CVD-collapsed states.** Spec: review 31 E-8. Writes: `web/src/map/style-colors.ts`, `web/src/map/layer-registry.ts`, `web/src/map/fire-owns-red.test.ts`. Done when: the confirmed/likely, no-longer-detected/official and FWI-legend entries are gone from KNOWN_FINDINGS. Est: 4 h. Status: blocked-owner.
 - [ ] **R5-UX-9 — PWA minimal shell: manifest, icons, service worker, offline snapshot.** Spec: review 31 E-9. Writes: `web/index.html`, `web/public/manifest.webmanifest`, `web/src/sw/`, `web/e2e/offline.e2e.ts`. Done when: an e2e loads once, goes offline, reloads and sees the last snapshot with an "as of" stamp. Est: 12 h. Status: open.
 - [ ] **R5-UX-10 — Skip link and `<h1>`.** Spec: review 31 E-10. Writes: `web/src/ui/app.tsx`, `web/src/ui/pages/home.tsx`, catalogs, `web/e2e/a11y.e2e.ts`. Done when: the keyboard walk reaches the first row within 5 stops and axe reports no `page-has-heading-one`. Est: 1 h. Status: blocked-owner.
@@ -2829,6 +2840,18 @@ host or data.
 ### Group R5-SYN — synthesis
 
 - [ ] **R5-SYN-1 — Land the accepted round-5 RISKS and GATES proposals.** Spec: `reviews/00-summary.md` round 5; the Appendix A (b) of reviews 25–32 (RISKS rows for silent red `main`, scope ahead of v1, founder-queue growth, first boot in season, SES suspension, storage limitation, legal lead time, unlicensed inputs, two times on one map; gates CI-19, CI-20, CI-21, CI-12b, the CI-18 amendment, L-18, the L-17 and L-10 amendments, CP1′). Writes: `docs/RISKS.md`, `docs/GATES.md`. Done when: each proposal is either in the file or recorded as rejected with a reason, and every added gate names its enforcing check or task. Est: 3 h. Status: blocked-owner.
+
+### Group FD — follow-ups from the 2026-10-30 founder decisions
+
+Rows the `docs/decisions/founder-2026-10-30/` records left as work. Each cites its row.
+
+- [ ] **FD-1 — H7 explanation route.** Spec: data-policy H7. Writes: `server/src/adapters/http/`, `server/src/core/alerts/`. Done when: authenticated `GET /api/zones/:zoneId/events/:publicId/explanation` returns the ruled shape for "why this alert" and "why no alert", scoped to the account's own zones, with route and integration tests. Est: 6 h. Status: todo.
+- [ ] **FD-2 — D5 recut to the picked candidates.** Spec: data-policy D5 (S1 = 239071, S2 = 41712 + 41713, S6 = 233724). Writes: `server/fixtures/S1`, `S2`, `S6`, the D5 harness. Done when: the three fixtures are cut from the picked EFFIS candidates and FIRMS archive, and the replay gates pass. Est: 6 h. Status: blocked-external (FIRMS archive, MAP_KEY).
+- [ ] **FD-3 — R5-DATA-5 power report.** Spec: data-policy R5-DATA-5. Writes: `server/src/core/fit/` (power report). Done when: `pnpm fit` prints n per stratum per fit season and the Wilson half-width, and applies the ruled gate rule before any label is seen. Est: 4 h. Status: todo (the code); the run needs DS-3.
+- [ ] **FD-4 — Cluster retention: season + 30 days.** Spec: data-policy D1-e. Writes: retention job, OPERATIONS §6.2. Done when: clusters are pruned only after season end + 30 days and once the ADR-002 D7 replay floor is met, by a tested job, and the erasure plan is unchanged. Est: 3 h. Status: todo.
+- [ ] **FD-5 — Demo-data banner for fixture deploys.** Spec: data-policy "Fixtures out of prod". Writes: `web/src/ui/`, catalogs, the deploy config. Done when: any public deploy that serves fixtures shows a permanent "demo data" banner, and a production deploy refuses to serve fixtures as live data. Est: 3 h. Status: todo.
+- [ ] **FD-6 — S10 withdrawn-alert copy.** Spec: data-policy F16 (S10 re-author). Writes: `server/src/core/alerts/` copy, catalogs. Done when: the message sent when an alerted event is later quarantined as a static source is written, reviewed under the copy rule (claim less) and covered by S10. Est: 2 h. Status: todo.
+- [ ] **FD-7 — FireEvent provenance fields.** Spec: copy C-NS. Writes: `packages/contracts`, the snapshot writer, the web event detail. Done when: FireEvent carries `source_url` and `statement_ts` for official statements and the never-send lint's 10 remaining findings are gone. Est: 6 h. Status: todo.
 
 ## Coverage note
 
