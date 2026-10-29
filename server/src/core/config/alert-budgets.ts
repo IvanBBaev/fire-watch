@@ -1,5 +1,5 @@
 /**
- * `alert_budgets_v1` — ADR-004 D5's fail-closed machinery, expressed as numbers.
+ * `alert_budgets_v2` — ADR-004 D5's fail-closed machinery, expressed as numbers.
  *
  * D5 is four sentences, and every one of them is a ceiling on how much harm one bug can
  * do before a human notices: **B = 500** automatic sends per event, **G = 2,000** sends
@@ -28,7 +28,16 @@
  * "smaller" — a shorter G window with the same G is more permissive, not less — so each
  * field below states its safe direction and {@link clampToShipped} follows it.
  *
- * **What is missing, and is a blocker rather than an omission.** D5 writes the breaker's
+ * **The breaker floor (H4), decided 2026-10-30.** v2 pins `floorSendsPerWindow` at
+ * **1,000** sends per 10 min (founder decision record
+ * `docs/decisions/founder-2026-10-30/thresholds-ops.md`, H4). It is twice B, so one
+ * event's whole automatic budget — or two at once — can never trip it, and half of G, so a
+ * runaway still halts well before the outer ceiling, which is the order D5 asks for. With
+ * no baseline sampling rule yet the breaker's threshold is the floor itself; once a season
+ * of send counts exists the ratio leg can take over above it. The value is provisional
+ * and moves only by a version bump. The paragraph below is the v1 history.
+ *
+ * **What was missing in v1, and was a blocker rather than an omission.** D5 writes the breaker's
  * threshold as `max(5x seasonal baseline, floor)` and never gives the floor a value; A1.5
  * says the sibling ingest leg needs "an absolute floor so a small denominator cannot trip
  * it" and gives no number either; 05 §5.2.3 restates the formula ("suggested k=5") and
@@ -126,7 +135,8 @@ const SHIPPED: AlertBudgetParams = {
   perEventAutoSends: 500,
   globalWindowSends: 2_000,
   globalWindowMs: 600_000,
-  breaker: Object.freeze({ ratio: 5, floorSendsPerWindow: null }),
+  // H4, founder decision 2026-10-30: 2 x B, 0.5 x G (see the module header).
+  breaker: Object.freeze({ ratio: 5, floorSendsPerWindow: 1_000 }),
   selfApprovalCaps: Object.freeze({ perEvent: 1, perWindow: 2, windowMs: 86_400_000 }),
   approvalPendingPageMs: 1_800_000,
 };
@@ -140,7 +150,7 @@ const SHIPPED: AlertBudgetParams = {
  */
 export const ALERT_BUDGETS: VersionedConfig<AlertBudgetParams> = defineConfig(
   'alert_budgets',
-  'alert_budgets_v1',
+  'alert_budgets_v2',
   SHIPPED,
 );
 

@@ -21,7 +21,7 @@
  * spelled twice is a dashboard that goes blank on the day someone fixes the typo.
  *
  * The paging deadline is not here either - it is `approvalPendingPageMs` in
- * `alert_budgets_v1`, next to the B ceiling whose consequence it measures, so that a
+ * `alert_budgets_v2`, next to the B ceiling whose consequence it measures, so that a
  * threshold change is a config diff under D5's PR rule rather than a constant edited in a
  * metrics file.
  *

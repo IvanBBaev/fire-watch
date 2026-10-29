@@ -26,7 +26,9 @@
  * can be in, it is a caller bug, and the throw stops dispatch just as effectively as a
  * halt verdict would - the caller has no claim limit to claim with either way.
  *
- * **The breaker ships unarmed, and that is a reported gap, not a default.** Its threshold
+ * **Since `alert_budgets_v2` (H4, founder decision 2026-10-30) the shipped floor is 1,000,
+ * so the breaker ships armed.** The rest of this paragraph explains why a `null` floor
+ * still means unarmed, for a caller that supplies one. Its threshold
  * is `max(5x seasonal baseline, floor)` and no document in this repo gives the floor a
  * value; see the header of `config/alert-budgets.ts`. With no floor the ratio leg alone
  * would halt dispatch at the first real fire of a quiet spring - five times a baseline of

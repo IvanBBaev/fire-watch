@@ -7,7 +7,7 @@
 #
 # Thresholds are the code's, asserted by server/src/app/metrics-rules.test.ts:
 #   600 s  = OUTBOX_QUEUE_PAGE_SECONDS (meta-alert-params.ts)
-#   1800 s = alert_budgets_v1.approvalPendingPageMs / 1000
+#   1800 s = alert_budgets_v2.approvalPendingPageMs / 1000
 #   > 0    = A1.12 "any increment of sends_dropped pages" (alertDeferralPages, alert-metrics.ts)
 #
 # fw_alert_sends_dropped_total is produced by the dispatch loop (reason="ttl_expired", a

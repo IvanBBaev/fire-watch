@@ -238,7 +238,9 @@ describe('createDispatchCycle', () => {
   });
 
   it("caps the gateway's batch at G's remaining headroom", async () => {
-    const h = harness({ sends: ALERT_BUDGETS.values.globalWindowSends - 7 });
+    // A caller-supplied G below the shipped floor, so G and not the breaker is the limit.
+    const params = { ...ALERT_BUDGETS.values, globalWindowSends: 500 };
+    const h = harness({ sends: 493, params });
     await createDispatchCycle(h.deps)();
     expect(h.batchSizes).toEqual([7]);
   });
@@ -264,10 +266,16 @@ describe('createDispatchCycle', () => {
     expect(h.calls).not.toContain('runOnce');
   });
 
-  it('keeps the shipped breaker unarmed: no baseline sampling rule and no floor exist', async () => {
-    const h = harness({ sends: ALERT_BUDGETS.values.globalWindowSends - 1 });
+  it('arms the shipped breaker at its 1,000 floor while no baseline sampling rule exists', async () => {
+    const floor = ALERT_BUDGETS.values.breaker.floorSendsPerWindow ?? Number.NaN;
+    const h = harness({ sends: floor - 7 });
     const report = await createDispatchCycle(h.deps)();
-    expect(report.allowance.breaker).toMatchObject({ state: 'unarmed', baseline: null });
+    expect(report.allowance.breaker).toMatchObject({
+      state: 'armed',
+      threshold: 1_000,
+      baseline: null,
+    });
+    expect(h.batchSizes).toEqual([7]);
   });
 
   it('counts per-row failures by message rather than listing them', async () => {

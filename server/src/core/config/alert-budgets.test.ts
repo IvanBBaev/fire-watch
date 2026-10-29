@@ -12,9 +12,9 @@ function budgets(patch: Partial<AlertBudgetParams>): AlertBudgetParams {
   return { ...ALERT_BUDGETS.values, ...patch };
 }
 
-describe('alert_budgets_v1', () => {
+describe('alert_budgets_v2', () => {
   it('cites a version a stored decision can be read against', () => {
-    expect(ALERT_BUDGETS.version).toBe('alert_budgets_v1');
+    expect(ALERT_BUDGETS.version).toBe('alert_budgets_v2');
     expect(ALERT_BUDGETS.digest).toMatch(/^[0-9a-f]{8}$/);
   });
 
@@ -22,7 +22,7 @@ describe('alert_budgets_v1', () => {
     // Same reason `alert_gating_v1` pins one: D5 puts these numbers under "changed only by
     // PR", and a version that stayed still while a ceiling moved would let an archived
     // decision claim it was made under limits that were not in force.
-    expect(ALERT_BUDGETS.digest).toBe('8107d13e');
+    expect(ALERT_BUDGETS.digest).toBe('dc93b8ae');
   });
 
   it('pins B and G exactly as D5 writes them', () => {
@@ -34,13 +34,15 @@ describe('alert_budgets_v1', () => {
     expect(ALERT_BUDGETS.values.globalWindowMs / 60_000).toBe(10);
   });
 
-  it('pins the breaker ratio at 5 and leaves the floor unset, because no document sets it', () => {
+  it('pins the breaker ratio at 5 and the floor at 1,000 (H4, founder decision 2026-10-30)', () => {
     // D5: "max(5x seasonal baseline, floor)"; 05 §5.2.3 restates it as "suggested k=5".
-    // The floor has no value anywhere in the corpus — A1.5 asks for "an absolute floor so a
-    // small denominator cannot trip it" without naming one. `null` is that absence, and it
-    // is asserted rather than tolerated so that pinning a floor is a deliberate edit here.
-    expect(ALERT_BUDGETS.values.breaker.ratio).toBe(5);
-    expect(ALERT_BUDGETS.values.breaker.floorSendsPerWindow).toBeNull();
+    // The floor is twice B and half of G: one or two events' full automatic budgets cannot
+    // trip it, and a runaway still halts before G.
+    const { breaker, perEventAutoSends, globalWindowSends } = ALERT_BUDGETS.values;
+    expect(breaker.ratio).toBe(5);
+    expect(breaker.floorSendsPerWindow).toBe(1_000);
+    expect(breaker.floorSendsPerWindow).toBe(2 * perEventAutoSends);
+    expect(breaker.floorSendsPerWindow).toBeLessThan(globalWindowSends);
   });
 
   it("pins A1.4's caps on the solo fallback", () => {

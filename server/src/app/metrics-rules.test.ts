@@ -127,7 +127,7 @@ describe('infra/metrics/rules', () => {
     expect(rule('NotificationQueueStuck').labels['page']).toBe('true');
   });
 
-  it('pages on the approval deadline at alert_budgets_v1', () => {
+  it('pages on the approval deadline at alert_budgets_v2', () => {
     expect(threshold('AlertApprovalPending')).toBe(
       ALERT_BUDGETS.values.approvalPendingPageMs / 1000,
     );

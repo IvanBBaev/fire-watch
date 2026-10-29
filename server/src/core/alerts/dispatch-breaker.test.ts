@@ -15,7 +15,7 @@ function budgets(patch: Partial<AlertBudgetParams>): AlertBudgetParams {
   return { ...ALERT_BUDGETS.values, ...patch };
 }
 
-/** The shipped budgets with the breaker's missing floor supplied, which arms it. */
+/** The shipped budgets with a lower breaker floor supplied — a tightening the clamp allows. */
 function withFloor(floor: number, patch: Partial<AlertBudgetParams> = {}): AlertBudgetParams {
   return budgets({ breaker: { ratio: 5, floorSendsPerWindow: floor }, ...patch });
 }
@@ -29,6 +29,12 @@ function allowance(patch: Partial<DispatchAllowanceInput> = {}): DispatchAllowan
     ...patch,
   });
 }
+
+/**
+ * A seasonal baseline large enough that the ratio leg (5 x 500 = 2,500) sits above G, so a
+ * test can exercise G alone with the shipped 1,000 floor in place.
+ */
+const BASELINE_ABOVE_G = 500;
 
 /** Narrow to the open branch, so a halt fails the assertion instead of typing as `never`. */
 function claimLimit(verdict: DispatchAllowance): number {
@@ -57,21 +63,37 @@ describe('breakerThreshold — max(5x seasonal baseline, floor)', () => {
   });
 });
 
-describe('the breaker ships unarmed', () => {
-  it('reports itself unarmed and does not trip on a rate far above the baseline', () => {
-    // 1,500 sends against a seasonal baseline of two. An armed breaker would have halted
-    // this long ago; G is the ceiling that is actually holding.
-    const verdict = allowance({ sendsInWindow: 1_500, baselineSendsPerWindow: 2 });
+describe('the breaker ships armed at its 1,000 floor (alert_budgets_v2, H4)', () => {
+  it('reports itself armed at the floor with no baseline, and holds at 1,000 sends', () => {
+    const verdict = allowance({ sendsInWindow: 1_000 });
 
     expect(verdict.state).toBe('open');
     expect(verdict.breaker).toEqual({
-      state: 'unarmed',
-      threshold: null,
-      baseline: 2,
+      state: 'armed',
+      threshold: 1_000,
+      baseline: null,
       ratio: 5,
-      floor: null,
+      floor: 1_000,
     });
-    expect(claimLimit(verdict)).toBe(25);
+    expect(claimLimit(verdict)).toBe(0);
+  });
+
+  it('trips on a rate far above a small baseline, before G is reached', () => {
+    // 1,500 sends against a seasonal baseline of two: the floor, not 5 x 2, is the threshold.
+    expect(allowance({ sendsInWindow: 1_500, baselineSendsPerWindow: 2 })).toMatchObject({
+      state: 'halted',
+      reason: 'send_rate_anomaly',
+      pages: true,
+      breaker: { state: 'tripped', threshold: 1_000, floor: 1_000 },
+    });
+  });
+
+  it('cannot be disarmed by a caller who supplies a null floor', () => {
+    const verdict = allowance({
+      sendsInWindow: 1_001,
+      params: budgets({ breaker: { ratio: 5, floorSendsPerWindow: null } }),
+    });
+    expect(verdict).toMatchObject({ state: 'halted', reason: 'send_rate_anomaly' });
   });
 });
 
@@ -92,7 +114,7 @@ describe('halt precedence', () => {
     // failure this product has.
     expect(allowance({ control: { killSwitch: true, breakerLatched: false } })).toMatchObject({
       pages: false,
-      breaker: { state: 'unarmed' },
+      breaker: { state: 'armed' },
     });
     expect(allowance({ control: { killSwitch: false, breakerLatched: true } })).toMatchObject({
       state: 'halted',
@@ -139,8 +161,9 @@ describe('halt precedence', () => {
   });
 
   it('spends G at the ceiling, not one send past it', () => {
-    expect(allowance({ sendsInWindow: 1_999 }).state).toBe('open');
-    expect(allowance({ sendsInWindow: 2_000 })).toMatchObject({
+    const baselineSendsPerWindow = BASELINE_ABOVE_G;
+    expect(allowance({ sendsInWindow: 1_999, baselineSendsPerWindow }).state).toBe('open');
+    expect(allowance({ sendsInWindow: 2_000, baselineSendsPerWindow })).toMatchObject({
       reason: 'global_budget_exhausted',
     });
   });
@@ -165,7 +188,15 @@ describe('the claim limit', () => {
   });
 
   it('is capped by what is left under G', () => {
-    expect(claimLimit(allowance({ sendsInWindow: 1_990, batchSize: 25 }))).toBe(10);
+    expect(
+      claimLimit(
+        allowance({
+          sendsInWindow: 1_990,
+          batchSize: 25,
+          baselineSendsPerWindow: BASELINE_ABOVE_G,
+        }),
+      ),
+    ).toBe(10);
   });
 
   it('is capped by what is left under an armed breaker', () => {

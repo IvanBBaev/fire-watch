@@ -61,8 +61,9 @@ Gaps:
   cycle. A cycle within half a minute of another worker's is reported as
   `"advanced": false` and counts nothing; after more than 3 minutes without a cycle the
   streaks restart from zero, but a live page stays until two healthy readings clear it.
-- `NOT YET BUILT (H4, founder decision)`: the anomaly breaker's absolute floor. The
-  breaker is unarmed, so G is the only enforced ceiling on a runaway.
+- The anomaly breaker is armed (H4, founder decision 2026-10-30, `alert_budgets_v2`):
+  with no seasonal baseline yet it trips at its floor of 1,000 sends per 10 min, half of
+  G, and latches until a human clears it.
 - There is no heartbeat for dispatch itself. Queue age is the signal.
 
 ## 2. Triage
@@ -124,7 +125,7 @@ one cannot be unsent (R4, "fail closed").
   (`clampToShipped` in `core/config/alert-budgets.ts` only tightens). Reaching it
   during a real mega-fire is the design working. Leave it halted, and check whether
   the sends were legitimate before the window rolls over. Raising G is a reviewed
-  version bump of `alert_budgets_v1`, never an incident action.
+  version bump of `alert_budgets_v2`, never an incident action.
 - **M6 — `awaiting_approval` backlog.** `NOT YET BUILT (H4/H7)`: the approval surface.
   The self-approval caps (A1.4) are declared and enforced nowhere. Until it exists,
   there is no sanctioned way to release a held row. Do not flip `status` by hand in
