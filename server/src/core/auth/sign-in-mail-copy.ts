@@ -3,10 +3,12 @@
  *
  * The same shape as the alert catalog (`../alerts/templates/alert-copy.ts`): plain strings
  * with `{slot}` markers, per locale, each with its governance and origin. Every entry here
- * is **own-voice and pending founder review** ({@link SIGN_IN_MAIL_COPY_PENDING_FOUNDER_REVIEW}):
- * an implementer drafted it and nobody has signed it off. Unlike an alert template, a
- * pending entry is still sent — sign-in cannot wait on a copy review — which is exactly why
- * the register exists and why the drafts say no more than the mechanics require.
+ * is **own-voice**: an implementer drafted it, and the 2026-10-30 copy review
+ * (`docs/decisions/founder-2026-10-30/copy.md`) approved it, so
+ * {@link SIGN_IN_MAIL_COPY_PENDING_FOUNDER_REVIEW} is empty. Unlike an alert template, a
+ * pending entry would still be sent — sign-in cannot wait on a copy review — which is
+ * exactly why the register exists and why the copy says no more than the mechanics require.
+ * A new draft carries "pending founder review" in its origin and lands in the register.
  *
  * **Bilingual, Bulgarian first.** The request that mints a link carries no locale (the
  * route takes an address and nothing else, and 05 does not say where a locale would come
@@ -24,14 +26,14 @@ import { lintAlertText, NeverSendError, type NeverSendViolation } from '@fire-wa
 import type { CopyEntry } from '../alerts/templates/alert-copy.js';
 import { PRODUCT_NAME } from '../snapshot/snapshot-builder.js';
 
-const DRAFTED = 'I1 draft, pending founder review';
+const DRAFTED = 'I1 draft, approved 2026-10-30 (docs/decisions/founder-2026-10-30/copy.md)';
 
 export const SIGN_IN_MAIL_COPY = {
   subject: {
     governance: 'own-voice',
     origin: DRAFTED,
     text: {
-      bg: '{product}: линк за вход',
+      bg: '{product}: връзка за вход',
       en: '{product}: sign-in link',
     },
   },
@@ -40,10 +42,10 @@ export const SIGN_IN_MAIL_COPY = {
     origin: DRAFTED,
     text: {
       bg:
-        'Поискахте вход в {product}. Отворете линка по-долу в същия браузър, от който го ' +
+        'Поискахте вход в {product}. Отворете връзката по-долу в същия браузър, от който я ' +
         'поискахте, и потвърдете входа:\n\n{link}\n\n' +
-        'Линкът важи {minutes} минути и може да се използва само веднъж. Ако не сте ' +
-        'поискали вход, не отваряйте линка — без него нищо не се променя.',
+        'Връзката важи {minutes} минути и може да се използва само веднъж. Ако не сте ' +
+        'поискали вход, не отваряйте връзката — без нея нищо не се променя.',
       en:
         'You asked to sign in to {product}. Open the link below in the same browser you ' +
         'asked from, then confirm the sign-in:\n\n{link}\n\n' +
@@ -57,9 +59,13 @@ export type SignInMailCopyKey = keyof typeof SIGN_IN_MAIL_COPY;
 
 export const SIGN_IN_MAIL_COPY_KEYS = Object.keys(SIGN_IN_MAIL_COPY) as SignInMailCopyKey[];
 
-/** Every own-voice entry nobody has reviewed yet — today, all of them. */
+/** Every own-voice entry nobody has reviewed yet — empty since the 2026-10-30 review. */
 export const SIGN_IN_MAIL_COPY_PENDING_FOUNDER_REVIEW: readonly SignInMailCopyKey[] =
-  SIGN_IN_MAIL_COPY_KEYS.filter((key) => SIGN_IN_MAIL_COPY[key].governance === 'own-voice');
+  SIGN_IN_MAIL_COPY_KEYS.filter(
+    (key) =>
+      SIGN_IN_MAIL_COPY[key].governance === 'own-voice' &&
+      SIGN_IN_MAIL_COPY[key].origin.includes('pending founder review'),
+  );
 
 /** The order the two languages appear in, and the rule between them. */
 const LOCALE_ORDER = ['bg', 'en'] as const;

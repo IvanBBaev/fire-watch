@@ -275,7 +275,7 @@ export const ALERT_COPY = {
     governance: 'own-voice',
     origin: DRAFTED,
     text: {
-      en: '• {nearPlace} · {distance} · {tier} · observed {dateTime}',
+      en: '• {nearPlace} · {distance} · {tier} · detected {dateTime}',
       bg: '• {nearPlace} · {distance} · {tier} · засечено {dateTime}',
     },
   },

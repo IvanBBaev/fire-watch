@@ -12,10 +12,11 @@ const TOKEN = 'T'.repeat(43);
 const LINK = `https://app.example.invalid/sign-in#token=${TOKEN}`;
 
 describe('sign-in mail copy (I1)', () => {
-  it('registers every entry as own-voice and pending founder review', () => {
-    expect(SIGN_IN_MAIL_COPY_PENDING_FOUNDER_REVIEW).toEqual(SIGN_IN_MAIL_COPY_KEYS);
+  it('holds every entry as own-voice copy approved in the 2026-10-30 review', () => {
+    expect(SIGN_IN_MAIL_COPY_PENDING_FOUNDER_REVIEW).toEqual([]);
     for (const key of SIGN_IN_MAIL_COPY_KEYS) {
-      expect(SIGN_IN_MAIL_COPY[key].origin).toMatch(/pending founder review/u);
+      expect(SIGN_IN_MAIL_COPY[key].governance).toBe('own-voice');
+      expect(SIGN_IN_MAIL_COPY[key].origin).toMatch(/approved 2026-10-30/u);
     }
   });
 
@@ -29,7 +30,7 @@ describe('sign-in mail copy (I1)', () => {
 
   it('renders both languages, Bulgarian first, with the link and the lifetime', () => {
     const mail = renderSignInMail({ link: LINK, ttlMinutes: 15 });
-    expect(mail.subject).toBe('Fire Watch: линк за вход / Fire Watch: sign-in link');
+    expect(mail.subject).toBe('Fire Watch: връзка за вход / Fire Watch: sign-in link');
     expect(mail.text.indexOf('Поискахте')).toBeLessThan(mail.text.indexOf('You asked'));
     expect(mail.text.split(LINK)).toHaveLength(3);
     expect(mail.text).toContain('15 минути');
