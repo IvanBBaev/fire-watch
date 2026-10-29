@@ -204,6 +204,12 @@ Independence rules:
 3. Each leg has its own notification path to the phone. The Telegram bot used for
    operator alerts is a **different bot** from the user-facing alert bot: a revoked or
    flood-limited user bot must not silence the pager.
+   *Operator channel, decided 2026-10-30 (TASKS J1;
+   [founder decision record](decisions/founder-2026-10-30/governance-product.md), GP-20):*
+   the primary channel is the operator bot posting to the private `fw-alerts` chat (§3.1).
+   The second channel is email to the operator mailbox, sent from the alerts subdomain.
+   Canary and meta-alert rows use their own operator outbox. They never go into
+   `alert_outbox`, which holds user deliveries only and requires a zone and an event.
 4. Ping URLs are secrets (§8.1) — anyone holding one can suppress a dead-man's switch by
    pinging it.
 5. Job pings happen **after** the success path commits, never in a `finally`. A job that
@@ -663,8 +669,20 @@ it is a written contract, not a deployed reality.
 | Telemetry | Grafana Alloy scrapes `api` and `worker`, ships metrics and container logs off-box | Leg 1 of §3 must survive the app | §3 rule 6 |
 
 **Configuration-drift rule:** anything configured by hand over SSH and not present in
-`infra/cloud-init.yaml` is **presumed lost** at recovery time. The RTO in §5 is only
-real because the host is code; the drill in §6.3 is what catches drift.
+`infra/cloud-init.yaml`, or in the deploy-delivered set under `infra/host/`, is
+**presumed lost** at recovery time. The RTO in §5 is only real because the host is code;
+the drill in §6.3 is what catches drift.
+
+**What first boot carries and what deploy carries** (decided 2026-10-30, review 21 E1
+option 1; [founder decision record](decisions/founder-2026-10-30/governance-product.md),
+GP-1). `cloud-init.yaml` keeps only what must exist before the first deploy can run:
+users, SSH hardening, the firewall (with `fw-cloudflare-ips`), Docker, unattended
+upgrades and the deploy user. The operational scripts (`fw-backup`, `fw-restore-drill`,
+`fw-diskguard`, `fw-notify-failure`, `fw-provision`) and their systemd units move to
+`infra/host/`, delivered by `deploy.sh` with a sha256 manifest that the deploy
+verifies before it installs anything. A script fix then ships with a deploy, not with a
+rebuilt VM, and first-boot `user_data` stays well under its 32 KiB limit. Until that move
+lands, the scripts stay in `user_data` (22,184 bytes gzip+base64, TASKS B9).
 
 ### 9.3 Deploy safety
 
