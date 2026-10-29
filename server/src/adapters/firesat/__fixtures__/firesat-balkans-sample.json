@@ -1,0 +1,74 @@
+{
+  "format": "firesat-detections",
+  "format_version": "0-provisional",
+  "product": "FIRESAT_NRT",
+  "note": "Synthetic. EFA has published no format; this is the provisional shape the V3-A1 parser reads.",
+  "detections": [
+    {
+      "satellite": "FIRESAT2",
+      "acquired_at": "2026-08-02T10:41:37Z",
+      "latitude": "41.850123",
+      "longitude": "26.140027",
+      "pixel_along_scan_m": 82,
+      "pixel_along_track_m": 79,
+      "detection_probability": 0.93,
+      "frp_mw": 14.2,
+      "brightness_mwir_k": 342.1,
+      "brightness_lwir_k": 301.7,
+      "day_night": "D",
+      "processing_version": "0.9.1"
+    },
+    {
+      "satellite": "FIRESAT2",
+      "acquired_at": "2026-08-02T10:41:52Z",
+      "latitude": 42.10234,
+      "longitude": 23.40581,
+      "pixel_along_scan_m": 96,
+      "pixel_along_track_m": 88,
+      "detection_probability": 0.41,
+      "frp_mw": null,
+      "brightness_mwir_k": 318.4,
+      "brightness_lwir_k": null,
+      "day_night": "D",
+      "processing_version": "0.9.1"
+    },
+    {
+      "satellite": "FIRESAT1",
+      "acquired_at": "2026-08-02T21:13:05Z",
+      "latitude": "43.21876",
+      "longitude": "27.91402",
+      "pixel_along_scan_m": 80,
+      "pixel_along_track_m": 80,
+      "detection_probability": 0.12,
+      "frp_mw": 0,
+      "brightness_mwir_k": 305.9,
+      "brightness_lwir_k": 289.3,
+      "day_night": "N",
+      "processing_version": "0.9.1"
+    },
+    {
+      "satellite": "FIRESAT1",
+      "acquired_at": "2026-08-02T21:13:09Z",
+      "latitude": "43.21876",
+      "longitude": "27.91402",
+      "pixel_along_scan_m": 80,
+      "pixel_along_track_m": 80,
+      "detection_probability": 0.12,
+      "frp_mw": 0,
+      "brightness_mwir_k": 305.9,
+      "brightness_lwir_k": 289.3,
+      "day_night": "N",
+      "processing_version": "0.9.1"
+    },
+    {
+      "satellite": "FIRESAT3",
+      "acquired_at": "2026-08-02T11:02:00Z",
+      "latitude": "42.5",
+      "longitude": "25.1",
+      "pixel_along_scan_m": 81,
+      "detection_probability": 0.77,
+      "frp_mw": 3.1,
+      "day_night": "D"
+    }
+  ]
+}

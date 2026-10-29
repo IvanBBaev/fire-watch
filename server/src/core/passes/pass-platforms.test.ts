@@ -2,7 +2,12 @@ import { SOURCE_REGISTRY } from '@fire-watch/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { PASS_TABLE } from '../lifecycle/static-pass-predictor.js';
-import { PASS_PLATFORMS, platformByNoradId, platformSwathKm } from './pass-platforms.js';
+import {
+  PASS_PLATFORMS,
+  RESERVED_PASS_PLATFORMS,
+  platformByNoradId,
+  platformSwathKm,
+} from './pass-platforms.js';
 
 describe('pass platforms', () => {
   it('lists only platforms behind an active source', () => {
@@ -27,5 +32,17 @@ describe('pass platforms', () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(platformByNoradId(41335)?.id).toBe('s3a');
     expect(platformByNoradId(1)).toBeUndefined();
+  });
+
+  it('keeps FireSat apart while its source is reserved', () => {
+    // Flipping efa:firesat to active fails here: move the rows into PASS_PLATFORMS and give
+    // pass_table a FireSat row instead of the provisional swath.
+    for (const platform of RESERVED_PASS_PLATFORMS) {
+      expect(SOURCE_REGISTRY[platform.source].status).toBe('reserved');
+      expect(platformByNoradId(platform.noradId)).toBeUndefined();
+    }
+    const ids = [...PASS_PLATFORMS, ...RESERVED_PASS_PLATFORMS].map((p) => p.noradId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(RESERVED_PASS_PLATFORMS.map((p) => p.noradId)).toEqual([69886, 69873, 69890]);
   });
 });

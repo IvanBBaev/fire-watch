@@ -89,3 +89,52 @@ export const PASS_PLATFORMS: readonly PassPlatform[] = buildPlatforms();
 export function platformByNoradId(noradId: number): PassPlatform | undefined {
   return PASS_PLATFORMS.find((platform) => platform.noradId === noradId);
 }
+
+export type ReservedPassPlatformId = 'firesat1' | 'firesat2' | 'firesat3';
+
+export interface ReservedPassPlatform {
+  readonly id: ReservedPassPlatformId;
+  readonly noradId: number;
+  /** A `reserved` source: the looks it would feed are not data this product takes yet. */
+  readonly source: SourceId;
+  readonly instrument: 'firesat';
+  /**
+   * Provisional, stated here because `pass_table_v0` has no FireSat row: EFA's published
+   * ~1,500 km swath (DATA-SOURCES-EXTENDED, FireSat). Replaced by the pass-table row on
+   * access day, when these platforms move into {@link PASS_PLATFORMS}.
+   */
+  readonly provisionalSwathKm: number;
+}
+
+/**
+ * FireSat's three operational satellites (V3-A1), kept apart from {@link PASS_PLATFORMS}:
+ * `efa:firesat` is `reserved` (no access or terms, V3-Q5), so no pass of theirs is shown and
+ * no elements are fetched for them. Listed so the catalogue numbers are checked once, now.
+ *
+ * NORAD ids from the CelesTrak SATCAT (checked 2026-10-29): `FIRESAT1` 2026-156T,
+ * `FIRESAT2` 2026-156E, `FIRESAT3` 2026-156X, all launched 2026-07-07. The 2025 demo
+ * satellite (`FIRESAT 0`, 63256) is excluded — it is not part of the operational product.
+ */
+export const RESERVED_PASS_PLATFORMS: readonly ReservedPassPlatform[] = [
+  {
+    id: 'firesat1',
+    noradId: 69886,
+    source: 'efa:firesat',
+    instrument: 'firesat',
+    provisionalSwathKm: 1500,
+  },
+  {
+    id: 'firesat2',
+    noradId: 69873,
+    source: 'efa:firesat',
+    instrument: 'firesat',
+    provisionalSwathKm: 1500,
+  },
+  {
+    id: 'firesat3',
+    noradId: 69890,
+    source: 'efa:firesat',
+    instrument: 'firesat',
+    provisionalSwathKm: 1500,
+  },
+];
