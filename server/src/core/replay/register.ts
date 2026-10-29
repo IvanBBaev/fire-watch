@@ -162,7 +162,7 @@ export const FIXTURE_REGISTER: readonly RegisterEntry[] = Object.freeze([
   {
     id: 'S10',
     title: 'Solar-farm onset (day-only repeats)',
-    asserts: 'quarantined after >= 3 day-only repeat detections; no alert ever',
+    asserts: 'quarantined after >= 3 day-only repeat detections; no alert after quarantine',
     required: 'pre-season',
     owner: 'WP2',
     blockedBy: null,

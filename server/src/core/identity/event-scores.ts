@@ -50,7 +50,7 @@ import {
  * same three absences as the replay's `REPLAY_SCORE_CONTEXT`, for the same reasons.
  *
  *   - `staticSourceMaskHit: false` is the default only: {@link eventScores} replaces it per
- *     event from the static-source verdict (TASKS F16, `static_source_policy_v2`). A replay
+ *     event from the static-source verdict (TASKS F16, `static_source_policy_v3`). A replay
  *     that pins the policy and ships the mask does the same, so the live and replayed
  *     bucket of the same member set agree.
  *   - Nothing looks EFFIS FWI up: `null` scores `x_fwi` as 0, withholding credit.

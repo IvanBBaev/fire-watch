@@ -11,7 +11,8 @@
  * polygon is skipped before clustering. §6.2 item 2 adds the self-learning half: "≥ 3
  * daytime-only detections at the same ~pixel coordinates across ≥ 2 distinct days with zero
  * night detections ever ⇒ auto-quarantine as `suspected_static_source` pending review"
- * (GATES S10: "no alert ever").
+ * (GATES S10, reworded 2026-10-30: "no alert after quarantine" — the alert gate needs 2
+ * detections and the quarantine 3, so an unmapped farm can alert once before it exists).
  *
  * ## What this implements, and the one delta
  *
@@ -46,13 +47,16 @@
  * ## The founder switch
  *
  * `kindEffects` says per kind whether a hit overrides (score 0, invalidated) or only
- * annotates (verdict `annotated`, the web caveat, no score effect). Every kind overrides in
- * v2, as in v1: §6.2 seeds the solar layer from OSM and §5.2.4 lists thermal plants, the
- * refinery and the steel works as the curated core, so all four are "static hot sources" in
- * the spec's sense. The open founder call — "should a solar park override, or only
- * caveat?" (solar is the least certain: PV false positives are rarer in VIIRS than flares
- * are) — is answered by a `static_source_policy_v3` that sets `solar: 'annotate'`, not by a
- * code change. The quarantine has its own `enabled` switch for the same reason.
+ * annotates (verdict `annotated`, the web caveat, no score effect). Every kind overrode in
+ * v1 and v2: §6.2 seeds the solar layer from OSM and §5.2.4 lists thermal plants, the
+ * refinery and the steel works as the curated core. v3 answers the founder call (ruling
+ * 2026-10-30, `docs/decisions/founder-2026-10-30/data-policy.md`): **solar annotates**,
+ * the other three override. PV false positives are rarer in VIIRS than flare or plant
+ * ones, Bulgarian solar parks sit on grassland that does burn, and an override would score
+ * a grass fire wholly inside a park polygon 0 and invalidate it — a missed fire, which is
+ * the worse error. A glinting park the OSM layer maps is still caught by the §6.2
+ * quarantine below, which does not depend on the mask. The quarantine has its own
+ * `enabled` switch for the same reason.
  *
  * "On a source" is: inside a polygon (buffer `polygonHitBufferM`, 0 m — the spec says
  * *inside*), or within `pointHitRadiusM` of a point source (a node-mapped flare, or a plant
@@ -107,10 +111,10 @@ export interface StaticSourcePolicy {
 
 export const STATIC_SOURCE_POLICY: VersionedConfig<StaticSourcePolicy> = defineConfig(
   'static_source_policy',
-  'static_source_policy_v2',
+  'static_source_policy_v3',
   {
     kindEffects: {
-      solar: 'override',
+      solar: 'annotate',
       thermal_power: 'override',
       industrial: 'override',
       flare: 'override',

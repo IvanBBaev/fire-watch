@@ -641,7 +641,7 @@ describe('the static-source invalidation (TASKS F16)', () => {
       });
     const pinned = {
       ...PINNED,
-      static_source_policy: 'static_source_policy_v2',
+      static_source_policy: 'static_source_policy_v3',
       static_source_mask: 'osm-2026-09-30',
     };
 

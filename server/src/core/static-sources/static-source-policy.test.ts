@@ -34,6 +34,15 @@ import {
 
 const METRIC = CLUSTERING_PARAMS.values.metric;
 const POLICY = STATIC_SOURCE_POLICY.values;
+/**
+ * The geometry and verdict mechanics are exercised with every kind overriding, so the
+ * fixture's solar park acts as an override source; the shipped v3 policy annotates solar
+ * (founder ruling 2026-10-30) and is pinned separately below.
+ */
+const OVERRIDE_SOLAR: StaticSourcePolicy = {
+  ...POLICY,
+  kindEffects: { ...POLICY.kindEffects, solar: 'override' },
+};
 
 type Vertex = readonly [number, number];
 
@@ -97,11 +106,11 @@ function row(
 }
 
 describe('STATIC_SOURCE_POLICY', () => {
-  it('is static_source_policy_v2: every kind overrides, the §6.2 quarantine is on', () => {
-    expect(STATIC_SOURCE_POLICY.version).toBe('static_source_policy_v2');
+  it('is static_source_policy_v3: solar annotates, the rest override, the §6.2 quarantine is on', () => {
+    expect(STATIC_SOURCE_POLICY.version).toBe('static_source_policy_v3');
     expect(POLICY).toEqual({
       kindEffects: {
-        solar: 'override',
+        solar: 'annotate',
         thermal_power: 'override',
         industrial: 'override',
         flare: 'override',
@@ -127,13 +136,13 @@ describe('STATIC_SOURCE_POLICY', () => {
 });
 
 describe('detectionOnStaticSource', () => {
-  const on = (lon: number, lat: number, policy: StaticSourcePolicy = POLICY) =>
+  const on = (lon: number, lat: number, policy: StaticSourcePolicy = OVERRIDE_SOLAR) =>
     detectionOnStaticSource(MASK, policy, METRIC, row(lon, lat));
 
   it('is inside-only for a polygon at the v1 zero buffer', () => {
     expect(on(25.005, 42.005)).toBe(true);
     expect(on(25.005, 41.9999)).toBe(false); // ~11 m south of the edge
-    expect(on(25.005, 41.9999, { ...POLICY, polygonHitBufferM: 50 })).toBe(true);
+    expect(on(25.005, 41.9999, { ...OVERRIDE_SOLAR, polygonHitBufferM: 50 })).toBe(true);
   });
 
   it('uses the point radius for a point source', () => {
@@ -171,7 +180,7 @@ const ANNOTATE_SOLAR: StaticSourcePolicy = {
 
 describe('tagDetection (the per-detection tag)', () => {
   it('tags the source a detection sits on, with the effect its kind has', () => {
-    expect(tagDetection(MASK, POLICY, METRIC, row(25.005, 42.005))).toEqual({
+    expect(tagDetection(MASK, OVERRIDE_SOLAR, METRIC, row(25.005, 42.005))).toEqual({
       kind: 'solar',
       effect: 'override',
       distanceM: 0,
@@ -268,7 +277,7 @@ describe('dayOnlyRepeat (the §6.2 quarantine)', () => {
 });
 
 describe('staticSourceVerdict (the event rule)', () => {
-  const verdict = (rows: readonly ScoringDetection[], policy = POLICY, mask = MASK) =>
+  const verdict = (rows: readonly ScoringDetection[], policy = OVERRIDE_SOLAR, mask = MASK) =>
     staticSourceVerdict(mask, policy, METRIC, rows);
 
   it('is static_source only when every member carries an override tag', () => {
@@ -280,6 +289,8 @@ describe('staticSourceVerdict (the event rule)', () => {
 
   it('annotates instead of overriding when the founder switch says so', () => {
     expect(verdict([row(25.002, 42.002, 1)], ANNOTATE_SOLAR)).toBe('annotated');
+    // The shipped v3 policy is that switch: a fire wholly inside a solar park is annotated.
+    expect(verdict([row(25.002, 42.002, 1)], POLICY)).toBe('annotated');
   });
 
   it('quarantines without a mask, and the override outranks the quarantine', () => {
@@ -318,8 +329,9 @@ describe('staticSourceEvaluator', () => {
   it('carries the mask and policy versions it evaluates against (D7)', () => {
     const evaluator = staticSourceEvaluator(MASK, STATIC_SOURCE_POLICY, METRIC);
     expect(evaluator.maskVersion).toBe('test');
-    expect(evaluator.policyVersion).toBe('static_source_policy_v2');
-    expect(evaluator.evaluate([row(25.005, 42.005)])).toBe('static_source');
+    expect(evaluator.policyVersion).toBe('static_source_policy_v3');
+    // v3: solar annotates, so a detection inside the fixture's solar park is annotated.
+    expect(evaluator.evaluate([row(25.005, 42.005)])).toBe('annotated');
     expect(staticSourceEvaluator(null, STATIC_SOURCE_POLICY, METRIC).maskVersion).toBeNull();
   });
 

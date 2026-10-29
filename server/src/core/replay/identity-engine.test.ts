@@ -620,7 +620,7 @@ describe('the static-source verdict (TASKS F16, D7)', () => {
 
   const PINNED_MASK = Object.freeze({
     ...PINNED,
-    static_source_policy: 'static_source_policy_v2',
+    static_source_policy: 'static_source_policy_v3',
     static_source_mask: 'mask-a',
   });
 
@@ -669,7 +669,7 @@ describe('the static-source verdict (TASKS F16, D7)', () => {
     const report = replay(
       {
         clockStart: '2026-08-02T00:00:00Z',
-        configVersions: { ...PINNED, static_source_policy: 'static_source_policy_v2' },
+        configVersions: { ...PINNED, static_source_policy: 'static_source_policy_v3' },
         batches: [
           {
             name: 'poll-01.json',

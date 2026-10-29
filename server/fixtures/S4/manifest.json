@@ -14,7 +14,7 @@
     "pass_table": "pass_table_v0",
     "score_params": "score_params_v0",
     "sources": "source_registry_v2",
-    "static_source_policy": "static_source_policy_v2",
+    "static_source_policy": "static_source_policy_v3",
     "static_source_mask": "osm-fixture-s4"
   },
   "inputs": ["poll-01.json", "poll-02.json"],

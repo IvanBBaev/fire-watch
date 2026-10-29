@@ -1,7 +1,7 @@
 {
   "id": "S10",
   "title": "Solar-farm onset (day-only repeats)",
-  "asserts": "an unmapped solar farm seen only by day (one pixel on day 1, two on day 2, all within one site) is quarantined as suspected_static_source on the third detection, and a watching zone is never alerted — suppressed as invalidated, never sent; without the policy pinned the same polls defer a new_fire and put the farm in the 09:00 digest, so the quarantine is what keeps it silent",
+  "asserts": "an unmapped solar farm seen only by day, one detection per poll (one pixel on day 1, one at 10:50 and one at 12:10 on day 2, all within one site), is quarantined as suspected_static_source on the third detection and no alert is sent after the quarantine; the second detection passes alert_gating_v1 (minDetections 2) before the quarantine (3) can exist, so the zone gets one new_fire plus its digest at 10:50 and then invalidated at 12:10 — the founder ruling of 2026-10-30 (S10 option 3) accepts that one early alert rather than delaying real day-only fires",
   "required": "pre-season",
   "owner": "WP2",
   "engine": "alert",
@@ -16,10 +16,10 @@
     "sources": "source_registry_v2",
     "alert_gating": "alert_gating_v1",
     "digest_params": "digest_params_v1",
-    "static_source_policy": "static_source_policy_v2",
+    "static_source_policy": "static_source_policy_v3",
     "static_source_mask": "osm-fixture-s10"
   },
-  "inputs": ["poll-01.json", "poll-02.json"],
+  "inputs": ["poll-01.json", "poll-02.json", "poll-03.json"],
   "observations": "observations.json",
   "expected": "expected.json"
 }

@@ -9,7 +9,7 @@
     "sources": "source_registry_v2",
     "alert_gating": "alert_gating_v1",
     "digest_params": "digest_params_v1",
-    "static_source_policy": "static_source_policy_v2",
+    "static_source_policy": "static_source_policy_v3",
     "static_source_mask": "osm-fixture-s10"
   },
   "batches": [
@@ -19,7 +19,11 @@
     },
     {
       "name": "poll-02.json",
-      "detections": 2
+      "detections": 1
+    },
+    {
+      "name": "poll-03.json",
+      "detections": 1
     }
   ],
   "events": [
@@ -47,6 +51,24 @@
       "alertType": null,
       "alertSubkey": null,
       "atIso": "2026-08-12T11:30:00Z"
+    },
+    {
+      "zoneId": "zone-farm",
+      "publicId": "fw-2026-0nzcg",
+      "outcome": "send",
+      "reason": "first_alert",
+      "alertType": "new_fire",
+      "alertSubkey": "once",
+      "atIso": "2026-08-13T10:50:00Z"
+    },
+    {
+      "zoneId": "zone-farm",
+      "publicId": "fw-2026-0nzcg",
+      "outcome": "send",
+      "reason": "daily_summary",
+      "alertType": "digest",
+      "alertSubkey": "2026-08-13T06:00:00Z",
+      "atIso": "2026-08-13T10:50:00Z"
     },
     {
       "zoneId": "zone-farm",

@@ -131,14 +131,15 @@ detections score differently under a different mask.
 | Contents                | 6366 sources: solar 6154, thermal_power 172, industrial 33, flare 7; dropped open ways 0, unclosed multipolygon outers 0. Inner rings are dropped (a hole in a site counts as the site). No OSM element ids.                                           |
 | Asset                   | `web/src/assets/geodata/static-sources.json` — 238,695 B raw, 84,503 B gzip -9                                                                                                                                                                       |
 | Licence                 | ODbL 1.0, derivative database (`docs/licenses/openstreetmap-static-sources.md`)                                                                                                                                                                      |
-| Consumers               | `static_source_policy_v2` (server identity cycle: §3.6 override + §6.2 day-only quarantine, from boot; override `FIRE_WATCH_STATIC_SOURCES`) · replay fixtures S4/S10 (inline mask in `observations.staticSources`, version pinned as `static_source_mask`) · web event-detail and per-detection caveat (`static_source_caveat_v1`, 1 km) · Layers-panel mask layer (`ov=static`) |
-| Refresh                 | quarterly proposed (owner pending — founder call). A refresh is a new version string and a new DS-5.n line; it takes a worker restart to load, after which the identity cycle re-evaluates every live event whose recorded mask or policy version differs (500 per tick) and releases or applies the verdict — rescoring on a mask change is automatic. |
+| Consumers               | `static_source_policy_v3` (server identity cycle: §3.6 override for thermal_power, industrial and flare, annotate for solar + §6.2 day-only quarantine, from boot; override `FIRE_WATCH_STATIC_SOURCES`) · replay fixtures S4/S10 (inline mask in `observations.staticSources`, version pinned as `static_source_mask`) · web event-detail and per-detection caveat (`static_source_caveat_v1`, 1 km) · Layers-panel mask layer (`ov=static`) |
+| Refresh                 | quarterly; owner: the geodata job (`pnpm run geodata:static-sources`) run by the agent/CI, each new version signed off by the founder before it ships (ruling 2026-10-30, provisional). A refresh is a new version string and a new DS-5.n line; it takes a worker restart to load, after which the identity cycle re-evaluates every live event whose recorded mask or policy version differs (500 per tick) and releases or applies the verdict — rescoring on a mask change is automatic. |
 | Retention floor         | every version recorded in `fire_events.static_source_mask_version` (migration 021, per event decision; ADR-002 D7) — replay of a decision needs that exact version. Git keeps them all. |
 
 **History**
 
 - 2026-09-30 — entry opened with `osm-2026-09-30` (TASKS F16).
 - 2026-10-01 — consumer moved to `static_source_policy_v2`; mask version recorded per event (migration 021); mask refresh triggers re-evaluation of live events.
+- 2026-10-30 — consumer moved to `static_source_policy_v3` (founder ruling: solar annotates instead of overriding; the other kinds still override). The non-sticky sweep re-evaluates live events with a v2 decision. Refresh owner set (`docs/decisions/founder-2026-10-30/data-policy.md`).
 
 ### DS-6 — EFFIS burnt-area fixture candidates, 2020–2025 (fetched 2026-10-10)
 
