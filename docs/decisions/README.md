@@ -71,6 +71,12 @@ meta-alerting, SLOs and error budget, RTO/RPO and backups, upgrade triggers, sec
 the host contract, the status page; it implements the ADRs above and never overrides
 them.
 
+**Founder decision records, not ADRs:** [`founder-2026-10-30/`](founder-2026-10-30/) holds the
+2026-10-30 sweep of pending founder decisions, one file per domain (governance and product,
+round 5, copy, thresholds and operations, data policy). Each row names the question, the
+decision, its rationale by §, where it was implemented, and when to revisit. Where a row
+changes an ADR-level contract, the ADR gets the amendment and the record points to it.
+
 ## Conventions
 
 - Format: Context → Decision(s) → Consequences; normative inputs cited as

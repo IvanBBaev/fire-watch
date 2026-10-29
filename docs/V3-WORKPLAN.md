@@ -54,7 +54,8 @@ not linked) until the gate clears.
 
 > **Frozen 2026-10-30** ([founder record](decisions/founder-2026-10-30/round5.md), R5-1). Every
 > row that was `todo` is `frozen` until v1 has run seven days on a provisioned host with green
-> CI on a protected `main`. Lifting the freeze sets them back to `todo` on `main`.
+> CI on a protected `main`. Lifting the freeze sets them back to `todo` on `main`. The B2B and
+> paid rows (V3-D\*, V3-G\*) stay `frozen` until CP2 has passed (R5-6).
 
 | ID | Item | Status | Deps | Build needs (outside V3) | Go-live gate | Migration | Est h |
 |---|---|---|---|---|---|---|---|

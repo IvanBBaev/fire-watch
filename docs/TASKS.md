@@ -142,6 +142,11 @@ context beyond this file and the task's **Spec** pointers.
 7. Track A tasks *apply* the recommendations of reviews 13/14 to the corpus.
    Dispatching a Track A task constitutes sign-off for that amendment; the review
    text is the spec, the ADR gets the normative wording.
+8. **Integrated means committed and green.** No session ends with more than one task of
+   unintegrated work. At session end the agent prepares the commit series and asks; the
+   dispatching human answers. Work that is not on `main` with CI green is not done, whatever
+   the checkbox says. "Green" means the GitHub CI run on the pushed commit, not a local run.
+   *(Adopted 2026-10-30, `docs/decisions/founder-2026-10-30/governance-product.md` GP-3.)*
 
 **Spec shorthand:** `13 §3.1(5)` = review 13, amendment plan §3.1 item 5.
 `14 H3` = review 14, finding H3. `IP` = `IMPLEMENTATION-PLAN.md`.
@@ -158,8 +163,13 @@ context beyond this file and the task's **Spec** pointers.
 | 6 | WP5–WP7, Dec 2026–Mar 2027 | Tracks G, H, I | E1 contracts frozen |
 | 7 | WP8/WP9, continuous → May 2027 | Tracks J, K | per GATES §3 |
 
+**Paused (2026-10-30):** no new Track D item is dispatched until a provisioned host records
+live detections (`docs/decisions/founder-2026-10-30/governance-product.md` GP-6); finishing an item already in flight is allowed. Track V2 and V3
+are frozen until v1 has run seven days on a host, and their B2B items until CP2 (`docs/decisions/founder-2026-10-30/round5.md`
+R5-1, R5-6). The business is paused from 2026-10-31 after the CP1 miss (GATES §4).
+
 **Not agent-delegable (founder actions, kept visible so they don't vanish):**
-Eurostars skip/go decision by 1 Sep 2026 (13 §3.1(8)); external account
+~~Eurostars skip/go decision by 1 Sep 2026~~ (lapsed, recorded as skip: GP-12); external account
 registrations incl. FIRMS MAP_KEY and FireSat Early Adopter
 (`EXTERNAL-ACCOUNTS.md`); 3–5 volunteer-formation duty-officer interviews in
 Q4 2026; Bulgarian lawyer engagement / ЕООД formation / EUTM filing (Wave-2 legal);
@@ -168,6 +178,9 @@ curation (~30 min/week from WP1).
 
 **Pending founder decisions (review 20 §7 Q3 — one line each: decision → who asked,
 when deferred → due; struck through or moved to the WORKLOG when taken):**
+
+*2026-10-30 — the founder delegated every decision analysis can settle. The records are in
+`docs/decisions/founder-2026-10-30/` (one file per domain); each struck line names its row.*
 
 - ADR-002 A2.3(3)'s FER exclusion contradicts itself: removing the 14-day
   unobservability closures from the numerator **only**, while leaving them in the
@@ -180,50 +193,52 @@ when deferred → due; struck through or moved to the WORKLOG when taken):**
   which touch the formula and none of which move a bucket. Correcting a review's own
   table is a founder's edit → D12, 2026-09-03 → before D7's refit, which would otherwise
   be checked against a table that does not reproduce.
-- User-data cap for `infra/cloud-init.yaml` (slim the contract vs pre-signed
+- ~~User-data cap for `infra/cloud-init.yaml` (slim the contract vs pre-signed
   `#include`) → 21 E1/Q1, 2026-09-02 → this week; nothing deploys until then.
   2026-10-10: the size half no longer blocks (gzip+base64 user_data is 22,184 of
   32,768 bytes, see B9). The open question is now only where the on-box scripts
-  belong: first-boot user_data, or deploy-time delivery.
-- The integration series — the founder's "commit" under rule 4 — and branch
-  protection on `main` → 22 E1/Q1, 21 E5, 2026-09-02 → this week.
-- D-track pause until the host records (every unrecorded day is a row in
-  23 E5's table) → 21 Q6, 2026-09-02 → this week.
+  belong: first-boot user_data, or deploy-time delivery.~~ → **decided 2026-10-30**: deploy-time delivery from `infra/host/` with a sha256 manifest (GP-1); follow-up B9-F1.
+- ~~The integration series — the founder's "commit" under rule 4 — and branch
+  protection on `main` → 22 E1/Q1, 21 E5, 2026-09-02 → this week.~~ → **decided 2026-10-30**: series in dependency order, `main` protected with five required checks (GP-2); applying the protection is still owner action.
+- ~~D-track pause until the host records (every unrecorded day is a row in
+  23 E5's table) → 21 Q6, 2026-09-02 → this week.~~ → **decided 2026-10-30**: yes (GP-6).
 - Retention rule with a named owner (OPERATIONS §6.2 rule 11 says "no owner")
   → 04 §6 Q6 (July 2026), 23 E3/Q1 (2026-09-02) → September 2026.
-- §0 rule 8 "integrated means committed and green", and where the code-review
-  standard lives → 22 E2/Q2, 2026-09-02 → September 2026.
-- CP1 protocol and its home `docs/reports/` → GATES §4; 20 Q2, 2026-09-02 →
-  September 2026, before the season it grades.
-- Stopping-rule amendment for the review corpus ("grows only on a founder request
-  that names the ownerless decision") → 20 Q1, 2026-09-02 → September 2026.
+- ~~§0 rule 8 "integrated means committed and green", and where the code-review
+  standard lives → 22 E2/Q2, 2026-09-02 → September 2026.~~ → **decided 2026-10-30**: adopted as §0 rule 8; the review standard lives in `docs/ENGINEERING-PRACTICE.md` §4 (GP-3, GP-4).
+- ~~CP1 protocol and its home `docs/reports/` → GATES §4; 20 Q2, 2026-09-02 →
+  September 2026, before the season it grades.~~ → **decided 2026-10-30**: `docs/reports/cp1-protocol.md`, written late; CP1 missed (GP-5, `docs/reports/cp1-2026-10-31.md`).
+- ~~Stopping-rule amendment for the review corpus ("grows only on a founder request
+  that names the ownerless decision") → 20 Q1, 2026-09-02 → September 2026.~~ → **decided 2026-10-30**: adopted (GP-7).
 - Cloud-proxy wording: A19 and DATA-SOURCES §D6 say Open-Meteo `cloud_cover`, the
   code records ECMWF `tcc` → 23 E4/Q3 (with the 11 author), 2026-09-02 → before the
   CP1 protocol is written.
-- `COVERED_AREA` stays Bulgaria + 100 km (published promise; not widened when the
+- ~~`COVERED_AREA` stays Bulgaria + 100 km (published promise; not widened when the
   default frame moved) → WORKLOG 2026-08-26 (07, 08, ADR-005) → decided by default;
-  reopen only with a product reason.
+  reopen only with a product reason.~~ → **decided 2026-10-30**: confirmed (GP-26).
 - The second person (curation sweep, August inbox cover, continuity file; L-11
   quietly assumes one) → 16 §6 Q4, 18 §6 Q1, 2026-08-25 → before the 2027 season.
-- WCAG 2.1 or 2.2 → 19 §6 Q1 vs 09 §4.3, 2026-08-25 → L-16 requires the target
-  declared.
-- Crowdsourced reports in the 2027 season at all → 16 §5.9, 18 §5.6.4, 2026-08-25 →
-  before the work package that would ship them is dispatched.
-- Archive licence and deposit (publication is not backup) → 18 §6 Q2 (2026-08-25),
-  23 E9/Q5 (2026-09-02) → v1, before the archive is large enough to make it expensive.
-- Turkish alert locale → 19 §6 Q2, 2026-08-25 → CP2, with reach data.
-- Eurostars skip/go → 13 §3.1(8), due 1 Sep 2026 — **past due; the outcome is not
-  recorded in this file or the WORKLOG.**
+- ~~WCAG 2.1 or 2.2 → 19 §6 Q1 vs 09 §4.3, 2026-08-25 → L-16 requires the target
+  declared.~~ → **decided 2026-10-30**: WCAG 2.2 AA (GP-11).
+- ~~Crowdsourced reports in the 2027 season at all → 16 §5.9, 18 §5.6.4, 2026-08-25 →
+  before the work package that would ship them is dispatched.~~ → **decided 2026-10-30**: none in 2027 (GP-10).
+- ~~Archive licence and deposit (publication is not backup) → 18 §6 Q2 (2026-08-25),
+  23 E9/Q5 (2026-09-02) → v1, before the archive is large enough to make it expensive.~~ → **decided 2026-10-30**: CC BY 4.0 with a DOI deposit; raw FIRMS not republished (GP-8).
+- ~~Turkish alert locale → 19 §6 Q2, 2026-08-25 → CP2, with reach data.~~ → **decided 2026-10-30**: deferred to CP2 (GP-9).
+- ~~Eurostars skip/go → 13 §3.1(8), due 1 Sep 2026 — **past due; the outcome is not
+  recorded in this file or the WORKLOG.**~~ → **decided 2026-10-30**: lapsed, recorded as skip (GP-12).
 - Round 5 (reviews 24–32, 2026-10-30) — the acts every seat's critical path passes
   through; full list in `reviews/00-summary.md` round 5 and Track R5:
-  - Freeze V2/V3 until v1 has run a week on a host → 25 Q1, 26, 32 → this week.
+  - ~~Freeze V2/V3 until v1 has run a week on a host → 25 Q1, 26, 32 → this week.~~ → **decided 2026-10-30**: yes; B2B until CP2 (`docs/decisions/founder-2026-10-30/round5.md` R5-1, R5-6).
   - Protect `main` (ruleset, required CI) and enable secret scanning, push protection and
-    Dependabot → 25, 27, 28 → this week; CI has been red since 2026-09-26.
-  - MAP_KEY and the DS-1 backfill → 30 → by 2026-11-20 (the winter fit window).
-  - Record CP1 as missed and date CP1′ (18 Dec vs 15 Jan) → 26, 30, 32 → before 2026-11-15.
+    Dependabot → 25, 27, 28 → this week; CI has been red since 2026-09-26. *Decided (GP-2);
+    the command is in `docs/ENGINEERING-PRACTICE.md` — still owner action.*
+  - MAP_KEY and the DS-1 backfill → 30 → by 2026-11-20 (the winter fit window). Start by
+    **2026-11-15**: that date decides whether CP1′ is 18 Dec or 15 Jan (R5-2). Still owner action.
+  - ~~Record CP1 as missed and date CP1′ (18 Dec vs 15 Jan) → 26, 30, 32 → before 2026-11-15.~~ → **decided 2026-10-30**: missed (`docs/reports/cp1-2026-10-31.md`); CP1′ 18 Dec if MAP_KEY + DS-1 start by 2026-11-15, else 15 Jan, on 2024 (R5-2, GATES §4).
   - Day 0 accounts (host, R2, domain, mail sender) → 26, 27 → by 2026-11-30.
   - ЕООД filing and a lawyer → 32 → by 2026-11-30; the L-10 chain is 10–14 weeks.
-  - Repository licence (proposed AGPL-3.0 code, CC BY 4.0 data) → 32 → by 2026-12-31.
+  - ~~Repository licence (proposed AGPL-3.0 code, CC BY 4.0 data) → 32 → by 2026-12-31.~~ → **decided 2026-10-30**: AGPL-3.0-only + CC BY 4.0 + trademark policy, applied after the dependency sweep and the lawyer's check (R5-3, R5-BIZ-5).
 
 ---
 
@@ -554,6 +569,8 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   `#include` a pre-signed URL) plus a real Hetzner account/token for the
   end-to-end run.*
   *2026-10-10 — the size half is resolved by compression, with no deploy-time delivery change, no pre-signed URL and no new host. `provision.sh` gzips the comment-stripped document (`-9n`) and base64-encodes it onto one line. Result: 22,184 bytes against the 32,768 cap, a 10,584-byte margin (32%); raw 59,806, comment-stripped 49,449. Why this is safe: Hetzner's API takes user_data as an opaque string, and `hcloud --user-data-from-file` passes it verbatim. cloud-init's Hetzner datasource base64-decodes it (`maybe_b64decode`, `validate=True`, hence one line), and cloud-init gunzips it. Both steps exist in cloud-init 20.3 and later; Debian 12 ships 22.4.2. Nothing encoded is committed, and `cloud-init.yaml` stays the readable source. Checks: the script decodes its own output and byte-compares it with the render. Preflight prints size and margin on every run, warns below 4,096 bytes of headroom, and still exits 2 over the cap. `--emit-user-data <path>` writes what would be sent. The new unit test `infra/user-data/render.test.ts` runs the real `--dry-run`, decodes the way the datasource does, and requires the decoded document and every `write_files` payload, byte for byte, to match the repo file (`yaml` added as a root devDependency). In a `debian:12` container (cloud-init 22.4.2), the datasource helper plus `UserDataProcessor` produced one `text/cloud-config` part, byte-identical to the render, and `cloud-init schema -c` reported it valid. Per-file `encoding: gz+b64` was measured first and rejected (33,761 bytes, still over). Still unticked: a real Hetzner account/token and the first real VM run to "migrations applied". That run is also the first real boot of the encoded path. Left to the founder: 21 E1/Q1 (decision list above). Size no longer forces it, but whether the large on-box scripts belong in first-boot user_data or in deploy-time delivery is still a §9 ownership choice.*
+  *2026-10-30 — founder decision GP-1 (`docs/decisions/founder-2026-10-30/governance-product.md`): the on-box scripts are delivered at deploy time. OPERATIONS §9 already says so (197cd24). The file move is follow-up B9-F1 below.*
+- [ ] **B9-F1 — Move the on-box scripts from `cloud-init.yaml` to `infra/host/` with a sha256 manifest.** Spec: GP-1, OPERATIONS §9 (deploy-time delivery and drift rule), review 21 E1 option 1. Writes: `infra/cloud-init.yaml`, `infra/host/**`, `infra/user-data/render.test.ts`, the deploy step that copies and verifies the manifest. **Done when:** `cloud-init.yaml` carries only what the first deploy needs; every moved script is in `infra/host/` and listed in the manifest with its sha256; the deploy refuses a host whose installed copies do not match the manifest; the render test still passes and the user_data margin is reported.
 
 ## Track C — WP1 ingestion in shadow mode (Aug–Sep 2026) — THE PRIORITY
 
@@ -808,6 +825,9 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   §5.2.2 vs DS-2/review 23 E5 disagree; profile@0 is the lag distribution only.*
 
 ## Track D — WP2 clustering & identity engine (Sep–Oct 2026, critical path)
+
+> **Paused 2026-10-30** (GP-6): no new D item is dispatched until a provisioned host records
+> live detections. An item already in flight may finish.
 
 - [ ] **D1 — Incremental clustering core.** Spec: ADR-002 D2/D3 + A14 tie-break
   appendix. Needs: B5, C1. Per-batch algorithm, eps per source, T_LINK, GEO
@@ -2662,6 +2682,9 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 
 ## Track V2 — v2.0 wave 1 (`V2-FEATURES.md` §5, §7)
 
+> **Frozen 2026-10-30** (`docs/decisions/founder-2026-10-30/round5.md` R5-1, R5-6): nothing here is
+> ticked or extended until v1 has run seven days on a host; V2-G* until CP2.
+
 Each item: spec in `V2-FEATURES.md` §3; done when its founder decisions (§7) are recorded, copy
 reviewed in both locales, CI-7/12/13/14/18 green.
 
@@ -2704,9 +2727,9 @@ host or data.
 
 ### Group R5-PROD — product & delivery (review 26)
 
-- [ ] **R5-PROD-1 — Written V2/V3 feature freeze, enforced by the claim tool.** Spec: review 26 E-1, E-10. Writes: `docs/V2-FEATURES.md` §7, `docs/V3-FEATURES.md` §7, `docs/V3-WORKPLAN.md` §2 (freeze block, unstarted rows → `frozen`), the start-on-roadmap claim filter. Done when: `scan` on V3-WORKPLAN reports 0 free rows and the freeze block names its lift condition. Est: 1.5 h. Status: blocked-owner.
+- [x] **R5-PROD-1 — Written V2/V3 feature freeze, enforced by the claim tool.** Spec: review 26 E-1, E-10. Writes: `docs/V2-FEATURES.md` §7, `docs/V3-FEATURES.md` §7, `docs/V3-WORKPLAN.md` §2 (freeze block, unstarted rows → `frozen`), the start-on-roadmap claim filter. Done when: `scan` on V3-WORKPLAN reports 0 free rows and the freeze block names its lift condition. Est: 1.5 h. Status: blocked-owner. *2026-10-30 — done: freeze blocks in V2 §7, V3 §7 and V3-WORKPLAN §2, with 17 rows set to `frozen`. `scan` reports 0 free rows; no claim-filter change was needed, because the script hands out only `todo` (`docs/decisions/founder-2026-10-30/round5.md` R5-1).*
 - [ ] **R5-PROD-2 — Day 0: accounts, host and backfill started.** Spec: review 26 E-2. Writes: `docs/EXTERNAL-ACCOUNTS.md` (DPA/date columns), `docs/data/DATASETS.md` DS-1 "Fetched". Done when: MAP_KEY, VM, R2, healthchecks and mail sender exist; the DS-1 manifest shows ≥ 1 verified chunk; the ЕООД filing date is recorded. Est: 1 h (agent follow-through). Status: blocked-owner.
-- [ ] **R5-PROD-3 — CP1 missed-report and CP1′ protocol.** Spec: review 26 E-3. Writes: `docs/reports/2026-10-31-cp1.md`, `docs/reports/cp1-prime-protocol.md`, `docs/GATES.md` §4 (link + CP1′ date). Done when: both files are committed, GATES §4 links them, and the protocol names its seasons and excludes the 2025 test season unless Q3 says otherwise. Est: 3 h. Status: open.
+- [x] **R5-PROD-3 — CP1 missed-report and CP1′ protocol.** Spec: review 26 E-3. Writes: `docs/reports/2026-10-31-cp1.md`, `docs/reports/cp1-prime-protocol.md`, `docs/GATES.md` §4 (link + CP1′ date). Done when: both files are committed, GATES §4 links them, and the protocol names its seasons and excludes the 2025 test season unless Q3 says otherwise. Est: 3 h. Status: open. *2026-10-30 — done: `docs/reports/cp1-2026-10-31.md` and `docs/reports/cp1-prime-protocol.md`, linked from GATES §4 CP1′. 2025 is excluded (R5-2).*
 - [ ] **R5-PROD-4 — Weekly founder decision batches.** Spec: review 26 E-4, §5.3. Writes: `docs/decisions/batches/README.md`, `docs/decisions/batches/2026-11-02.md`, `docs/TASKS.md` §1 (pointer). Done when: batch 1 holds the six past-due §1 items and this review's Q1–Q7 in the §5.3 row format, and each answered row is reflected back in TASKS §1. Est: 2 h. Status: open.
 - [ ] **R5-PROD-5 — Three-number release signal with remote CI state.** Spec: review 26 E-5, E-9. Writes: the release-progress script and block in `docs/TASKS.md` lines 10–120. Done when: the block shows built / proven-on-host / founder-accepted, off-release hours for V2/V3, the last `main` CI run id and conclusion, and generated backlog counts; `[~]` marks built-unticked rows. Est: 4 h. Status: open.
 - [ ] **R5-PROD-6 — K1 long poles: I2 zones, sign-up UI, PWA shell, mail sender on host.** Spec: review 26 E-6. Writes: per TASKS I2, I-track sign-up, F-track PWA rows. Done when: a test user on the host can store a zone and receive a test alert by mail, by 28 Feb 2027. Est: 60 h. Status: blocked-external.
@@ -2747,7 +2770,7 @@ host or data.
 ### Group R5-QA — QA & test engineering (review 29)
 
 - [ ] **R5-QA-1 — Restore green CI on main.** Spec: review 29 E-1. Writes: `server/src/adapters/db/pg-detection-store.integration.test.ts`, `server/src/db/types.generated.ts`. Done when: a CI run on the pushed `main` SHA is green in all five jobs, and the test asserts against `SOURCE_REGISTRY_VERSION`. Est: 0.5 h. Status: open.
-- [ ] **R5-QA-2 — Rule 8, branch protection and verify:full.** Spec: review 29 E-2. Writes: `docs/TASKS.md` §0, `package.json`, the GitHub branch protection settings. Done when: rule 8 is in TASKS §0; `gh api repos/:o/:r/branches/main/protection` returns the five required checks; `pnpm verify:full` exists and runs the full integration project. Est: 2 h. Status: blocked-owner.
+- [ ] **R5-QA-2 — Rule 8, branch protection and verify:full.** Spec: review 29 E-2. Writes: `docs/TASKS.md` §0, `package.json`, the GitHub branch protection settings. Done when: rule 8 is in TASKS §0; `gh api repos/:o/:r/branches/main/protection` returns the five required checks; `pnpm verify:full` exists and runs the full integration project. Est: 2 h. Status: blocked-owner. *2026-10-30 — the rule-8 half is done (§0 rule 8, GP-3). Branch protection waits on the owner's run of the command in `docs/ENGINEERING-PRACTICE.md`. `verify:full` is still open.*
 - [ ] **R5-QA-3 — Independent CI gate steps.** Spec: review 29 E-3. Writes: `.github/workflows/ci.yml`. Done when: a deliberate test failure plus a codegen drift on a scratch branch shows both failures in one run. Est: 0.5 h. Status: open.
 - [ ] **R5-QA-4 — Real-Postgres tests for the uncovered adapters.** Spec: review 29 E-4. Writes: `server/src/adapters/db/pg-auth.integration.test.ts`, plus siblings for webhook-store reads, erasure-purge, alert-decision-log, staff-store and zone-creation; a sibling-presence check with an allowlist. Done when: the concurrent magic-link consume test passes on PostGIS with exactly one winner; the allowlist of `pg-*` without an integration test is ≤ 8 and shrinking; superseded SQL-string assertions are removed. Est: 10 h. Status: open.
 - [ ] **R5-QA-5 — Fake-origin contract test.** Spec: review 29 E-5. Writes: `server/src/app/api.integration.test.ts`, `web/e2e/harness/origin.contract.test.ts`. Done when: changing a header or body shape in the real API fails the contract test. Est: 4 h. Status: open.
@@ -2760,7 +2783,7 @@ host or data.
 
 - [ ] **R5-DATA-1 — FIRMS MAP_KEY and DS-1 fetched on a laptop.** Spec: review 30 E-1. Writes: `docs/data/DATASETS.md` (DS-1 fields), `docs/EXTERNAL-ACCOUNTS.md` (row 4 status). Done when: `firms_sp_backfill_2020_2025_v1 --check` passes and the DS-1 row counts per source and season plus the hash are recorded. Est: 3 h. Status: blocked-owner.
 - [ ] **R5-DATA-2 — DS-3 EFFIS burned-area plan in code and fetched.** Spec: review 30 E-2. Writes: `server/src/core/fit/` (plan config), `docs/data/DATASETS.md` (DS-3). Done when: a versioned plan with a digest fetches 2020–2025 perimeters and `--check` passes, with the EFFIS mapping floor recorded. Est: 6 h. Status: open.
-- [ ] **R5-DATA-3 — CP1 report recording the miss, and the CP1′ spec.** Spec: review 30 E-3. Writes: `docs/reports/cp1-2026-10-31.md`, `docs/GATES.md` (CP1′ row). Done when: the report lists every CP1 criterion with evidence or "missed", and CP1′ has a date, a metric and a dataset. Est: 2 h. Status: open.
+- [x] **R5-DATA-3 — CP1 report recording the miss, and the CP1′ spec.** Spec: review 30 E-3. Writes: `docs/reports/cp1-2026-10-31.md`, `docs/GATES.md` (CP1′ row). Done when: the report lists every CP1 criterion with evidence or "missed", and CP1′ has a date, a metric and a dataset. Est: 2 h. Status: open. *2026-10-30 — done with R5-PROD-3. CP1′ has a date (18 Dec or 15 Jan, by trigger), a metric (shadow-PCR graded, PLB live only) and a dataset (DS-1 2024 + DS-3).*
 - [ ] **R5-DATA-4 — D7 grid re-cut for the 2027 constellation.** Spec: review 30 E-4. Writes: `server/src/core/fit/fit-params.ts`, `server/src/core/fit/fit-report.ts`. Done when: `clustering_fit_grid_v2` sweeps VIIRS ε × T_LINK × active window with MODIS ε fixed, and a FIT_DECISIONS entry records the change. Est: 3 h. Status: open.
 - [ ] **R5-DATA-5 — Bottom-stratum power analysis before the fit.** Spec: review 30 E-5. Writes: `server/src/core/fit/` (power report), `docs/GATES.md` §2. Done when: n per stratum per season and the Wilson bound are reported from DS-3, and the founder has chosen the gated stratum before any recall is computed. Est: 4 h. Status: blocked-external.
 - [ ] **R5-DATA-6 — D7 run, score v1 fit, p_det and FER replay.** Spec: review 30 E-6. Writes: `server/src/core/clustering/clustering-params.ts`, `server/src/core/scoring/score-params.ts`, `server/src/core/config/lifecycle-params.ts` (candidates, `active: false`). Done when: the fit report shows a plateau or "no candidate", and `score_params_v1` and `lifecycle_params_v2` candidates exist with digests. Est: 24 h. Status: blocked-external.
@@ -2790,15 +2813,15 @@ host or data.
 
 ### Group R5-BIZ — legal & business (review 32)
 
-- [ ] **R5-BIZ-1 — Settle CP1: replay report or recorded re-baseline.** Spec: review 32 E-1. Writes: docs/reports/cp1-2026.md, docs/GATES.md. Done when: the report exists with PCR/PLB numbers and the "replay" label, or GATES records a dated re-baseline signed by the founder. Est: 10 h. Status: blocked-owner.
+- [x] **R5-BIZ-1 — Settle CP1: replay report or recorded re-baseline.** Spec: review 32 E-1. Writes: docs/reports/cp1-2026.md, docs/GATES.md. Done when: the report exists with PCR/PLB numbers and the "replay" label, or GATES records a dated re-baseline signed by the founder. Est: 10 h. Status: blocked-owner. *2026-10-30 — done by the re-baseline branch: GATES §4 CP1′ records the dated re-baseline (R5-2), and the CP1 report records the miss.*
 - [ ] **R5-BIZ-2 — Form the ЕООД and accept processor DPAs in its name.** Spec: review 32 E-2. Writes: docs/legal/dpa-inventory.md, docs/legal/ropa.md (controller row). Done when: the registry entry number is recorded and every `required` DPA row is marked accepted with a date. Est: 12 h. Status: blocked-owner.
 - [ ] **R5-BIZ-3 — Engage a Bulgarian lawyer for ToS, privacy and DPIA review.** Spec: review 32 E-3. Writes: docs/legal/launch-checklist.md. Done when: an engagement on a fixed fee is recorded and the brief (09 + 32) has been sent. Est: 4 h. Status: blocked-owner.
 - [ ] **R5-BIZ-4 — Bring the RoPA/DPIA/LIA/DPA inventory to the as-built schema.** Spec: review 32 E-4. Writes: docs/legal/ropa.md, docs/legal/dpia.md, docs/legal/lia.md, docs/legal/dpa-inventory.md, docs/legal/README.md. Done when: every migration that creates a table with personal data (018, 026–031, 034, 035, V3 block) is cited by its correct file name, and GIBS, Sentry, Grafana and webhook recipients each have a DPA row. Est: 8 h. Status: open.
-- [ ] **R5-BIZ-5 — Decide and apply the repository licence.** Spec: review 32 E-5. Writes: LICENSE, package.json `license` fields, CONTRIBUTING.md. Done when: `gh repo view --json licenseInfo` returns non-null and every package declares the same licence. Est: 4 h. Status: blocked-owner.
+- [ ] **R5-BIZ-5 — Decide and apply the repository licence.** Spec: review 32 E-5. Writes: LICENSE, package.json `license` fields, CONTRIBUTING.md. Done when: `gh repo view --json licenseInfo` returns non-null and every package declares the same licence. Est: 4 h. Status: blocked-owner. *2026-10-30 — decided: AGPL-3.0-only + CC BY 4.0 + trademark policy (R5-3). Still open: the `pnpm licenses` sweep, the lawyer's check, then the file. Status: open (no longer blocked-owner on the choice).*
 - [ ] **R5-BIZ-6 — Write the missing licence files and fence the unlicensed inputs.** Spec: review 32 E-6. Writes: docs/licenses/{meteoalarm,protomaps,noto,copernicus-dem,terrarium,firesat,esri}.md. Done when: every adapter directory and every `credits.ts` source has a licence file, and FireSat/CelesTrak are marked fenced with a test or lint that blocks their public use. Est: 8 h. Status: open.
 - [ ] **R5-BIZ-7 — Name clearance and EUTM filing.** Spec: review 32 E-7. Writes: docs/legal/launch-checklist.md (M3). Done when: the clearance record is filed and the EUTM application number is recorded, or a written decision to launch unregistered exists. Est: 6 h. Status: blocked-owner.
 - [ ] **R5-BIZ-8 — Redistribution matrix and V2-Q4 answer.** Spec: review 32 E-8. Writes: docs/licenses/README.md, docs/V2-FEATURES.md (Q4). Done when: each source has a raw/derived/display-only verdict, and V2-G1/V3-D1/D3/D4 reference it as their gate. Est: 6 h. Status: open.
-- [ ] **R5-BIZ-9 — Record the B2B freeze until CP2.** Spec: review 32 E-9. Writes: docs/V3-WORKPLAN.md, docs/V2-FEATURES.md. Done when: both files state the freeze and the date it lifts, and no new V2-G/V3-D/G item is marked in progress. Est: 1 h. Status: blocked-owner.
+- [x] **R5-BIZ-9 — Record the B2B freeze until CP2.** Spec: review 32 E-9. Writes: docs/V3-WORKPLAN.md, docs/V2-FEATURES.md. Done when: both files state the freeze and the date it lifts, and no new V2-G/V3-D/G item is marked in progress. Est: 1 h. Status: blocked-owner. *2026-10-30 — done: R5-6 keeps V2-G*/V3-D*/V3-G* frozen until CP2 has passed. It is stated in V2 §7 and V3-WORKPLAN §2.*
 - [ ] **R5-BIZ-10 — Record funding outcomes and submit one CP2 application.** Spec: review 32 E-10. Writes: docs/EXTERNAL-ACCOUNTS.md, docs/reports/funding-2027.md. Done when: Eurostars, Galileo and Mapbox each have a recorded outcome, and one application has a submission receipt dated before 2027-04-30. Est: 38 h. Status: blocked-external.
 - [ ] **R5-BIZ-11 — ISKRA-aware positioning page and partner pitch.** Spec: review 32 E-11. Writes: docs/POSITIONING.md. Done when: the page names three differentiators that are verifiable in the product, and the WWF/Meteo Balkans outreach uses it. Est: 6 h. Status: blocked-owner.
 - [ ] **R5-BIZ-12 — PI insurance quote and a real 30-day cost sample.** Spec: review 32 E-12. Writes: docs/RISKS.md (R3, R11 note). Done when: a quote figure and a measured monthly infrastructure cost are recorded. Est: 4 h. Status: blocked-external.

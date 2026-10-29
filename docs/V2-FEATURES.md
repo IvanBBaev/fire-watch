@@ -208,7 +208,8 @@ None of the competitors reviewed combine these for the Balkans.
 > **Frozen 2026-10-30** ([founder record](decisions/founder-2026-10-30/round5.md), R5-1). No V2
 > item is started, ticked or merged until v1 has run seven days on a provisioned host with
 > green CI on a protected `main`. The merged code below stays dark and unticked. Fixes are
-> allowed only when a v1 gate needs them.
+> allowed only when a v1 gate needs them. The B2B and paid items (V2-G\*) stay frozen until CP2
+> has passed (R5-6).
 
 *2026-10-24 — wave 1 built on `main` (all gates green locally), every item unticked in `TASKS.md`
 Track V2 until its founder decisions land.*
