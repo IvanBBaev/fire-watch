@@ -53,7 +53,7 @@ GATES §3 launch gates with no TASKS item yet.
 | C3 | C3 remainder: real LSA SAF GEO ingest — EUMETSAT/LSA SAF credentials | TASKS.md:599 | `blocked-external` | 2.7 |
 | C3a | C3a remainder: real LSA-502 granule + worker wiring — LSA SAF credentials | TASKS.md:610 | `blocked-external` | 1.3 |
 | C4 | C4 remainder: VM recording run, serve TTL, healthchecks slug — VM + hc account | TASKS.md:618 | `blocked-external` | 0.8 |
-| C5 | C5 remainder: monitoring accounts, sweeper, WAL-lag — host + accounts; founder thresholds | TASKS.md:633 | `blocked-external` | 1.4 |
+| C5 | C5 remainder: monitoring accounts, sweeper, WAL-lag — host + accounts (thresholds decided 2026-10-30) | TASKS.md:633 | `blocked-external` | 1.4 |
 | C6 | C6 remainder: scratch-VM restore, R2, second copy — R2 + host; founder retention | TASKS.md:651 | `blocked-external` | 2.3 |
 | C7 | C7 remainder: dry-run on a real backfill month — needs B8 data | TASKS.md:674 | `blocked-external` | 0.4 |
 | C8 | C8 remainder: EFFIS/EUMETSAT licence text — Data Store registration; founder wording | TASKS.md:694 | `blocked-external` | 0.6 |
@@ -69,33 +69,33 @@ GATES §3 launch gates with no TASKS item yet.
 | E3 | E3 remainder: bucket/hostname/token, frozen-ingest check — R2/Cloudflare account | TASKS.md:1541 | `blocked-external` | 1 |
 | E4 | E4 remainder: fleet observation in staging — staging host | TASKS.md:1556 | `blocked-external` | 0.8 |
 | E6 | E6 remainder: staging + real R2 failover run — staging + R2 | TASKS.md:1652 | `blocked-external` | 1.4 |
-| F4 | F4 remainder: armed staleness thresholds + copy — founder | TASKS.md:1772 | `blocked-owner` | 0.8 |
+| F4 | F4 remainder: none — thresholds armed, copy cleared 2026-10-30 (thresholds-ops F4) | TASKS.md:1772 | `done` | 0.8 |
 | F8 | F8 remainder: real-basemap timing — G1 tile host | TASKS.md:1962 | `blocked-external` | 1 |
 | F10 | F10 remainder: none for copy — keys cleared 2026-10-30 (copy C-REG) | TASKS.md:1978 | `done` | 0.5 |
 | F11 | F11 remainder: none — EFFIS six classes, imagery in panel, keys cleared 2026-10-30 (copy C-FWI, C-F11) | TASKS.md:1984 | `done` | 0.9 |
-| F12 | F12 remainder: ON_DEMAND_DATA budget rule — keys cleared 2026-10-30 (copy C-F12) | TASKS.md:1991 | `blocked-owner` | 0.5 |
+| F12 | F12 remainder: none — ON_DEMAND_DATA ratified, keys cleared 2026-10-30 | TASKS.md:1991 | `done` | 0.5 |
 | F13 | F13 remainder: none for copy — cleared 2026-10-30 (copy C-F13) | TASKS.md:1998 | `done` | 0.4 |
-| F14 | F14 remainder: 5 keys, speed ramp, credit — founder | TASKS.md:2004 | `blocked-owner` | 0.5 |
-| F15 | F15 remainder: keys, thresholds, CelesTrak terms — founder | TASKS.md:2011 | `blocked-owner` | 0.6 |
+| F14 | F14 remainder: none — ramp ratified, keys cleared 2026-10-30 | TASKS.md:2004 | `done` | 0.5 |
+| F15 | F15 remainder: CelesTrak commercial-use terms — lawyer (keys and thresholds settled 2026-10-30) | TASKS.md:2011 | `blocked-external` | 0.6 |
 | F16 | F16 remainder: S3 — annotate policy v3 implemented 2026-10-30 (data-policy F16-1..7); mask refresh sign-off is owner | TASKS.md:2018 | `blocked-owner` | 0.7 |
-| F17 | F17 remainder: 5 keys, okta thresholds — founder | TASKS.md:2028 | `blocked-owner` | 0.5 |
+| F17 | F17 remainder: none — okta 25/75 ratified, keys cleared 2026-10-30 | TASKS.md:2028 | `done` | 0.5 |
 | F18 | F18 remainder: real LFL lightning product — EUMETSAT account | TASKS.md:2034 | `blocked-external` | 1.1 |
 | G1 | G1 remainder: tile upload + full tiers — R2 bucket / tile host | TASKS.md:2046 | `blocked-external` | 1.8 |
 | G3 | G3 remainder: hosted DEM — DEM host; founder mirror location | TASKS.md:2053 | `blocked-external` | 1.3 |
 | G5 | G5 remainder: licence checks for Copernicus/OSM/OpenFreeMap/Terrarium/Protomaps (copy C-G5a..c) | TASKS.md:2089 | `blocked-external` | 0.6 |
-| G6 | G6 remainder: usage.json writer, tile endpoint — imagery provider key; founder ceiling | TASKS.md:2111 | `blocked-external` | 1.3 |
-| H4 | H4 remainder: fixtures, rehearsal — founder breaker floor; staging; approval surface | TASKS.md:2263 | `blocked-owner` | 2.3 |
+| G6 | G6 remainder: usage.json writer, tile endpoint — imagery provider key; owner sets the ceiling env (rule decided 2026-10-30) | TASKS.md:2111 | `blocked-external` | 1.3 |
+| H4 | H4 remainder: fixtures, rehearsal — staging; approval surface (floor armed 2026-10-30) | TASKS.md:2263 | `blocked-external` | 2.3 |
 | H5 | H5 remainder: L-5 physical-device test — VAPID keys + device (human act) | TASKS.md:2300 | `blocked-external` | 0.3 |
 | H7 | H7 remainder: build `GET /api/zones/:zoneId/events/:publicId/explanation` — shape ruled 2026-10-30 (data-policy H7) | TASKS.md:2353 | `todo` | 2.4 |
 | H8 | H8 remainder: nightly shadow report in staging — staging host | TASKS.md:2363 | `blocked-external` | 1 |
 | I1 | I1 remainder: OAuth, staff accounts, audit (mail sender/domain still founder; staff pure rules, staff storage, audit log and incident log (migration 026) WebAuthn (migration 027) and staff sessions, key removal and member changes (migration 029), TOTP sign-in, TOTP removal, wrong-code cap and off-boarding (migration 030), TOTP enrollment and the TOTP keyring env (migration 031) built 2026-10-22; re-admission of an off-boarded member built 2026-10-27) | TASKS.md:2382 | `open` | 6.3 |
 | I2 | I2 remainder: polygon edit, matcher — ЕООД before first stored zone (L-10) | TASKS.md:2395 | `blocked-owner` | 1.4 |
 | I3 | I3 remainder: mailer + Telegram bot wiring — founder bot identity + token | TASKS.md:2410 | `blocked-owner` | 2.5 |
-| I4 | I4 remainder: staging erasure drill, retentions — staging; founder retentions | TASKS.md:2427 | `blocked-external` | 0.8 |
+| I4 | I4 remainder: staging erasure drill; erasure-ledger retention — counsel (retentions armed 2026-10-30) | TASKS.md:2427 | `blocked-external` | 0.8 |
 | I5 | I5 remainder: 29 keys, legal review — lawyer + controller entity | TASKS.md:2469 | `blocked-owner` | 1 |
 | I6 | I6 remainder: sign-offs — lawyer, signed DPAs, ЕООД, DPO | TASKS.md:2484 | `blocked-owner` | 2.5 |
 | I7 | I7 remainder: staging drill run — staging host | TASKS.md:2500 | `blocked-external` | 0.6 |
-| J1 | J1 remainder: synthetic canary — operator channel through the gateway (founder); thresholds still founder; meta-alert route built 2026-10-22 | TASKS.md:2506 | `open` | 2.8 |
+| J1 | J1 remainder: synthetic canary probe off-box (thresholds armed 2026-10-30); meta-alert route built 2026-10-22 | TASKS.md:2506 | `open` | 2.8 |
 | J2 | J2 remainder: real RTO runs — staging + R2 | TASKS.md:2517 | `blocked-external` | 0.8 |
 | J3 | J3 remainder: season-tested runbook revision — season experience | TASKS.md:2522 | `blocked-external` | 1.2 |
 | J4 | J4 remainder: real deploy step, secrets — production host | TASKS.md:2532 | `blocked-external` | 1.8 |
@@ -202,8 +202,8 @@ when deferred → due; struck through or moved to the WORKLOG when taken):**
   protection on `main` → 22 E1/Q1, 21 E5, 2026-09-02 → this week.~~ → **decided 2026-10-30**: series in dependency order, `main` protected with five required checks (GP-2); applying the protection is still owner action.
 - ~~D-track pause until the host records (every unrecorded day is a row in
   23 E5's table) → 21 Q6, 2026-09-02 → this week.~~ → **decided 2026-10-30**: yes (GP-6).
-- Retention rule with a named owner (OPERATIONS §6.2 rule 11 says "no owner")
-  → 04 §6 Q6 (July 2026), 23 E3/Q1 (2026-09-02) → September 2026.
+- ~~Retention rule with a named owner (OPERATIONS §6.2 rule 11 says "no owner")
+  → 04 §6 Q6 (July 2026), 23 E3/Q1 (2026-09-02) → September 2026.~~ → **decided 2026-10-30**: the founder role owns it; season 1 keeps everything hot, never below the DS-2 floors (thresholds-ops §6.2-11). Naming a second person for the role is still owner action.
 - ~~§0 rule 8 "integrated means committed and green", and where the code-review
   standard lives → 22 E2/Q2, 2026-09-02 → September 2026.~~ → **decided 2026-10-30**: adopted as §0 rule 8; the review standard lives in `docs/ENGINEERING-PRACTICE.md` §4 (GP-3, GP-4).
 - ~~CP1 protocol and its home `docs/reports/` → GATES §4; 20 Q2, 2026-09-02 →
@@ -685,6 +685,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-09-25 — Grafana leg built, unticked: pure exposition core (`core/observability/prometheus-text.ts`, `metric-catalog.ts`), registry in `adapters/metrics/`, `/metrics` on a separate internal Fastify listener (`adapters/http/metrics-server.ts`) — off unless `FIRE_WATCH_METRICS_PORT` is set, loopback by default, bearer token file required on any other bind; a test proves the public server 404s it, and `/api/health/meta` stays unregistered. Exported: API freshness verdict (same inputs as `/api/health/freshness`); worker heartbeats, loop run/finish/duration, ingest per-source counters, meta-alert readings (L-8 queue age, approval pending); backup CLI node-exporter textfile. `infra/metrics/` holds the Alloy config (secrets by file/env) and Mimir rules mirroring the OPERATIONS paging table; `metrics-rules.test.ts` pins every rule metric to the catalogue and every threshold to its code constant. Blocked on: host, Grafana Cloud stack/token, compose wiring, rule loading. Not exported yet: degradation tier, SSE rejects, event-loop lag, WAL lag, alert deferral/drop counters, dispatch/R2-mirror loop metrics (heartbeats are).*
   *2026-09-25 (wave C) — remaining exports done: API `fw_degradation_tier` (0 SSE / 1 poll; T2 is unobservable server-side), `fw_sse_connections`, `fw_sse_rejected_total{reason=not_offered|not_ready|capacity|client_cap}` via a stream-route `onRefused` hook; both processes `fw_event_loop_lag_p99_seconds` (own sampler on the metrics listener, separate from demotion's); worker loops `dispatch`, `r2_mirror_push`, `r2_mirror_age` emit `fw_loop_*`; `fw_alert_sends_dropped_total{reason="ttl_expired"}` produced from gateway `closed` events. Mimir rule `AlertSendsDropped` (`increase(...[15m]) > 0`, pages) in `queue.yaml`, pinned to `alertDeferralPages`. Still open: `fw_alert_sends_deferred_total` (no producer — B unarmed, manual broadcast unwired), `dropped{reason="expired_unapproved"}` (no deadline sweeper), WAL archive lag (no WAL archiving), no rules for tier/SSE/lag (no thresholds; the §3 `tier == 2` page cannot fire from the server). OPERATIONS U-2 now names `fw_event_loop_lag_p99_seconds`.*
   *2026-09-26 (wave E) — `fw_alert_sends_deferred_total{reason=over_budget_b|manual_approval}` produced: every outbox write goes through `core/alerts/outbox-enqueue.ts`, which enqueues `awaiting_approval` drafts in one call per reason and counts only newly inserted rows (A1.12 "rows entering"; an A1.11 redelivery is not counted; a decision-log `defer` writes no outbox row and is not a deferral). The evaluation cycle reports `deferred`; the worker wires the loop through `observeAlertEvaluation` (series at zero from the first cycle), guarded by a source test in `metrics-wiring.test.ts`. It reads 0 until D5's budget B or the manual broadcast is armed (founder decisions, unchanged). No Mimir rule — A1.12 pages on the deadline and on drops, not on a deferral. Still open: `dropped{reason="expired_unapproved"}` — needs the deadline sweeper (UPDATE past `queueExpirySeconds` in `adapters/db`; the predicate exists in `dispatch-decision.ts`), listed as a founder decision; WAL archive lag — needs WAL archiving itself (wal-g → R2, OPERATIONS §5 / U-8), a `pg_stat_archiver` read in `adapters/db` feeding the existing `wal-archive` freshness row (15 / 60 min) or a gauge, and a founder call on paging.*
+  *2026-10-30 — WAL lag 15/60 min and the `expired_unapproved` sweeper rule decided (thresholds-ops C5-a..c); both unbuilt (no archiver, sweeper not written).*
 - [ ] **C6 — Backups + paging (shadow season protection, B2 blocker).** Spec: A22;
   13 B2. Needs: B9. Nightly encrypted pg_dump to R2, restore script tested once,
   uptime paging. **Done when:** a restore onto a scratch VM succeeds; the season
@@ -823,6 +824,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   key for the week-one parity run and real histograms. Founder decisions: edges v0,
   near-match tolerances (null = off), and what `availability.json` means — 06-qa
   §5.2.2 vs DS-2/review 23 E5 disagree; profile@0 is the lag distribution only.*
+  *2026-10-30 — parity tolerances stay `null` until week-one data (thresholds-ops C9).*
 
 ## Track D — WP2 clustering & identity engine (Sep–Oct 2026, critical path)
 
@@ -1251,6 +1253,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   `TZ=Pacific/Kiritimati LC_ALL=tr_TR.UTF-8`. Every function returns the numerator
   and the denominator alongside the rate, and `rate` is `null` rather than 0 when
   the denominator is — a metric with no population is not a passing metric.*
+  *2026-10-30 — `qa_weekly_report_v3`, ISO-8601 UTC week, ratified (thresholds-ops D8-week, `357b6d3`). `season_bounds` stays open.*
 
   *Two things the write-up assumed and the documents disproved: **FLR and DAR are
   both defined**, in GLOSSARY §8 (FLR "≥ 3 lifecycle direction reversals within 48 h
@@ -1864,7 +1867,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   shows "could not load", a first visit makes zero Geolocation calls and one
   press makes exactly one. The CI-18 sweep's event ready-selector now skips the
   loading state.*
-- [ ] **F4 — Honest-clock staleness UX + degraded banner.** Spec: ADR-005; A12
+- [x] **F4 — Honest-clock staleness UX + degraded banner.** Spec: ADR-005; A12
   §3b copy. Needs: F1, E5. Single-slot banner, freshness chip + "[?]" target,
   frozen-state label. **Done when:** copy strings come from the GLOSSARY tables
   (CI-11 lintable), not hardcoded.
@@ -1882,6 +1885,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   a frozen pipeline can stay silent while the data quietly ages. Whether that is
   dead code, already covered by `/api/health/freshness`, or a genuine bug is
   under investigation; the tick waits on the verdict.*
+  *2026-10-30 — ticked: VIIRS quiet after 36 h as a layers-panel note, 10-min report-age budget so a stale report cannot clear a banner (thresholds-ops F4-a..c, `3b65cf1`).*
 
   *2026-09-22 — verdict: **a genuine bug, and a narrower one than the note
   feared.** The worry splits in two, and the halves have different answers.
@@ -2074,6 +2078,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-09-25 (wave C) — the timing gate proves the paint: with the opt-in `__fireWatchE2eMapReadyProbe`, `fw:map-ready` carries a probe (`web/src/map/map-ready-probe.ts`, same-frame `queryRenderedFeatures` on `fire-dot`) and `map-ready.timing.ts` fails any run where an in-view event was not rendered. Mutation check: a `fire-dot` filter matching nothing turns both budgets red ("rendered 0 of 6 in-view events"); reverted. Passes at load ≈ 9; fails at load ≈ 150 (calibration does not cover a saturated host). Still unticked: byte overage decision, `test:timing` not a CI step, stand-in basemap until G1.*
   *2026-10-10 — `test:timing` is a CI step: the `timing` job of `ci.yml` (own runner after `verify`, so no other job shares its CPU; the same pinned headless shell and cache key as `e2e` but no fallback to the runner's Chrome, since another build is another device; no retries, no `continue-on-error`; prints `nproc`/CPU model/load first). Hosted runners need no further guard by design: calibration throttles a slower host less, a host slower than the reference device is skipped, and too few representative runs fail as inconclusive — never a false pass. Two fixes on the way: the script built only `@fire-watch/web`, so a fresh checkout could not resolve `@fire-watch/contracts` (now `@fire-watch/web...`, as e2e/budgets since 08f3161; proven from a deleted contracts `dist`), and the default reporter dropped the per-run table on a pass (now `--reporter=verbose`). Local, load ≈ 40–60: Fast 4G median 4415 ms / 6000 (one run 6875), Fast 3G median 12340 ms / 15000. Not yet observed on a hosted runner — the first CI run is the evidence; making the job a required check is a branch-protection setting. Still unticked: byte overage decision, stand-in basemap until G1.*
   *2026-10-10 — CI-12 byte overage closed at the source. Cause: MapLibre 6 ships three ESM files whose page and worker entries both import `maplibre-gl-shared.mjs`, but the `?worker&url` import rebundled the worker with its own copy of the shared module, and the page-side map chunk inlined a second copy. MapLibre was shipped twice (worker 126.8 KiB gz against MapLibre's own 5.7). Fix: `maplibreSharedModule()` in `web/vite.config.ts` emits MapLibre's shared and worker files verbatim (hashed). The map chunk imports the shared file as an external module, and `modulePreload.resolveDependencies` lists it beside the map chunk so it downloads in parallel. The CI-12 gate now charges externally imported modules to the importing chunk, once, and does not treat Vite's `__vite__mapDeps` preload list as a name (unit-tested). The e2e origin now sends a content ETag and 304s static files, so the worker re-fetching the shared module costs one RTT, as with any validating host. KiB gz before → after: map 243.1 → 136.2, worker 126.8 → 5.7, shared (new) 131.0, index 36.4 → 36.4, others unchanged. Budgets: map 369.8 → 272.9 KiB / 290, critical path 439.6 → 342.6 KiB / 350, entry 69.7 KiB, CSS 3.3 KiB. `KNOWN_OVER_BUDGET` is empty. Timing medians (same host, load ≈ 40–60): Fast 4G 3235–3266 → 3257–3338 ms (one noisy run 4509) / 6000, Fast 3G 12405–12453 → 12740–12968 ms / 15000 (final run at load ≈ 11: 3257 / 12740). The harness adds ≈ 400 ms on Fast 3G because it serves uncompressed bodies (the verbatim shared module is ≈ 68 KB larger raw than the tree-shaken copy) and does not throttle the dedicated worker's own fetches, so the old 470 KB worker cost nothing there. In real gzip terms, the map path is ≈ 97 KiB lighter. Production hosting must serve `.mjs` as JavaScript and send validators or immutable caching for `/assets/*`. Still unticked: stand-in basemap until G1, first hosted-runner timing evidence.*
+  *2026-10-30 — CI-12 critical path back under 350 KiB without raising the budget, `KNOWN_OVER_BUDGET` empty (thresholds-ops F8, `b4d4081`). Left: real-basemap timing on the G1 tile host.*
 
 - [x] **F9 — Real data on the map (keyless FIRMS + local live stack).** Spec:
   2026-09-28 competitor review (ISKRA, iskra.watch). Needs: C1, E1. A keyless
@@ -2098,7 +2103,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   Later: wind (ECMWF), satellite passes, lightning (MTG LI), cloud per pass.
   *2026-09-28 — panel + EFFIS built, unticked (17 `layers.*` keys pending copy review). `web/src/ui/layers-panel.tsx`, `ui/layers.ts` (URL seam `parseOverlayParam`/`formatOverlayParam`), `map/effis-overlays.ts`, shared `map/layer-host.ts`. FWI raster (opacity 0.55, "For DD/MM", "not today") and burnt areas (violet) via `/overlays/effis/*` only; server layers moved to `effis_layers_v2` — the v1 names could never have been served. CI-14: two recorded findings (FWI legend swatches repeat EFFIS's palette). CI-13: new `effis-on` dimension. Open: GLOSSARY §7 FWI classes ≠ EFFIS's six-class legend; imagery moved from the controls row into the panel (placement is a founder call).*
   *2026-10-30 — ticked: keys cleared; the FWI legend relays EFFIS's six classes credited to EFFIS (copy C-FWI, GLOSSARY amendment); imagery stays in the panel (copy C-F11).*
-- [ ] **F12 — Filters, search, URL state.** Spec: ADR-005; 2026-09-28 competitor
+- [x] **F12 — Filters, search, URL state.** Spec: ADR-005; 2026-09-28 competitor
   review. Needs: F3. Period presets, sensor filter with counts, oblast filter,
   settlement and coordinate search (licence-clean gazetteer), filters in the
   hash without breaking permalinks. **Done when:** round-trip tests pass and
@@ -2106,6 +2111,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-09-28 — built, unticked (27 keys pending copy review; `ON_DEMAND_DATA` CI-12 rule needs ratifying). Presets 1/3/6/12/24/48 h + all (no 7d: the snapshot carries 48 h). Source families (`core/filter/source-families.ts`, typed over `SourceId`), oblast filter (Natural Earth admin-1, 8 KiB gz), settlement + decimal/DMS search (GeoNames CC BY 4.0, 6,058 places, 65 KiB gz, lazy; `pnpm run geodata`), `#map=…&t=&src=&r=` with old `#map=` permalinks intact. Gap: snapshot/stream carry no `source_ids`, so every event counts as "unreported" and the source filter fails open until `pg-snapshot-reader` joins `event_detections`.*
   *2026-09-30 — gap closed: every snapshot/stream event carries `source_ids: string[] | null` (from `fire_events.source_mix`, same MVCC read and `seq`; a pipeline integration test pins it equal to the live-run `event_detections` join); additive on schema_version 2 (ADR-003 A1.3 rule); web `familiesOf` keeps unknown ids, no ids → "unreported" (fail-open). URL state now survives in-app navigation (`ui/url-state.ts` `repairAppFragment`; overlays in `ov=`). e2e `web/e2e/map-roadmap.e2e.ts` covers filters + reload, place search, FWI toggle + credit, and the new-signals counter/title badge.*
   *2026-10-30 — the 27 keys are cleared (copy C-F12). Still open: ratifying the `ON_DEMAND_DATA` CI-12 rule (thresholds/ops record).*
+  *2026-10-30 — ticked: `ON_DEMAND_DATA` ratified as built (thresholds-ops F12-ODD).*
 - [x] **F13 — New-signals cue.** Spec: GLOSSARY; 2026-09-28 competitor review.
   Needs: F1. Counter of new/updated events since last look, "show" and "mark
   all seen", opt-in sound, title badge while hidden; never-send clean.
@@ -2113,13 +2119,14 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-09-28 — built, unticked (8 `newSignals.*` keys pending copy review; "seen" semantics need confirming — hiding the page marks everything seen). `core/store/new-signals.ts`, `ui/new-signals{.ts,-counter.tsx}`, `adapters/{page-visibility,audio-cue}.ts`; storage `fw:new-signals` (7 d / 500 cap), title badge while hidden, opt-in chime from Settings. CI-7 caught a real defect: in the header the counter's first appearance grew the header, shrank the map frame and re-scoped the in-view list — on map routes it now sits at the top of the side panel.*
 
   *2026-10-30 — ticked: keys cleared; "seen" keeps the built semantics (copy C-F13).*
-- [ ] **F14 — Wind context layer.** Spec: DATA-SOURCES §D2; 2026-09-28
+- [x] **F14 — Wind context layer.** Spec: DATA-SOURCES §D2; 2026-09-28
   competitor review. Needs: C4, F11. ECMWF Open Data 10u/10v decoded server-side,
   a coarse wind grid over the polling box through a cacheable route, arrows by
   speed class in the layers panel with legend, honest run/valid time and ECMWF
   credits while on. **Done when:** decoder tested on real bytes, route and layer
   tested, CI-13/14 recorded, CI-7 e2e green.
   *2026-09-30 — built, unticked (5 `layers.wind*` keys pending copy review). Pure GRIB2 + CCSDS/AEC decoder (`server/src/core/weather/{grib2,aec}.ts`, no eccodes), `wind-overlay.ts` (0.5° grid, 23×15), `GET /overlays/wind/latest.json` (ETag `"w1-…"`, 503 when absent or >6 h old). Web `core/wind.ts`, `map/wind-layer.ts` (arrows downwind, teal→violet ramp, no fire hues), fixture from the real 2026-09-30 00z run, e2e `wind-layer.e2e.ts`, CI-13 `wind-on`. Founder: speed ramp, credit placement (ECMWF terms say "prominently" — arrows stay when the panel is closed), note copy.*
+  *2026-10-30 — ticked: keys cleared (copy C-F14), speed ramp ratified (thresholds-ops F14).*
 - [ ] **F15 — Satellite passes.** Spec: DATA-SOURCES §F15; 2026-09-28 competitor
   review. Needs: F11. Last/next look per platform over the selected event or map
   centre, from CelesTrak elements + SGP4 server-side; predicted and honestly
@@ -2127,6 +2134,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   against a reference, route + panel tested, satellite.js off the web bundle.
   *2026-09-30 — built, unticked (16 `passes.*` keys pending copy review). Server `core/passes/*` (OMM parse, SGP4 via satellite.js, 0.5° cells), CelesTrak refresh every 12 h with provenance and a halt latch, `/api/v1/passes/{cell}`; web `core/passes.ts`, `ui/passes.ts`, `ui/satellite-passes.tsx` (Layers panel, nothing fetched while closed), e2e `satellite-passes.e2e.ts`. Founder: 72 h stale threshold, 0.5° privacy, out-of-swath passes hidden, CelesTrak terms (paraphrased, no ToU page found). Gaps: no swaths drawn, no FeedStatus row for elements, fixture window ends 2026-10-01T13:10Z.*
   *2026-10-01 — gaps closed, still unticked (5 `layers.swaths*` keys pending). Swath product `GET /overlays/passes/swaths.json` (track + swath edges, −6 h…+12 h, content-addressed ETag), `celestrak:elements` FeedStatus row, stored-copy problems logged once per change; web `core/pass-swaths.ts`, `map/pass-swaths-layer.ts` (blue next / violet recent, below fire), `ov=swaths`. Fixture stays real SGP4 output for one moment; e2e pins page + origin clocks to `computed_for` (`initialClockOffsetMs`), so nothing is time-bombed. Founder: duplicated CelesTrak credit, corner credit vs `required: false`.*
+  *2026-10-30 — keys cleared (copy C-REG), 72 h TLE and 0.5° cells ratified (thresholds-ops F15). Left: CelesTrak commercial-use terms (lawyer, data-policy).*
 - [ ] **F16 — Static hot-source / solar mask.** Spec: IP WP2 (A6 "static
   hot-source mask + solar seed"); scoring §3.4; 2026-09-28 competitor review.
   Needs: C-track scoring. Versioned OSM-derived mask of solar parks and industrial
@@ -2138,12 +2146,13 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-10-02 — wave 4, still unticked. Mask hot reload: the worker checks size/mtime every identity cycle, confirms by sha256, rejects half-written files and new bytes under an old `version`, logs `static_source_mask_reloaded`/`_reload_rejected`. Snapshot + stream carry an additive `static_source_verdict` (`annotated`/`clear`/null, schema_version stays 2, ADR-003 note); migration 023 adds it to 004's seq trigger so a verdict flip moves the ETag. Live event pages already read the per-event detections route (comments corrected; counts over the 1000 newest when truncated). Founder: should the event caveat follow the server's `annotated` verdict when the bundled mask finds nothing (needs a kind-neutral string), "known industrial source" label. Gaps: the event caveat still ignores the verdict, S3 blocked.*
   *2026-10-10 — the event caveat follows the server verdict, still unticked (1 more key pending). Pure `eventStaticSourceCaveat(verdict, bundled)` in `web/src/ui/static-sources.ts` (rule: the verdict can only add, never hide what the reader already sees): a bundled-mask hit keeps its kind-specific sentence (per detection or centre) whatever the verdict; no bundled hit + `annotated` → new kind-neutral `eventDetail.staticSourceServer` ("Near a known heat source, according to our server check …"; also shown while the bundle loads or after it fails); no hit + `clear`/absent → nothing, as before. Unit table verdict × lookup, component tests in both locales, e2e `static-sources.e2e.ts` marks `fw-2026-x4k6m` (no bundled source within 5 km) `annotated` on an in-memory fixture copy. Founder: the new key's copy, and whether naming a "server check" to readers is wanted. Gaps: S3 blocked.*
   *2026-10-30 — `static_source_policy_v3`: solar parks are annotated, not overridden; the event caveat follows the server verdict (data-policy F16-1..7, `b3a0e5f`). Left: S3; each mask refresh needs owner sign-off (F16-6).*
-- [ ] **F17 — Cloud cover per pass.** Spec: DATA-SOURCES §D2 (F17 paragraph);
+- [x] **F17 — Cloud cover per pass.** Spec: DATA-SOURCES §D2 (F17 paragraph);
   2026-09-28 competitor review. Needs: F14, F15. ECMWF `tcc` forecast at each
   pass's culmination, labelled a forecast, with a "fires under cloud may be missed"
   caveat. **Done when:** decode tested on real-shaped bytes, passes panel tested,
   CI-13/14 recorded, CI-7 e2e green.
   *2026-10-01 — built, unticked (5 `passes.cloud*` keys pending). `config/cloud-cover.ts` (`cloud_cover_v1`: linear in time between steps ≤6 h apart, never extrapolated), `weather/cloud-cover.ts` (`runWeatherJob`), additive `cloud_forecast_pct` + document `cloud` block (passes schema stays 1, ADR-003 A1.3); web `core/pass-cloud.ts`, `ui/pass-cloud.tsx` (neutral chip, ECMWF credit), e2e `pass-cloud.e2e.ts`. No raster cloud layer (deliberate). Also: wind layer refetches after its step's `valid_at` (`planStepRevalidation`, 30 min retry). Founder: 25/75 % okta thresholds, copy, credit prominence.*
+  *2026-10-30 — ticked: keys cleared, okta 25/75 ratified (thresholds-ops F17).*
 - [ ] **F18 — Lightning layer.** Spec: DATA-SOURCES §F18; 2026-09-28 competitor
   review. EUMETSAT MTG LI LFL (Data Store `EO:EUM:DAT:0691`, CC BY 4.0) behind a
   credential-gated client; flashes of the last 6 h by age, never red/orange,
@@ -2250,6 +2259,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   vars moved into `loadConfig`/`describeConfig` (key shown only as configured / not
   configured) and are listed in the README env table. Still blocks the tick: nothing writes
   `usage.json`, no tile endpoint or key, plus the founder decisions above.*
+  *2026-10-30 — ceiling rule 50 % of the free tier, provisional 1,000,000 (thresholds-ops G6). Owner: confirm the billing period, set `FIRE_WATCH_ARCGIS_TILE_CEILING`.*
 
 ## Track H — WP6 alert stack (Jan–Feb 2027 engine; Mar–Apr 2027 channels + live shadow)
 
@@ -2413,6 +2423,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   *2026-09-25 — claim lease: migration **015** adds `alert_outbox.claimed_at` (CHECK: a claimed row has one; partial index). The start-up "release every claimed row" step is gone; each dispatch cycle first returns claims older than `CLAIM_LEASE_MS` (120 s) to `pending` (`releaseExpiredClaims`, report `expiredLeases`) — safe with several dispatchers. No send starts with less than `CLAIM_SEND_WINDOW_MS` (30 s) of lease left (`claim_lease_exhausted`); a unit test fails if the slowest provider timeout + rate-limit wait exceeds the window. Every settle is fenced on `claimed_at`, so a dispatcher that outlived its lease cannot overwrite the newer claim. Integration tests written, unrun; migration 015 never run on Postgres.*
   *2026-10-27 — singleton guard: the ingest, alert-evaluation and dispatch loops each run under a session-level Postgres advisory lock (class 7020, one fixed key per loop; port `core/ports/loop-lock.ts`, adapter `adapters/db/pg-loop-lock.ts`, own 3-connection pool `<app>-loop-locks`). A worker that finds a loop's lock held skips that cycle — no run, no report, no heartbeat — counts it in `fw_loop_skipped_total{loop,reason}` (no alert rule reads it, so a standby never pages) and logs the first skip of a streak, every 60th, and the takeover. OPERATIONS §9.3 rule 1 and ADR-004 D1's "single dispatcher" are now enforced rather than assumed. Postgres integration test proves two workers' cycles of one loop never overlap and a killed holder frees the lock. Still unlocked by design: identity, digest, monitors and the other loops; the migration lock §9.3 rule 3 describes does not exist (the worker does not run migrations on boot). Not ticked.*
   *2026-10-27 — dispatch retry backoff: migration **033** adds `alert_outbox.delivery_attempts` (CHECK >= 0) and `next_attempt_at`; the claim passes over rows whose retry is not due. A failed attempt — transient provider error, adapter throw, or render throw (previously abandoned `claimed` and re-rendered every cycle) — releases the row with a jittered exponential wait (`core/alerts/delivery-retry.ts`; clock and random draw injected, so deterministic in tests), and the attempt that reaches the cap closes it `failed` with `last_error` = `retry_exhausted:<last error>` (render failures carry `render_failed:`). Cool-off releases, spent leases, a missing adapter and abandoned/expired claims spend no attempt. Founder review: `delivery_params` v2 `retry` = maxAttempts 6, baseDelaySeconds 20, maxDelaySeconds 600, jitterRatio 0.5 (nominal total wait 620 s, inside push's 1800 s TTL). Erasure plan v6 keeps both columns; export schema and codegen updated. Gap: a resolver (port) throw still abandons the claim without counting an attempt.*
+  *2026-10-30 — breaker floor 1,000 / 10 min in `alert_budgets_v2`, provisional (thresholds-ops H4, `377aa53`). Left: fixtures, rehearsal, staging.*
 - [ ] **H5 — Channel adapters + token buckets.** Spec: ADR-004 D6. Needs: H2.
   Web push (TTL 1800 s), Telegram 25/s, email 12/s; queue expiry 6 h;
   dispatch-time liveness re-check (14 M3). **Done when:** physical-device push
@@ -2548,6 +2559,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 - [ ] **I4 — Erasure pipeline.** Spec: ADR-004 D8 + A16 (14 M3). Needs: I1, H1.
   ≤30 d incl. backups; deletion cancels pending outbox in-transaction.
   **Done when:** the erasure drill (I7) passes incl. the outbox case.
+  *2026-10-30 — six purge retentions armed (thresholds-ops I4, `757f0e4`); the erasure-ledger retention is counsel's. `docs/legal/ropa.md` still says "no purge job" — follow-up FD-8.*
 
   *2026-09-23 — code complete, uncommitted, not ticked: migration 010 (erasure ledger with
   only a hashed account id, final tombstones, triggers refusing inserts under an erased
@@ -2626,6 +2638,7 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
 
 - [ ] **J1 — Meta-alerts + canaries + queue-age paging (L-8).** Spec: A22. Needs:
   C5, H1.
+  *2026-10-30 — all eight meta-alert keys armed, hysteresis 2/2 (thresholds-ops J1, `e34060b`). Left: the off-box canary probe.*
 
   *2026-09-23 — partial, uncommitted: pure monitors in `core/monitoring/` (outbox queue
   age/depth/claimed/awaiting approval, identity lag via the `clustering_batches` cursor),
@@ -2757,6 +2770,7 @@ host or data.
 - [ ] **R5-SRE-6 — Register wave-0 accounts and the production Environment.** Spec: review 27 E-6. Writes: `docs/EXTERNAL-ACCOUNTS.md` (status/date column). Done when: rows 1–10 carry a registration date; `gh api …/environments` lists `production`. Est: 0.5 h (+5 founder-h). Status: blocked-owner
 - [ ] **R5-SRE-7 — Prove restore on real R2 with a throwaway drill VM.** Spec: review 27 E-7. Writes: `infra/provision.sh`, `infra/cloud-init.yaml`, `docs/OPERATIONS.md` §8.1/U-10, `docs/drills/README.md`, `docs/GATES.md` L-12/L-17, `docs/drills/records/`. Done when: `--restore-from` no longer exits 64; two records (full, `--main-only`) with RTO met are committed. Est: 4 h (+3 founder-h). Status: blocked-external
 - [ ] **R5-SRE-8 — Every worker loop observable; meta-alerts armed.** Spec: review 27 E-8. Writes: `server/src/app/worker.ts`, `server/src/core/monitoring/meta-alert-params.ts`, `infra/metrics/rules/loops.yaml`. Done when: every `runRepeatedly` loop exports `fw_loop_last_success_timestamp`; one rule pages on the four critical loops; the worker refuses production start without a heartbeat URL (unit test); 8/8 meta-alert keys armed with founder-signed values. Est: 5 h (+1 founder-h). Status: blocked-owner
+  *2026-10-30 — the eight keys are armed (thresholds-ops J1). Left: canary probe, loop gauge and four-loop stall rule, bad heartbeat URL refusal.*
 - [ ] **R5-SRE-9 — 4 GB memory budget and 24 h soak.** Spec: review 27 E-9. Writes: `docs/OPERATIONS.md` §9, `infra/cloud-init.yaml`, `infra/compose.yaml`, a pool-sum unit test. Done when: the budget table is in §9; a test fails if the summed pool maxima exceed `max_connections`; a dated 24 h soak table (RSS, loop-lag p99, pool wait) is committed. Est: 5 h. Status: open
 - [ ] **R5-SRE-10 — One backup implementation.** Spec: review 27 E-10. Writes: `infra/cloud-init.yaml`, `infra/backup/README.md`, `packages/contracts/src/freshness.ts`. Done when: cloud-init contains no `fw-backup` or rclone; the deploy path installs the Node timer; `wal-archive` is not in `HEARTBEAT_JOB_IDS`. Est: 3 h. Status: open
 - [ ] **R5-SRE-11 — WAL archiving to R2 before the first stored watch zone.** Spec: review 27 E-11. Writes: `infra/backup/`, `docs/OPERATIONS.md` §5. Done when: an integration test restores to a point in time within 15 min of a write. Est: 8 h. Status: blocked-owner
@@ -2852,6 +2866,8 @@ Rows the `docs/decisions/founder-2026-10-30/` records left as work. Each cites i
 - [ ] **FD-5 — Demo-data banner for fixture deploys.** Spec: data-policy "Fixtures out of prod". Writes: `web/src/ui/`, catalogs, the deploy config. Done when: any public deploy that serves fixtures shows a permanent "demo data" banner, and a production deploy refuses to serve fixtures as live data. Est: 3 h. Status: todo.
 - [ ] **FD-6 — S10 withdrawn-alert copy.** Spec: data-policy F16 (S10 re-author). Writes: `server/src/core/alerts/` copy, catalogs. Done when: the message sent when an alerted event is later quarantined as a static source is written, reviewed under the copy rule (claim less) and covered by S10. Est: 2 h. Status: todo.
 - [ ] **FD-7 — FireEvent provenance fields.** Spec: copy C-NS. Writes: `packages/contracts`, the snapshot writer, the web event detail. Done when: FireEvent carries `source_url` and `statement_ts` for official statements and the never-send lint's 10 remaining findings are gone. Est: 6 h. Status: todo.
+- [ ] **FD-8 — ROPA and privacy notice match the armed purge retentions.** Spec: thresholds-ops I4. Writes: `docs/legal/ropa.md`, the privacy catalog keys. Done when: the ROPA lists each armed retention (30 d / 400 d / 90 d) instead of "no purge job", and the erasure-ledger row cites counsel's answer. Est: 2 h. Status: blocked-owner (counsel for the ledger row; the rest is todo).
+- [ ] **FD-9 — Per-user per-season critical cap.** Spec: thresholds-ops D5 / V2-Q2 (provisional cap 4). Writes: alert dispatch, digest. Done when: criticals above the cap degrade to the digest, tested. Est: 4 h. Status: frozen (V2-C2, R5-1).
 
 ## Coverage note
 
