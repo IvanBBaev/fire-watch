@@ -2735,6 +2735,7 @@ of work and dates: `reviews/00-summary.md`, round 5, "Consolidated new actions".
 R5-SRE-1 and the CI half of R5-ARCH-1 are one repair; whichever lands first ticks the others.
 `blocked-owner` rows wait on a founder act; `blocked-external` rows wait on an account, a
 host or data.
+The open programming work across this track and Group FD is ordered in Group ENG below.
 
 ### Group R5-ARCH — principal architecture (review 25)
 
@@ -2868,6 +2869,39 @@ Rows the `docs/decisions/founder-2026-10-30/` records left as work. Each cites i
 - [ ] **FD-7 — FireEvent provenance fields.** Spec: copy C-NS. Writes: `packages/contracts`, the snapshot writer, the web event detail. Done when: FireEvent carries `source_url` and `statement_ts` for official statements and the never-send lint's 10 remaining findings are gone. Est: 6 h. Status: todo.
 - [ ] **FD-8 — ROPA and privacy notice match the armed purge retentions.** Spec: thresholds-ops I4. Writes: `docs/legal/ropa.md`, the privacy catalog keys. Done when: the ROPA lists each armed retention (30 d / 400 d / 90 d) instead of "no purge job", and the erasure-ledger row cites counsel's answer. Est: 2 h. Status: blocked-owner (counsel for the ledger row; the rest is todo).
 - [ ] **FD-9 — Per-user per-season critical cap.** Spec: thresholds-ops D5 / V2-Q2 (provisional cap 4). Writes: alert dispatch, digest. Done when: criticals above the cap degrade to the digest, tested. Est: 4 h. Status: frozen (V2-C2, R5-1).
+
+### Group ENG — open programming work, audited 2026-11-06
+
+Audit of what is still to be programmed, taken on `main` at 86c0eb0 by reading TASKS and
+checking the tree for the named files; nothing was run. V2 and V3 are frozen (R5-PROD-1), so
+no new feature is listed. Rows keep their own specs; this group only sets the order and adds
+the one item that had no row. Blocked rows (accounts, host, data, ЕООД, bot identity) are out
+of this list until their blocker clears.
+
+1. **CI.** R5-QA-1, which also closes R5-SRE-1 and the CI half of R5-ARCH-1. Integration tests
+   still use `source_registry_v1` and `types.generated.ts` predates migration 060. The last
+   GitHub run is on 3497c93; everything after it is unpushed, so needs a founder yes to push.
+2. **Absent, no external blocker to write it:**
+   - R5-SEC-2: no `security-headers.ts`, no `web/public/_headers`.
+   - R5-SEC-3: per-IP and global magic-link mail budgets.
+   - FD-5: demo-data banner, production refuses fixtures.
+   - R5-SRE-5: no `Dockerfile`, `infra/compose.yaml`, `infra/deploy.sh`, `infra/proxy/`; only
+     `deploy.yml` exists. Can be rehearsed on a local Debian 12 VM.
+   - R5-SEC-8: no `gibs-route.ts`.
+   - R5-UX-9: no manifest, no `web/src/sw/`.
+   - R5-UX-10: skip link and `<h1>`.
+   - R5-ARCH-2, R5-ARCH-5: no `scripts/reachability.mjs`, no `docs/DARK-CODE.md`.
+   - ENG-1 below.
+3. **Founder rulings awaiting code:** FD-1, FD-7, FD-3, FD-4, FD-6.
+4. **Security and quality:**
+   - R5-SEC-5, 6, 9, 10.
+   - R5-QA-3, 4, 5, 6.
+   - R5-ARCH-3, 6, 7, 8.
+   - R5-SRE-8, 10.
+   - R5-DATA-9.
+   - R5-UX-1, 2, 4, 5, 8, 12.
+
+- [ ] **ENG-1 — Register or ledger the staff and curation routes.** Spec: I1 status note 2026-10-27, L15. Writes: `server/src/app/api-composition.ts` or `docs/DARK-CODE.md`. Done when: `staff-session-route.ts`, `staff-members-route.ts` and `staff-curation-route.ts` are each either registered behind explicit config with a test, or listed as deliberately dark with the condition that arms them. Today no file under `server/src/app` calls them. Est: 2 h. Status: todo.
 
 ## Coverage note
 
