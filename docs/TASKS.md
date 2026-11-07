@@ -492,6 +492,12 @@ verbatim (G5 wires CI-13 onto that registry rather than authoring a new one).*
   scanning + push protection, npm audit gate, SHA-pinned Actions, Renovate
   cool-down; CSP/security headers from first deploy config. **Done when:** CI
   green; a seeded boundary violation fails CI-9.
+  *2026-11-07 — re-ticked against R5-SEC-2: the "CSP/security headers" clause was never
+  built when B3 was first ticked (review 28 E-2). Now `web/public/_headers` + the Pages
+  Functions shell responses carry one policy (`web/src/edge/security-headers.ts`), the
+  public API answers every path with `server/src/adapters/http/security-headers.ts`, and
+  `web/e2e/security-headers.e2e.ts` sweeps the CI-18 route table under the policy with
+  zero violations.*
 - [x] **B4 — Migration 001 (one schema owner).** Spec: 13 §3.2(11), C7; ADR-002 D1.
   Needs: B2, A10 (registry frozen first). dbmate SQL-first: `detections`,
   `fire_events`, `source_status`, `watch_zones`, alert-state, `alert_outbox`
@@ -2782,7 +2788,8 @@ The open programming work across this track and Group FD is ordered in Group ENG
 ### Group R5-SEC — security & privacy (review 28)
 
 - [ ] **R5-SEC-1 — Repository security controls and gitleaks.** Spec: review 28 E-1. Writes: `.github/workflows/ci.yml`, `.gitleaks.toml`, `SECURITY.md`. Done when: `gh api repos/IvanBBaev/fire-watch` shows secret scanning and push protection `enabled`, `branches/main/protection` returns 200 with required checks, and a seeded fake key in a test branch fails the gitleaks job. Est: 1.8 h. Status: blocked-owner.
-- [ ] **R5-SEC-2 — CSP and security headers for web and API.** Spec: review 28 E-2. Writes: `web/public/_headers`, `server/src/adapters/http/security-headers.ts`, e2e CSP check. Done when: every CI-18 route serves CSP, HSTS, Referrer-Policy and frame-ancestors with zero CSP violations in e2e, and B3 is re-ticked against it. Est: 4 h. Status: open.
+- [x] **R5-SEC-2 — CSP and security headers for web and API.** Spec: review 28 E-2. Writes: `web/public/_headers`, `server/src/adapters/http/security-headers.ts`, e2e CSP check. Done when: every CI-18 route serves CSP, HSTS, Referrer-Policy and frame-ancestors with zero CSP violations in e2e, and B3 is re-ticked against it. Est: 4 h. Status: done.
+  *2026-11-07 — done. Web: `web/public/_headers` (Pages, static assets) and `web/src/edge/security-headers.ts` (one source: `WEB_SECURITY_HEADERS`, `withSecurityHeaders`, `admitOrigins`, `parseHeadersFile`; the unit test holds the file and the module equal) — CSP `default-src 'self'`, `img-src`/`connect-src` admit only the basemap and GIBS origins plus `blob:`/`data:` for images, `worker-src 'self'`, `style-src 'self'`, `frame-ancestors 'self'`, `base-uri 'none'`, `object-src 'none'`; HSTS one year with subdomains; `Referrer-Policy: strict-origin-when-cross-origin`; `Permissions-Policy: geolocation=(self)`; `X-Content-Type-Options: nosniff`. The event-shell Function sets the same headers in code (`og/og-handlers.ts`) since `_headers` does not cover Functions. The T2 mirror host (`static_snapshot_url`) is not in the source policy: the deploy appends it with `admitOrigins` — a deploy-time step for R5-SRE-5. API: `server/src/adapters/http/security-headers.ts` (`default-src 'none'; frame-ancestors 'none'`, HSTS, Referrer-Policy, nosniff) on every public answer through an `onSend` hook plus the `frameworkErrors` path, which skips hooks; the bearer-protected metrics listener is out of scope. E2E: `web/e2e/security-headers.e2e.ts` — the built `_headers` parses to the module's policy, and the harness origin serves the build under it (opt-in `securityHeaders`; the a11y suite does not opt in because it injects a `<style>`), sweeping all eleven CI-18 surfaces (`web/e2e/harness/route-surfaces.ts`, shared with the a11y sweep) with the real map loading from the admitted stand-in basemap, an empty console-error allowlist and zero `securitypolicyviolation` events. B3 re-ticked above.*
 - [x] **R5-SEC-3 — Per-IP and global magic-link mail budgets.** Spec: review 28 E-3. Writes: `server/src/core/auth/auth-policy.ts`, `server/src/adapters/http/auth-route.ts`, tests. Done when: the 11th link request from one IP in an hour and the (N+1)th globally return 202 and send no mail, with a test for each and a meta-alert at 50%. Est: 3 h. Status: blocked-owner. *2026-11-07 — done: `core/auth/auth-mail-budget.ts` (10/h per client, IPv6 by /64; 200/h global, a per-client refusal not charged globally), checked in the link route before the flow, which answers `202` either way. Gauge `fw_auth_mail_window_used_ratio` and counter `fw_auth_mail_suppressed_total{reason}`; rules `AuthMailBudgetHalf` (≥ 0.5) and `AuthMailBudgetExhausted` in `infra/metrics/rules/auth.yaml`. Numbers recorded as provisional in `thresholds-ops.md` SEC-3.*
 - [ ] **R5-SEC-4 — Arm retention and truncate staff audit IPs.** Spec: review 28 E-4. Writes: `server/src/core/erasure/purge-plan.ts`, migration 037+, tests. Done when: `planPurge` reports every target `armed: true` and a staff-audit IP older than 90 days is nulled in an integration test. Est: 2 h. Status: blocked-owner.
 - [ ] **R5-SEC-5 — Two-person rule bound to distinct people.** Spec: review 28 E-5. Writes: `server/src/core/staff/staff-policy.ts`, tests, OPERATIONS. Done when: approval by a member created by the creator, or created less than 7 days ago, is refused in tests, and single-operator mode is documented. Est: 3 h. Status: blocked-owner.
@@ -2883,7 +2890,7 @@ of this list until their blocker clears.
    still use `source_registry_v1` and `types.generated.ts` predates migration 060. The last
    GitHub run is on 3497c93; everything after it is unpushed, so needs a founder yes to push.
 2. **Absent, no external blocker to write it:**
-   - R5-SEC-2: no `security-headers.ts`, no `web/public/_headers`.
+   - ~~R5-SEC-2: no `security-headers.ts`, no `web/public/_headers`.~~ Done 2026-11-07 (see the row).
    - ~~R5-SEC-3: per-IP and global magic-link mail budgets.~~ Done 2026-11-07.
    - FD-5: demo-data banner, production refuses fixtures.
    - R5-SRE-5: no `Dockerfile`, `infra/compose.yaml`, `infra/deploy.sh`, `infra/proxy/`; only
