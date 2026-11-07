@@ -14,7 +14,7 @@ the watchlist dates quarterly and before each season.
 | R3 | **Seasonal cash flow**: revenue concentrated in summer | High × Medium | annual-only supporter billing renewing in May; fixed costs ≤ €25/mo |
 | R4 | **Reputational miss during a deadly fire** — the kill scenario | Medium × Critical | published expectations; alerts fail closed; public retrospectives; the disclaimer doubles as the ЗЗП liability shield |
 | R5 | **Free-data dependency** (FIRMS/EFFIS/EUMETSAT policy change) | Low-Med × High | multi-source redundancy; archive everything locally from day 1 |
-| R6 | **Cheap-entrant preemption** | Medium × High | speed to the spring-2027 beta; lock the Meteo Balkans partnership early |
+| R6 | **Cheap-entrant preemption** — *materialised* (ISKRA, live since 2026-07-29; see [`COMPETITORS.md`](COMPETITORS.md)) | Happened × High | differentiate on alert discipline, honesty and governance, not on the map; offer cooperation (review 32 E-11, decision 6) before partner outreach; no new ISKRA-driven map rows without a founder decision |
 | R7 | **FireSat/Google commoditization** of detection in 2027–28 | Medium × High | the moat is local depth (BG language, official sources, zones, honesty), not detection itself |
 | R8 | **iOS PWA push platform risk** | Medium × Medium | PWA-first but Telegram is an equal-rank channel; Viber fallback |
 | R9 | **Grant-time trap**: applications eating the build | Medium × High | any application > 40 h requires a written go decision |

@@ -67,6 +67,7 @@ Rules that outrank any feature. Enforcement details in
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | Canonical vocabulary: entities, lifecycle wording ladder (EN/BG), never-send list |
 | [`docs/GATES.md`](docs/GATES.md) | Every gate in one place: CI invariants, launch/season gates, business checkpoints CP1–CP3 |
 | [`docs/RISKS.md`](docs/RISKS.md) | Consolidated risk register: business R1–R10 + engineering/data watchlist |
+| [`docs/COMPETITORS.md`](docs/COMPETITORS.md) | Competitor register: dated observations (ISKRA 2026-09-28 review, 2026-11-07 "100 days" timeline) read against the build; input to positioning (R5-BIZ-11) |
 | [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md) | Work packages WP0–WP9, calendar, definitions of done |
 | [`docs/TASKS.md`](docs/TASKS.md) | The plan broken into dispatchable tasks: dispatch waves, per-task specs, done-when criteria |
 | [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Operations contract (ops ADR-006): freshness budgets, monitoring legs, backups, provisioning |
