@@ -19,6 +19,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { Client } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { SOURCE_REGISTRY_VERSION } from '@fire-watch/contracts';
 import { detectionUid } from '@fire-watch/contracts/node';
 
 import { POLLING_BBOX } from '../../core/config/polling-bbox.js';
@@ -180,7 +181,7 @@ describe.skipIf(!hasDocker)('the ingest write path', () => {
         confidence_raw: 'n',
         day_night: 'D',
         collection_version: '2.0NRT',
-        source_registry_version: 'source_registry_v1',
+        source_registry_version: SOURCE_REGISTRY_VERSION,
         ingest_config_version: 'polling_bbox_v1',
         ingest_config_digest: POLLING_BBOX.digest,
       });

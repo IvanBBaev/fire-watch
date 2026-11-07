@@ -27,6 +27,13 @@ export type Numeric = ColumnType<string, number | string, number | string>;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
+export interface AccountPreferences {
+  account_id: string;
+  document: Json;
+  revision: Int8;
+  updated_at: Timestamp;
+}
+
 export interface Accounts {
   created_at: Generated<Timestamp>;
   deleted_at: Timestamp | null;
@@ -37,13 +44,6 @@ export interface Accounts {
   quiet_hours_end: Generated<string>;
   quiet_hours_start: Generated<string>;
   timezone: Generated<string>;
-}
-
-export interface AccountPreferences {
-  account_id: string;
-  document: Json;
-  revision: Int8;
-  updated_at: Timestamp;
 }
 
 export interface AccountSessions {
