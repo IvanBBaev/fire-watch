@@ -17,10 +17,15 @@
  *
  * No PII: neither route reads cookies, logs anything, echoes request headers, or puts
  * anything but the public id and the locale into a URL or a cache key.
+ *
+ * Every shell answer — injected, 404, or passed through — carries the web security headers
+ * (TASKS R5-SEC-2): Pages' `_headers` file covers the static shell but not a Function's
+ * response, and a permalink opened from a share must get the same policy the home page does.
  */
 
 import { parseSnapshot } from '../../core/feed/parse-snapshot.js';
 import type { Snapshot } from '../../core/types.js';
+import { WEB_SECURITY_HEADERS, withSecurityHeaders } from '../security-headers.js';
 import type { BoundedCache } from './bounded-cache.js';
 import { injectOgMeta } from './inject-meta.js';
 import { findSnapshotEvent, ogCardImage, ogMetaTags, requestLocale } from './og-card.js';
@@ -80,11 +85,12 @@ export async function handleEventShell(
   deps: OgDependencies,
 ): Promise<Response> {
   const shell = await deps.loadShell();
-  if (!shell.ok) return shell;
+  if (!shell.ok) return withSecurityHeaders(shell);
   const snapshot = await readSnapshot(deps);
-  if (snapshot === null) return shell;
+  if (snapshot === null) return withSecurityHeaders(shell);
   const html = await shell.text();
   const headers = {
+    ...WEB_SECURITY_HEADERS,
     'content-type': 'text/html; charset=utf-8',
     'cache-control': SHELL_CACHE_CONTROL,
     vary: 'Accept-Language',

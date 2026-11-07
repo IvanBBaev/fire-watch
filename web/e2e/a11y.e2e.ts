@@ -73,8 +73,6 @@ import { LOCALE_STORAGE_KEY } from '../src/core/i18n/locale.js';
 import type { Locale } from '../src/core/types.js';
 import { eventPath } from '../src/ui/logic/event-resolution.js';
 import { ONBOARDING_DONE_VALUE, ONBOARDING_STORAGE_KEY } from '../src/ui/logic/onboarding.js';
-import type { AppRoute, RouteId } from '../src/ui/logic/routes.js';
-import { ROUTES } from '../src/ui/logic/routes.js';
 import { launchBrowser } from './harness/browser.js';
 import { loadFixtureSnapshot } from './harness/fixture.js';
 import { startLoadableBasemap } from './harness/map-inspect.js';
@@ -83,6 +81,12 @@ import { startOrigin } from './harness/origin.js';
 import type { HarnessOrigin } from './harness/origin.js';
 import { openInstrumentedPage } from './harness/page.js';
 import type { InstrumentedPage } from './harness/page.js';
+import {
+  EVENT_ID,
+  EVENT_PAGE_SELECTOR,
+  ROUTE_SURFACES,
+  ROW_SELECTOR,
+} from './harness/route-surfaces.js';
 
 const DIST_DIR = fileURLToPath(new URL('../dist/', import.meta.url));
 
@@ -103,19 +107,11 @@ const MAP_CANVAS_SCOPE = '.map-pane';
 /** Old enough that the degradation banner is up; the banner is an in-scope surface. */
 const STALE_BY_MS = 90 * 60_000;
 
-/** The fixture event `polling-only.e2e.ts` also navigates to. */
-const EVENT_ID = 'fw-2026-q7f3d';
-
-/** Well-formed and absent from the fixture, so the not-found branch renders. */
-const MISSING_EVENT_ID = 'fw-2026-zzzz9';
-
 /** Far outside the coverage box, so "My location" answers with a status, deterministically. */
 const OUTSIDE_COVERAGE = { latitude: 0, longitude: 0 };
 
-const ROW_SELECTOR = '.home-list a.event-row';
 const PANEL_TOGGLE_SELECTOR = '.panel-toggle';
 const BANNER_SELECTOR = '.fw-banner[role="status"]';
-const EVENT_PAGE_SELECTOR = 'article.page.event-page';
 const CHIP_SELECTOR = '.fw-chip';
 const STATUS_SELECTOR = '.map-controls-status';
 /** V2-D3: the measure toggle renders only once the map is up; it owns the panel by id. */
@@ -554,74 +550,12 @@ afterEach(async () => {
   }
 });
 
-/**
- * How this sweep knows a route has finished rendering — one selector per route, exhaustive
- * over `RouteId`.
- *
- * This is the half of the gate that used to be a hand-written list. A route added to
- * `ui/logic/routes.ts` and forgotten here would not have failed anything: the sweep would
- * simply have stopped covering the newest surface while staying green, which is the worst
- * shape a gate can fail in. Now it is a compile error in this file until someone says what
- * "rendered" looks like on the new page.
- */
-const READY_SELECTOR: Record<RouteId, string> = {
-  home: ROW_SELECTOR,
-  // Not the loading state a cold permalink open shows before its first snapshot (TASKS F3):
-  // the sweep measures the page with its event on it.
-  event: `${EVENT_PAGE_SELECTOR}:not([data-state="loading"])`,
-  settings: '.settings-group',
-  about: '#data-freshness',
-  credits: '.credits-list',
-  privacy: '#disclaimer',
-  accessibility: '#accessibility-contact',
-  // TASKS I1. The harness origin serves no auth routes, so both pages settle on their
-  // neutral "not available" line — the state a deployment with auth off shows.
-  signIn: '.auth-page[data-ready]',
-  signInContinue: '.auth-page[data-ready]',
-  staffCuration: '.staff-curation[data-ready]',
-};
-
-/** One URL the sweep visits, under the name its findings are reported against. */
-interface Visit {
-  readonly name: string;
-  readonly path: string;
-}
-
-/**
- * The URLs each route is swept at, and what to call them.
- *
- * A static path is swept at itself, taken from the route table rather than written out a
- * second time. `/event/:id` is a pattern and not a URL, so it names the two ids this suite
- * has always swept: one the fixture contains and one it does not, which renders the
- * not-found branch on the same route. Exhaustive over `RouteId` as well, so a
- * parameterised route cannot be added to the table and then swept at a literal `:param`.
- */
-const SWEEP_VISITS: Record<RouteId, (route: AppRoute) => readonly Visit[]> = {
-  home: (route) => [{ name: 'home list', path: route.path }],
-  event: () => [
-    { name: 'event page', path: eventPath(EVENT_ID) },
-    { name: 'event not found', path: eventPath(MISSING_EVENT_ID) },
-  ],
-  settings: (route) => [{ name: 'settings', path: route.path }],
-  about: (route) => [{ name: 'about', path: route.path }],
-  credits: (route) => [{ name: 'credits', path: route.path }],
-  privacy: (route) => [{ name: 'privacy', path: route.path }],
-  accessibility: (route) => [{ name: 'accessibility statement', path: route.path }],
-  signIn: (route) => [{ name: 'sign in', path: route.path }],
-  signInContinue: (route) => [{ name: 'sign-in landing', path: route.path }],
-  staffCuration: (route) => [{ name: 'staff curation', path: route.path }],
-};
-
-/**
- * Every in-scope surface of review 19 Appendix A that this build can reach without an
- * account: the list, an event, the not-found branch that shares its route, and the four
- * static pages — in the route table's own order. The states that are not routes — the
- * degradation banner, the location status line, the first-launch overlay, the no-map
- * layout — are visited below.
- */
-const ROUTE_SURFACES: readonly (Visit & { readonly ready: string })[] = ROUTES.flatMap((route) =>
-  SWEEP_VISITS[route.id](route).map((visit) => ({ ...visit, ready: READY_SELECTOR[route.id] })),
-);
+// The route table this sweep walks — every in-scope surface of review 19 Appendix A that
+// this build can reach without an account, with the selector that says each has rendered —
+// is `ROUTE_SURFACES` in `harness/route-surfaces.ts`, shared with the security-headers
+// sweep and exhaustive over `RouteId`. The states that are not routes — the degradation
+// banner, the location status line, the first-launch overlay, the no-map layout — are
+// visited below.
 
 describe.each(LEGS)('CI-18 layout floors — $name', (leg: Leg) => {
   it('holds the reflow, target-size and text floors on every in-scope surface', async () => {

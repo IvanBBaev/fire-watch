@@ -122,6 +122,13 @@ export interface OriginOptions {
    * every freshness stamp is read from it. Defaults to the wall clock.
    */
   readonly clock?: () => number;
+  /**
+   * Headers set on every static-file and shell answer — what Pages' `_headers` does for the
+   * deployed origin (TASKS R5-SEC-2). Opt-in: a suite that injects a `<style>` into the
+   * document to set the root font size would violate the content-security policy, and a
+   * suite that does not test the policy should not be failed by it.
+   */
+  readonly securityHeaders?: Readonly<Record<string, string>>;
 }
 
 /** The cursor query parameter of ADR-003 — the wire name, asserted on rather than imported. */
@@ -359,7 +366,12 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
 
     const file = await staticFile(distRoot, url.pathname);
     if (file !== null) {
-      const headers = { 'content-type': file.type, 'cache-control': 'no-cache', etag: file.etag };
+      const headers = {
+        ...options.securityHeaders,
+        'content-type': file.type,
+        'cache-control': 'no-cache',
+        etag: file.etag,
+      };
       if (ifNoneMatch !== null && weakMatch(ifNoneMatch, file.etag)) send(304, headers, null);
       else send(200, headers, file.body);
       return;
@@ -367,7 +379,11 @@ export async function startOrigin(options: OriginOptions): Promise<HarnessOrigin
     if (extname(url.pathname) === '') {
       // SPA fallback: `/event/<id>` and friends are routes of the app, not files.
       const index = await readFile(join(distRoot, 'index.html'));
-      send(200, { 'content-type': HTML_TYPE, 'cache-control': 'no-cache' }, index);
+      send(
+        200,
+        { ...options.securityHeaders, 'content-type': HTML_TYPE, 'cache-control': 'no-cache' },
+        index,
+      );
       return;
     }
     send(404, { 'content-type': 'text/plain; charset=utf-8' }, 'not found');

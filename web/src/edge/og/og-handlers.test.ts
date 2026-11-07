@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import bg from '../../core/i18n/bg.js';
 import en from '../../core/i18n/en.js';
+import { WEB_SECURITY_HEADERS } from '../security-headers.js';
 import { BoundedCache } from './bounded-cache.js';
 import { OG_BEGIN, OG_END } from './inject-meta.js';
 import {
@@ -63,6 +64,13 @@ function metaContent(html: string, key: string): string | undefined {
   return match?.[1];
 }
 
+/** TASKS R5-SEC-2: a Function's answer is not covered by `_headers`, so the shell sets these. */
+function expectSecurityHeaders(response: Response): void {
+  for (const [name, value] of Object.entries(WEB_SECURITY_HEADERS)) {
+    expect(response.headers.get(name), name).toBe(value);
+  }
+}
+
 describe('GET /event/:id (shell)', () => {
   it('injects the event meta and the PNG route URL in the reader locale', async () => {
     const response = await handleEventShell(
@@ -73,6 +81,7 @@ describe('GET /event/:id (shell)', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/html');
     expect(response.headers.get('vary')).toBe('Accept-Language');
+    expectSecurityHeaders(response);
     const html = await response.text();
     expect(html).toContain('<html lang="en"');
     expect(metaContent(html, 'og:title')).toBe(en.eventNearPlace('Harmanli'));
@@ -119,6 +128,7 @@ describe('GET /event/:id (shell)', () => {
       const response = await handleEventShell(get('/event/x'), id, deps());
       expect(response.status).toBe(404);
       expect(await response.text()).toBe(SHELL);
+      expectSecurityHeaders(response);
     }
   });
 
@@ -132,6 +142,7 @@ describe('GET /event/:id (shell)', () => {
     );
     expect(response.status).toBe(200);
     expect(await response.text()).toBe(SHELL);
+    expectSecurityHeaders(response);
     const garbage = await handleEventShell(
       get(`/event/${LIVE_ID}`),
       LIVE_ID,
@@ -140,6 +151,26 @@ describe('GET /event/:id (shell)', () => {
       }),
     );
     expect(await garbage.text()).toBe(SHELL);
+    expectSecurityHeaders(garbage);
+  });
+
+  it('passes a failing shell through with its status, under the same security headers', async () => {
+    // The asset binding answering 5xx is the host's failure, reported as such — but still
+    // under the policy, so no answer of this route is ever the one without it.
+    const response = await handleEventShell(
+      get(`/event/${LIVE_ID}`),
+      LIVE_ID,
+      deps({
+        loadShell: () =>
+          Promise.resolve(
+            new Response('upstream', { status: 502, headers: { 'content-type': 'text/plain' } }),
+          ),
+      }),
+    );
+    expect(response.status).toBe(502);
+    expect(response.headers.get('content-type')).toBe('text/plain');
+    expect(await response.text()).toBe('upstream');
+    expectSecurityHeaders(response);
   });
 });
 

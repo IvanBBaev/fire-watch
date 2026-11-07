@@ -1,0 +1,18 @@
+# Security headers for every static answer of the web origin (TASKS R5-SEC-2; review 28 E-2).
+#
+# Cloudflare Pages reads this file from the deployed `web/dist` (Vite copies `web/public/`
+# in). It does not reach the responses of Pages Functions, so the `/event/:id` shell sets the
+# same headers in code — `web/src/edge/security-headers.ts` is the one source, and the unit
+# test there holds this file equal to it. Edit both, or the test fails.
+#
+# Deploy-time addition, not committed here: a deployment that advertises a T2 mirror on
+# another host (`static_snapshot_url` in `/api/v1/client-config`) must append that origin to
+# `connect-src`, or the failover fetch is refused by the browser. `admitOrigins()` in the
+# module above is the shape of that change.
+
+/*
+  Content-Security-Policy: default-src 'self'; img-src 'self' data: blob: https://tiles.openfreemap.org https://gibs.earthdata.nasa.gov; connect-src 'self' https://tiles.openfreemap.org https://gibs.earthdata.nasa.gov; worker-src 'self'; style-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'self'; object-src 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self)
+  X-Content-Type-Options: nosniff
