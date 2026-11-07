@@ -8,6 +8,7 @@ off-box and evaluated there, so a VM that is up but sick still pages. TASKS C5.
 | `config.alloy` | Grafana Alloy: scrapes the `api` and `worker` metrics listeners and the host (backup textfile, filesystem), labels every series with `env`, remote-writes to Grafana Cloud. |
 | `rules/freshness.yaml` | Freshness budgets (§1): the API's own verdict per row, the collector's health, the snapshot-push lifeline. |
 | `rules/queue.yaml` | L-8 queue age (600 s), the A1.12 approval deadline (1800 s), any A1.12 dropped send (> 0), the monitors loop that feeds the first two. |
+| `rules/auth.yaml` | The sign-in mail budget (review 28 E-3): half the hourly global budget spent (warning, pages), any link held back by the global cap (critical). |
 | `rules/backup.yaml` | The nightly backup heartbeat (26 h warn, 50 h critical), from the backup CLI's textfile. |
 | `rules/shrinkage.yaml` | Backup table shrinkage and vanished tables. **Info only, never a page.** |
 | `rules/targets.yaml` | Scrape targets down, worker series absent, disk over 80%. |
@@ -20,7 +21,10 @@ off-box and evaluated there, so a VM that is up but sick still pages. TASKS C5.
   no freshness threshold. Also at scrape time, fleet control (`app/health-wiring.ts`):
   `fw_degradation_tier` (0 = SSE offered, 1 = demoted to polling), `fw_sse_connections`
   (open streams) and `fw_sse_rejected_total{reason}` (`not_offered`, `not_ready`,
-  `capacity`, `client_cap`; every reason from the start, at zero).
+  `capacity`, `client_cap`; every reason from the start, at zero). With sign-in enabled,
+  the mail budget (`core/auth/auth-mail-budget.ts`): `fw_auth_mail_window_used_ratio`
+  (share of the global hourly link budget spent) and `fw_auth_mail_suppressed_total{reason}`
+  (`over_client`, `over_global`: requests answered 202 without mail, both from zero).
 - **Worker** (`server/src/app/worker.ts`): per-job last success
   (`fw_job_last_success_timestamp_seconds{job_id}`), per-loop runs, finish time and
   duration (`ingest`, `monitors`, `identity`, `dispatch`, `r2_mirror_push`,

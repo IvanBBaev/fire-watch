@@ -1,0 +1,38 @@
+# Sign-in mail budget (review 28 E-3, Q3; TASKS R5-SEC-3).
+#
+# The readings come from the API process at scrape time (authMailCollector,
+# app/metrics-wiring.ts), and only while sign-in is enabled: with FIRE_WATCH_AUTH_ENABLED
+# off the series are absent and neither rule can fire.
+#
+# Magic links go out through the same SES account as fire alerts. A flood of link
+# requests that spent the sending quota would delay alerts, so the budget is watched
+# before it runs out, not after.
+#
+# Thresholds are the code's, asserted by server/src/app/metrics-rules.test.ts:
+#   >= 0.5 = AUTH_MAIL_BUDGET.warnFraction (core/auth/auth-mail-budget.ts), "a meta-alert
+#            at 50%" of the global hourly budget (200 links/hour)
+#   > 0    = any link held back by the global cap: real users are now being refused mail
+#
+# fw_auth_mail_suppressed_total{reason="over_client"} has no rule on purpose: one client
+# over its 10/hour cap is the cap working, and it costs no one else anything.
+groups:
+  - name: fire-watch-auth
+    interval: 1m
+    rules:
+      - alert: AuthMailBudgetHalf
+        expr: max by (env) (fw_auth_mail_window_used_ratio) >= 0.5
+        for: 0m
+        labels:
+          severity: warning
+          page: 'true'
+        annotations:
+          summary: 'Half the hourly sign-in mail budget is spent (review 28 E-3)'
+
+      - alert: AuthMailBudgetExhausted
+        expr: sum by (env) (increase(fw_auth_mail_suppressed_total{reason="over_global"}[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          page: 'true'
+        annotations:
+          summary: 'Sign-in links are being held back by the global mail budget'

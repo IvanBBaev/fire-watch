@@ -165,7 +165,13 @@ function app(): FastifyInstance {
 }
 
 function wiringConfig(auth: AuthConfig) {
-  return { auth, databaseUrl: 'postgres://x', databaseRole: 'r', applicationName: 'test' };
+  return {
+    auth,
+    databaseUrl: 'postgres://x',
+    databaseRole: 'r',
+    applicationName: 'test',
+    apiClientIpHeader: undefined,
+  };
 }
 
 describe('wireAuthRoutes (I1)', () => {
@@ -182,6 +188,7 @@ describe('wireAuthRoutes (I1)', () => {
       createSurface: surfaceOf,
     });
     expect(wiring.enabled).toBe(false);
+    expect(wiring.authMail).toBeNull();
     const response = await server.inject({
       method: 'POST',
       url: AUTH_LINK_PATH,
@@ -217,6 +224,8 @@ describe('wireAuthRoutes (I1)', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]).toContain(LINK);
     expect(lines).toEqual([]);
+    // R5-SEC-3: the sent link is charged to the global budget the collector reads.
+    expect(wiring.authMail?.().globalUsed).toBe(1);
   });
 
   it('never writes the token, the link or the address to a log line when SES fails', async () => {

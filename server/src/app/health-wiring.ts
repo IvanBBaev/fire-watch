@@ -82,6 +82,7 @@ import {
   type EventLoopLagSampler,
 } from '../adapters/system/event-loop-lag.js';
 import { createHostCpuSampler, type HostCpuSampler } from '../adapters/system/host-cpu.js';
+import type { AuthMailBudgetReading } from '../core/auth/auth-mail-budget.js';
 import { FIRE_OUTLINE_PARAMS } from '../core/config/fire-outline.js'; // V3-P3
 import { liveFirmsSources } from '../core/ingest/firms-poller.js';
 import {
@@ -187,6 +188,8 @@ export interface HealthWiring {
    * so it cannot disturb the demotion controller's own lag and CPU windows.
    */
   readonly transport: () => TransportReading;
+  /** The sign-in mail budget (R5-SEC-3), for its collector; null while sign-in is off. */
+  readonly authMail: (() => AuthMailBudgetReading) | null;
 }
 
 /** What the API process loaded besides `ServerConfig` and hands to the account routes. */
@@ -445,6 +448,7 @@ export function wireHealthServer(
 
   return {
     freshness: { reader, expected, disabled },
+    authMail: auth.authMail,
     transport: () => ({
       transport: demotion.transport(),
       connections: hub.size,

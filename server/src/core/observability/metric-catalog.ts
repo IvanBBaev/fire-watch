@@ -21,13 +21,17 @@
  *     of that name is silently renamed `exported_job`.
  *   * `loop` — a worker loop name, as in the worker's `stopped` line.
  *   * `reason` — a closed vocabulary per family: {@link SSE_REJECT_REASONS} for stream
- *     refusals, A1.12's `ALERT_DROP_REASONS` / `ALERT_DEFERRAL_REASONS` for alert sends.
+ *     refusals, `AUTH_MAIL_SUPPRESS_REASONS` for sign-in mail held back, A1.12's `ALERT_DROP_REASONS` / `ALERT_DEFERRAL_REASONS` for alert sends.
  *   * No label ever carries a user identifier, a zone, an address or a free-text error
  *     (EXTERNAL-ACCOUNTS row 10): every label value comes from a closed vocabulary.
  */
 
 import { FRESHNESS_STATES, type FreshnessReport, type HeartbeatJobId } from '@fire-watch/contracts';
 
+import {
+  AUTH_MAIL_SUPPRESS_REASONS,
+  type AuthMailBudgetReading,
+} from '../auth/auth-mail-budget.js';
 import type { TableGauge } from '../backup/table-gauges.js';
 import {
   BACKUP_TABLE_BYTES,
@@ -328,6 +332,27 @@ export const TRANSPORT_METRICS: readonly MetricDescriptor[] = [
   SSE_REJECTED,
 ];
 
+// --- Sign-in mail budget (API process, read at scrape time; R5-SEC-3, review 28 E-3) ------
+
+export const AUTH_MAIL_WINDOW_USED_RATIO: MetricDescriptor = {
+  name: 'fw_auth_mail_window_used_ratio',
+  kind: 'gauge',
+  help: 'Share of the global sign-in link budget spent in the current hour window (0 to 1); absent while sign-in is disabled.',
+  labels: [],
+};
+
+export const AUTH_MAIL_SUPPRESSED: MetricDescriptor = {
+  name: 'fw_auth_mail_suppressed_total',
+  kind: 'counter',
+  help: 'Sign-in link requests answered 202 without mail since process start, by which budget refused them.',
+  labels: ['reason'],
+};
+
+export const AUTH_MAIL_METRICS: readonly MetricDescriptor[] = [
+  AUTH_MAIL_WINDOW_USED_RATIO,
+  AUTH_MAIL_SUPPRESSED,
+];
+
 // --- Process (API and worker alike, read at scrape time) ----------------------------------
 
 export const EVENT_LOOP_LAG_P99: MetricDescriptor = {
@@ -348,6 +373,7 @@ export const METRIC_CATALOG: readonly MetricDescriptor[] = [
   ...ALERT_DEFERRAL_METRICS,
   ...BACKUP_TABLE_METRICS,
   ...TRANSPORT_METRICS,
+  ...AUTH_MAIL_METRICS,
   ...PROCESS_METRICS,
 ];
 validateCatalog(METRIC_CATALOG);
@@ -464,6 +490,22 @@ export function transportSamples(reading: TransportReading): MetricSample[] {
       name: SSE_REJECTED.name,
       labels: { reason },
       value: reading.rejected[reason],
+    })),
+  ];
+}
+
+/** The sign-in mail budget as series; both refusal reasons are exported from zero. */
+export function authMailSamples(reading: AuthMailBudgetReading): MetricSample[] {
+  return [
+    {
+      name: AUTH_MAIL_WINDOW_USED_RATIO.name,
+      labels: {},
+      value: reading.globalUsed / reading.globalLimit,
+    },
+    ...AUTH_MAIL_SUPPRESS_REASONS.map((reason) => ({
+      name: AUTH_MAIL_SUPPRESSED.name,
+      labels: { reason },
+      value: reading.suppressed[reason],
     })),
   ];
 }

@@ -89,6 +89,7 @@ import { registerZonesRoutes, type ZonesRouteDeps } from '../adapters/http/zones
 import { createSesAuthMailer } from '../adapters/mail/ses-auth-mailer.js';
 import { createDnsHostResolver } from '../adapters/webhooks/dns-host-resolver.js';
 import { createWebhookRegistry } from '../adapters/webhooks/webhook-registry.js';
+import { createAuthMailBudget, type AuthMailBudgetReading } from '../core/auth/auth-mail-budget.js';
 import { ChannelOptInRefusal } from '../core/channels/channel-opt-in.js';
 import { WEBHOOK_PARAMS } from '../core/config/webhook-params.js';
 import { createRateLimiter } from '../core/http/rate-limiter.js';
@@ -139,6 +140,8 @@ export interface AuthWiring {
   readonly zonesEnabled: boolean;
   /** Whether the webhook routes were registered (a webhook keyring was configured). */
   readonly webhooksEnabled: boolean;
+  /** The sign-in mail budget for the metrics collector (R5-SEC-3); null while disabled. */
+  readonly authMail: (() => AuthMailBudgetReading) | null;
   readonly close: () => Promise<void>;
 }
 
@@ -202,7 +205,10 @@ export interface AuthWiringDeps {
 
 export function wireAuthRoutes(
   app: FastifyInstance,
-  config: Pick<ServerConfig, 'auth' | 'databaseUrl' | 'databaseRole' | 'applicationName'>,
+  config: Pick<
+    ServerConfig,
+    'auth' | 'databaseUrl' | 'databaseRole' | 'applicationName' | 'apiClientIpHeader'
+  >,
   deps: AuthWiringDeps,
 ): AuthWiring {
   const auth = config.auth;
@@ -211,6 +217,7 @@ export function wireAuthRoutes(
       enabled: false,
       zonesEnabled: false,
       webhooksEnabled: false,
+      authMail: null,
       close: () => Promise.resolve(),
     };
   }
@@ -272,10 +279,14 @@ export function wireAuthRoutes(
     onProblem: deps.onProblem,
   };
 
+  // R5-SEC-3: per-client and global link caps in front of the per-address one.
+  const mailBudget = createAuthMailBudget();
   registerAuthRoutes(app, {
     flows: surface.signIn,
     allowedOrigins: auth.allowedOrigins,
     clock,
+    mailBudget,
+    clientIpHeader: config.apiClientIpHeader,
     onProblem: deps.onProblem,
   });
   registerAccountRoutes(app, { ...common, erase: surface.erase });
@@ -319,6 +330,7 @@ export function wireAuthRoutes(
     enabled: true,
     zonesEnabled: zones !== null,
     webhooksEnabled: webhooks !== null,
+    authMail: () => mailBudget.reading(clock.now()),
     close: async () => {
       await Promise.all(pools.map((pool) => pool.end()));
     },

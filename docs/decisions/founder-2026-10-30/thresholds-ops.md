@@ -38,6 +38,7 @@ shipped capacity already implies one.
 | F14 | Wind speed ramp | Beaufort-like classes on a teal-to-violet ramp, so no class reads as fire. Ratified. | Fire owns red (CI-14). | `web/src/core/wind.ts` (68ecc31) | CVD check flags a class pair. |
 | F15 | Pass prediction parameters | TLE stale after **72 h**; **0.5°** pass cells; out-of-swath passes hidden. Ratified. | 72 h keeps timing error to seconds; 0.5° cells say region, not village (privacy); an out-of-swath pass is no chance of a detection. | `server/src/core/passes/passes-document.ts`, `pass-grid.ts` (68ecc31) | CelesTrak update cadence changes. |
 | F17 | Cloud cover words | Okta boundaries: ≤ **25 %** "mostly clear", ≥ **75 %** "cloudy"; the percentage is always shown. Ratified. | WMO okta convention (2 and 6 oktas). | `web/src/core/pass-cloud.ts` (68ecc31) | — |
+| SEC-3 | Magic-link mail budgets (review 28 E-3, Q3) | **10/h per client** (an IPv6 client keyed by its /64), **200/h global**; over either the link route still answers `202` and sends nothing; page at **50 %** of the global window and on any global suppression. Provisional, added 2026-11-07. | Review 28 Q3's own numbers; the SES account also carries fire alerts, so sign-in mail must not be able to spend it; an identical answer tells a flooder nothing. | `server/src/core/auth/auth-mail-budget.ts`, `infra/metrics/rules/auth.yaml` | Season-1 sign-in volumes or the SES sending quota are known. |
 
 ## Still owner action
 

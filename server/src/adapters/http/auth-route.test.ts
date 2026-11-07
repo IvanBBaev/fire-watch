@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createAuthMailBudget, type AuthMailBudget } from '../../core/auth/auth-mail-budget.js';
 import { AuthRefusal, type StartedSession } from '../../core/auth/sign-in.js';
 import { VirtualClock } from '../../core/ports/clock.js';
 import {
@@ -16,6 +17,7 @@ import { SESSION_COOKIE_NAME } from './session-cookie.js';
 const ORIGIN = 'https://fire-watch.example';
 const CLOCK = new VirtualClock('2026-08-20T05:20:00Z');
 const SESSION_TOKEN = 'S'.repeat(43);
+const CLIENT_IP_HEADER = 'x-client-ip';
 
 interface Calls {
   link: { email: string; userAgent: string | undefined }[];
@@ -23,7 +25,10 @@ interface Calls {
   signOut: (string | undefined)[];
 }
 
-function build(overrides: Partial<SignInFlows> = {}) {
+function build(
+  overrides: Partial<SignInFlows> = {},
+  mailBudget: AuthMailBudget = createAuthMailBudget(),
+) {
   const calls: Calls = { link: [], cont: [], signOut: [] };
   const problems: ProblemLogEntry[] = [];
   const flows: SignInFlows = {
@@ -53,6 +58,8 @@ function build(overrides: Partial<SignInFlows> = {}) {
     flows,
     allowedOrigins: [ORIGIN],
     clock: CLOCK,
+    mailBudget,
+    clientIpHeader: CLIENT_IP_HEADER,
     onProblem: (entry) => problems.push(entry),
   });
   apps.push(app);
@@ -81,6 +88,55 @@ describe('Origin validation (C1)', () => {
       expect(calls.link).toHaveLength(0);
     },
   );
+});
+
+describe(`POST ${AUTH_LINK_PATH} mail budget (R5-SEC-3)`, () => {
+  const ask = (app: FastifyInstance, ip: string, email: string) =>
+    app.inject({
+      method: 'POST',
+      url: AUTH_LINK_PATH,
+      headers: { origin: ORIGIN, [CLIENT_IP_HEADER]: ip },
+      payload: { email },
+    });
+
+  it('answers the 11th request from one IP in an hour with 202 and sends no mail', async () => {
+    const { app, calls } = build();
+    for (let i = 0; i < 10; i += 1) {
+      expect((await ask(app, '203.0.113.7', `u${i}@example.bg`)).statusCode).toBe(202);
+    }
+    const eleventh = await ask(app, '203.0.113.7', 'u10@example.bg');
+    expect(eleventh.statusCode).toBe(202);
+    expect(eleventh.json()).toEqual({ status: 'sent' });
+    expect(calls.link).toHaveLength(10);
+    expect(calls.link.map((call) => call.email)).not.toContain('u10@example.bg');
+  });
+
+  it('answers the (N+1)th request globally with 202 and sends no mail', async () => {
+    const budget = createAuthMailBudget();
+    const { app, calls } = build({}, budget);
+    for (let i = 0; i < 200; i += 1) {
+      const ip = `198.51.${Math.floor(i / 10)}.${i % 10}`;
+      expect((await ask(app, ip, `u${i}@example.bg`)).statusCode).toBe(202);
+    }
+    const over = await ask(app, '192.0.2.1', 'late@example.bg');
+    expect(over.statusCode).toBe(202);
+    expect(over.json()).toEqual({ status: 'sent' });
+    expect(calls.link).toHaveLength(200);
+    expect(budget.reading(CLOCK.now()).suppressed).toEqual({ over_client: 0, over_global: 1 });
+  });
+
+  it('checks the body before spending budget on it', async () => {
+    const budget = createAuthMailBudget();
+    const { app } = build({}, budget);
+    const response = await app.inject({
+      method: 'POST',
+      url: AUTH_LINK_PATH,
+      headers: { origin: ORIGIN, [CLIENT_IP_HEADER]: '203.0.113.7' },
+      payload: { email: 42 },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(budget.reading(CLOCK.now()).globalUsed).toBe(0);
+  });
 });
 
 describe(`POST ${AUTH_LINK_PATH}`, () => {

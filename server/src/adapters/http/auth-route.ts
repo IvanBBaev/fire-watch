@@ -17,6 +17,8 @@
  *
  * **What the link endpoint reveals.** A well-formed address gets `202` whether or not an
  * account exists; the one other answer is `429`, which counts requests, not accounts.
+ * A request over the per-client or global mail budget (`AuthMailBudget`, R5-SEC-3) also
+ * gets `202` and sends nothing: a different answer would tell a flooder it had been seen.
  *
  * Nothing here logs an address or a token: refusals are literals, and the problem
  * observer receives an `AuthRefusal` whose message is its code alone.
@@ -28,6 +30,7 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+import type { AuthMailBudget } from '../../core/auth/auth-mail-budget.js';
 import { isAllowedOrigin } from '../../core/auth/auth-policy.js';
 import { AuthRefusal, type AuthRefusalCode, type StartedSession } from '../../core/auth/sign-in.js';
 import type { Clock, EpochMs } from '../../core/ports/clock.js';
@@ -37,6 +40,7 @@ import {
   type CodedProblemSpec,
   type ProblemObserver,
 } from './problem.js';
+import { clientKey } from './client-key.js';
 import { clearedSessionCookie, readSessionCookie, sessionCookie } from './session-cookie.js';
 
 export const AUTH_LINK_PATH = '/api/v1/auth/link';
@@ -82,6 +86,10 @@ export interface AuthRouteDeps {
   /** Exact origins (scheme://host[:port]) the web app is served from. */
   readonly allowedOrigins: readonly string[];
   readonly clock: Clock;
+  /** The per-client and global link budget (R5-SEC-3), checked before any mail is sent. */
+  readonly mailBudget: AuthMailBudget;
+  /** The edge header carrying the client address (`clientKey`); undefined uses the socket. */
+  readonly clientIpHeader?: string | undefined;
   readonly onProblem?: ProblemObserver | undefined;
 }
 
@@ -95,12 +103,12 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
 
     scope.post(AUTH_LINK_PATH, async (request, reply) => {
       const email = stringMember(request.body, 'email', MAX_EMAIL_INPUT);
-      await mapRefusal(
-        deps.flows.requestLink(
-          { email, userAgent: request.headers['user-agent'] },
-          deps.clock.now(),
-        ),
-      );
+      const at = deps.clock.now();
+      if (deps.mailBudget.admit(clientKey(request, deps.clientIpHeader), at) === 'send') {
+        await mapRefusal(
+          deps.flows.requestLink({ email, userAgent: request.headers['user-agent'] }, at),
+        );
+      }
       return reply.code(202).send({ status: 'sent' });
     });
 

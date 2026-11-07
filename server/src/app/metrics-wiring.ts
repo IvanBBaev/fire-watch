@@ -12,7 +12,8 @@
  *   * API: the freshness verdict, computed at scrape time from the same reader, expected
  *     rows and budgets as `/api/health/freshness` — so the dashboard and the endpoint
  *     UptimeRobot reads can never disagree. Fleet control at scrape time: the degradation
- *     tier, open streams and the stream route's refusals (`transportCollector`).
+ *     tier, open streams and the stream route's refusals (`transportCollector`); the
+ *     sign-in mail budget's spend and held-back links (`authMailCollector`).
  *   * Worker: every heartbeat success (`fw_job_last_success_timestamp_seconds`), run
  *     counts, finish time and duration of every loop the worker starts — the dispatch and
  *     R2 mirror loops through the `observe` hook their wiring takes — the ingest cycle's
@@ -55,8 +56,10 @@ import { evaluateFreshness } from '../core/health/freshness.js';
 import type { IngestCycleReport } from '../core/ingest/ingest-cycle.js';
 import type { MetaHealthVerdict } from '../core/monitoring/meta-health.js';
 import type { MonitorCycleReport } from '../core/monitoring/monitor-cycle.js';
+import type { AuthMailBudgetReading } from '../core/auth/auth-mail-budget.js';
 import {
   alertDeferralIncrements,
+  authMailSamples,
   alertDropIncrements,
   backupSamples,
   eventLoopLagSamples,
@@ -246,6 +249,11 @@ export function observeAlertDigest(
 /** Fleet control at scrape time (API). A read that throws exports nothing that scrape. */
 export function transportCollector(read: () => TransportReading): () => MetricSample[] {
   return () => transportSamples(read());
+}
+
+/** The sign-in mail budget at scrape time (API, R5-SEC-3). Added only when sign-in is on. */
+export function authMailCollector(read: () => AuthMailBudgetReading): () => MetricSample[] {
+  return () => authMailSamples(read());
 }
 
 /** The ingest cycle's per-source counters. A cycle that threw adds nothing. */

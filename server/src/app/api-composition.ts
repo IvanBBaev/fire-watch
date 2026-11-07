@@ -14,6 +14,7 @@ import { wireHealthServer } from './health-wiring.js';
 import type { ProcessLog } from './logging.js';
 import { describeMetricsConfig, loadMetricsConfig } from './metrics-config.js';
 import {
+  authMailCollector,
   createMetricsListener,
   createProcessMetrics,
   freshnessCollector,
@@ -57,6 +58,7 @@ export async function startApi(env: Environment, log: ProcessLog): Promise<Runni
     const registry = createProcessMetrics();
     registry.addCollector(freshnessCollector({ ...wiring.freshness, clock: systemClock }));
     registry.addCollector(transportCollector(wiring.transport));
+    if (wiring.authMail !== null) registry.addCollector(authMailCollector(wiring.authMail));
     metricsListener = createMetricsListener(metricsConfig, registry);
   }
   try {

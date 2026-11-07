@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { AUTH_MAIL_BUDGET } from '../core/auth/auth-mail-budget.js';
 import { ALERT_BUDGETS } from '../core/config/alert-budgets.js';
 import { FRESHNESS_BUDGETS } from '../core/config/freshness-budgets.js';
 import { OUTBOX_QUEUE_PAGE_SECONDS } from '../core/monitoring/meta-alert-params.js';
@@ -93,7 +94,14 @@ function budget(row: string): { warnSeconds: number; criticalSeconds: number } {
 describe('infra/metrics/rules', () => {
   it('parses a rule set from every file, each with an expression and routing labels', () => {
     expect(new Set(RULES.map((r) => r.file))).toEqual(
-      new Set(['backup.yaml', 'freshness.yaml', 'queue.yaml', 'shrinkage.yaml', 'targets.yaml']),
+      new Set([
+        'auth.yaml',
+        'backup.yaml',
+        'freshness.yaml',
+        'queue.yaml',
+        'shrinkage.yaml',
+        'targets.yaml',
+      ]),
     );
     for (const r of RULES) {
       expect(r.expr, r.alert).not.toBe('');
@@ -125,6 +133,16 @@ describe('infra/metrics/rules', () => {
   it('pages on the L-8 queue age at OUTBOX_QUEUE_PAGE_SECONDS', () => {
     expect(threshold('NotificationQueueStuck')).toBe(OUTBOX_QUEUE_PAGE_SECONDS);
     expect(rule('NotificationQueueStuck').labels['page']).toBe('true');
+  });
+
+  it('pages at half the sign-in mail budget and on any link the global cap holds back', () => {
+    expect(threshold('AuthMailBudgetHalf')).toBe(AUTH_MAIL_BUDGET.warnFraction);
+    expect(rule('AuthMailBudgetHalf').expr).toMatch(/>= [\d.]+$/);
+    expect(rule('AuthMailBudgetHalf').labels).toEqual({ severity: 'warning', page: 'true' });
+    expect(threshold('AuthMailBudgetExhausted')).toBe(0);
+    expect(rule('AuthMailBudgetExhausted').expr).toMatch(
+      /increase\(fw_auth_mail_suppressed_total\{reason="over_global"\}\[/,
+    );
   });
 
   it('pages on the approval deadline at alert_budgets_v2', () => {
