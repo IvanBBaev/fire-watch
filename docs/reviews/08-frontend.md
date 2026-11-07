@@ -862,7 +862,9 @@ frontend can ship during a backend freeze and vice versa.
    chunk, server-gated — but confirm scope before v1 planning (affects auth/session work
    from the security review).
 3. **Media embed** (business model mentions licensing the live map embed): an embeddable
-   build changes CSP/frame-ancestors (security review's note), routing, and attribution
+   build changes CSP/frame-ancestors (security review's note; the policy exists since 2026-11-07 —
+   `web/src/edge/security-headers.ts`, `frame-ancestors 'self'` — so an embed route
+   would need its own rule), routing, and attribution
    layout. Is [v2] embed real enough to reserve URL/architecture space now (`/embed`
    route, postMessage API)?
 4. **Map label language toggle:** always `name:bg`-first, or should the EN UI locale also

@@ -703,6 +703,13 @@ lands, the scripts stay in `user_data` (22,184 bytes gzip+base64, TASKS B9).
    close, clients resume via `Last-Event-ID`). T1 users cannot observe a deploy at all;
    if they can, §4.1 rule 7 applies.
 6. Post-deploy: ping the deploy heartbeat, annotate the metrics timeline.
+7. **Web headers travel with the deploy** (R5-SEC-2, 2026-11-07). The Pages build ships
+   `web/public/_headers` — one policy, held equal to `web/src/edge/security-headers.ts` by
+   its unit test — and the API sets its own set on every answer
+   (`server/src/adapters/http/security-headers.ts`). The source policy admits only the
+   basemap and GIBS origins. When `FIRE_WATCH_STATIC_SNAPSHOT_URL` is set, the deploy must
+   append that origin to the policy with `admitOrigins` before publishing, or the browser
+   blocks the T2 fallback the moment the origin is down. The step belongs to R5-SRE-5.
 
 ---
 

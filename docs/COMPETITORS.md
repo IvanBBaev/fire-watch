@@ -112,7 +112,8 @@ depend on the post surviving:
 1. Make one contact with ISKRA before any partner outreach, as review 32 decision 6
    already recommended, with a concrete proposal (alerts and permalinks over their
    detections, or a mutual link exchange), not an open question.
-2. Keep engineering on Group ENG order (CI, security headers, deploy path). None of it
+2. Keep engineering on Group ENG order (CI, security headers — landed 2026-11-07 as
+   R5-SEC-2 —, deploy path). None of it
    depends on the competitive reading, and all of it is needed in either configuration.
 3. Do not open new map rows. Finish or strike F15/F16/F18 on their own merits.
 4. Write `docs/POSITIONING.md` (R5-BIZ-11) against this table: three differentiators that

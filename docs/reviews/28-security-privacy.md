@@ -20,7 +20,7 @@
 
 **Conditions for GO:**
 - E-1: secret scanning, push protection and branch protection on, plus gitleaks in CI.
-- E-2: a CSP and header set in the first deploy config.
+- E-2: a CSP and header set in the first deploy config. *Landed 2026-11-07 (R5-SEC-2).*
 - E-3: per-IP and global auth-mail budgets.
 - E-4: retention numbers armed.
 - E-5 and E-6: the two-person rule and 2FA bootstrap fixed or explicitly waived by the founder before the staff routes are registered.
@@ -76,7 +76,7 @@ Ranked by what an outsider can exploit on launch day, not by how much code a fix
 | # | Severity | Risk | Where |
 |---|---|---|---|
 | R-1 | **High** | Public repo with secret scanning, push protection, Dependabot security updates and branch protection all off. No gitleaks. The CI regex covers only 4 shapes. The first host brings real secrets into a tree where several parallel agents work. | `gh api repos/IvanBBaev/fire-watch` (`security_and_analysis`), `…/branches/main/protection` → 404; `.github/workflows/ci.yml:370–390`; no `.gitleaks.toml` |
-| R-2 | **High** | No CSP, HSTS, frame-ancestors or Referrer-Policy on the web or the API. Any future XSS has no second wall, the map can be framed for clickjacking, and event URLs leak in `Referer` to the tile and imagery hosts. B3 is ticked over the unmet clause. | `web/` (no `_headers`), `web/functions/`, `server/src/adapters/http/*`; `docs/TASKS.md:468` |
+| R-2 | **High** | No CSP, HSTS, frame-ancestors or Referrer-Policy on the web or the API. Any future XSS has no second wall, the map can be framed for clickjacking, and event URLs leak in `Referer` to the tile and imagery hosts. B3 is ticked over the unmet clause. *Closed 2026-11-07 by R5-SEC-2; B3 re-ticked against it.* | `web/` (no `_headers`), `web/functions/`, `server/src/adapters/http/*`; `docs/TASKS.md:468` |
 | R-3 | **Medium-High** | Magic-link bombing and SES reputation burn: 3/hour per address, but 60/min per IP and no global auth-mail budget. A botnet or an IPv6 /64 rotation sends unlimited mail to third parties. A suspended SES account also stops fire alerts. | `auth-policy.ts:35`; `health-server.ts:150,323–383`; `auth-route.ts` (no route limiter) |
 | R-4 | **Medium-High** | Retention unarmed. Non-consenting emails in `auth_link_requests`, ended sessions, tombstones, decision and digest logs and webhook delivery logs are kept forever. `staff_audit_log` IPs have no purge target. This is a GDPR Art. 5(1)(e) storage-limitation gap from day one. | `server/src/core/erasure/purge-plan.ts:49–66`; `erasure-plan.ts:243,272` |
 | R-5 | **Medium** | The two-person broadcast rule is enforced on `staffId` only. An admin can create a second member. With one founder there is no second human. | `staff-policy.ts:49,76–88` |
@@ -105,6 +105,7 @@ Ranked by what an outsider can exploit on launch day, not by how much code a fix
   - Add a CI test that greps the built output for the header file and an e2e check that the CSP produces no violations on the CI-18 route table.
   - Untick B3 until this lands.
   - Owner: agent. Effort: 4 h.
+  - *Landed 2026-11-07 as R5-SEC-2 (commits 94445bd, aad2248, 912e364). Web: `web/public/_headers` for the Pages static assets and `web/src/edge/security-headers.ts` as the one source (`WEB_SECURITY_HEADERS`, `withSecurityHeaders`, `admitOrigins`, `parseHeadersFile`); the event-shell Function sets the same headers in code (`web/src/edge/og/og-handlers.ts`) because `_headers` does not reach Functions. Departures from the proposal: `worker-src 'self'` without `blob:` and `style-src 'self'` without `'unsafe-inline'` — the map worker is a same-origin module and the real map loads with zero violations under both; no embed route exists, so `frame-ancestors 'self'` everywhere; `object-src 'none'` added. The T2 mirror host is not in the source policy — the deploy appends it with `admitOrigins` (a step for R5-SRE-5, OPERATIONS §9.3 rule 7). API: `server/src/adapters/http/security-headers.ts` (`default-src 'none'; frame-ancestors 'none'`, HSTS, Referrer-Policy, nosniff) on every public answer, including 404s, errors and the `frameworkErrors` path. CI: `web/src/edge/security-headers.test.ts` holds the file and the module equal; `web/e2e/security-headers.e2e.ts` asserts the headers and zero `securitypolicyviolation` events on all eleven CI-18 surfaces (`web/e2e/harness/route-surfaces.ts`) with the real map loading. B3 re-ticked against it in TASKS.*
 - **E-3 [MVP] → R-3. Budget auth mail on three axes.**
   - Per IP, 10 link issues/hour; per /64 for IPv6.
   - Global, N auth mails/hour, with a meta-alert when 50% is reached (J1).
@@ -206,6 +207,8 @@ There are no headers at all (R-2). The SPA renders catalog copy and server JSON 
 
 The embed and OG functions (`web/functions/og`, `web/functions/event/[id]`) need an explicit `frame-ancestors *` only on the embed route, and `'self'` everywhere else.
 
+*2026-11-07 — R5-SEC-2 landed: the headers above exist on every CI-18 surface and every API answer; see the E-2 landed note for files and departures. There is still no embed route, so `frame-ancestors 'self'` applies everywhere.*
+
 Third-party client-direct calls are covered in R-8.
 
 ### 5.6 Supply chain and the public repository
@@ -234,7 +237,7 @@ The kill switch read fails closed (a failed read fails the cycle). That is corre
 **(a) TASKS rows**
 
 - [ ] **R5-SEC-1 — Repository security controls and gitleaks.** Spec: review 28 E-1. Writes: `.github/workflows/ci.yml`, `.gitleaks.toml`, `SECURITY.md`. Done when: `gh api repos/IvanBBaev/fire-watch` shows secret scanning and push protection `enabled`, `branches/main/protection` returns 200 with required checks, and a seeded fake key in a test branch fails the gitleaks job. Est: 1.8 h. Status: blocked-owner.
-- [ ] **R5-SEC-2 — CSP and security headers for web and API.** Spec: review 28 E-2. Writes: `web/public/_headers`, `server/src/adapters/http/security-headers.ts`, e2e CSP check. Done when: every CI-18 route serves CSP, HSTS, Referrer-Policy and frame-ancestors with zero CSP violations in e2e, and B3 is re-ticked against it. Est: 4 h. Status: open.
+- [ ] **R5-SEC-2 — CSP and security headers for web and API.** Spec: review 28 E-2. Writes: `web/public/_headers`, `server/src/adapters/http/security-headers.ts`, e2e CSP check. Done when: every CI-18 route serves CSP, HSTS, Referrer-Policy and frame-ancestors with zero CSP violations in e2e, and B3 is re-ticked against it. Est: 4 h. Status: open. *Landed 2026-11-07; the live row in TASKS is ticked.*
 - [ ] **R5-SEC-3 — Per-IP and global magic-link mail budgets.** Spec: review 28 E-3. Writes: `server/src/core/auth/auth-policy.ts`, `server/src/adapters/http/auth-route.ts`, tests. Done when: the 11th link request from one IP in an hour and the (N+1)th globally return 202 and send no mail, with a test for each and a meta-alert at 50%. Est: 3 h. Status: blocked-owner.
 - [ ] **R5-SEC-4 — Arm retention and truncate staff audit IPs.** Spec: review 28 E-4. Writes: `server/src/core/erasure/purge-plan.ts`, migration 037+, tests. Done when: `planPurge` reports every target `armed: true` and a staff-audit IP older than 90 days is nulled in an integration test. Est: 2 h. Status: blocked-owner.
 - [ ] **R5-SEC-5 — Two-person rule bound to distinct people.** Spec: review 28 E-5. Writes: `server/src/core/staff/staff-policy.ts`, tests, OPERATIONS. Done when: approval by a member created by the creator, or created less than 7 days ago, is refused in tests, and single-operator mode is documented. Est: 3 h. Status: blocked-owner.

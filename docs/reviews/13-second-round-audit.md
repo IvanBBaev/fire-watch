@@ -142,7 +142,8 @@ must land. Each item names its target document.
    canonical freshness endpoint path (resolves `/api/health/freshness` vs
    `/api/v1/meta/freshness`).
 10. **WP0 CI list**: secret scanning + push protection, npm audit gate, SHA-pinned
-    Actions, Renovate cool-down; CSP/security headers from first deploy; the
+    Actions, Renovate cool-down; CSP/security headers from first deploy (landed
+    2026-11-07 as R5-SEC-2, after B3 had been ticked over it); the
     server-side import matrix + single-writer rule added to CI-9's definition
     (from 01 §6.1); Testcontainers-PostGIS incl. migration up/down + append-only-grants
     test.
@@ -306,7 +307,7 @@ where the item must land to become authoritative again.
 | **IMPLEMENTATION-PLAN.md** | Migration-001 contents incl. outbox (00-summary action 3, 02 rec 7); backfill six-deliverable work order staged (00-summary action 8); test pyramid items (06 §5.3); production monitors (06 §5.5); shadow-diff machinery (06 §5.7); visual-regression suite (06 §5.4); trust surfaces + onboarding + share cards + education pack (07 P11–P14, 12 §6); a11y targets + list view (07 §5.8); place names (07 §5.4.6); curation tooling for officially_* (12/07); GTM column — outreach table, funding calendar incl. Eurostars 1 Sep decision, seeding targets, north-star instrumentation, B2B decks, press kit (10 §4/§5.6/§7/§9); recovery blocks (10 §8.1); duty-officer interviews (00-summary action 9); staging environment (06 Q7); p_det estimation task (11 §5.3); major-fire thresholds (11 §8.3); shadow-period user UI (07 §5.5.2); postmortem 72 h SLA + corrections page (07 §5.6.4) |
 | **EXTERNAL-ACCOUNTS.md** | Monitoring SaaS wave-0/1 rows (04); hardware-key 2FA standing rule (05 F1); ЕООД + lawyer + EUTM rows (09 §6.1/§10.1/§7); Galileo to wave 0/1 + Mapbox row (10 §9.5); DMARC p=reject + defensive domains + status page (05 §5.2.4/T17); DPA column (05 B5); name-clearance ЗМГО/ТЗ rule (09 §7.2) |
 | **DATA-SOURCES.md** | Canonical attribution-string table incl. verbatim Cop-DEM sentence (09 §2.4 + catalog delta); FIRMS pitfall table (03 §5.1.1); Open-Meteo reclassification (09 §2.2.I doctrine); EUMETSAT Recommended-tier caveat + policy pin (09 §2.2.B); corrected provenance citations (Legal#7); licences pinned to docs/licenses/ (09 §2.3.5); EFFIS B2B written-position note (09 §2.2.E) |
-| **WP0 CI skeleton** | Secret scanning, npm audit, SHA-pinned Actions, Renovate cool-down (05 F2/F3); CSP/headers (05 F4); server import matrix + single-writer in CI-9 (01 §6.1, 02 §5.1–5.2); packages/contracts inventory (02 §5.1) |
+| **WP0 CI skeleton** | Secret scanning, npm audit, SHA-pinned Actions, Renovate cool-down (05 F2/F3); CSP/headers (05 F4; landed 2026-11-07 as R5-SEC-2); server import matrix + single-writer in CI-9 (01 §6.1, 02 §5.1–5.2); packages/contracts inventory (02 §5.1) |
 | **WP1 DoD** | E1 CSV validation + quarantine (05 E1); sandboxed netCDF worker (05 E3); ingestion-parity monitor (06 §5.5); MAP_KEY path-segment redaction (02); licence snapshots (09 §2.3.5) |
 | **RISKS.md** | R4 reworded — disclaimers cannot shield under ЗЗП; conduct + logs are the defence (09 §3.4/§3.6); R2 reconciled with the news-log exception (06 Q5); solo on-call honesty (04 Q2, 06 Q10); constellation-transfer row (11); unowned open questions Q2/Q4/Q5/Q6 from 04 answered or explicitly deferred |
 | **ANALYSIS.md** | Stale §5 text (Neon/Supabase rec, old SSE diagram) → one-line pointers to ADR-003/004; "Real-time" in line 3; crowdsourced reports moved to out-of-scope with the 09 §8 conditional |

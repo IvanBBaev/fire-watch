@@ -189,6 +189,11 @@ Grouped, each mapped to risks. "MVP" = map-only launch; "v1" = accounts+alerts; 
   blob: for MapLibre; connect-src limited to our API + tile hosts), HSTS, X-Content-Type-
   Options, Referrer-Policy, frame-ancestors 'none' (except the future embeddable map, which
   gets its own route and policy).
+  *Landed 2026-11-07 as R5-SEC-2 (review 28 E-2): `web/public/_headers` +
+  `web/src/edge/security-headers.ts`, `server/src/adapters/http/security-headers.ts`,
+  `web/e2e/security-headers.e2e.ts`. As built: `frame-ancestors 'self'` on the web (28 E-2's
+  choice, no embed route yet) and `'none'` on the API; `worker-src 'self'` — the MapLibre
+  worker is a same-origin module, so `blob:` was not needed.*
 
 ### G. Legal-adjacent (R14) — see §5.7
 - **G1 (v1):** Layered disclaimer: registration-time acknowledgement + footer in **every

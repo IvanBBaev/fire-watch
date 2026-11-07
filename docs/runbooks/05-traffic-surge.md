@@ -92,7 +92,9 @@ Work in the §7 order and do not skip ahead.
 - **M4 — T2 as the floor.** `FIRE_WATCH_STATIC_SNAPSHOT_URL` is advertised in
   client-config as `static_snapshot_url`. Clients fall back to the R2 object when the
   origin fails, so the map survives even a VM that is down. Check that it is set and
-  that `r2_mirror_age` is `ok`.
+  that `r2_mirror_age` is `ok`. Check too that the served `_headers` admits the T2 origin
+  in `connect-src` (appended at deploy with `admitOrigins`, OPERATIONS §9.3 rule 7): a
+  policy without it makes the browser refuse the very fallback this mitigation relies on.
 - **M5 — Do not deploy** (OPERATIONS §9.3 rule 4: no deploys while degraded, during a
   major-fire event, or under an error-budget freeze, except incident hotfixes).
   The deploy gate (`infra/deploy-gate/`) already demands the attested boxes

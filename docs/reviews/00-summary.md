@@ -639,7 +639,8 @@ May 2027 are now calendar conditions, and that most of them are human acts, not 
   batches.
 - **27:** CI green and noticed by 15 Nov; accounts by 15 Jan; a rehearsed deploy path and a
   real-VM boot by 28 Feb; a committed restore drill by 31 Mar.
-- **28:** repository security controls on before the first host secret exists; CSP and headers;
+- **28:** repository security controls on before the first host secret exists; CSP and headers
+  (landed 2026-11-07, R5-SEC-2);
   magic-link budgets; retention armed; the staff two-person rule bound to people.
 - **29:** remote-green enforced; real-Postgres tests for the security-critical stores; fixture
   provenance; a live shadow by 2027-02-01.
@@ -705,7 +706,7 @@ recording the miss and reading a CP1′ from backfill replay: on 18 Dec 2026 (26
 The core is launch-grade: cookie sessions, single-use magic links, Origin CSRF, a DNS-pinned
 webhook guard, complete erasure, a framework-free map core with enforced byte budgets, and
 candid copy. Everything at the edge is missing or off: no CSP or HSTS despite B3 being ticked
-(28 R-2); every retention purge is null (28 R-4); no offline shell (31 R-3); no repository
+(28 R-2; closed 2026-11-07 by R5-SEC-2); every retention purge is null (28 R-4); no offline shell (31 R-3); no repository
 licence and six inputs without licence files (32 R-4); secret scanning, push protection and
 Dependabot are off on a public repository (28 R-1).
 
@@ -766,7 +767,7 @@ proposals. Ordered by date:
 3. **By 15 Nov:** CP1 recorded as missed and CP1′ dated (R5-PROD-3, R5-DATA-3, R5-BIZ-1);
    Day 0 accounts (R5-PROD-2, R5-SRE-6); weekly decision batches (R5-PROD-4).
 4. **By 30 Nov:** ЕООД filing and a lawyer (R5-BIZ-2/3); DS-3 (R5-DATA-2); CSP/headers,
-   magic-link budgets, retention armed (R5-SEC-2/3/4); the UX honesty fixes (R5-UX-1/2).
+   magic-link budgets, retention armed (R5-SEC-2/3/4; SEC-2 and SEC-3 landed 2026-11-07); the UX honesty fixes (R5-UX-1/2).
 5. **By 31 Dec:** repository licence and input licence files (R5-BIZ-5/6); legal set current
    (R5-BIZ-4); rehearsed deploy path on a local VM (R5-SRE-5); real-PG adapter tests
    (R5-QA-4).

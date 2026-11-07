@@ -52,5 +52,6 @@
   hide both at the cost of origin egress. Founder to decide.
 - **Short-form wording.** `Imagery: NASA GIBS / EOSDIS` is our form; GIBS prescribes only
   the full sentence. Founder to confirm.
-- **No CSP.** The repository ships no Content-Security-Policy; when one is added, `img-src`
-  must allow `https://gibs.earthdata.nasa.gov`.
+- **CSP.** Since 2026-11-07 (R5-SEC-2) the web policy in `web/public/_headers` /
+  `web/src/edge/security-headers.ts` admits `https://gibs.earthdata.nasa.gov` in `img-src`
+  and `connect-src`. If the GIBS proxy (R5-SEC-8) lands, the host leaves the policy.
