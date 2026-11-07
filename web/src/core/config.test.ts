@@ -56,6 +56,11 @@ describe('withDataSource', () => {
     expect(withDataSource(DEFAULT_CONFIG, 'fixtures')).toBe(DEFAULT_CONFIG);
   });
 
+  it('says which source it reads from (FD-5)', () => {
+    expect(DEFAULT_CONFIG.dataSource).toBe('fixtures');
+    expect(withDataSource(DEFAULT_CONFIG, 'live').dataSource).toBe('live');
+  });
+
   it('points live mode at the API snapshot and the per-event detections route', () => {
     const live = withDataSource(DEFAULT_CONFIG, 'live');
     expect(live.snapshotUrl).toBe('/snapshot.json');

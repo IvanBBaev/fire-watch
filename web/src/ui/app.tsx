@@ -21,6 +21,7 @@ import { loadMessages, persistLocale } from '../core/i18n/locale.js';
 import type { Messages } from '../core/i18n/messages.js';
 import type { Clock, GeoLocator, ServerNow } from '../core/ports.js';
 import type { FireEventStore, Locale } from '../core/types.js';
+import { DemoDataNotice } from './demo-data-notice.js';
 import { BannerSlot } from './status/index.js';
 import { isMapRoute, selectedEventIdFrom } from './logic/layout.js';
 import type { RouteId } from './logic/routes.js';
@@ -99,7 +100,7 @@ function NavLink({ href, label }: { readonly href: string; readonly label: strin
 }
 
 function Shell({ services }: { readonly services: AppServices }) {
-  const { store, serverNow, messages, locale } = services;
+  const { store, serverNow, config, messages, locale } = services;
   const state = useStoreState(store);
   const nowMs = useNow(serverNow);
   const { path, url } = useLocation();
@@ -137,6 +138,8 @@ function Shell({ services }: { readonly services: AppServices }) {
             would grow it, shrink the map frame and silently re-scope the in-view list. */}
         {!withMap && <NewSignalsCounter />}
       </header>
+      {/* FD-5: permanent on fixture builds, and deliberately not a banner-slot occupant. */}
+      <DemoDataNotice config={config} messages={messages} />
       {/* The one degraded-state slot — two simultaneous banners is a regression. */}
       <BannerSlot state={state} serverNowMs={nowMs} messages={messages} locale={locale} />
       <main class={`shell-main${withMap ? ' with-map' : ''}`}>

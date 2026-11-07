@@ -182,6 +182,8 @@ export type Governance =
  */
 export const CATALOG_GOVERNANCE = {
   appTitle: { governance: 'own-voice', reason: 'chrome' },
+  // FD-5: says what this build's data is, not what a fire is doing.
+  demoDataNotice: { governance: 'own-voice', reason: 'capability-prose' },
 
   'nav.map': { governance: 'own-voice', reason: 'chrome' },
   'nav.list': { governance: 'own-voice', reason: 'chrome' },

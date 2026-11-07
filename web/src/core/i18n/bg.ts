@@ -16,6 +16,8 @@ import type { Messages } from './messages.js';
 const messages: Messages = {
   appTitle: 'Fire Watch',
 
+  demoDataNotice: 'Демо данни — всеки пожар тук е измислен пример, а не сателитно засичане.',
+
   nav: {
     map: 'Карта',
     list: 'Списък',

@@ -98,9 +98,15 @@ describe('status.css — tokenised, AA in both themes', () => {
     expect(used.filter((reference) => !darkOverrides.has(reference))).toStrictEqual([]);
   });
 
-  it('pairs the banner and every chip state', () => {
+  it('pairs the banner, the demo-data notice and every chip state', () => {
     expect(pairs.map((pair) => pair.rule).sort()).toStrictEqual(
-      ['.fw-banner', '.fw-chip--aging', '.fw-chip--fresh', '.fw-chip--stale'].sort(),
+      [
+        '.fw-banner',
+        '.fw-demo-notice',
+        '.fw-chip--aging',
+        '.fw-chip--fresh',
+        '.fw-chip--stale',
+      ].sort(),
     );
   });
 

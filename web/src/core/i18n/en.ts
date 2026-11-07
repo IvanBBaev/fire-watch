@@ -18,6 +18,9 @@ import type { Messages } from './messages.js';
 const messages: Messages = {
   appTitle: 'Fire Watch',
 
+  demoDataNotice:
+    'Demo data — every fire shown here is a made-up example, not a satellite detection.',
+
   nav: {
     map: 'Map',
     list: 'List',

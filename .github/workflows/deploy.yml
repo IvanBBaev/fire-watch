@@ -177,6 +177,9 @@ jobs:
     timeout-minutes: 5
     # When this becomes real it takes `environment: production` (secrets from GitHub
     # Environments, OPERATIONS §8.2 rule 1) and runs `deploy.sh <git-sha>` on the box.
+    # The web client it ships is built with FIRE_WATCH_DEPLOY_ENV=production and
+    # VITE_FIRE_WATCH_DATA=live: `web/vite.config.ts` refuses a production build on the
+    # committed fixtures and leaves `fixtures/` out of the output (FD-5, data policy).
     steps:
       - name: Deploy (stub)
         env:

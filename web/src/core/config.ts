@@ -9,6 +9,7 @@
 
 import { OUTLINE_SERIES_URL_TEMPLATE } from '@fire-watch/contracts'; // V3-P3
 
+import type { DataSource } from './data-source.js';
 import type { OutdoorBasemapConfig, ThemeName } from './types.js';
 
 export interface ClientConfig {
@@ -110,9 +111,17 @@ export interface ClientConfig {
    * Optional; absent hides whatever reads it.
    */
   readonly outlineSeriesUrlTemplate?: string;
+  /**
+   * FD-5: where the events come from. `fixtures` (and absent, so older literal configs stay
+   * honest) puts the permanent demo-data notice in the shell; only `withDataSource(…,
+   * 'live')` sets `live`. A production build refuses anything but live
+   * (`deployDataProblem`, enforced in `web/vite.config.ts`).
+   */
+  readonly dataSource?: DataSource;
 }
 
 export const DEFAULT_CONFIG: ClientConfig = {
+  dataSource: 'fixtures',
   snapshotUrl: '/fixtures/snapshot.json',
   detectionsUrlTemplate: '/fixtures/detections/{id}.json',
   freshnessUrl: '/api/health/freshness',
@@ -161,18 +170,12 @@ export const DEFAULT_CONFIG: ClientConfig = {
  */
 export const DEFAULT_VIEW = { zoom: 5.8, lat: 42.4, lon: 25.4 } as const;
 
-/**
- * Where the client reads events from: `fixtures` (the default, and what tests, e2e and
- * CI-7 run against) or `live`, the local API's `/snapshot.json` (`pnpm dev:live`).
- */
-export type DataSource = 'fixtures' | 'live';
+export { deployDataProblem, readDataSource } from './data-source.js';
+export type { DataSource } from './data-source.js';
 
-/**
- * The build's data source from a raw env value (`VITE_FIRE_WATCH_DATA`). Anything but an
- * explicit `live` is the fixtures, so a typo can never point CI at a server.
- */
-export function readDataSource(raw: string | undefined): DataSource {
-  return raw?.trim().toLowerCase() === 'live' ? 'live' : 'fixtures';
+/** Whether `config` serves the committed fixtures — absent counts, since fixtures are the default. */
+export function servesFixtures(config: Pick<ClientConfig, 'dataSource'>): boolean {
+  return config.dataSource !== 'live';
 }
 
 /** Only a loopback page may point the basemap at its own dev server. */
@@ -255,6 +258,7 @@ export function withDataSource(config: ClientConfig, source: DataSource): Client
   if (source === 'fixtures') return config;
   return {
     ...config,
+    dataSource: 'live',
     snapshotUrl: '/snapshot.json',
     detectionsUrlTemplate: LIVE_DETECTIONS_URL_TEMPLATE,
     windOverlayUrl: '/overlays/wind/latest.json',

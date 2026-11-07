@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { defineConfig, type Plugin } from 'vite';
 
@@ -10,6 +10,8 @@ import {
   localTilesMiddleware,
   resolveLocalTiles,
 } from '../infra/tiles/dev-serve.ts';
+
+import { deployDataProblem, readDataSource } from './src/core/data-source.ts';
 
 /**
  * TASKS G3: `FIRE_WATCH_LOCAL_TILES_DIR=./tiles pnpm dev` (or `dev:live`, or `vite
@@ -62,6 +64,34 @@ function localTiles(
       },
     },
   ];
+}
+
+/**
+ * FD-5 (data policy, "Fixtures out of prod"): `FIRE_WATCH_DEPLOY_ENV=production vite build`
+ * fails unless the client is built on live data (`VITE_FIRE_WATCH_DATA=live`), and a
+ * production build that passes leaves `public/fixtures/` out of the output, so nothing a
+ * production origin serves can be mistaken for live data. Any other build may use the
+ * fixtures; the shell then shows the permanent demo-data notice (`ui/demo-data-notice.tsx`).
+ */
+function fixturesOutOfProduction(deployEnv: string | undefined): Plugin {
+  let fixturesDir: string | null = null;
+  return {
+    name: 'fire-watch:fixtures-out-of-production',
+    apply: 'build',
+    configResolved(config) {
+      const problem = deployDataProblem(
+        deployEnv,
+        readDataSource(config.env['VITE_FIRE_WATCH_DATA'] as string | undefined),
+      );
+      if (problem !== null) throw new Error(problem);
+      if (deployEnv?.trim().toLowerCase() === 'production') {
+        fixturesDir = resolve(config.root, config.build.outDir, 'fixtures');
+      }
+    },
+    closeBundle() {
+      if (fixturesDir !== null) rmSync(fixturesDir, { recursive: true, force: true });
+    },
+  };
 }
 
 /**
@@ -188,6 +218,7 @@ function maplibreSharedModule(): Plugin {
 // The dev proxy forwards the API routes and the live snapshot to the local API.
 export default defineConfig({
   plugins: [
+    fixturesOutOfProduction(process.env['FIRE_WATCH_DEPLOY_ENV']),
     maplibreSharedModule(),
     ...localTiles(
       process.env['FIRE_WATCH_LOCAL_TILES_DIR'],

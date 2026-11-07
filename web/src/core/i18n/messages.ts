@@ -26,6 +26,12 @@ export interface Messages extends FragmentMessages {
   /** Product name stays untranslated: "Fire Watch". */
   readonly appTitle: string;
 
+  /**
+   * FD-5: the permanent notice on every build that serves the committed fixtures (data
+   * policy, "Fixtures out of prod"). Says the events are made up, so no one acts on them.
+   */
+  readonly demoDataNotice: string;
+
   readonly nav: {
     readonly map: string;
     readonly list: string;
