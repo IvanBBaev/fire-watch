@@ -8,6 +8,7 @@ import type { FreshnessObservation } from '../../core/health/freshness.js';
 import { VirtualClock } from '../../core/ports/clock.js';
 import type { DatabaseProbe, FreshnessReader } from '../../core/ports/freshness-reader.js';
 import { createHealthServer, type HealthServerDeps } from './health-server.js';
+import { API_SECURITY_HEADERS } from './security-headers.js';
 import { WIND_OVERLAY_PATH } from './wind-overlay-route.js';
 import { LIGHTNING_OVERLAY_PATH } from './lightning-overlay-route.js';
 import { METEOALARM_OVERLAY_PATH } from './meteoalarm-overlay-route.js';
@@ -266,6 +267,25 @@ describe('the routes that are deliberately absent', () => {
     expect(response.headers['cdn-cache-control']).toBe('no-store');
     expect(response.headers['cloudflare-cdn-cache-control']).toBe('no-store');
     expect(response.payload).not.toContain('%c0');
+  });
+
+  it('carries the API security headers on every path an answer can take', async () => {
+    // TASKS R5-SEC-2. Three paths, three mechanisms: a route (the onSend hook), the
+    // not-found handler (the same hook, which Fastify runs for 404s too), and the
+    // frameworkErrors path, which no hook reaches and which sets them by hand.
+    const app = server({ probe: { ping: () => Promise.reject(new Error('ECONNREFUSED')) } });
+    const answers = await Promise.all([
+      app.inject({ method: 'GET', url: '/healthz' }),
+      app.inject({ method: 'GET', url: '/readyz' }),
+      app.inject({ method: 'GET', url: '/api/v1/meta/freshness' }),
+      app.inject({ method: 'GET', url: '/%c0' }),
+    ]);
+    expect(answers.map((response) => response.statusCode)).toEqual([200, 503, 404, 400]);
+    for (const response of answers) {
+      for (const [name, value] of Object.entries(API_SECURITY_HEADERS)) {
+        expect(response.headers[name], `${response.statusCode} ${name}`).toBe(value);
+      }
+    }
   });
 
   it('reports an oversized body as the client fault it is, never a 500', async () => {

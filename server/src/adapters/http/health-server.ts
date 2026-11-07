@@ -57,6 +57,8 @@
  *     does not answer becomes a 500 with a reason, which is a page, not a mystery.
  *   * Leaks nothing. No hostnames, versions, credentials or upstream URLs — the body is
  *     row ids, budgets and timestamps, and errors are reduced to a fixed vocabulary.
+ *     Every answer also carries the API security headers of `security-headers.ts`
+ *     (TASKS R5-SEC-2): a browser may load nothing from, and frame nothing of, this origin.
  *   * Unauthenticated but rate-limited: a credential on a health endpoint is a credential
  *     whose expiry pages you at 03:00. Liveness alone is exempt from the limiter — it
  *     answers from memory, and refusing it turns a flood into a restart loop.
@@ -137,6 +139,7 @@ import {
   type OutlineSeriesRouteDeps,
 } from './outline-series-route.js';
 import { sendProblem, type CodedProblemSpec } from './problem.js';
+import { applySecurityHeaders } from './security-headers.js';
 import {
   WIND_OVERLAY_PATH,
   registerWindOverlayRoute,
@@ -315,8 +318,17 @@ export function createHealthServer(deps: HealthServerDeps): FastifyInstance {
     // refusal — never the path, never the message.
     frameworkErrors: (error, _request, reply) => {
       noStore(reply);
+      applySecurityHeaders(reply);
       void sendOpaque(error, reply);
     },
+  });
+
+  // TASKS R5-SEC-2: every answer this process sends — route, 404, error handler — carries
+  // the API security headers. `onSend` is the one hook all three pass through; the
+  // `frameworkErrors` path above is the one that skips it, and sets them by hand.
+  app.addHook('onSend', (_request, reply, payload, done) => {
+    applySecurityHeaders(reply);
+    done(null, payload);
   });
 
   const limiter = createRateLimiter({
