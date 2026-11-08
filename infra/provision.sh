@@ -22,10 +22,10 @@
 #           command. This script never performs a deploy itself — a second
 #           deploy path is how `last_good` stops being true (§9.3 rules 1–2).
 #   verify  "migrations applied" by reading dbmate's `schema_migrations`
-#           through the deployed stack itself: `docker compose exec` into the
-#           postgres service — the same access path fw-backup uses, because
+#           through the deployed stack itself: `docker exec` into the
+#           postgres container — the path fw-backup uses, without compose, because
 #           Postgres has no published port (§9.2 "Postgres exposure") and
-#           migrations are applied by the worker on boot behind the advisory
+#           migrations are applied by the migrate one-shot behind the advisory
 #           lock (§9.3 rule 3), so there is nothing to "run", only to observe.
 #
 # SCOPE — what this script deliberately does NOT do:
@@ -101,7 +101,7 @@ PG_DB="${FW_PGDATABASE:-fire_watch}"
 # `status --wait`, so only SSH reachability and the verify poll need budgets.
 SSH_WAIT_TIMEOUT=600       # seconds until first SSH contact after create
 SSH_WAIT_INTERVAL=5
-VERIFY_TIMEOUT=600         # §9.3 rule 3: the worker applies migrations on
+VERIFY_TIMEOUT=600         # §9.3 rule 3: the migrate one-shot applies migrations on
 VERIFY_INTERVAL=15         # boot — observing them is a poll, not a command
 
 usage() {
@@ -210,7 +210,7 @@ provision: --restore-from is not implemented until TASKS C6.
   credential that can READ a backup may exist on or near the production VM;
   the restore-side credential and procedure are owed to OPERATIONS §8.1 and
   runbook RB-2 (§5), and land with TASKS C6. Until then a fresh VM starts
-  empty and the worker applies migrations to an empty database (§9.3 rule 3).
+  empty and the migrate one-shot applies migrations to an empty database (§9.3 rule 3).
 EOF
   exit 64   # same "stub" code as fw-restore-drill in cloud-init.yaml
 fi
@@ -620,59 +620,33 @@ wait_cloud_init() {
 
 # --- Phase: first deploy — hand off, never reimplement -------------------------
 # OPERATIONS §9.3: deploy is `deploy.sh <git-sha>` on the box, delivered and
-# driven by the deploy pipeline, with secrets rendered from GitHub Environments
-# (§8.2 rule 1). `deploy.yml` exists (TASKS J4) but its deploy job is still a
-# stub (marker DEPLOY_STEP_IS_STUB), so while the marker is present this phase
-# prints the contract instead of pretending.
-# TODO(OPERATIONS §9.3): when the deploy job becomes real, the trigger below
-# must pass the L-12 checklist inputs — a bare dispatch fails the gate.
+# driven by the deploy pipeline (.github/workflows/deploy.yml, R5-SRE-5), with
+# secrets rendered from GitHub Environments (§8.2 rule 1). The pipeline is a
+# manual dispatch whose gate needs the L-12 checklist ticked by a human, so this
+# phase never triggers it: a bare dispatch would fail the gate by design. It
+# prints the dispatch and returns non-zero, so `--verify-only` is the next step.
 
 first_deploy() {
   local ip="$1"
-  local workflow="${REPO_ROOT}/.github/workflows/deploy.yml"
-
-  # A deploy.yml whose deploy job is a stub is not yet a deploy pipeline.
-  local pipeline=0
-  if [[ -f "$workflow" ]] && ! grep -q 'DEPLOY_STEP_IS_STUB' "$workflow"; then
-    pipeline=1
-  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    if [[ "$pipeline" -eq 1 ]]; then
-      plan 'gh workflow run deploy.yml --ref main   # THE deploy path, §9.3'
-    else
-      plan 'print first-deploy hand-off (deploy workflow absent or still a stub — §9.3)'
-    fi
+    plan 'print the deploy dispatch (deploy.yml, L-12 boxes ticked by a human — §9.3)'
     return 0
-  fi
-
-  if [[ "$pipeline" -eq 1 ]]; then
-    if command -v gh >/dev/null 2>&1; then
-      say 'triggering the deploy workflow (OPERATIONS §9.3)'
-      gh workflow run deploy.yml --ref main
-      say 'deploy workflow triggered — follow it with: gh run watch'
-      return 0
-    fi
-    warn 'deploy workflow exists but gh CLI is missing — trigger it yourself: gh workflow run deploy.yml --ref main'
-    return 1
   fi
 
   cat <<EOF
 
 provision: VM is provisioned. The FIRST DEPLOY is the deploy pipeline's job
-(OPERATIONS §9.1/§9.3) and that pipeline does not exist in this repo yet.
-Per the host contract (cloud-init final_message), the deploy must deliver:
+(OPERATIONS §9.1/§9.3). Set DEPLOY_HOST=${ip} in the production Environment,
+then dispatch it from main with every L-12 box you can truthfully tick:
 
-  /srv/fire-watch/compose.yaml   proxy, api, worker, postgres+postgis, Alloy
-  /srv/fire-watch/deploy.sh      OPERATIONS §9.3
-  /etc/fire-watch/secrets.env    root:root 0600, rendered from GitHub
-                                 Environments (§8.2 rule 1)
+  gh workflow run deploy.yml --ref main -f l12_2_no_severe_event=true ...
 
-then start the stack (the deploy user's sudo grant covers exactly this):
+The pipeline runs, over SSH as the deploy user:
 
-  ssh deploy@${ip} sudo systemctl start fire-watch.service
+  ssh deploy@${ip} sudo /usr/local/sbin/fw-deploy <sha> --secrets --registry-login <user> < bundle.tar
 
-and verify migrations (the worker applies them on boot, §9.3 rule 3):
+and then verify migrations (the deploy's migrate one-shot applies them, §9.3 rule 3):
 
   HCLOUD_TOKEN=... infra/provision.sh --verify-only --name ${NAME}
 
@@ -691,7 +665,7 @@ EOF
 
 verify_migrations() {
   local ip="$1" wait_for_deploy="${2:-0}"
-  local psql_remote="cd /srv/fire-watch && docker compose exec -T ${PG_SERVICE} psql -U ${PG_USER} -d ${PG_DB} -Atc 'select version from schema_migrations order by version'"
+  local psql_remote="docker exec fire-watch-${PG_SERVICE}-1 psql -U ${PG_USER} -d ${PG_DB} -Atc 'select version from schema_migrations order by version'"
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
     plan "ssh deploy@<ip> test -f /srv/fire-watch/compose.yaml   # has the first deploy happened?"
@@ -710,7 +684,7 @@ verify_migrations() {
     done
   fi
 
-  say "verifying migrations on ${ip} (schema_migrations via docker compose exec, §9.2)"
+  say "verifying migrations on ${ip} (schema_migrations via docker exec, §9.2)"
   local waited=0 out='' rc=0
   while :; do
     if ! ssh_deploy "$ip" 'test -f /srv/fire-watch/compose.yaml' 2>/dev/null; then
@@ -777,11 +751,11 @@ if [[ "$DRY_RUN" -eq 1 ]]; then SERVER_IP='<ip>'; fi
 wait_cloud_init "$SERVER_IP"
 
 if first_deploy "$SERVER_IP"; then
-  # A deploy was actually triggered — wait for it to land, then verify.
+  # Dry run only: show the verification that follows the dispatched deploy.
   verify_migrations "$SERVER_IP" 1
 else
-  # No pipeline yet: provisioned is the honest end state today. Exit 0 —
-  # the VM did everything cloud-init owns; "migrations applied" is gated on
-  # the deploy pipeline (§9.3), and the hand-off above says exactly that.
+  # Provisioned is the honest end state of this script. Exit 0 — the VM did
+  # everything cloud-init owns; "migrations applied" follows the gated deploy
+  # (§9.3), and the hand-off above says exactly that.
   say "done: host provisioned, awaiting first deploy (OPERATIONS §9.3)"
 fi

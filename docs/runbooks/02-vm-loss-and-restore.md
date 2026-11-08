@@ -79,10 +79,13 @@ Gaps:
        or later.
      - The token is taken from the environment only, never as a flag.
   2. Deploy the pinned images through `.github/workflows/deploy.yml`.
-     - `NOT YET BUILT (J4)`: the `deploy` job is a stub (`DEPLOY_STEP_IS_STUB`) and
-       `compose.yaml` / `deploy.sh` are not in the repository.
-     - On boot the worker applies migrations to an empty database, behind the
-       advisory lock (OPERATIONS §9.3 rule 3).
+     - The `host` job ships `app.env`/`secrets.env` and runs `fw-deploy <sha>
+       --secrets`; the image carries `compose.yaml` and `deploy.sh` (R5-SRE-5,
+       rehearsed on a local VM, never run against a real host).
+     - The deploy's `migrate` one-shot applies migrations to the empty database behind
+       the advisory lock (OPERATIONS §9.3 rule 3); the worker starts only after it.
+     - The first deploy has no `last_good`, so a failed first deploy leaves the stack
+       as it is and exits 1 instead of rolling back.
   3. Restore the secrets env from the password manager. The canonical store is GitHub
      Environments, rendered to `/etc/fire-watch/secrets.env` (OPERATIONS §8.2).
      Confirm the tier-0 offline copies (VAPID private key, zone-encryption key) are

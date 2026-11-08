@@ -63,28 +63,17 @@ ordinary 404.
 The token never appears in an environment block, a log line or a metric label (§8.2).
 The same secret file is mounted into Alloy as `bearer_token_file`.
 
-## Compose wiring (to be added with the deploy pipeline)
+## Compose wiring
 
-```yaml
-alloy:
-  image: grafana/alloy:<pinned>
-  command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy"]
-  environment:
-    GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL}
-    GRAFANA_CLOUD_PROM_USERNAME: ${GRAFANA_CLOUD_PROM_USERNAME}
-    FIRE_WATCH_METRICS_PORT: "9464"
-    FIRE_WATCH_ENVIRONMENT: production
-  volumes:
-    - ./infra/metrics/config.alloy:/etc/alloy/config.alloy:ro
-    - /:/host/root:ro,rslave
-    - /var/lib/fire-watch/metrics:/host/metrics:ro
-  secrets: [fire_watch_metrics_token, grafana_cloud_token]
-  # no `ports:` — nothing about Alloy is reachable from outside the VM
-```
-
-`api` and `worker` get `FIRE_WATCH_METRICS_PORT=9464`, `FIRE_WATCH_METRICS_HOST=0.0.0.0`
-and `FIRE_WATCH_METRICS_TOKEN_FILE=/run/secrets/fire_watch_metrics_token`; the backup
-unit gets `FIRE_WATCH_METRICS_TEXTFILE_DIR=/var/lib/fire-watch/metrics`.
+The `alloy` service lives in [`infra/compose.yaml`](../compose.yaml) (R5-SRE-5): this
+directory's `config.alloy` mounted read-only, the host root and
+`/var/lib/fire-watch/metrics` (the textfile directory `deploy.sh` and the backup unit
+write to) mounted read-only, the `fire_watch_metrics_token` and `grafana_cloud_token`
+compose secrets, and no `ports:` — nothing about Alloy is reachable from outside the VM.
+`api` and `worker` there get `FIRE_WATCH_METRICS_PORT=9464`,
+`FIRE_WATCH_METRICS_HOST=0.0.0.0` and the token file. `GRAFANA_CLOUD_PROM_URL` and
+`GRAFANA_CLOUD_PROM_USERNAME` come from `/etc/fire-watch/deploy.env` on the host, which
+`deploy.sh` copies into the compose `.env`.
 
 ## Credentials
 

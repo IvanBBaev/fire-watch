@@ -26,8 +26,10 @@
  *
  * Deploy-time addition: a deployment that advertises a T2 mirror on another host
  * (`static_snapshot_url` in `/api/v1/client-config`) must admit that origin, or the failover
- * fetch is refused by the browser. {@link admitOrigins} is the shape of that change; it is
- * also how the e2e suite admits its loopback stand-in basemap.
+ * fetch is refused by the browser. {@link deployAdmittedOrigins} reads that origin from
+ * `FIRE_WATCH_STATIC_SNAPSHOT_URL`; the build rewrites `dist/_headers` with
+ * {@link admitOriginsInHeadersFile} and the event-shell Function applies {@link admitOrigins}
+ * (R5-SRE-5). `admitOrigins` is also how the e2e suite admits its loopback stand-in basemap.
  *
  * This module is runtime-neutral — it is bundled into the Pages Functions (whose tsconfig
  * knows no Node types) and imported by the e2e harness — so it uses only web globals.
@@ -98,6 +100,49 @@ export function admitOrigins(
       return SOURCE_DIRECTIVES.has(name) ? [directive, ...origins].join(' ') : directive;
     });
   return { ...headers, 'content-security-policy': directives.join('; ') };
+}
+
+/**
+ * The origins a deployment adds to the policy (R5-SRE-5; OPERATIONS §9.3 rule 7): the T2
+ * mirror's origin when `FIRE_WATCH_STATIC_SNAPSHOT_URL` names one, nothing when it is unset
+ * or blank. The build and the event-shell Function both read the same variable, so the
+ * static answers and the Function's answers carry one policy. Anything but an absolute
+ * `https:` URL is a misconfigured deploy and throws rather than ship a policy that blocks
+ * the failover.
+ */
+export function deployAdmittedOrigins(staticSnapshotUrl: string | undefined): readonly string[] {
+  const raw = staticSnapshotUrl?.trim();
+  if (raw === undefined || raw === '') return [];
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(
+      `FIRE_WATCH_STATIC_SNAPSHOT_URL is not an absolute URL: ${JSON.stringify(raw)}`,
+    );
+  }
+  if (url.protocol !== 'https:') {
+    throw new Error(`FIRE_WATCH_STATIC_SNAPSHOT_URL must be https, got ${JSON.stringify(raw)}`);
+  }
+  return [url.origin];
+}
+
+/**
+ * A `_headers` document with `origins` admitted in every `Content-Security-Policy` line, via
+ * {@link admitOrigins}; every other line — comments, paths, other headers — byte for byte.
+ */
+export function admitOriginsInHeadersFile(text: string, origins: readonly string[]): string {
+  if (origins.length === 0) return text;
+  return text
+    .split('\n')
+    .map((line) => {
+      const match = /^(\s+)(content-security-policy)(\s*:\s*)(.*)$/iu.exec(line);
+      if (match === null) return line;
+      const [, indent, name, separator, policy] = match;
+      const admitted = admitOrigins({ 'content-security-policy': policy ?? '' }, origins);
+      return `${indent}${name}${separator}${admitted['content-security-policy']}`;
+    })
+    .join('\n');
 }
 
 /** One rule of a Pages `_headers` file: a path pattern and the headers it sets. */

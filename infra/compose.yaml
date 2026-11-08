@@ -1,0 +1,131 @@
+# The production stack (OPERATIONS §9.1): proxy, api, worker (same image, different
+# command), the migrate one-shot, postgres, Alloy. Shipped inside the app image under
+# /app/stack and unpacked to /srv/fire-watch by `deploy.sh <sha>`, so the compose file
+# that runs is always the one that shipped with the code it runs.
+#
+# Host inputs, none of them in git (OPERATIONS §8.1):
+#   /srv/fire-watch/.env          FIRE_WATCH_IMAGE, PG_IMAGE, Grafana Cloud URL/username —
+#                                 written by deploy.sh; interpolated here, never secret
+#   /etc/fire-watch/app.env       the application environment (DATABASE_URL, FIRMS_MAP_KEY,
+#                                 …), root 0600 — `env_file`, read by the docker CLI
+#   /etc/fire-watch/secrets/*     files mounted as compose secrets (0444 in a 0700
+#                                 directory: only a container can reach them)
+
+name: fire-watch
+
+x-app: &app
+  image: ${FIRE_WATCH_IMAGE:?FIRE_WATCH_IMAGE is set by deploy.sh}
+  init: true
+  restart: unless-stopped
+  env_file: /etc/fire-watch/app.env
+  environment: &app-env
+    FIRE_WATCH_STATE_DIR: /var/lib/fire-watch/state
+    FIRE_WATCH_METRICS_PORT: '9464'
+    FIRE_WATCH_METRICS_HOST: 0.0.0.0
+    FIRE_WATCH_METRICS_TOKEN_FILE: /run/secrets/fire_watch_metrics_token
+  ulimits:
+    nofile: { soft: 131072, hard: 131072 }
+  logging: &logging
+    driver: json-file
+    options: { max-size: 20m, max-file: '5' }
+  secrets: [fire_watch_metrics_token]
+  volumes:
+    - state:/var/lib/fire-watch/state
+
+services:
+  postgres:
+    # The production default matches the integration suite (amd64 only). An arm64
+    # rehearsal sets PG_IMAGE to a multi-arch build of the same 16-3.4 line.
+    image: ${PG_IMAGE:-postgis/postgis:16-3.4@sha256:44126d872ac91993766c341e369c539e8196614321765d36a6f1bab0419a5fa5}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fire_watch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: 256m
+    logging: *logging
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d fire_watch']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # no `ports:` — the database is reachable from the compose network only (§9.2)
+
+  migrate:
+    <<: *app
+    restart: 'no'
+    command: ['node', 'dist/app/migrate-cli.js']
+    environment: {}
+    secrets: []
+    volumes: []
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    command: ['node', 'dist/app/worker.js']
+    stop_grace_period: 60s
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  api:
+    <<: *app
+    command: ['node', 'dist/app/api.js']
+    environment:
+      <<: *app-env
+      FIRE_WATCH_API_HOST: 0.0.0.0
+      FIRE_WATCH_API_PORT: '8080'
+      FIRE_WATCH_CLIENT_IP_HEADER: cf-connecting-ip
+    # ADR-003 drain: stop accepting, send `retry:` and close every stream.
+    stop_grace_period: 30s
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  proxy:
+    image: nginxinc/nginx-unprivileged:1.30.6-alpine@sha256:f5116ed4606f3eb015dd4a8e28cb9b351476dc0ad4bc6e9f93b19cec130cdf03
+    restart: unless-stopped
+    ports:
+      - '80:8080'
+      - '443:8443'
+    ulimits:
+      nofile: { soft: 131072, hard: 131072 }
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+    secrets: [origin_tls_cert, origin_tls_key] # names only, no values (gitleaks:allow)
+    logging: *logging
+    depends_on: [api]
+
+  alloy:
+    image: grafana/alloy:v1.21.3@sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4
+    restart: unless-stopped
+    command: ['run', '/etc/alloy/config.alloy', '--storage.path=/var/lib/alloy']
+    environment:
+      GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL:?set in /srv/fire-watch/.env}
+      GRAFANA_CLOUD_PROM_USERNAME: ${GRAFANA_CLOUD_PROM_USERNAME:?set in /srv/fire-watch/.env}
+      FIRE_WATCH_METRICS_PORT: '9464'
+      FIRE_WATCH_ENVIRONMENT: ${FIRE_WATCH_ENVIRONMENT:-production}
+    volumes:
+      - ./metrics/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy:/var/lib/alloy
+      - /:/host/root:ro,rslave
+      - /var/lib/fire-watch/metrics:/host/metrics:ro
+    secrets: [fire_watch_metrics_token, grafana_cloud_token]
+    logging: *logging
+    # no `ports:` — nothing about Alloy is reachable from outside the VM
+
+secrets:
+  postgres_password: { file: /etc/fire-watch/secrets/postgres_password }
+  fire_watch_metrics_token: { file: /etc/fire-watch/secrets/fire_watch_metrics_token }
+  grafana_cloud_token: { file: /etc/fire-watch/secrets/grafana_cloud_token }
+  origin_tls_cert: { file: /etc/fire-watch/secrets/origin_tls_cert }
+  origin_tls_key: { file: /etc/fire-watch/secrets/origin_tls_key }
+
+volumes:
+  pgdata:
+  state:
+  alloy:

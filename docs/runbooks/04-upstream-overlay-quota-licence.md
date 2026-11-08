@@ -83,7 +83,7 @@ Gaps:
   good copy (ADR-001 A1.2; `max-age=600`) and the refresh retries every 6 h by
   itself. Do not mute: a mute is a code change to `MUTES` in
   `server/src/core/config/freshness-budgets.ts` (at most 24 h, with a reason, per
-  §1.1(6)) and deploys are `NOT YET BUILT (J4)`. `effis:layers` critical is 50 h, so
+  §1.1(6)) and there is no host to deploy to yet (`NOT YET BUILT (B9)`). `effis:layers` critical is 50 h, so
   a short outage never reaches it. To point at a mirror or stub for a drill, set
   `FIRE_WATCH_EFFIS_BASE_URL` (an env change, see the
   [README](README.md#shared-facts-every-runbook-assumes)).
@@ -94,8 +94,8 @@ Gaps:
   `core/effis/content-sanity.ts` and a fixture.
 - **M3 — The upstream is permanently gone or changed its API.** This is a config and
   code change, never a mute (review 14 H1 reasoning applies). Retire the row as in
-  [01](01-pipeline-stale.md) M4, or re-point the base URL. `NOT YET BUILT (J4)`: the
-  deploy.
+  [01](01-pipeline-stale.md) M4, or re-point the base URL. `NOT YET BUILT (B9)`: a host
+  for the deploy.
 - **M4 — ArcGIS quota cliff.** `NOT YET BUILT (G6)`: the planned lever is to hide the
   imagery toggle through `/api/v1/client-config` without a deploy. Today the document
   carries only `transport`, `poll_interval_ms` and `static_snapshot_url`
@@ -108,7 +108,7 @@ Gaps:
   as the second access path (RISKS watchlist).
 - **M6 — Attribution wording change.** Update `packages/contracts/src/credits.ts` and
   the surfaces CI-13 checks, then ship. `NOT YET BUILT (G5)`: G5 has open founder
-  decisions on the existing wording. `NOT YET BUILT (J4)`: the deploy.
+  decisions on the existing wording. `NOT YET BUILT (B9)`: a host for the deploy.
 - **M7 — Terms change or a new NC clause.** Stop using the source. For an overlay,
   remove the layer; for context data, point to the licensed alternative. For example,
   weather is ECMWF Open Data because Open-Meteo's free tier is non-commercial

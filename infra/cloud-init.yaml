@@ -12,12 +12,15 @@
 #
 # SCOPE — what this file deliberately does NOT own:
 #   * `compose.yaml` (proxy, api, worker, postgres, Grafana Alloy) and
-#     `deploy.sh` — delivered by the deploy pipeline (OPERATIONS §9.1/§9.3).
+#     `deploy.sh` — shipped inside the app image and unpacked by the deploy
+#     (OPERATIONS §9.1/§9.3; infra/compose.yaml, infra/deploy.sh). This file
+#     owns only the trampoline that starts them, /usr/local/sbin/fw-deploy.
 #   * application job scheduling — jobs run inside the worker, never in system
 #     cron (OPERATIONS §9.1 "Process split"). No FIRMS/EFFIS/snapshot timer
 #     appears below, on purpose.
-#   * secret VALUES — they arrive at runtime in /etc/fire-watch/secrets.env,
-#     rendered by deploy from GitHub Environments (OPERATIONS §8.2 rule 1).
+#   * secret VALUES — they arrive at deploy time (fw-deploy reads a bundle on
+#     stdin) in /etc/fire-watch/{secrets.env,app.env,secrets/}, rendered by
+#     the deploy job from GitHub Environments (OPERATIONS §8.2 rule 1).
 #     Nothing in this file contains a credential, and nothing may be added.
 #
 # CONFIGURATION-DRIFT RULE (OPERATIONS §9.2, closing paragraph): anything
@@ -170,8 +173,9 @@ write_files:
     permissions: '0440'
     content: |
       # OPERATIONS §9.3: deploy restarts `worker`, then `api`, then smoke-tests.
-      # Container-level restarts go through the docker socket (group `docker`);
-      # this grant covers the whole-stack unit and its logs.
+      # The deploy itself is FW_DEPLOY: it installs the secret bundle into
+      # /etc/fire-watch (root-only) and runs the image's deploy.sh. The rest
+      # covers the whole-stack unit and its logs.
       Cmnd_Alias FW_UNIT = /usr/bin/systemctl start fire-watch.service, \
                            /usr/bin/systemctl stop fire-watch.service, \
                            /usr/bin/systemctl restart fire-watch.service, \
@@ -179,7 +183,83 @@ write_files:
                            /usr/bin/systemctl is-active fire-watch.service, \
                            /usr/bin/systemctl reload-or-restart fire-watch.service
       Cmnd_Alias FW_LOGS = /usr/bin/journalctl -u fire-watch.service *
-      deploy ALL=(root) NOPASSWD: FW_UNIT, FW_LOGS
+      Cmnd_Alias FW_DEPLOY = /usr/local/sbin/fw-deploy
+      deploy ALL=(root) NOPASSWD: FW_UNIT, FW_LOGS, FW_DEPLOY
+
+  # ===========================================================================
+  # The deploy trampoline — OPERATIONS §9.3, §8.2 rule 1
+  # ===========================================================================
+  - path: /usr/local/sbin/fw-deploy
+    owner: root:root
+    permissions: '0750'
+    content: |
+      #!/usr/bin/env bash
+      # fw-deploy <git-sha> [--secrets] [--registry-login <user>]
+      #
+      # The only thing the deploy job runs on the host, over SSH as `deploy`:
+      #   ssh deploy@host sudo /usr/local/sbin/fw-deploy <sha> --secrets < bundle.tar
+      #
+      # --secrets: stdin is a tar of the rendered GitHub Environment —
+      #   secrets.env (host jobs: backup, healthchecks), app.env (the
+      #   application environment) and secrets/<name> (compose file secrets).
+      #   Installed root-owned: the env files 0600, the secrets directory 0700
+      #   with files 0444, so only a container that mounts one can read it.
+      # --registry-login <user>: the GHCR read token is the bundle's
+      #   secrets/ghcr_token; it is used for `docker login` and removed again.
+      #
+      # Everything else lives in the image: this script extracts that release's
+      # deploy.sh and runs it, so a rollback runs the old release's script.
+      set -euo pipefail
+      shopt -s nullglob
+      sha="${1:-}"
+      [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "usage: fw-deploy <sha> [--secrets] [--registry-login <user>]" >&2; exit 2; }
+      shift
+      secrets=0 login_user=""
+      while (($#)); do
+        case "$1" in
+          --secrets) secrets=1 ;;
+          --registry-login) login_user="${2:?}"; shift ;;
+          *) echo "fw-deploy: unknown argument $1" >&2; exit 2 ;;
+        esac
+        shift
+      done
+
+      ETC=/etc/fire-watch
+      if ((secrets)); then
+        umask 077
+        stage="$(mktemp -d)"
+        trap 'rm -rf "$stage"' EXIT
+        # No absolute paths and no `..` from a tar; only the expected names.
+        tar -x -C "$stage" --no-same-owner --no-same-permissions -f -
+        for f in secrets.env app.env; do
+          [[ -f "$stage/$f" ]] || { echo "fw-deploy: bundle lacks $f" >&2; exit 2; }
+          install -o root -g root -m 0600 "$stage/$f" "$ETC/$f"
+        done
+        install -d -o root -g root -m 0700 "$ETC/secrets"
+        for f in "$stage"/secrets/*; do
+          name="$(basename "$f")"
+          [[ "$name" =~ ^[a-z0-9_]+$ ]] || { echo "fw-deploy: bad secret name" >&2; exit 2; }
+          [[ "$name" == ghcr_token ]] && continue
+          install -o root -g root -m 0444 "$f" "$ETC/secrets/$name"
+        done
+        if [[ -n "$login_user" ]]; then
+          docker login ghcr.io -u "$login_user" --password-stdin \
+            <"$stage/secrets/ghcr_token" >/dev/null
+        fi
+      fi
+
+      if [[ -r "$ETC/deploy.env" ]]; then set -a; . "$ETC/deploy.env"; set +a; fi
+      image="${FIRE_WATCH_REGISTRY:-ghcr.io/ivanbbaev/fire-watch}:${sha}"
+      docker image inspect "$image" >/dev/null 2>&1 || docker pull --quiet "$image" >/dev/null
+      script="$(mktemp)"
+      cid="$(docker create "$image")"
+      docker cp "${cid}:/app/stack/deploy.sh" "$script"
+      docker rm "$cid" >/dev/null
+      status=0
+      bash "$script" "$sha" || status=$?
+      rm -f "$script"
+      [[ -n "$login_user" ]] && docker logout ghcr.io >/dev/null 2>&1
+      exit "$status"
 
   # ===========================================================================
   # Host firewall — nftables
@@ -540,9 +620,7 @@ write_files:
     content: |
       # ---- compose wiring -------------------------------------------------
       COMPOSE_DIR=/srv/fire-watch
-      # TODO(OPERATIONS §9.1): the compose service name for Postgres is not
-      # stated (the row says `postgres:16-postgis`). Confirm against
-      # compose.yaml when it exists.
+      # The Postgres service in infra/compose.yaml.
       PG_SERVICE=postgres
 
       # ---- backup artifact layout -----------------------------------------
@@ -969,8 +1047,11 @@ write_files:
       [Service]
       Type=oneshot
       RemainAfterExit=yes
-      User=firewatch
-      Group=firewatch
+      # root, not firewatch: compose reads /etc/fire-watch/app.env and the
+      # secret files, which are root-only (§8.2 rule 1). The docker group the
+      # service user is in is root-equivalent anyway; the containers run as
+      # their own non-root uids.
+      User=root
       WorkingDirectory=/srv/fire-watch
       EnvironmentFile=-/etc/fire-watch/deploy.env
 
@@ -978,7 +1059,9 @@ write_files:
       # they do not. Without it `up -d` "succeeds" the instant the containers
       # are created, so a stack that crash-loops at boot looks green to
       # systemd — the exact silent failure §9.3 rules out for deploys.
-      ExecStart=/usr/bin/docker compose up -d --remove-orphans --wait --wait-timeout 180
+      # The long-running services are named so `--wait` does not wait on the
+      # `migrate` one-shot, which still runs first as their dependency.
+      ExecStart=/usr/bin/docker compose up -d --remove-orphans --wait --wait-timeout 180 postgres worker api proxy alloy
       ExecStop=/usr/bin/docker compose down --timeout 45
       # No `docker compose pull` here on purpose: §9.1 requires images by
       # immutable tag already present locally, and §5 (RTO) requires that a
@@ -1003,11 +1086,8 @@ write_files:
       WantedBy=multi-user.target
 
   # Per-container crash restart is compose's `restart: unless-stopped` policy
-  # (owned by compose.yaml, §9.1) — systemd owns the boot and whole-stack
-  # layer, Docker owns the process layer. If compose.yaml lacks a restart
-  # policy, a crashed api container will NOT be restarted by this unit.
-  # TODO(OPERATIONS §9.1): the host contract does not state the container
-  # restart policy. It has to be `unless-stopped` for the two layers to add up.
+  # (infra/compose.yaml, every long-running service) — systemd owns the boot
+  # and whole-stack layer, Docker owns the process layer.
 
   - path: /etc/systemd/system/fw-notify-failure@.service
     owner: root:root
@@ -1245,6 +1325,8 @@ write_files:
       install -d -m 0700 -o root -g root /var/backups/fire-watch
       install -d -m 0755 -o root -g root /var/log/fire-watch
       install -d -m 0755 -o root -g root /var/lib/fire-watch
+      # Textfile metrics (backup, deploy) read by Alloy at /host/metrics.
+      install -d -m 0755 -o root -g root /var/lib/fire-watch/metrics
       install -d -m 0755 -o root -g root /etc/nftables.d
       touch /srv/fire-watch/last_good
       chown firewatch:deploy /srv/fire-watch/last_good
@@ -1253,12 +1335,19 @@ write_files:
       # Optional, non-secret deploy-time host settings (image refs, COMPOSE_*).
       [[ -f /etc/fire-watch/deploy.env ]] || {
         cat >/etc/fire-watch/deploy.env <<'EOF'
-      # Non-secret host settings for the stack unit. Secrets go in secrets.env.
+      # Non-secret host settings, read by fw-deploy and deploy.sh, which copy
+      # them into /srv/fire-watch/.env. Secrets never go here.
       COMPOSE_PROJECT_NAME=fire-watch
-      # TODO(OPERATIONS §9.1): immutable image references are owned by
-      # compose.yaml / deploy.sh. PG_IMAGE is read only by fw-provision to
-      # pre-pull the database image so a rebuild does not wait on a registry.
+      FIRE_WATCH_ENVIRONMENT=production
+      # Grafana Cloud remote-write endpoint and its username (not secret; the
+      # token is the compose secret grafana_cloud_token).
+      GRAFANA_CLOUD_PROM_URL=REPLACE_ME
+      GRAFANA_CLOUD_PROM_USERNAME=REPLACE_ME
+      # Optional: overrides the database image pinned in compose.yaml (an
+      # arm64 rehearsal needs a multi-arch build); also pre-pulled below.
       # PG_IMAGE=
+      # Optional: the image repository, default ghcr.io/ivanbbaev/fire-watch.
+      # FIRE_WATCH_REGISTRY=
       EOF
         chmod 0640 /etc/fire-watch/deploy.env
       }
@@ -1316,12 +1405,13 @@ runcmd:
 final_message: |
   Fire Watch host provisioned in $UPTIME seconds (OPERATIONS §9).
 
-  NOT YET RUNNING. The stack starts on the first deploy, which must deliver:
-    /srv/fire-watch/compose.yaml   (proxy, api, worker, postgres+postgis, Alloy)
-    /srv/fire-watch/deploy.sh      (OPERATIONS §9.3)
-    /etc/fire-watch/secrets.env    root:root 0600, rendered from GitHub
-                                   Environments (§8.2 rule 1)
-  then: sudo systemctl start fire-watch.service
+  NOT YET RUNNING. Fill GRAFANA_CLOUD_* in /etc/fire-watch/deploy.env, then
+  run the Deploy workflow. Its job runs, over SSH as `deploy`:
+    sudo /usr/local/sbin/fw-deploy <sha> --secrets [--registry-login <user>]
+  which installs /etc/fire-watch/{secrets.env,app.env,secrets/} from the
+  bundle on stdin (§8.2 rule 1) and runs the image's deploy.sh: it unpacks
+  compose.yaml into /srv/fire-watch, migrates, starts the stack, smoke-tests
+  and records last_good (§9.3). fire-watch.service brings it back on boot.
 
   Verify before trusting this box:
     nft list ruleset | head -40        # web ports Cloudflare-only?

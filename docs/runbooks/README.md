@@ -76,17 +76,20 @@ RB-2 and RB-3 → 02; RB-4 → 05.
     deploy user may run `sudo systemctl start|stop|restart|status|is-active|reload-or-restart fire-watch.service`
     and `sudo journalctl -u fire-watch.service`, and nothing broader
     (`/etc/sudoers.d/60-deploy`).
-  - `NOT YET BUILT (B9)`: the stack's `compose.yaml` is not in the repository yet, so
-    compose service names are not fixed. `docker compose logs --since 30m` (all
-    services) is the only log command these drafts use.
+  - The stack is `infra/compose.yaml`, unpacked to `/srv/fire-watch` by each deploy.
+    Services: `postgres`, `migrate` (one-shot), `worker`, `api`, `proxy`, `alloy`, so
+    `docker compose logs --since 30m worker` narrows to one of them.
   - Configuration comes only from the environment. There is no config file and no
     live toggle surface.
   - **What "env change" means in these runbooks.** The canonical store is GitHub
     Environments (`production`). Deploy renders it to `/etc/fire-watch/secrets.env`
     (`root:root`, `0600`, compose `env_file`; OPERATIONS §8.2 rule 1). So the
     sanctioned path is: change the value in GitHub Environments, then deploy.
-  - `NOT YET BUILT (J4)`: that deploy. Until it exists, an emergency env change is a
-    root edit of that file followed by `sudo systemctl restart fire-watch.service`.
+  - `NOT YET BUILT (B9)`: a host to deploy to. The deploy itself is built (R5-SRE-5):
+    the `host` job of `deploy.yml` renders `app.env` and `secrets.env` from the
+    Environment and runs `fw-deploy <sha> --secrets`. When the pipeline is unavailable,
+    an emergency env change is a root edit of that file followed by
+    `sudo systemctl restart fire-watch.service`.
     - Root SSH is disabled (`disable_root`), so the root edit needs the provider
       console.
     - The same change must be mirrored into GitHub Environments the same day, or the
@@ -96,8 +99,13 @@ RB-2 and RB-3 → 02; RB-4 → 05.
 - **Deploys.**
   - `.github/workflows/deploy.yml` (manual dispatch, gated by `pnpm run deploy-gate`)
     is the only route to the host (L-17).
-  - `NOT YET BUILT (J4/B9)`: its `deploy` job is a stub (`DEPLOY_STEP_IS_STUB`), so no
-    runbook step can rely on a real deploy or rollback yet.
+  - Its `host` job runs `sudo /usr/local/sbin/fw-deploy <sha>` on the box, which runs
+    the `deploy.sh` shipped in that image: migrate one-shot, worker, api, smoke, then
+    `last_good`. A failed smoke redeploys `last_good` by itself. A manual rollback is
+    the same command with the previous sha (`cat /srv/fire-watch/last_good` before
+    the bad deploy). Rehearsed on a local Debian 12 VM:
+    [`infra/rehearsal/`](../../infra/rehearsal/README.md).
+  - `NOT YET BUILT (B9)`: no production host, so no deploy has run in production.
   - A code change is therefore not a mitigation available at 3 AM. That includes a
     freshness mute, because mutes are the `MUTES` array in
     `server/src/core/config/freshness-budgets.ts`.

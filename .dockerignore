@@ -1,0 +1,27 @@
+# The image builds from source: nothing generated or local crosses into the context.
+**/node_modules
+**/dist
+**/dist-types
+**/*.tsbuildinfo
+**/coverage
+.git
+.github
+.env
+.env.*
+**/.DS_Store
+**/*.log
+
+# Never in the image: harness files, documents, local data, the web bundle (Pages).
+CLAUDE.md
+CLAUDE.local.md
+WORKLOG.md
+.claude
+docs
+data
+tiles
+tiles-dem
+tmp
+loadtest
+web/e2e
+web/budgets
+web/public

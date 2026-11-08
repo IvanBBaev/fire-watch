@@ -7,11 +7,25 @@
 #                      pre-season golden replay (box 1, machine-decided) and the
 #                      OPERATIONS §9.3 rule 4 freeze boxes. The human boxes are the dispatch
 #                      inputs below; an unticked box fails the gate, it is never skipped;
-#   3. `deploy`      — STUB. There is no host yet (E2), so it only prints what it would do.
+#   3. `image`       — builds the release image for linux/amd64 and pushes it to GHCR as
+#                      `ghcr.io/<owner>/fire-watch:<git-sha>` (the tag deploy.sh pulls);
+#   4. `host`        — renders the production GitHub Environment into a bundle and runs
+#                      `fw-deploy <git-sha> --secrets --registry-login` on the box over SSH.
+#                      The trampoline runs that image's own deploy.sh: migrate one-shot,
+#                      worker then api restart, smoke, `last_good`, rollback on failure
+#                      (OPERATIONS §9.3 rules 1–3, 6; R5-SRE-5);
+#   5. `web`         — builds the client against live data with the deploy's snapshot
+#                      origin admitted into the CSP, and publishes it to Cloudflare Pages.
 #
-# DEPLOY_STEP_IS_STUB — infra/provision.sh looks for this marker and keeps printing the
-# first-deploy hand-off while it is present. Remove it in the same change that makes the
-# `deploy` job real.
+# The production Environment holds (names only; values never appear in this repo):
+#   secrets  DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, FIRE_WATCH_APP_ENV (the whole app.env),
+#            FIRE_WATCH_SECRETS_ENV (the whole secrets.env), POSTGRES_PASSWORD,
+#            FIRE_WATCH_METRICS_TOKEN, GRAFANA_CLOUD_TOKEN, ORIGIN_TLS_CERT,
+#            ORIGIN_TLS_KEY, GHCR_READ_TOKEN, CLOUDFLARE_API_TOKEN
+#   vars     DEPLOY_HOST, GHCR_READ_USER, FIRE_WATCH_STATIC_SNAPSHOT_URL,
+#            CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_PAGES_PROJECT
+# app.env's DATABASE_URL ends in `?sslmode=disable`: the compose Postgres has no TLS and is
+# reachable only on the stack's internal network (infra/README.md "The deploy path").
 
 name: Deploy
 
@@ -170,20 +184,142 @@ jobs:
             --actor "$ACTOR" \
             --summary "$GITHUB_STEP_SUMMARY"
 
-  deploy:
-    name: Deploy (stub — no host yet)
+  image:
+    name: Release image
     needs: deploy-gate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    # When this becomes real it takes `environment: production` (secrets from GitHub
-    # Environments, OPERATIONS §8.2 rule 1) and runs `deploy.sh <git-sha>` on the box.
-    # The web client it ships is built with FIRE_WATCH_DEPLOY_ENV=production and
-    # VITE_FIRE_WATCH_DATA=live: `web/vite.config.ts` refuses a production build on the
-    # committed fixtures and leaves `fixtures/` out of the output (FD-5, data policy).
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Deploy (stub)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build and push
         env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          OWNER: ${{ github.repository_owner }}
           SHA: ${{ github.sha }}
         run: |
-          echo "::notice title=Deploy stub::gate passed for ${SHA}; no host exists yet (E2), nothing was deployed"
-          echo "Would run: deploy.sh ${SHA} on the host (OPERATIONS §9.3)"
+          image="ghcr.io/${OWNER,,}/fire-watch:${SHA}"
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker buildx build --platform linux/amd64 --push -t "$image" .
+          docker logout ghcr.io
+
+  host:
+    name: Deploy to the host
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      # The bundle fw-deploy reads on stdin (infra/cloud-init.yaml). Rendered under
+      # umask 077 in the runner's temp dir and deleted by the last step; no value is
+      # ever echoed.
+      - name: Render the secrets bundle
+        env:
+          APP_ENV: ${{ secrets.FIRE_WATCH_APP_ENV }}
+          SECRETS_ENV: ${{ secrets.FIRE_WATCH_SECRETS_ENV }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          FIRE_WATCH_METRICS_TOKEN: ${{ secrets.FIRE_WATCH_METRICS_TOKEN }}
+          GRAFANA_CLOUD_TOKEN: ${{ secrets.GRAFANA_CLOUD_TOKEN }}
+          ORIGIN_TLS_CERT: ${{ secrets.ORIGIN_TLS_CERT }}
+          ORIGIN_TLS_KEY: ${{ secrets.ORIGIN_TLS_KEY }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        run: |
+          umask 077
+          b="$RUNNER_TEMP/bundle"
+          mkdir -p "$b/secrets"
+          need() { if [[ -z "${!1:-}" ]]; then echo "::error title=Deploy::Environment secret for $1 is empty"; exit 1; fi; }
+          for v in APP_ENV SECRETS_ENV POSTGRES_PASSWORD FIRE_WATCH_METRICS_TOKEN \
+            GRAFANA_CLOUD_TOKEN ORIGIN_TLS_CERT ORIGIN_TLS_KEY GHCR_READ_TOKEN; do need "$v"; done
+          printf '%s\n' "$APP_ENV" >"$b/app.env"
+          printf '%s\n' "$SECRETS_ENV" >"$b/secrets.env"
+          printf '%s' "$POSTGRES_PASSWORD" >"$b/secrets/postgres_password"
+          printf '%s' "$FIRE_WATCH_METRICS_TOKEN" >"$b/secrets/fire_watch_metrics_token"
+          printf '%s' "$GRAFANA_CLOUD_TOKEN" >"$b/secrets/grafana_cloud_token"
+          printf '%s\n' "$ORIGIN_TLS_CERT" >"$b/secrets/origin_tls_cert"
+          printf '%s\n' "$ORIGIN_TLS_KEY" >"$b/secrets/origin_tls_key"
+          printf '%s' "$GHCR_READ_TOKEN" >"$b/secrets/ghcr_token"
+          tar -C "$b" -cf "$RUNNER_TEMP/bundle.tar" app.env secrets.env secrets
+          rm -rf "$b"
+
+      - name: SSH identity
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" >~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" >~/.ssh/known_hosts
+
+      # deploy.sh exits non-zero after a rollback too, so a rolled-back deploy is a red
+      # run — never a green one that shipped nothing.
+      - name: fw-deploy
+        env:
+          HOST: ${{ vars.DEPLOY_HOST }}
+          GHCR_READ_USER: ${{ vars.GHCR_READ_USER }}
+          SHA: ${{ github.sha }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes "deploy@${HOST}" \
+            sudo /usr/local/sbin/fw-deploy "$SHA" --secrets --registry-login "$GHCR_READ_USER" \
+            <"$RUNNER_TEMP/bundle.tar"
+
+      - name: Remove the rendered secrets
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/bundle.tar" "$RUNNER_TEMP/bundle" ~/.ssh/id_deploy
+
+  web:
+    name: Publish the web client
+    needs: host
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # FIRE_WATCH_DEPLOY_ENV=production + VITE_FIRE_WATCH_DATA=live: vite.config.ts
+      # refuses a production build on the committed fixtures and leaves `fixtures/` out
+      # (FD-5). FIRE_WATCH_STATIC_SNAPSHOT_URL admits the snapshot origin into every
+      # policy line of dist/_headers (OPERATIONS §9.3 rule 7, R5-SRE-5).
+      - name: Build
+        env:
+          FIRE_WATCH_DEPLOY_ENV: production
+          VITE_FIRE_WATCH_DATA: live
+          FIRE_WATCH_STATIC_SNAPSHOT_URL: ${{ vars.FIRE_WATCH_STATIC_SNAPSHOT_URL }}
+        run: pnpm --filter "@fire-watch/web..." run build
+
+      # The event shell Function sends its own policy, so it learns the same origin from
+      # a Pages variable rather than from the build.
+      - name: Publish to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          SNAPSHOT_URL: ${{ vars.FIRE_WATCH_STATIC_SNAPSHOT_URL }}
+          SHA: ${{ github.sha }}
+        run: |
+          # From web/, so wrangler picks up web/functions next to the output.
+          cd web
+          printf '%s' "$SNAPSHOT_URL" |
+            pnpm dlx wrangler@4.40.3 pages secret put FW_STATIC_SNAPSHOT_URL --project-name "$PROJECT"
+          pnpm dlx wrangler@4.40.3 pages deploy dist --project-name "$PROJECT" \
+            --branch main --commit-hash "$SHA"

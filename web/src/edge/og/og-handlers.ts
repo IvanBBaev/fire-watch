@@ -45,6 +45,11 @@ export interface OgDependencies {
    * so an ETag a client holds never vouches for pixels the route no longer draws.
    */
   readonly rendererRevision: string;
+  /**
+   * The headers the shell answers carry: {@link WEB_SECURITY_HEADERS} with the deploy's
+   * admitted origins (R5-SRE-5), so they match the built `_headers`. Default: as shipped.
+   */
+  readonly securityHeaders?: Readonly<Record<string, string>>;
 }
 
 /** Previews are re-fetched by scrapers rarely; one snapshot cycle of edge caching is plenty. */
@@ -84,13 +89,14 @@ export async function handleEventShell(
   requestedId: string,
   deps: OgDependencies,
 ): Promise<Response> {
+  const securityHeaders = deps.securityHeaders ?? WEB_SECURITY_HEADERS;
   const shell = await deps.loadShell();
-  if (!shell.ok) return withSecurityHeaders(shell);
+  if (!shell.ok) return withSecurityHeaders(shell, securityHeaders);
   const snapshot = await readSnapshot(deps);
-  if (snapshot === null) return withSecurityHeaders(shell);
+  if (snapshot === null) return withSecurityHeaders(shell, securityHeaders);
   const html = await shell.text();
   const headers = {
-    ...WEB_SECURITY_HEADERS,
+    ...securityHeaders,
     'content-type': 'text/html; charset=utf-8',
     'cache-control': SHELL_CACHE_CONTROL,
     vary: 'Accept-Language',

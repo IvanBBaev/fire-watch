@@ -21,6 +21,8 @@
     "restore-drill": "node dist/app/restore-drill-cli.js",
     "zone-key-rotation": "node dist/app/zone-key-rotation-cli.js",
     "lightning-backfill": "node dist/app/lightning-backfill-cli.js",
+    "migrate": "node dist/app/migrate-cli.js",
+    "deploy-smoke": "node dist/app/deploy-smoke-cli.js",
     "replay": "node dist/adapters/fixtures/replay-cli.js",
     "typecheck": "tsc --build",
     "test": "vitest run",

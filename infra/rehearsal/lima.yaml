@@ -1,0 +1,14 @@
+# Fire Watch R5-SRE-5 deploy rehearsal VM (Debian 12 arm64). Mount the checkout you deploy from.
+images:
+  - location: 'https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.qcow2'
+    arch: 'aarch64'
+cpus: 4
+memory: '5GiB'
+disk: '30GiB'
+mounts:
+  - location: '~/Development/fire-watch'
+    mountPoint: '/mnt/repo'
+    writable: false
+containerd:
+  system: false
+  user: false

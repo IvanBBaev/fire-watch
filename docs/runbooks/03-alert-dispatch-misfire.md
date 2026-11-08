@@ -131,7 +131,7 @@ one cannot be unsent (R4, "fail closed").
   there is no sanctioned way to release a held row. Do not flip `status` by hand in
   SQL; let the rows expire (`expired_unapproved`).
 - **M7 — Rule or template fault** (wrong sends). After M1, the fix is a code change to
-  the rule or template plus a deploy. `NOT YET BUILT (J4)`: that deploy.
+  the rule or template plus a deploy. `NOT YET BUILT (B9)`: a host for that deploy.
 - **M8 — Channel provider outage or a revoked credential** (Telegram
   `FIRE_WATCH_TELEGRAM_BOT_TOKEN`, email `FIRE_WATCH_SES_*`, push `FIRE_WATCH_VAPID_*`).
   `NOT YET BUILT (H5)`: the channel adapters and their token buckets. Rotation

@@ -686,16 +686,21 @@ lands, the scripts stay in `user_data` (22,184 bytes gzip+base64, TASKS B9).
 
 ### 9.3 Deploy safety
 
-1. Deploy is `deploy.sh <git-sha>`: pull images, restart `worker` (the per-loop advisory
+1. Deploy is `deploy.sh <git-sha>` (`infra/deploy.sh`, shipped inside the image and started
+   on the host by `fw-deploy <sha>`; R5-SRE-5): pull the image, run the `migrate`
+   one-shot, restart `worker` (the per-loop advisory
    locks make an overlap safe: while the old worker drains, the new one skips its ingest,
    alert-evaluation and dispatch cycles — `fw_loop_skipped_total`, never paged on — and
    takes each loop over within one interval; `server/src/core/ports/loop-lock.ts`),
    restart `api`, then smoke-test `/healthz` and the canonical
-   freshness endpoint in a loop; on failure, redeploy the tag in `last_good`.
+   freshness endpoint in a loop; on failure, redeploy the tag in `last_good`. The only
+   caller is `.github/workflows/deploy.yml` (jobs `image` → `host` → `web`); rehearsed on
+   a local Debian 12 VM, transcript in `infra/rehearsal/`.
 2. **Rollback is one command** — `deploy.sh <previous-sha>`. Image-tag deploys are the
    whole reason this is true.
-3. Migrations are forward-only, expand/contract, applied by the worker on boot behind
-   the advisory lock. Never write a migration the previous image cannot run against.
+3. Migrations are forward-only, expand/contract, applied by the `migrate` one-shot
+   (`server/src/app/migrate-cli.ts`) behind the advisory lock before the worker restarts;
+   the worker depends on it completing, so a cold boot of the stack migrates too. Never write a migration the previous image cannot run against.
 4. **Deploy freeze:** no deploys while `fw_degradation_tier > 0`, during an active
    major-fire event, or while an error-budget freeze is in force — except hotfixes for
    the incident itself.
@@ -709,7 +714,9 @@ lands, the scripts stay in `user_data` (22,184 bytes gzip+base64, TASKS B9).
    (`server/src/adapters/http/security-headers.ts`). The source policy admits only the
    basemap and GIBS origins. When `FIRE_WATCH_STATIC_SNAPSHOT_URL` is set, the deploy must
    append that origin to the policy with `admitOrigins` before publishing, or the browser
-   blocks the T2 fallback the moment the origin is down. The step belongs to R5-SRE-5.
+   blocks the T2 fallback the moment the origin is down. Done by the deploy (R5-SRE-5): the
+   `web` job builds with the snapshot URL set, a Vite plugin admits its origin into the
+   shipped `_headers`, and the OG Function reads `FW_STATIC_SNAPSHOT_URL`.
 
 ---
 

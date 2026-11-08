@@ -35,13 +35,11 @@ What one run does, in order:
    `cloud-init status --wait`, then confirms `fire-watch.service` is enabled
    (the unprivileged proxy for the `fw-provision` completion marker, which
    lives in a root-only directory).
-4. **First deploy** — hands off to *the* deploy path (§9.3). If
-   `.github/workflows/deploy.yml` exists it is triggered via `gh workflow run`;
-   until that pipeline exists (today it does not — only `ci.yml` does) the
-   script prints the exact hand-off: what the deploy must deliver
-   (`compose.yaml`, `deploy.sh`, `secrets.env`) and the start command. It never
-   deploys by hand — a second deploy path is how `last_good` stops being true
-   (§9.3 rules 1–2).
+4. **First deploy** — hands off to *the* deploy path (§9.3): it prints the
+   `gh workflow run deploy.yml …` dispatch and exits 1. It never triggers it: the
+   dispatch carries the L-12 attestations, which a human ticks. It never deploys by
+   hand either — a second deploy path is how `last_good` stops being true (§9.3
+   rules 1–2). See "The deploy path" below.
 5. **Verify "migrations applied"** — see below. Re-runnable at any time:
 
 ```sh
@@ -135,8 +133,9 @@ the size pressure that forced the question.
 ## What "migrations applied" looks like
 
 Migrations are SQL files under `server/db/migrations/` applied by dbmate; the
-**worker applies them on boot** behind a Postgres advisory lock (§9.3 rule 3),
-so verification is observation, not execution. Postgres publishes **no host
+deploy's **`migrate` one-shot** applies them behind a Postgres advisory lock
+before the worker restarts (§9.3 rule 3), so verification is observation, not
+execution. Postgres publishes **no host
 port** (§9.2), so the check runs inside the container over SSH — the same
 access path the `fw-backup` script uses:
 
@@ -160,6 +159,39 @@ Service name `postgres` and identities `postgres`/`fire_watch` are the same
 assumptions `backup.env` in `cloud-init.yaml` documents
 (TODO: OPERATIONS §9.1/§8.2 — canonical names owed by the deploy contract);
 override with `FW_PGUSER` / `FW_PGDATABASE` if the deploy decides otherwise.
+
+## The deploy path
+
+`.github/workflows/deploy.yml` (manual dispatch) is the only route to the host:
+
+1. `deploy-gate` — the L-12 boxes (J4).
+2. `image` — builds `linux/amd64` and pushes `ghcr.io/<owner>/fire-watch:<sha>`. The
+   image carries the stack: `/app/stack/{compose.yaml,deploy.sh,proxy/,metrics/}`.
+3. `host` — renders the `production` Environment into a bundle (`app.env`,
+   `secrets.env`, `secrets/*`) and pipes it to
+   `ssh deploy@$DEPLOY_HOST sudo /usr/local/sbin/fw-deploy <sha> --secrets --registry-login <user>`.
+   `fw-deploy` (cloud-init) is the only command `deploy` may run as root for this:
+   it installs the bundle into `/etc/fire-watch/` (root, `0600`), logs in to the
+   registry, extracts `deploy.sh` from the image and runs it.
+4. `web` — builds the site against live data with the snapshot origin admitted
+   (§9.3 rule 7) and publishes it to Cloudflare Pages.
+
+`deploy.sh <sha>` pulls the image, unpacks the stack into `/srv/fire-watch`, runs the
+`migrate` one-shot, restarts `worker` then `api`, smoke-tests (deploy-smoke CLI inside
+the worker, then `/healthz` through the proxy), and writes `last_good` plus the
+`fire_watch_deploy_timestamp_seconds` textfile metric. A failed step redeploys the sha
+in `last_good` with *that* release's `deploy.sh` and exits 1; the very first deploy has
+no `last_good` and leaves the stack as it is. Rollback by hand is the same command:
+`fw-deploy <previous-sha>` (the image is still local, no registry needed).
+
+`app.env` notes: `DATABASE_URL` must end in `?sslmode=disable` — the compose Postgres
+is reachable only on the internal network and has no TLS, and dbmate refuses the
+connection otherwise. Non-secret host settings (`PG_IMAGE`, `GRAFANA_CLOUD_PROM_URL`,
+`GRAFANA_CLOUD_PROM_USERNAME`, `FIRE_WATCH_ENVIRONMENT`) live in
+`/etc/fire-watch/deploy.env`.
+
+Rehearsed end to end on a local Debian 12 VM — good deploy, forced bad deploy with
+automatic rollback, `fire-watch.service` restart: [`rehearsal/`](rehearsal/README.md).
 
 ## What the script deliberately does NOT do
 
@@ -196,8 +228,11 @@ validated:
 - the encoded user_data decoded by cloud-init 22.4.2's own Hetzner code path
   and passed by `cloud-init schema` (Debian 12 container, not a VM).
 
-Treat the first real provisioning as the test, per §9's own note that no
-production VM has yet been provisioned from this contract.
+The deploy half (`fw-deploy` → `deploy.sh`, the stack, the rollback) *has* run on
+a VM: a local Debian 12 VM with `cloud-init.yaml` applied
+([`rehearsal/`](rehearsal/README.md)). Treat the first real provisioning as the
+test of the rest, per §9's own note that no production VM has yet been
+provisioned from this contract.
 
 ## Exit codes
 

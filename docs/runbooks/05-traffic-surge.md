@@ -99,7 +99,7 @@ Work in the §7 order and do not skip ahead.
   major-fire event, or under an error-budget freeze, except incident hotfixes).
   The deploy gate (`infra/deploy-gate/`) already demands the attested boxes
   `FREEZE-DEGRADATION`, `FREEZE-MAJOR-FIRE` and `FREEZE-ERROR-BUDGET` all year, with a
-  hotfix exemption. `NOT YET BUILT (J4)`: the deploy step itself is a stub.
+  hotfix exemption. `NOT YET BUILT (B9)`: the deploy is built (R5-SRE-5) but no host exists.
 - **M6 — Resize only as the last lever** (U-2): only if the host is CPU-bound *after*
   demotion and the cache ratio is ≥ 95%. Resize one step (CX22 → CX32 class) in the
   Hetzner console. That is a 1–2 min reboot, and T2 covers the gap. U-2 says never

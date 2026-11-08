@@ -66,8 +66,8 @@ or the push only.
    ```sh
    psql "$DATABASE_URL" -c "select source, last_attempt_at, last_success_at, last_data_at, consecutive_failures, last_error, outage_frozen from source_status order by source;"
    ```
-4. **Read the last half hour of logs** (`NOT YET BUILT (B9)`: compose service names
-   are not fixed yet, so this reads all services):
+4. **Read the last half hour of logs** (all services; add `worker` after `logs` to
+   narrow to the poller):
    ```sh
    cd /srv/fire-watch && docker compose logs --since 30m | grep -E 'ingest_cycle|r2_mirror|heartbeat_failed|starting|stopping'
    ```
@@ -110,7 +110,7 @@ or the push only.
   `pnpm -F @fire-watch/server ingest` runs one cycle on demand if you want to confirm
   sooner. Do **not** mute: a mute is a code change (`MUTES` in
   `server/src/core/config/freshness-budgets.ts`, at most 24 h, with a reason) plus a
-  deploy, and deploys are `NOT YET BUILT (J4)`.
+  deploy, and there is no host to deploy to yet (`NOT YET BUILT (B9)`).
 - **M4 — The source is permanently lost (a satellite is retired).** Review 14 H1: this
   is fixed with a config change, never a mute. A mute expires after 24 h, and a lost
   source blows its budget forever. Retiring a source is a reviewed code change:
@@ -124,7 +124,7 @@ or the push only.
   Once retired, the source is no longer polled (`liveFirmsSources()`), and the static
   pass predictor stops counting passes from it
   (`core/lifecycle/static-pass-predictor.ts`; replay scenario "Source retired
-  mid-replay"). `NOT YET BUILT (J4)`: the deploy that ships the change. Until then, the
+  mid-replay"). `NOT YET BUILT (B9)`: a host for the deploy that ships the change. Until then, the
   row stays critical and is known noise; record it in `WORKLOG.md`.
 - **M5 — The database is the cause.** If `/readyz` stays non-200 after M1, go to
   [02](02-vm-loss-and-restore.md).

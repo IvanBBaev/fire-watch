@@ -17,6 +17,11 @@ import notoSansRegular from '../../src/edge/og/fonts/noto-sans-regular-subset.bi
 import { BoundedCache } from '../../src/edge/og/bounded-cache.js';
 import type { OgDependencies } from '../../src/edge/og/og-handlers.js';
 import { createResvgRasterizer } from '../../src/edge/og/resvg-rasterizer.js';
+import {
+  admitOrigins,
+  deployAdmittedOrigins,
+  WEB_SECURITY_HEADERS,
+} from '../../src/edge/security-headers.js';
 
 /** The bindings and variables a Pages project gives these functions. */
 export interface OgEnv {
@@ -27,6 +32,12 @@ export interface OgEnv {
    * Defaults to the same path the client polls (`DEFAULT_CONFIG.snapshotUrl`).
    */
   readonly FW_SNAPSHOT_URL?: string;
+  /**
+   * The T2 mirror's URL, the same value the build read as `FIRE_WATCH_STATIC_SNAPSHOT_URL`;
+   * its origin is admitted to the shell's policy so it matches the built `_headers`
+   * (R5-SRE-5; OPERATIONS §9.3 rule 7). Unset: the policy as shipped.
+   */
+  readonly FW_STATIC_SNAPSHOT_URL?: string;
 }
 
 /** The slice of Pages' `EventContext` the og routes read. */
@@ -65,6 +76,10 @@ export function ogDependencies(context: OgContext): OgDependencies {
     now: () => Date.now(),
     cache,
     rendererRevision: RENDERER_REVISION,
+    securityHeaders: admitOrigins(
+      WEB_SECURITY_HEADERS,
+      deployAdmittedOrigins(env.FW_STATIC_SNAPSHOT_URL),
+    ),
   };
 }
 

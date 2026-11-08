@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, rmSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
@@ -12,6 +12,7 @@ import {
 } from '../infra/tiles/dev-serve.ts';
 
 import { deployDataProblem, readDataSource } from './src/core/data-source.ts';
+import { admitOriginsInHeadersFile, deployAdmittedOrigins } from './src/edge/security-headers.ts';
 
 /**
  * TASKS G3: `FIRE_WATCH_LOCAL_TILES_DIR=./tiles pnpm dev` (or `dev:live`, or `vite
@@ -90,6 +91,33 @@ function fixturesOutOfProduction(deployEnv: string | undefined): Plugin {
     },
     closeBundle() {
       if (fixturesDir !== null) rmSync(fixturesDir, { recursive: true, force: true });
+    },
+  };
+}
+
+/**
+ * OPERATIONS §9.3 rule 7 (R5-SRE-5): when the deploy names a T2 mirror
+ * (`FIRE_WATCH_STATIC_SNAPSHOT_URL`, the same value the API hands clients), its origin is
+ * admitted to the policy in the built `dist/_headers`, so the browser can fetch the
+ * fallback while the origin is down. The event-shell Function reads the same variable and
+ * admits the same origin (`functions/_shared/og-runtime.ts`). A malformed URL fails the
+ * build. Unset — every non-deploy build — the file ships as written.
+ */
+function deployAdmittedHeaders(staticSnapshotUrl: string | undefined): Plugin {
+  const origins = deployAdmittedOrigins(staticSnapshotUrl);
+  let headersFile: string | null = null;
+  return {
+    name: 'fire-watch:deploy-admitted-headers',
+    apply: 'build',
+    configResolved(config) {
+      if (origins.length > 0) headersFile = resolve(config.root, config.build.outDir, '_headers');
+    },
+    closeBundle() {
+      if (headersFile === null) return;
+      writeFileSync(
+        headersFile,
+        admitOriginsInHeadersFile(readFileSync(headersFile, 'utf8'), origins),
+      );
     },
   };
 }
@@ -219,6 +247,7 @@ function maplibreSharedModule(): Plugin {
 export default defineConfig({
   plugins: [
     fixturesOutOfProduction(process.env['FIRE_WATCH_DEPLOY_ENV']),
+    deployAdmittedHeaders(process.env['FIRE_WATCH_STATIC_SNAPSHOT_URL']),
     maplibreSharedModule(),
     ...localTiles(
       process.env['FIRE_WATCH_LOCAL_TILES_DIR'],

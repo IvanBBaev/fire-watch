@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import bg from '../../core/i18n/bg.js';
 import en from '../../core/i18n/en.js';
-import { WEB_SECURITY_HEADERS } from '../security-headers.js';
+import { admitOrigins, WEB_SECURITY_HEADERS } from '../security-headers.js';
 import { BoundedCache } from './bounded-cache.js';
 import { OG_BEGIN, OG_END } from './inject-meta.js';
 import {
@@ -171,6 +171,24 @@ describe('GET /event/:id (shell)', () => {
     expect(response.headers.get('content-type')).toBe('text/plain');
     expect(await response.text()).toBe('upstream');
     expectSecurityHeaders(response);
+  });
+
+  it('carries the deploy-admitted policy on every shell answer when one is given (R5-SRE-5)', async () => {
+    const securityHeaders = admitOrigins(WEB_SECURITY_HEADERS, ['https://static.example']);
+    const answers = await Promise.all([
+      handleEventShell(get(`/event/${LIVE_ID}`), LIVE_ID, deps({ securityHeaders })),
+      handleEventShell(get('/event/unknown'), 'unknown', deps({ securityHeaders })),
+      handleEventShell(
+        get(`/event/${LIVE_ID}`),
+        LIVE_ID,
+        deps({ securityHeaders, loadSnapshot: () => Promise.reject(new Error('down')) }),
+      ),
+    ]);
+    for (const response of answers) {
+      expect(response.headers.get('content-security-policy')).toBe(
+        securityHeaders['content-security-policy'],
+      );
+    }
   });
 });
 

@@ -12,6 +12,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../core/config.js';
 import {
   admitOrigins,
+  admitOriginsInHeadersFile,
+  deployAdmittedOrigins,
   parseHeadersFile,
   WEB_CONTENT_SECURITY_POLICY,
   WEB_SECURITY_HEADERS,
@@ -92,6 +94,42 @@ describe('admitOrigins', () => {
     const { 'content-security-policy': _base, ...baseRest } = WEB_SECURITY_HEADERS;
     expect(rest).toEqual(baseRest);
     expect(admitOrigins(WEB_SECURITY_HEADERS, [])).toBe(WEB_SECURITY_HEADERS);
+  });
+});
+
+describe('deployAdmittedOrigins (R5-SRE-5)', () => {
+  it('admits nothing when the T2 mirror is not configured', () => {
+    expect(deployAdmittedOrigins(undefined)).toEqual([]);
+    expect(deployAdmittedOrigins('  ')).toEqual([]);
+  });
+
+  it('admits the origin of the mirror URL, not its path', () => {
+    expect(deployAdmittedOrigins(' https://static.example:8443/fw/snapshot.json ')).toEqual([
+      'https://static.example:8443',
+    ]);
+  });
+
+  it('refuses a relative or non-https URL rather than ship a policy that blocks the failover', () => {
+    expect(() => deployAdmittedOrigins('/snapshot.json')).toThrow(/not an absolute URL/);
+    expect(() => deployAdmittedOrigins('http://static.example/snapshot.json')).toThrow(
+      /must be https/,
+    );
+  });
+});
+
+describe('admitOriginsInHeadersFile (R5-SRE-5)', () => {
+  it('admits the origins in the shipped file exactly as admitOrigins does, nothing else changed', () => {
+    const origin = 'https://static.example';
+    const rewritten = admitOriginsInHeadersFile(HEADERS_FILE, [origin]);
+    const [rule] = parseHeadersFile(rewritten);
+    expect(rule?.headers).toEqual(admitOrigins(WEB_SECURITY_HEADERS, [origin]));
+    const changed = rewritten.split('\n').filter((line, i) => line !== HEADERS_FILE.split('\n')[i]);
+    expect(changed).toHaveLength(1);
+    expect(changed[0]).toMatch(/^\s+Content-Security-Policy: /iu);
+  });
+
+  it('returns the file untouched when there is nothing to admit', () => {
+    expect(admitOriginsInHeadersFile(HEADERS_FILE, [])).toBe(HEADERS_FILE);
   });
 });
 
